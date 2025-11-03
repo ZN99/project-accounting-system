@@ -1,0 +1,267 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+
+{% block title %}レポート生成{% endblock %}
+
+{% block extra_css %}
+<style>
+    .generate-card {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+
+    .report-type-option {
+        padding: 1.5rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .report-type-option:hover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+
+    .report-type-option.selected {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+
+    .report-type-option input[type="radio"] {
+        display: none;
+    }
+
+    .report-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .parameter-section {
+        display: none;
+        padding: 1.5rem;
+        background: #f8fafc;
+        border-radius: 12px;
+        margin-top: 1rem;
+    }
+
+    .parameter-section.active {
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-file-plus me-2"></i>レポート生成</h2>
+        <a href="{% url 'order_management:report_dashboard' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>ダッシュボードに戻る
+        </a>
+    </div>
+
+    <form method="post" id="reportForm">
+        {% csrf_token %}
+
+        <!-- レポートタイプ選択 -->
+        <div class="generate-card">
+            <h5 class="mb-3">レポートタイプを選択</h5>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <label class="report-type-option" data-type="monthly">
+                        <input type="radio" name="report_type" value="monthly" required>
+                        <div class="report-icon text-primary">
+                            <i class="fas fa-calendar-alt"></i>
+                        </div>
+                        <strong>月次経営レポート</strong>
+                        <p class="small text-muted mb-0">売上・利益サマリー、進捗状況、キャッシュフロー</p>
+                    </label>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="report-type-option" data-type="project">
+                        <input type="radio" name="report_type" value="project" required>
+                        <div class="report-icon text-success">
+                            <i class="fas fa-project-diagram"></i>
+                        </div>
+                        <strong>プロジェクト別レポート</strong>
+                        <p class="small text-muted mb-0">プロジェクト詳細、原価・利益分析、進捗</p>
+                    </label>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="report-type-option" data-type="cashflow">
+                        <input type="radio" name="report_type" value="cashflow" required>
+                        <div class="report-icon text-warning">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <strong>キャッシュフローレポート</strong>
+                        <p class="small text-muted mb-0">入出金予定、売掛金・買掛金、資金繰り表</p>
+                    </label>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="report-type-option" data-type="forecast">
+                        <input type="radio" name="report_type" value="forecast" required>
+                        <div class="report-icon text-purple">
+                            <i class="fas fa-crystal-ball"></i>
+                        </div>
+                        <strong>予測レポート</strong>
+                        <p class="small text-muted mb-0">シナリオ別予測、月別データ、前提条件</p>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 月次経営レポートのパラメータ -->
+        <div id="params-monthly" class="parameter-section generate-card">
+            <h5 class="mb-3">対象期間を選択</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <label class="form-label">年</label>
+                    <input type="number" name="year" class="form-control" value="{{ current_year }}" min="2020" max="2030">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">月</label>
+                    <select name="month" class="form-select">
+                        {% for m in "123456789012"|make_list %}
+                            {% with month_num=forloop.counter %}
+                            <option value="{{ month_num }}" {% if month_num == current_month %}selected{% endif %}>{{ month_num }}月</option>
+                            {% endwith %}
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- プロジェクト別レポートのパラメータ -->
+        <div id="params-project" class="parameter-section generate-card">
+            <h5 class="mb-3">プロジェクトを選択</h5>
+            <select name="project_id" class="form-select">
+                <option value="">-- プロジェクトを選択 --</option>
+                {% for project in projects %}
+                <option value="{{ project.id }}">
+                    {{ project.management_no }} - {{ project.site_name }} ({{ project.project_status }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- キャッシュフローレポートのパラメータ -->
+        <div id="params-cashflow" class="parameter-section generate-card">
+            <h5 class="mb-3">対象期間を選択</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <label class="form-label">年</label>
+                    <input type="number" name="year" class="form-control" value="{{ current_year }}" min="2020" max="2030">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">月</label>
+                    <select name="month" class="form-select">
+                        {% for m in "123456789012"|make_list %}
+                            {% with month_num=forloop.counter %}
+                            <option value="{{ month_num }}" {% if month_num == current_month %}selected{% endif %}>{{ month_num }}月</option>
+                            {% endwith %}
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- 予測レポートのパラメータ -->
+        <div id="params-forecast" class="parameter-section generate-card">
+            <h5 class="mb-3">予測シナリオを選択</h5>
+            <select name="scenario_id" class="form-select">
+                <option value="">-- シナリオを選択 --</option>
+                {% for scenario in scenarios %}
+                <option value="{{ scenario.id }}">
+                    {{ scenario.name }} ({{ scenario.get_scenario_type_display }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- オプション -->
+        <div class="generate-card">
+            <h5 class="mb-3">オプション</h5>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="include_pdf" name="include_pdf" checked>
+                <label class="form-check-label" for="include_pdf">
+                    PDFファイルも生成する
+                </label>
+            </div>
+        </div>
+
+        <!-- 生成ボタン -->
+        <div class="text-center">
+            <button type="submit" class="btn btn-primary btn-lg px-5">
+                <i class="fas fa-cog me-2"></i>レポートを生成
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('reportForm');
+        const reportTypeOptions = document.querySelectorAll('.report-type-option');
+
+        reportTypeOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                // ラジオボタンをチェック
+                const radio = this.querySelector('input[type="radio"]');
+                radio.checked = true;
+
+                // 選択状態を更新
+                reportTypeOptions.forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+
+                // パラメータセクションを表示
+                const reportType = this.dataset.type;
+                document.querySelectorAll('.parameter-section').forEach(section => {
+                    section.classList.remove('active');
+                });
+                document.getElementById(`params-${reportType}`).classList.add('active');
+            });
+        });
+
+        // フォーム送信時のバリデーション
+        form.addEventListener('submit', function(e) {
+            const reportType = document.querySelector('input[name="report_type"]:checked');
+
+            if (!reportType) {
+                e.preventDefault();
+                alert('レポートタイプを選択してください');
+                return;
+            }
+
+            // プロジェクト選択チェック
+            if (reportType.value === 'project') {
+                const projectId = document.querySelector('select[name="project_id"]').value;
+                if (!projectId) {
+                    e.preventDefault();
+                    alert('プロジェクトを選択してください');
+                    return;
+                }
+            }
+
+            // シナリオ選択チェック
+            if (reportType.value === 'forecast') {
+                const scenarioId = document.querySelector('select[name="scenario_id"]').value;
+                if (!scenarioId) {
+                    e.preventDefault();
+                    alert('シナリオを選択してください');
+                    return;
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

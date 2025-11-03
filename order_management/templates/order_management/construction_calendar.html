@@ -1,0 +1,260 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}施工カレンダー{% endblock %}
+
+{% block extra_css %}
+<!-- FullCalendar CSS -->
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
+<style>
+    .calendar-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .fc {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .fc-toolbar-title {
+        font-size: 1.75rem !important;
+        font-weight: 600;
+    }
+
+    .fc-event {
+        cursor: pointer;
+        border-radius: 4px;
+        padding: 2px 4px;
+    }
+
+    .legend {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 1.5rem;
+        padding: 1rem;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .legend-color {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+    }
+
+    .month-nav {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .event-modal .modal-body {
+        padding: 2rem;
+    }
+
+    .event-detail-label {
+        font-weight: 600;
+        color: #6c757d;
+        min-width: 100px;
+        display: inline-block;
+    }
+
+    .event-detail-row {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .event-detail-row:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- ヘッダー -->
+    <div class="calendar-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-2">
+                    <i class="fas fa-calendar-alt me-2"></i>施工カレンダー
+                </h2>
+                <p class="mb-0 opacity-75">工事予定を月間カレンダーで表示</p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <div class="month-nav">
+                    <a href="?year={{ prev_year }}&month={{ prev_month }}" class="btn btn-light">
+                        <i class="fas fa-chevron-left"></i> 前月
+                    </a>
+                    <a href="{% url 'order_management:construction_calendar' %}" class="btn btn-light">
+                        今月
+                    </a>
+                    <a href="?year={{ next_year }}&month={{ next_month }}" class="btn btn-light">
+                        次月 <i class="fas fa-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- カレンダー表示 -->
+    <div class="row">
+        <div class="col-12">
+            <div id="calendar"></div>
+        </div>
+    </div>
+
+    <!-- 凡例 -->
+    <div class="legend">
+        <strong>ステータス凡例:</strong>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #6c757d;"></div>
+            <span>ネタ</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #ffc107;"></div>
+            <span>施工日待ち</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #28a745;"></div>
+            <span>進行中</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #007bff;"></div>
+            <span>完工</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #dc3545;"></div>
+            <span>NG</span>
+        </div>
+    </div>
+</div>
+
+<!-- イベント詳細モーダル -->
+<div class="modal fade event-modal" id="eventModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eventModalTitle">案件詳細</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="eventModalBody">
+                <!-- 案件詳細がここに表示されます -->
+            </div>
+            <div class="modal-footer">
+                <a href="#" id="eventDetailLink" class="btn btn-primary" target="_blank">
+                    <i class="fas fa-external-link-alt me-2"></i>案件詳細を開く
+                </a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- FullCalendar JS -->
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const calendarEl = document.getElementById('calendar');
+    const currentYear = {{ year }};
+    const currentMonth = {{ month }};
+
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        initialDate: new Date(currentYear, currentMonth - 1, 1),
+        locale: 'ja',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,listMonth'
+        },
+        buttonText: {
+            today: '今日',
+            month: '月',
+            week: '週',
+            list: 'リスト'
+        },
+        height: 'auto',
+        events: function(info, successCallback, failureCallback) {
+            // APIからイベントデータを取得
+            fetch(`{% url 'order_management:calendar_events_api' %}?year=${currentYear}&month=${currentMonth}`)
+                .then(response => response.json())
+                .then(data => {
+                    successCallback(data.events);
+                })
+                .catch(error => {
+                    console.error('Error loading events:', error);
+                    failureCallback(error);
+                });
+        },
+        eventClick: function(info) {
+            // イベントクリック時の詳細表示
+            const event = info.event;
+            const props = event.extendedProps;
+
+            const modalBody = document.getElementById('eventModalBody');
+            modalBody.innerHTML = `
+                <div class="event-detail-row">
+                    <span class="event-detail-label">現場名:</span>
+                    <strong>${event.title}</strong>
+                </div>
+                <div class="event-detail-row">
+                    <span class="event-detail-label">ステータス:</span>
+                    <span class="badge" style="background-color: ${event.backgroundColor};">${props.status}</span>
+                </div>
+                <div class="event-detail-row">
+                    <span class="event-detail-label">元請名:</span>
+                    ${props.client}
+                </div>
+                <div class="event-detail-row">
+                    <span class="event-detail-label">案件担当:</span>
+                    ${props.manager}
+                </div>
+                <div class="event-detail-row">
+                    <span class="event-detail-label">受注金額:</span>
+                    <strong>¥${props.amount.toLocaleString()}</strong>
+                </div>
+                <div class="event-detail-row">
+                    <span class="event-detail-label">期間:</span>
+                    ${event.start ? event.start.toLocaleDateString('ja-JP') : ''}
+                    ${event.end ? '〜 ' + new Date(event.end.getTime() - 86400000).toLocaleDateString('ja-JP') : ''}
+                </div>
+            `;
+
+            // 詳細リンクの設定
+            document.getElementById('eventDetailLink').href = `/orders/${event.id}/`;
+
+            // モーダルを表示
+            const modal = new bootstrap.Modal(document.getElementById('eventModal'));
+            modal.show();
+        },
+        eventDidMount: function(info) {
+            // ツールチップの追加
+            info.el.setAttribute('title', `${info.event.title}\n${info.event.extendedProps.client}`);
+        }
+    });
+
+    calendar.render();
+});
+</script>
+{% endblock %}

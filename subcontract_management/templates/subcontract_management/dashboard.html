@@ -1,0 +1,253 @@
+{% extends "order_management/base.html" %}
+{% load humanize %}
+
+{% block title %}発注管理ダッシュボード - 建築派遣管理システム{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        transition: transform 0.2s;
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-handshake"></i> 発注管理ダッシュボード</h2>
+        <p class="text-muted">発注先管理・支払い状況・利益分析</p>
+    </div>
+    <div class="col text-end">
+        <a href="{% url 'subcontract_management:contractor_list' %}" class="btn btn-primary">
+            <i class="fas fa-users"></i> 発注先管理
+        </a>
+        <a href="{% url 'subcontract_management:export_csv' %}" class="btn btn-success">
+            <i class="fas fa-download"></i> CSVエクスポート
+        </a>
+    </div>
+</div>
+
+<!-- 統計サマリーカード -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ total_subcontracts }}</h4>
+                        <p class="mb-0">総発注件数</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-handshake fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ total_contractors }}</h4>
+                        <p class="mb-0">登録外注先数</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ pending_payments }}</h4>
+                        <p class="mb-0">未払い件数</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ avg_profit_rate|floatformat:1 }}%</h4>
+                        <p class="mb-0">平均利益率</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-chart-line fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- 支払い状況 -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-credit-card"></i> 支払い状況</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="text-warning">¥{{ pending_amount|floatformat:0|intcomma }}</h4>
+                        <p class="mb-0">未払い金額</p>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-success">¥{{ paid_amount|floatformat:0|intcomma }}</h4>
+                        <p class="mb-0">支払済み金額</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 最近の外注 -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-clock"></i> 最近の外注</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_subcontracts %}
+                    {% for subcontract in recent_subcontracts %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 border-bottom">
+                        <div>
+                            <strong>{{ subcontract.contractor.name }}</strong>
+                            <br><small class="text-muted">{{ subcontract.management_no }}</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-{{ subcontract.get_payment_status_color }}">
+                                {{ subcontract.get_payment_status_display }}
+                            </span>
+                            <br><small>¥{{ subcontract.billed_amount|floatformat:0|intcomma }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center">外注データがありません</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- 支払い予定 -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-calendar-alt"></i> 近日支払い予定</h5>
+            </div>
+            <div class="card-body">
+                {% if upcoming_payments %}
+                    {% for payment in upcoming_payments %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 border-start border-4 border-warning">
+                        <div>
+                            <strong>{{ payment.contractor.name }}</strong>
+                            <br><small class="text-muted">{{ payment.management_no }}</small>
+                        </div>
+                        <div class="text-end">
+                            <div class="badge bg-warning text-dark">{{ payment.payment_due_date|date:"m/d" }}支払予定</div>
+                            <br><small>¥{{ payment.billed_amount|floatformat:0|intcomma }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center">7日以内の支払予定はありません</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 利益率トップ案件 -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-trophy"></i> 利益率トップ案件</h5>
+            </div>
+            <div class="card-body">
+                {% if top_profit_projects %}
+                    {% for analysis in top_profit_projects %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 border-start border-4 border-success">
+                        <div>
+                            <strong>{{ analysis.project.site_name|truncatechars:20 }}</strong>
+                            <br><small class="text-muted">{{ analysis.project.management_no }}</small>
+                        </div>
+                        <div class="text-end">
+                            <div class="badge bg-{{ analysis.get_profit_rate_color }}">{{ analysis.profit_rate|floatformat:1 }}%</div>
+                            <br><small>¥{{ analysis.gross_profit|floatformat:0|intcomma }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center">利益分析データがありません</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- クイックアクション -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bolt"></i> クイックアクション</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'subcontract_management:contractor_list' %}" class="btn btn-outline-primary w-100">
+                            <i class="fas fa-users"></i><br>外注先管理
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'subcontract_management:payment_tracking' %}" class="btn btn-outline-warning w-100">
+                            <i class="fas fa-credit-card"></i><br>支払い追跡
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'subcontract_management:profit_analysis_list' %}" class="btn btn-outline-success w-100">
+                            <i class="fas fa-chart-bar"></i><br>利益分析
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'subcontract_management:export_csv' %}" class="btn btn-outline-info w-100">
+                            <i class="fas fa-download"></i><br>データ出力
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// 必要に応じてチャートを追加
+</script>
+{% endblock %}

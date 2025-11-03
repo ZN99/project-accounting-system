@@ -1,0 +1,1339 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}経理ダッシュボード - {{ month_name }} {{ year }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .accounting-dashboard {
+        background: #f8f9fa;
+        min-height: 100vh;
+        padding: 0;
+        margin: 0;
+    }
+
+    .header-section {
+        background: linear-gradient(135deg, #6f42c1 0%, #5a67d8 100%);
+        color: white;
+        padding: 1.5rem 0;
+        margin-bottom: 0;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        max-width: 100%;
+    }
+
+    .header-title h1 {
+        font-size: 2rem;
+        font-weight: 300;
+        margin: 0;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .header-title p {
+        font-size: 1rem;
+        opacity: 0.9;
+        margin: 0.3rem 0 0 0;
+    }
+
+    .header-amount {
+        text-align: right;
+    }
+
+    .total-amount {
+        font-size: 2.2rem;
+        font-weight: 700;
+        margin: 0;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .amount-label {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+
+    .controls-section {
+        background: white;
+        padding: 1rem 0;
+        border-bottom: 1px solid #e9ecef;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .filter-controls {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .filter-controls select {
+        border: 2px solid #e9ecef;
+        border-radius: 6px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        min-width: 120px;
+    }
+
+    .filter-controls select:focus {
+        border-color: #6f42c1;
+        box-shadow: 0 0 0 0.2rem rgba(111,66,193,0.25);
+    }
+
+    .view-toggle {
+        display: flex;
+        background: #f8f9fa;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 2px solid #e9ecef;
+    }
+
+    .view-toggle button {
+        border: none;
+        background: transparent;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s ease;
+        font-weight: 600;
+    }
+
+    .view-toggle button.active {
+        background: #6f42c1;
+        color: white;
+    }
+
+    .stats-section {
+        background: white;
+        padding: 1.5rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .stat-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        padding: 1.2rem;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        height: 100px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+
+    .stat-value {
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin-bottom: 0.3rem;
+        font-family: 'SF Mono', 'Monaco', monospace;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+
+    .stat-receipt .stat-value { color: #28a745; }
+    .stat-payment .stat-value { color: #dc3545; }
+    .stat-net .stat-value { color: #17a2b8; }
+    .stat-projected .stat-value { color: #6f42c1; }
+
+    .content-section {
+        background: white;
+        margin: 0;
+        padding: 1.5rem 0;
+    }
+
+    /* 通帳スタイル */
+    .ledger-wrapper {
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        margin: 0;
+    }
+
+    .ledger-header {
+        background: linear-gradient(135deg, #6f42c1 0%, #5a67d8 100%);
+        color: white;
+        padding: 1rem;
+        text-align: center;
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+
+    .ledger-table {
+        margin: 0;
+        font-size: 0.85rem;
+        width: 100%;
+    }
+
+    .ledger-table th {
+        background: #f8f9fa;
+        color: #495057;
+        font-weight: 600;
+        padding: 0.8rem 0.5rem;
+        border: none;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+
+    .ledger-table td {
+        padding: 0.7rem 0.5rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 0.85rem;
+    }
+
+    .transaction-row {
+        transition: background-color 0.2s ease;
+    }
+
+    .transaction-row:hover {
+        background-color: #f8f9fa;
+    }
+
+    .transaction-receipt {
+        border-left: 4px solid #28a745;
+    }
+
+    .transaction-payment {
+        border-left: 4px solid #dc3545;
+    }
+
+    .amount-receipt {
+        color: #28a745;
+        font-weight: 700;
+    }
+
+    .amount-payment {
+        color: #dc3545;
+        font-weight: 700;
+    }
+
+    .amount-cell {
+        text-align: right;
+        font-family: 'SF Mono', 'Monaco', monospace;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .date-cell {
+        font-family: 'SF Mono', 'Monaco', monospace;
+        color: #6c757d;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+
+    .balance-cell {
+        text-align: right;
+        font-family: 'SF Mono', 'Monaco', monospace;
+        font-weight: 700;
+        font-size: 0.9rem;
+        background: #f8f9fa;
+    }
+
+    .balance-positive {
+        color: #28a745;
+    }
+
+    .balance-negative {
+        color: #dc3545;
+    }
+
+    .transaction-status {
+        padding: 0.2rem 0.5rem;
+        border-radius: 10px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .status-completed {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-pending {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .status-paid {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .summary-section {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .summary-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .summary-card h3 {
+        margin-bottom: 1rem;
+        color: #495057;
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 0.5rem;
+    }
+
+    .summary-receipt h3 {
+        border-color: #28a745;
+        color: #28a745;
+    }
+
+    .summary-payment h3 {
+        border-color: #dc3545;
+        color: #dc3545;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #6f42c1 0%, #5a67d8 100%);
+        border: none;
+        border-radius: 6px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(111,66,193,0.3);
+    }
+
+    /* レスポンシブ対応 */
+    @media (max-width: 992px) {
+        .header-content {
+            flex-direction: column;
+            text-align: center;
+            gap: 1rem;
+        }
+
+        .filter-controls {
+            justify-content: center;
+        }
+
+        .summary-section {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        .ledger-table {
+            font-size: 0.75rem;
+        }
+
+        .ledger-table th, .ledger-table td {
+            padding: 0.4rem 0.2rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .stat-card {
+            margin-bottom: 0.5rem;
+            height: 80px;
+            padding: 0.8rem;
+        }
+
+        .stat-value {
+            font-size: 1rem;
+        }
+
+        .ledger-table {
+            font-size: 0.7rem;
+        }
+    }
+
+    /* 年間業績セクション - Refined Clean Design */
+    .annual-performance-section {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
+        padding: 3rem 0;
+        position: relative;
+        overflow: hidden;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .annual-performance-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><polygon fill="rgba(71,85,105,0.03)" points="0,0 1000,200 1000,1000 0,800"/></svg>');
+        pointer-events: none;
+    }
+
+    .date-info-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem 2rem;
+        display: flex;
+        justify-content: center;
+        gap: 3rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.1);
+        border: 1px solid #e2e8f0;
+        position: relative;
+    }
+
+    .date-info-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #3b82f6, #6366f1, #8b5cf6);
+    }
+
+    @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+
+    .date-info-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+    }
+
+    .date-label {
+        font-size: 0.9rem;
+        color: #64748b;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .date-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .performance-summary-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        height: 100%;
+        position: relative;
+        transition: all 0.3s ease;
+    }
+
+    .performance-summary-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(71,85,105,0.12);
+    }
+
+    .performance-summary-card.current-month::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: #10b981;
+    }
+
+    .performance-summary-card.ytd::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: #3b82f6;
+    }
+
+    .performance-summary-card h4 {
+        margin: 0 0 1.5rem 0;
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #1a202c;
+        text-align: center;
+        position: relative;
+    }
+
+    .performance-summary-card.current-month h4 {
+        color: #10b981;
+    }
+
+    .performance-summary-card.ytd h4 {
+        color: #3b82f6;
+    }
+
+    .performance-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .performance-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        background: rgba(248, 250, 252, 0.8);
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        border-left: 4px solid transparent;
+    }
+
+    .performance-item:hover {
+        background: rgba(248, 250, 252, 1);
+        transform: translateX(3px);
+        border-left-color: #3b82f6;
+    }
+
+    .performance-item.margin-item {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(99, 102, 241, 0.05));
+        border: 2px solid rgba(59, 130, 246, 0.15);
+        margin-top: 0.5rem;
+    }
+
+    .perf-label {
+        font-size: 0.9rem;
+        color: #4a5568;
+        font-weight: 500;
+    }
+
+    .perf-value {
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: #1a202c;
+        font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Droid Sans Mono', 'Source Code Pro', monospace;
+        padding: 0.25rem 0.75rem;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 8px;
+        border: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .perf-value.negative {
+        color: #e53e3e;
+        background: rgba(254, 178, 178, 0.5);
+        border-color: rgba(254, 178, 178, 0.8);
+    }
+
+    .income-statement-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+        margin-top: 2rem;
+        position: relative;
+    }
+
+    .income-statement-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #3b82f6, #6366f1, #8b5cf6);
+    }
+
+    .income-statement-header {
+        background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+        color: white;
+        padding: 1.25rem 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+    }
+
+    .income-statement-header::before {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    }
+
+    .income-statement-header h4 {
+        margin: 0;
+        font-size: 1.4rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .fiscal-year-label {
+        font-size: 1rem;
+        opacity: 0.9;
+        font-weight: 500;
+    }
+
+    .next-year-label {
+        font-size: 1rem;
+        opacity: 0.9;
+        margin-left: 1rem;
+        font-weight: 500;
+    }
+
+    .income-statement-table {
+        width: 100%;
+        margin: 0;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+        background: white;
+    }
+
+    .income-statement-table th,
+    .income-statement-table td {
+        padding: 0.75rem 0.5rem;
+        text-align: center;
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        vertical-align: middle;
+        transition: all 0.2s ease;
+    }
+
+    .income-statement-table tbody tr:hover td {
+        background-color: rgba(99, 102, 241, 0.05) !important;
+        transform: scale(1.02);
+    }
+
+    .income-statement-table th {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        font-weight: 700;
+        font-size: 0.8rem;
+        color: #334155;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .item-header {
+        background: linear-gradient(135deg, #334155 0%, #475569 100%) !important;
+        color: white !important;
+        font-weight: 700;
+        text-align: left !important;
+        padding-left: 1.5rem !important;
+        width: 140px;
+        font-size: 0.9rem !important;
+    }
+
+    .month-header {
+        background: linear-gradient(135deg, #334155 0%, #475569 100%) !important;
+        color: white !important;
+        font-weight: 700;
+        width: 80px;
+    }
+
+    .month-col {
+        width: 90px;
+        min-width: 90px;
+        background: linear-gradient(135deg, #374151 0%, #4b5563 100%) !important;
+        color: white !important;
+        font-weight: 600;
+    }
+
+    .item-label {
+        text-align: left !important;
+        padding-left: 1.5rem !important;
+        font-weight: 700;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        color: #1e293b;
+        border-left: 4px solid #3b82f6;
+    }
+
+    .item-sublabel {
+        text-align: left !important;
+        padding-left: 2.5rem !important;
+        font-size: 0.8rem;
+        color: #64748b;
+        background: rgba(248, 250, 252, 0.8);
+        font-style: italic;
+    }
+
+    .month-label {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        font-size: 0.75rem;
+        color: #64748b;
+        font-weight: 600;
+    }
+
+    .amount-cell {
+        font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Droid Sans Mono', 'Source Code Pro', monospace;
+        font-size: 0.8rem;
+        text-align: right !important;
+        padding-right: 1rem !important;
+        font-weight: 600;
+        background: rgba(255, 255, 255, 0.9);
+    }
+
+    .amount-cell.negative {
+        color: #ef4444;
+        font-weight: 700;
+        background: linear-gradient(135deg, rgba(254, 226, 226, 0.8), rgba(252, 165, 165, 0.4));
+    }
+
+    .fixed-cost-cell {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05)) !important;
+        color: #991b1b;
+        font-weight: 600;
+    }
+
+    .revenue-row td {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(22, 163, 74, 0.05)) !important;
+        color: #14532d;
+        font-weight: 600;
+    }
+
+    .cost-section-header td {
+        background: linear-gradient(135deg, rgba(249, 115, 22, 0.1), rgba(234, 88, 12, 0.05)) !important;
+        color: #9a3412;
+        font-weight: 600;
+    }
+
+    .cost-detail td {
+        background: linear-gradient(135deg, rgba(249, 115, 22, 0.05), rgba(234, 88, 12, 0.02)) !important;
+        color: #a16207;
+    }
+
+    .gross-profit-row td {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05)) !important;
+        color: #1e3a8a;
+        font-weight: 600;
+    }
+
+    .expense-row td {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05)) !important;
+        color: #991b1b;
+        font-weight: 600;
+    }
+
+    .operating-profit-row td {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(22, 163, 74, 0.1)) !important;
+        color: #14532d;
+        font-weight: 700;
+        font-size: 0.9rem;
+        border: 2px solid rgba(34, 197, 94, 0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="accounting-dashboard">
+    <!-- ヘッダーセクション -->
+    <div class="header-section">
+        <div class="container-fluid">
+            <div class="header-content">
+                <div class="header-title">
+                    <h1><i class="fas fa-calculator"></i> 経理ダッシュボード</h1>
+                    <p>{{ year }}年{{ month }}月 - キャッシュフロー管理</p>
+                </div>
+                <div class="header-amount">
+                    <div class="total-amount">¥{{ stats.net_cashflow|intcomma }}</div>
+                    <div class="amount-label">実質キャッシュフロー</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- コントロールセクション -->
+    <div class="controls-section">
+        <div class="container-fluid">
+            <form method="get" class="filter-controls">
+                <label for="year" class="form-label fw-bold">年:</label>
+                <select name="year" id="year" class="form-select">
+                    <option value="2024" {% if year == 2024 %}selected{% endif %}>2024年</option>
+                    <option value="2025" {% if year == 2025 %}selected{% endif %}>2025年</option>
+                    <option value="2026" {% if year == 2026 %}selected{% endif %}>2026年</option>
+                </select>
+
+                <label for="month" class="form-label fw-bold">月:</label>
+                <select name="month" id="month" class="form-select">
+                    <option value="1" {% if month == 1 %}selected{% endif %}>1月</option>
+                    <option value="2" {% if month == 2 %}selected{% endif %}>2月</option>
+                    <option value="3" {% if month == 3 %}selected{% endif %}>3月</option>
+                    <option value="4" {% if month == 4 %}selected{% endif %}>4月</option>
+                    <option value="5" {% if month == 5 %}selected{% endif %}>5月</option>
+                    <option value="6" {% if month == 6 %}selected{% endif %}>6月</option>
+                    <option value="7" {% if month == 7 %}selected{% endif %}>7月</option>
+                    <option value="8" {% if month == 8 %}selected{% endif %}>8月</option>
+                    <option value="9" {% if month == 9 %}selected{% endif %}>9月</option>
+                    <option value="10" {% if month == 10 %}selected{% endif %}>10月</option>
+                    <option value="11" {% if month == 11 %}selected{% endif %}>11月</option>
+                    <option value="12" {% if month == 12 %}selected{% endif %}>12月</option>
+                </select>
+
+                <div class="view-toggle">
+                    <button type="submit" name="view" value="summary" class="{% if view_type == 'summary' %}active{% endif %}">
+                        <i class="fas fa-chart-pie"></i> サマリー
+                    </button>
+                    <button type="submit" name="view" value="ledger" class="{% if view_type == 'ledger' %}active{% endif %}">
+                        <i class="fas fa-book"></i> 通帳
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 統計セクション -->
+    <div class="stats-section">
+        <div class="container-fluid">
+            <div class="row g-3">
+                <div class="col-lg-2 col-md-4 col-sm-6">
+                    <div class="stat-card stat-receipt">
+                        <div class="stat-value">¥{{ stats.total_receipt|intcomma }}</div>
+                        <div class="stat-label">総入金予定</div>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 col-sm-6">
+                    <div class="stat-card stat-payment">
+                        <div class="stat-value">¥{{ stats.total_payment|intcomma }}</div>
+                        <div class="stat-label">総出金予定</div>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 col-sm-6">
+                    <div class="stat-card stat-receipt">
+                        <div class="stat-value">¥{{ stats.receipt_received|intcomma }}</div>
+                        <div class="stat-label">入金済み</div>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 col-sm-6">
+                    <div class="stat-card stat-payment">
+                        <div class="stat-value">¥{{ stats.payment_paid|intcomma }}</div>
+                        <div class="stat-label">出金済み</div>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 col-sm-6">
+                    <div class="stat-card stat-net">
+                        <div class="stat-value">¥{{ stats.net_cashflow|intcomma }}</div>
+                        <div class="stat-label">実質CF</div>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 col-sm-6">
+                    <div class="stat-card stat-projected">
+                        <div class="stat-value">¥{{ stats.projected_cashflow|intcomma }}</div>
+                        <div class="stat-label">予想CF</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 年間業績セクション -->
+    <div class="annual-performance-section">
+        <div class="container-fluid">
+            <!-- 日付情報 -->
+            <div class="row mb-3">
+                <div class="col-12">
+                    <div class="date-info-card">
+                        <div class="date-info-item">
+                            <span class="date-label">今日</span>
+                            <span class="date-value">{{ annual_performance.current_date|date:"Y/n/j" }}</span>
+                        </div>
+                        <div class="date-info-item">
+                            <span class="date-label">今月度</span>
+                            <span class="date-value">{{ month }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 今月度・年度累計サマリー -->
+            <div class="row mb-4">
+                <!-- 今月度実績 -->
+                <div class="col-lg-6">
+                    <div class="performance-summary-card current-month">
+                        <h4>今月度実績</h4>
+                        <div class="performance-grid">
+                            <div class="performance-item">
+                                <span class="perf-label">今月度売上</span>
+                                <span class="perf-value">¥{{ annual_performance.current_month_data.revenue|intcomma|default:"0" }}</span>
+                            </div>
+                            <div class="performance-item">
+                                <span class="perf-label">今月度原価</span>
+                                <span class="perf-value">¥{{ annual_performance.current_month_data.cost_of_sales|intcomma|default:"0" }}</span>
+                            </div>
+                            <div class="performance-item">
+                                <span class="perf-label">今月度粗利益</span>
+                                <span class="perf-value">¥{{ annual_performance.current_month_data.gross_profit|intcomma|default:"0" }}</span>
+                            </div>
+                            <div class="performance-item">
+                                <span class="perf-label">今月度販管費</span>
+                                <span class="perf-value">¥{{ annual_performance.current_month_data.sales_expense|intcomma|default:"0" }}</span>
+                            </div>
+                            <div class="performance-item">
+                                <span class="perf-label">今月度営業利益</span>
+                                <span class="perf-value {% if annual_performance.current_month_data.operating_profit < 0 %}negative{% endif %}">
+                                    ¥{{ annual_performance.current_month_data.operating_profit|intcomma|default:"0" }}
+                                </span>
+                            </div>
+                            <div class="performance-item margin-item">
+                                <span class="perf-label">月間営業利益率</span>
+                                <span class="perf-value {% if annual_performance.current_month_margin < 0 %}negative{% endif %}">
+                                    {{ annual_performance.current_month_margin|floatformat:2 }}%
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 年度累計実績 -->
+                <div class="col-lg-6">
+                    <div class="performance-summary-card ytd">
+                        <h4>年度累計実績</h4>
+                        <div class="performance-grid">
+                            <div class="performance-item">
+                                <span class="perf-label">年度累計売上</span>
+                                <span class="perf-value">¥{{ annual_performance.ytd_data.revenue|intcomma }}</span>
+                            </div>
+                            <div class="performance-item">
+                                <span class="perf-label">年度累計原価</span>
+                                <span class="perf-value">¥{{ annual_performance.ytd_data.cost_of_sales|intcomma }}</span>
+                            </div>
+                            <div class="performance-item">
+                                <span class="perf-label">年度累計粗利益</span>
+                                <span class="perf-value">¥{{ annual_performance.ytd_data.gross_profit|intcomma }}</span>
+                            </div>
+                            <div class="performance-item">
+                                <span class="perf-label">年度累計販管費</span>
+                                <span class="perf-value">¥{{ annual_performance.ytd_data.sales_expense|intcomma }}</span>
+                            </div>
+                            <div class="performance-item">
+                                <span class="perf-label">年度累計営業利益</span>
+                                <span class="perf-value {% if annual_performance.ytd_data.operating_profit < 0 %}negative{% endif %}">
+                                    ¥{{ annual_performance.ytd_data.operating_profit|intcomma }}
+                                </span>
+                            </div>
+                            <div class="performance-item margin-item">
+                                <span class="perf-label">年間営業利益率</span>
+                                <span class="perf-value {% if annual_performance.ytd_margin < 0 %}negative{% endif %}">
+                                    {{ annual_performance.ytd_margin|floatformat:2 }}%
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 年間損益計算書 -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="income-statement-card">
+                        <div class="income-statement-header">
+                            <h4><i class="fas fa-chart-bar"></i> Income Statement</h4>
+                            <span class="fiscal-year-label">year {{ annual_performance.fiscal_year }}</span>
+                            <span class="next-year-label">{{ annual_performance.fiscal_year|add:1 }}</span>
+                        </div>
+
+                        <!-- チャートセクション -->
+                        <div style="padding: 1.5rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                            <div style="display: flex; gap: 2rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                                <div style="flex: 1; min-width: 300px;">
+                                    <canvas id="monthlyChart" width="400" height="200"></canvas>
+                                </div>
+                                <div style="flex: 1; min-width: 300px;">
+                                    <canvas id="profitChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="income-statement-table">
+                                <thead>
+                                    <tr>
+                                        <th class="item-header">(円)</th>
+                                        <th class="month-header">月次</th>
+                                        {% for key, month_data in annual_performance.monthly_data.items %}
+                                            <th class="month-col">{{ month_data.month }}</th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="revenue-row">
+                                        <td class="item-label">売上高</td>
+                                        <td class="month-label"></td>
+                                        {% for key, month_data in annual_performance.monthly_data.items %}
+                                            <td class="amount-cell">{{ month_data.revenue|intcomma|default:"0" }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                    <tr class="cost-section-header">
+                                        <td class="item-label">売上原価</td>
+                                        <td class="month-label"></td>
+                                        {% for key, month_data in annual_performance.monthly_data.items %}
+                                            <td class="amount-cell">{{ month_data.cost_of_sales|intcomma|default:"0" }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                    <tr class="cost-detail">
+                                        <td class="item-sublabel">職人さん人工</td>
+                                        <td class="month-label"></td>
+                                        {% for key, month_data in annual_performance.monthly_data.items %}
+                                            <td class="amount-cell">{{ month_data.cost_labor|intcomma|default:"0" }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                    <tr class="cost-detail">
+                                        <td class="item-sublabel">資材</td>
+                                        <td class="month-label"></td>
+                                        {% for key, month_data in annual_performance.monthly_data.items %}
+                                            <td class="amount-cell">{{ month_data.cost_materials|intcomma|default:"0" }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                    <tr class="gross-profit-row">
+                                        <td class="item-label">売上総利益（粗利）</td>
+                                        <td class="month-label"></td>
+                                        {% for key, month_data in annual_performance.monthly_data.items %}
+                                            <td class="amount-cell">{{ month_data.gross_profit|intcomma|default:"0" }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                    <tr class="expense-row">
+                                        <td class="item-label">販管費</td>
+                                        <td class="month-label">経費</td>
+                                        {% for key, month_data in annual_performance.monthly_data.items %}
+                                            <td class="amount-cell">{{ month_data.sales_expense|intcomma|default:"0" }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                    <tr class="fixed-cost-section">
+                                        <td class="item-label">固定費</td>
+                                        <td class="month-label"></td>
+                                        {% for key, month_data in annual_performance.monthly_data.items %}
+                                            <td class="amount-cell fixed-cost-cell">{{ month_data.fixed_costs|intcomma|default:"0" }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                    <tr class="operating-profit-row">
+                                        <td class="item-label">営業利益</td>
+                                        <td class="month-label"></td>
+                                        {% for key, month_data in annual_performance.monthly_data.items %}
+                                            <td class="amount-cell {% if month_data.operating_profit < 0 %}negative{% endif %}">
+                                                {% if month_data.operating_profit < 0 %}({{ month_data.operating_profit|floatformat:0|cut:"-"|intcomma }}){% else %}{{ month_data.operating_profit|intcomma|default:"0" }}{% endif %}
+                                            </td>
+                                        {% endfor %}
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- コンテンツセクション -->
+    <div class="content-section">
+        <div class="container-fluid">
+            {% if view_type == 'summary' %}
+                <!-- サマリー表示 -->
+                <div class="summary-section">
+                    <div class="summary-card summary-receipt">
+                        <h3><i class="fas fa-arrow-down"></i> 入金一覧</h3>
+                        <div class="list-group">
+                            {% for project in receipt_projects|slice:":5" %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ project.site_name }}</strong><br>
+                                    <small class="text-muted">{{ project.client_name }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="amount-receipt">¥{{ project.billing_amount|default:project.order_amount|intcomma }}</div>
+                                    <small class="text-muted">{{ project.payment_due_date|date:"m/d"|default:"未設定" }}</small>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="list-group-item text-muted text-center">入金予定なし</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mt-3 text-center">
+                            <a href="{% url 'order_management:receipt_dashboard' %}?year={{ year }}&month={{ month }}" class="btn btn-outline-success btn-sm">
+                                <i class="fas fa-arrow-down"></i> 入金管理へ
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="summary-card summary-payment">
+                        <h3><i class="fas fa-arrow-up"></i> 出金一覧</h3>
+                        <div class="list-group">
+                            {% for subcontract in payment_subcontracts|slice:":5" %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ subcontract.site_name }}</strong><br>
+                                    <small class="text-muted">
+                                        {% if subcontract.contractor %}{{ subcontract.contractor.name }}{% else %}{{ subcontract.internal_worker.name }}{% endif %}
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="amount-payment">¥{{ subcontract.billed_amount|default:subcontract.contract_amount|intcomma }}</div>
+                                    <small class="text-muted">{{ subcontract.payment_date|date:"m/d"|default:"未設定" }}</small>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="list-group-item text-muted text-center">出金予定なし</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mt-3 text-center">
+                            <a href="{% url 'order_management:payment_dashboard' %}?year={{ year }}&month={{ month }}" class="btn btn-outline-danger btn-sm">
+                                <i class="fas fa-arrow-up"></i> 出金管理へ
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+            {% else %}
+                <!-- 通帳表示 -->
+                <div class="ledger-wrapper">
+                    <div class="ledger-header">
+                        <i class="fas fa-book"></i> {{ year }}年{{ month }}月 出入金明細 - 通帳スタイル
+                    </div>
+                    <div class="table-responsive">
+                        <table class="ledger-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 10%">日付</th>
+                                    <th style="width: 25%">摘要</th>
+                                    <th style="width: 15%">取引先</th>
+                                    <th style="width: 10%">入金</th>
+                                    <th style="width: 10%">出金</th>
+                                    <th style="width: 12%">残高</th>
+                                    <th style="width: 8%">状況</th>
+                                    <th style="width: 10%">詳細</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in transactions %}
+                                <tr class="transaction-row transaction-{{ transaction.type }}">
+                                    <td class="date-cell">{{ transaction.date|date:"m/d" }}</td>
+                                    <td>{{ transaction.description }}</td>
+                                    <td class="text-truncate" style="max-width: 120px;" title="{{ transaction.client }}">
+                                        {{ transaction.client }}
+                                    </td>
+                                    <td class="amount-cell">
+                                        {% if transaction.type == 'receipt' %}
+                                            <span class="amount-receipt">¥{{ transaction.amount|intcomma }}</span>
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="amount-cell">
+                                        {% if transaction.type == 'payment' %}
+                                            <span class="amount-payment">¥{{ transaction.amount|intcomma }}</span>
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="balance-cell {% if transaction.balance >= 0 %}balance-positive{% else %}balance-negative{% endif %}">
+                                        ¥{{ transaction.balance|intcomma }}
+                                    </td>
+                                    <td>
+                                        <span class="transaction-status status-{{ transaction.status }}">
+                                            {% if transaction.status == 'completed' %}完了
+                                            {% elif transaction.status == 'pending' %}待ち
+                                            {% elif transaction.status == 'paid' %}済み
+                                            {% else %}{{ transaction.status }}
+                                            {% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'order_management:project_detail' transaction.project.pk %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-5">
+                                        {{ year }}年{{ month }}月の取引はありません。
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // チャートの初期化
+    initializeCharts();
+
+    // フォーム要素の自動送信
+    const yearSelect = document.getElementById('year');
+    const monthSelect = document.getElementById('month');
+
+    function submitForm() {
+        const submitBtn = document.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            submitBtn.disabled = true;
+
+            setTimeout(() => {
+                submitBtn.form.submit();
+            }, 100);
+        }
+    }
+
+    if (yearSelect) yearSelect.addEventListener('change', submitForm);
+    if (monthSelect) monthSelect.addEventListener('change', submitForm);
+
+    // 統計カードのアニメーション
+    const statCards = document.querySelectorAll('.stat-card');
+    statCards.forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.1}s`;
+        card.style.animation = 'fadeInUp 0.6s ease-out forwards';
+    });
+
+    // トランザクション行のホバー効果
+    const transactionRows = document.querySelectorAll('.transaction-row');
+    transactionRows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateX(2px)';
+        });
+
+        row.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateX(0)';
+        });
+    });
+});
+
+// チャート初期化関数
+function initializeCharts() {
+    // 月次売上チャート
+    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+    const monthLabels = [{% for key, month_data in annual_performance.monthly_data.items %}"{{ month_data.month }}月"{% if not forloop.last %},{% endif %}{% endfor %}];
+    const revenueData = [{% for key, month_data in annual_performance.monthly_data.items %}{{ month_data.revenue|default:0 }}{% if not forloop.last %},{% endif %}{% endfor %}];
+    const costData = [{% for key, month_data in annual_performance.monthly_data.items %}{{ month_data.cost_of_sales|default:0 }}{% if not forloop.last %},{% endif %}{% endfor %}];
+
+    new Chart(monthlyCtx, {
+        type: 'bar',
+        data: {
+            labels: monthLabels,
+            datasets: [{
+                label: '売上高',
+                data: revenueData,
+                backgroundColor: 'rgba(34, 197, 94, 0.8)',
+                borderColor: 'rgba(34, 197, 94, 1)',
+                borderWidth: 1
+            }, {
+                label: '売上原価',
+                data: costData,
+                backgroundColor: 'rgba(249, 115, 22, 0.8)',
+                borderColor: 'rgba(249, 115, 22, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '月次売上・原価推移',
+                    font: { size: 14, weight: 'bold' }
+                },
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '¥' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // 営業利益チャート
+    const profitCtx = document.getElementById('profitChart').getContext('2d');
+    const operatingProfitData = [{% for key, month_data in annual_performance.monthly_data.items %}{{ month_data.operating_profit|default:0 }}{% if not forloop.last %},{% endif %}{% endfor %}];
+
+    new Chart(profitCtx, {
+        type: 'line',
+        data: {
+            labels: monthLabels,
+            datasets: [{
+                label: '営業利益',
+                data: operatingProfitData,
+                borderColor: 'rgba(59, 130, 246, 1)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '月次営業利益推移',
+                    font: { size: 14, weight: 'bold' }
+                },
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        callback: function(value) {
+                            return '¥' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// アニメーション定義
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

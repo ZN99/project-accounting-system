@@ -1,0 +1,153 @@
+{% load humanize %}
+
+<h6 class="mb-3">キャッシュフローサマリー</h6>
+<table class="table table-bordered">
+    <tr>
+        <th>期首残高</th>
+        <td class="text-end">¥{{ data.summary.opening_balance|floatformat:0|intcomma }}</td>
+    </tr>
+    <tr>
+        <th>現金収入</th>
+        <td class="text-end text-success"><strong>¥{{ data.summary.total_cash_in|floatformat:0|intcomma }}</strong></td>
+    </tr>
+    <tr>
+        <th>現金支出</th>
+        <td class="text-end text-danger"><strong>¥{{ data.summary.total_cash_out|floatformat:0|intcomma }}</strong></td>
+    </tr>
+    <tr>
+        <th>純キャッシュフロー</th>
+        <td class="text-end">
+            <strong>
+                {% if data.summary.net_cash_flow >= 0 %}
+                <span class="text-success">¥{{ data.summary.net_cash_flow|floatformat:0|intcomma }}</span>
+                {% else %}
+                <span class="text-danger">▲¥{{ data.summary.net_cash_flow|floatformat:0|intcomma|cut:"-" }}</span>
+                {% endif %}
+            </strong>
+        </td>
+    </tr>
+    <tr>
+        <th>期末残高</th>
+        <td class="text-end"><strong>¥{{ data.summary.closing_balance|floatformat:0|intcomma }}</strong></td>
+    </tr>
+</table>
+
+<h6 class="mb-3 mt-4">入金予定</h6>
+<table class="table table-bordered table-sm">
+    <thead>
+        <tr>
+            <th>日付</th>
+            <th>取引先</th>
+            <th>プロジェクト</th>
+            <th class="text-end">金額</th>
+            <th>ステータス</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in data.cash_in_schedule %}
+        <tr>
+            <td>{{ item.date|date:"Y/m/d" }}</td>
+            <td>{{ item.party_name }}</td>
+            <td>
+                {% if item.project_name %}
+                <small>{{ item.project_name }}</small>
+                {% else %}
+                -
+                {% endif %}
+            </td>
+            <td class="text-end">¥{{ item.amount|floatformat:0|intcomma }}</td>
+            <td>
+                {% if item.is_planned %}
+                <span class="badge bg-warning text-dark">予定</span>
+                {% else %}
+                <span class="badge bg-success">完了</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5" class="text-center text-muted">入金予定なし</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr>
+            <th colspan="3">合計</th>
+            <th class="text-end text-success">¥{{ data.summary.total_cash_in|floatformat:0|intcomma }}</th>
+            <th></th>
+        </tr>
+    </tfoot>
+</table>
+
+<h6 class="mb-3 mt-4">出金予定</h6>
+<table class="table table-bordered table-sm">
+    <thead>
+        <tr>
+            <th>日付</th>
+            <th>取引先</th>
+            <th>プロジェクト</th>
+            <th class="text-end">金額</th>
+            <th>ステータス</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in data.cash_out_schedule %}
+        <tr>
+            <td>{{ item.date|date:"Y/m/d" }}</td>
+            <td>{{ item.party_name }}</td>
+            <td>
+                {% if item.project_name %}
+                <small>{{ item.project_name }}</small>
+                {% else %}
+                -
+                {% endif %}
+            </td>
+            <td class="text-end">¥{{ item.amount|floatformat:0|intcomma }}</td>
+            <td>
+                {% if item.is_planned %}
+                <span class="badge bg-warning text-dark">予定</span>
+                {% else %}
+                <span class="badge bg-success">完了</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5" class="text-center text-muted">出金予定なし</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr>
+            <th colspan="3">合計</th>
+            <th class="text-end text-danger">¥{{ data.summary.total_cash_out|floatformat:0|intcomma }}</th>
+            <th></th>
+        </tr>
+    </tfoot>
+</table>
+
+<h6 class="mb-3 mt-4">売掛金・買掛金</h6>
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-light">
+                <strong>売掛金残高</strong>
+            </div>
+            <div class="card-body">
+                <h4 class="text-success">¥{{ data.accounts.receivable_balance|floatformat:0|intcomma }}</h4>
+                <small class="text-muted">{{ data.accounts.receivable_count }}件</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-light">
+                <strong>買掛金残高</strong>
+            </div>
+            <div class="card-body">
+                <h4 class="text-danger">¥{{ data.accounts.payable_balance|floatformat:0|intcomma }}</h4>
+                <small class="text-muted">{{ data.accounts.payable_count }}件</small>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,100 @@
+{% extends "order_management/base.html" %}
+{% load humanize %}
+
+{% block title %}外注業者管理 - 建築派遣管理システム{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- ヘッダー -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <div>
+            <h1 class="h2">
+                <i class="fas fa-building me-2"></i>外注業者管理
+            </h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'order_management:dashboard' %}">ダッシュボード</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'order_management:ordering_dashboard' %}">発注業務</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">外注業者管理</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <a href="{% url 'order_management:ordering_dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>発注業務に戻る
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 外注業者一覧 -->
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-building me-2"></i>外注業者一覧
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if contractors %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>業者名</th>
+                                <th>専門分野</th>
+                                <th>担当者</th>
+                                <th>連絡先</th>
+                                <th>状態</th>
+                                <th>アクション</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for contractor in contractors %}
+                            <tr>
+                                <td>
+                                    <strong>{{ contractor.name }}</strong>
+                                </td>
+                                <td>{{ contractor.specialties|default:"-" }}</td>
+                                <td>{{ contractor.contact_person|default:"-" }}</td>
+                                <td>
+                                    {% if contractor.phone %}
+                                        <i class="fas fa-phone me-1"></i>{{ contractor.phone }}<br>
+                                    {% endif %}
+                                    {% if contractor.email %}
+                                        <i class="fas fa-envelope me-1"></i>{{ contractor.email }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if contractor.is_active %}
+                                        <span class="badge bg-success">アクティブ</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">非アクティブ</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{% url 'order_management:contractor_edit' contractor.pk %}" class="btn btn-outline-primary" title="編集">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'order_management:contractor_projects' contractor.pk %}" class="btn btn-outline-secondary" title="案件一覧">
+                                            <i class="fas fa-list"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-building fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">外注業者が登録されていません</h5>
+                    <p class="text-muted">新しい業者を登録して発注業務を開始しましょう。</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

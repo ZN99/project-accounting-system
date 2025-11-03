@@ -1,0 +1,285 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}元請会社一覧{% endblock %}
+
+{% block extra_css %}
+<style>
+    .client-company-list-container {
+        background: #f8f9fa;
+        min-height: 100vh;
+    }
+
+    .list-header {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .filter-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        margin-bottom: 2rem;
+    }
+
+    .stats-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        margin-bottom: 2rem;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #3b82f6;
+        font-family: 'SF Mono', 'Monaco', monospace;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+
+    .company-table {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+    }
+
+    .table-header {
+        background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        font-weight: 600;
+    }
+
+    .table {
+        margin: 0;
+    }
+
+    .table th {
+        background: #f8fafc;
+        color: #374151;
+        font-weight: 600;
+        border: none;
+    }
+
+    .table td {
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .badge-active {
+        background-color: #10b981;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .badge-inactive {
+        background-color: #6b7280;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        border: none;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .action-buttons a, .action-buttons button {
+        font-size: 0.875rem;
+        padding: 0.25rem 0.75rem;
+        margin: 0 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="client-company-list-container">
+    <!-- Header -->
+    <div class="list-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="mb-0">
+                        <i class="fas fa-building me-3"></i>元請会社一覧
+                    </h1>
+                    <p class="mb-0 mt-2 opacity-75">Client Company Management</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="{% url 'order_management:client_company_create' %}" class="btn btn-light btn-lg">
+                        <i class="fas fa-plus me-2"></i>新規登録
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 統計カード -->
+        <div class="stats-card">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="stat-item">
+                        <div class="stat-value">{{ total_companies|intcomma }}</div>
+                        <div class="stat-label">登録会社数</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="stat-item">
+                        <div class="stat-value">{{ active_companies|intcomma }}</div>
+                        <div class="stat-label">アクティブ</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- フィルタ -->
+        <div class="filter-card">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    {{ filter_form.is_active }}
+                </div>
+                <div class="col-md-6">
+                    {{ filter_form.search }}
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter me-2"></i>フィルタ
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 一覧テーブル -->
+        <div class="company-table">
+            <div class="table-header">
+                元請会社一覧（{{ client_companies|length }}件）
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>会社名</th>
+                            <th>担当者</th>
+                            <th>連絡先</th>
+                            <th>承認閾値</th>
+                            <th>関連案件数</th>
+                            <th>ステータス</th>
+                            <th>アクション</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for company in client_companies %}
+                        <tr>
+                            <td>
+                                <strong>{{ company.company_name }}</strong>
+                            </td>
+                            <td>{{ company.contact_person|default:"—" }}</td>
+                            <td>
+                                {% if company.phone %}
+                                    <div><i class="fas fa-phone me-1"></i>{{ company.phone }}</div>
+                                {% endif %}
+                                {% if company.email %}
+                                    <div><i class="fas fa-envelope me-1"></i>{{ company.email }}</div>
+                                {% endif %}
+                                {% if not company.phone and not company.email %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td>¥{{ company.approval_threshold|intcomma }}</td>
+                            <td>
+                                <span class="badge bg-info">{{ company.project_count }}</span>
+                            </td>
+                            <td>
+                                {% if company.is_active %}
+                                    <span class="badge-active">アクティブ</span>
+                                {% else %}
+                                    <span class="badge-inactive">無効</span>
+                                {% endif %}
+                            </td>
+                            <td class="action-buttons">
+                                <a href="{% url 'order_management:client_company_detail' company.pk %}" class="btn btn-sm btn-info text-white">
+                                    <i class="fas fa-eye"></i> 詳細
+                                </a>
+                                <a href="{% url 'order_management:client_company_update' company.pk %}" class="btn btn-sm btn-warning text-white">
+                                    <i class="fas fa-edit"></i> 編集
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <i class="fas fa-inbox fa-3x mb-3"></i>
+                                <p class="mb-0">元請会社が登録されていません</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ページネーション -->
+        {% if is_paginated %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1">最初</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">前へ</a>
+                </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+                </li>
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">次へ</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">最後</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

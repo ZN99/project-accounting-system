@@ -1,0 +1,708 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}💰 業者別支払管理 - {{ month_name }} {{ year }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payment-dashboard {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .header-section {
+        background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 20px;
+        box-shadow: 0 8px 32px rgba(59, 130, 246, 0.3);
+    }
+
+    .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .header-title h1 {
+        font-size: 2.2rem;
+        font-weight: 600;
+        margin: 0;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .total-payment {
+        text-align: right;
+    }
+
+    .total-amount {
+        font-size: 2.8rem;
+        font-weight: 700;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        line-height: 1;
+    }
+
+    .amount-label {
+        font-size: 1rem;
+        opacity: 0.9;
+    }
+
+    .controls-section {
+        background: white;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border-radius: 15px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+
+    .filter-controls {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .filter-controls select, .filter-controls input {
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        min-width: 150px;
+        background: white;
+    }
+
+    .filter-controls select:focus, .filter-controls input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+        outline: none;
+    }
+
+    .contractor-payment-card {
+        background: white;
+        border-radius: 20px;
+        margin-bottom: 2rem;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .contractor-payment-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 48px rgba(0,0,0,0.12);
+    }
+
+    .contractor-header {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 2rem;
+        position: relative;
+    }
+
+    .contractor-header.pending {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+
+    .contractor-header.overdue {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+
+    .contractor-header.partial {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    }
+
+    .contractor-info {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr;
+        gap: 2rem;
+        align-items: center;
+    }
+
+    .contractor-name {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin: 0;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+    }
+
+    .contractor-address {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        margin-top: 0.5rem;
+    }
+
+    .payment-info {
+        text-align: center;
+    }
+
+    .payment-date {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .payment-cycle {
+        font-size: 0.85rem;
+        opacity: 0.8;
+    }
+
+    .total-due {
+        text-align: right;
+    }
+
+    .due-amount {
+        font-size: 2rem;
+        font-weight: 700;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+    }
+
+    .site-count {
+        font-size: 0.85rem;
+        opacity: 0.8;
+        margin-top: 0.5rem;
+    }
+
+    .bank-info {
+        background: #f8fafc;
+        padding: 1.5rem 2rem;
+        border-left: 4px solid #10b981;
+    }
+
+    .bank-details {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+
+    .bank-field {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .bank-label {
+        font-weight: 600;
+        color: #374151;
+        min-width: 80px;
+    }
+
+    .bank-value {
+        color: #1f2937;
+        font-family: 'Courier New', monospace;
+    }
+
+    .sites-list {
+        padding: 1.5rem 2rem;
+    }
+
+    .sites-header {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .sites-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .toggle-sites {
+        background: none;
+        border: none;
+        color: #6b7280;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: color 0.3s ease;
+    }
+
+    .toggle-sites:hover {
+        color: #374151;
+    }
+
+    .site-item {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 80px;
+        gap: 1rem;
+        align-items: center;
+        padding: 1rem 0;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .site-item:last-child {
+        border-bottom: none;
+    }
+
+    .site-name {
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    .site-work-type {
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+
+    .site-amount {
+        font-weight: 700;
+        color: #059669;
+        text-align: right;
+    }
+
+    .site-due-date {
+        text-align: center;
+        font-size: 0.9rem;
+    }
+
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .status-paid {
+        background: #d1fae5;
+        color: #059669;
+    }
+
+    .status-pending {
+        background: #fef3c7;
+        color: #d97706;
+    }
+
+    .status-overdue {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+
+    .action-buttons {
+        padding: 1.5rem 2rem;
+        background: #f9fafb;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        gap: 1rem;
+        justify-content: end;
+    }
+
+    .btn-transfer {
+        background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-transfer:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn-details {
+        background: white;
+        color: #374151;
+        border: 2px solid #e5e7eb;
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-details:hover {
+        border-color: #d1d5db;
+        background: #f9fafb;
+    }
+
+    .summary-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        color: #6b7280;
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: #6b7280;
+    }
+
+    .empty-icon {
+        font-size: 4rem;
+        color: #d1d5db;
+        margin-bottom: 1rem;
+    }
+
+    @media (max-width: 768px) {
+        .contractor-info {
+            grid-template-columns: 1fr;
+            text-align: center;
+            gap: 1rem;
+        }
+
+        .total-due {
+            text-align: center;
+        }
+
+        .bank-details {
+            grid-template-columns: 1fr;
+        }
+
+        .site-item {
+            grid-template-columns: 1fr;
+            text-align: center;
+            gap: 0.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="payment-dashboard">
+    <div class="container-fluid">
+        <!-- ヘッダーセクション -->
+        <div class="header-section">
+            <div class="header-content">
+                <div class="header-title">
+                    <h1>💰 業者別支払管理</h1>
+                    <p>{{ month_name }} {{ year }} - 振込実行フロー</p>
+                </div>
+                <div class="total-payment">
+                    <div class="total-amount">¥{{ total_payment_amount|intcomma }}</div>
+                    <div class="amount-label">月間支払予定総額</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- コントロールセクション -->
+        <div class="controls-section">
+            <div class="filter-controls">
+                <label for="month-select">📅 月選択:</label>
+                <select id="month-select" onchange="changeMonth()">
+                    <option value="1" {% if month == 1 %}selected{% endif %}>1月</option>
+                    <option value="2" {% if month == 2 %}selected{% endif %}>2月</option>
+                    <option value="3" {% if month == 3 %}selected{% endif %}>3月</option>
+                    <option value="4" {% if month == 4 %}selected{% endif %}>4月</option>
+                    <option value="5" {% if month == 5 %}selected{% endif %}>5月</option>
+                    <option value="6" {% if month == 6 %}selected{% endif %}>6月</option>
+                    <option value="7" {% if month == 7 %}selected{% endif %}>7月</option>
+                    <option value="8" {% if month == 8 %}selected{% endif %}>8月</option>
+                    <option value="9" {% if month == 9 %}selected{% endif %}>9月</option>
+                    <option value="10" {% if month == 10 %}selected{% endif %}>10月</option>
+                    <option value="11" {% if month == 11 %}selected{% endif %}>11月</option>
+                    <option value="12" {% if month == 12 %}selected{% endif %}>12月</option>
+                </select>
+
+                <label for="year-select">📅 年選択:</label>
+                <select id="year-select" onchange="changeYear()">
+                    <option value="2024" {% if year == 2024 %}selected{% endif %}>2024年</option>
+                    <option value="2025" {% if year == 2025 %}selected{% endif %}>2025年</option>
+                </select>
+
+                <label for="status-filter">🏷️ ステータス:</label>
+                <select id="status-filter" onchange="filterByStatus()">
+                    <option value="">すべて</option>
+                    <option value="pending">支払予定</option>
+                    <option value="overdue">支払遅延</option>
+                    <option value="partial">一部支払済み</option>
+                    <option value="completed">支払完了</option>
+                </select>
+
+                <button class="btn btn-success" onclick="bulkTransfer()">
+                    <i class="fas fa-university"></i> 一括振込データ作成
+                </button>
+
+                <button class="btn btn-primary" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel"></i> Excel出力
+                </button>
+            </div>
+        </div>
+
+        <!-- 統計サマリー -->
+        <div class="summary-stats">
+            <div class="stat-card">
+                <div class="stat-value">{{ contractor_count }}</div>
+                <div class="stat-label">💼 支払対象業者数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ pending_contractors }}</div>
+                <div class="stat-label">⏳ 支払予定業者</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ overdue_contractors }}</div>
+                <div class="stat-label">🚨 遅延業者</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ total_sites }}</div>
+                <div class="stat-label">🏗️ 対象現場数</div>
+            </div>
+        </div>
+
+        <!-- 業者別支払リスト -->
+        <div class="contractors-list">
+            {% if contractor_payments %}
+                {% for contractor_payment in contractor_payments %}
+                <div class="contractor-payment-card" data-status="{{ contractor_payment.status }}">
+                    <!-- 業者ヘッダー -->
+                    <div class="contractor-header {{ contractor_payment.status }}">
+                        <div class="contractor-info">
+                            <div class="contractor-details">
+                                <h3 class="contractor-name">{{ contractor_payment.contractor.name }}</h3>
+                                <div class="contractor-address">{{ contractor_payment.contractor.address }}</div>
+                            </div>
+                            <div class="payment-info">
+                                <div class="payment-date">
+                                    {% if contractor_payment.next_payment_date %}
+                                        📅 {{ contractor_payment.next_payment_date|date:"m/d" }}
+                                    {% else %}
+                                        📅 日付未設定
+                                    {% endif %}
+                                </div>
+                                <div class="payment-cycle">
+                                    {% if contractor_payment.contractor.payment_day %}
+                                        毎月{{ contractor_payment.contractor.payment_day }}日払い
+                                    {% else %}
+                                        支払条件未設定
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="total-due">
+                                <div class="due-amount">¥{{ contractor_payment.total_amount|intcomma }}</div>
+                                <div class="site-count">{{ contractor_payment.sites|length }}現場</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 銀行情報 -->
+                    {% if contractor_payment.contractor.bank_name %}
+                    <div class="bank-info">
+                        <div class="bank-details">
+                            <div class="bank-field">
+                                <span class="bank-label">🏦 銀行:</span>
+                                <span class="bank-value">{{ contractor_payment.contractor.bank_name }}</span>
+                            </div>
+                            <div class="bank-field">
+                                <span class="bank-label">🏪 支店:</span>
+                                <span class="bank-value">{{ contractor_payment.contractor.branch_name }}</span>
+                            </div>
+                            <div class="bank-field">
+                                <span class="bank-label">💳 種別:</span>
+                                <span class="bank-value">{{ contractor_payment.contractor.get_account_type_display }}</span>
+                            </div>
+                            <div class="bank-field">
+                                <span class="bank-label">🔢 口座:</span>
+                                <span class="bank-value">{{ contractor_payment.contractor.account_number }}</span>
+                            </div>
+                            <div class="bank-field">
+                                <span class="bank-label">👤 名義:</span>
+                                <span class="bank-value">{{ contractor_payment.contractor.account_holder }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="bank-info" style="background: #fef2f2; border-left-color: #ef4444;">
+                        <div style="color: #dc2626; font-weight: 600;">
+                            ⚠️ 振込先口座情報が未設定です。業者管理画面で設定してください。
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- 現場リスト -->
+                    <div class="sites-list">
+                        <div class="sites-header">
+                            <h4 class="sites-title">対象現場一覧</h4>
+                            <button class="toggle-sites" onclick="toggleSites(this)">
+                                <i class="fas fa-chevron-down"></i> 詳細表示
+                            </button>
+                        </div>
+                        <div class="sites-content" style="display: none;">
+                            {% for site in contractor_payment.sites %}
+                            <div class="site-item">
+                                <div class="site-info">
+                                    <div class="site-name">{{ site.project.site_name }}</div>
+                                    <div class="site-work-type">{{ site.project.work_type }}</div>
+                                </div>
+                                <div class="site-amount">¥{{ site.contract_amount|intcomma }}</div>
+                                <div class="site-due-date">
+                                    {% if site.payment_due_date %}
+                                        {{ site.payment_due_date|date:"m/d" }}
+                                    {% else %}
+                                        未設定
+                                    {% endif %}
+                                </div>
+                                <div class="status-badge {% if site.payment_status == 'paid' %}status-paid{% elif site.payment_status == 'pending' %}status-pending{% else %}status-overdue{% endif %}">
+                                    {% if site.payment_status == 'paid' %}
+                                        支払済み
+                                    {% elif site.payment_status == 'pending' %}
+                                        支払予定
+                                    {% else %}
+                                        遅延
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- アクションボタン -->
+                    <div class="action-buttons">
+                        <button class="btn-details" onclick="viewContractorDetail('{{ contractor_payment.contractor.id }}')">
+                            <i class="fas fa-eye"></i> 詳細確認
+                        </button>
+                        {% if contractor_payment.contractor.bank_name %}
+                        <button class="btn-transfer" onclick="prepareTransfer('{{ contractor_payment.contractor.id }}')">
+                            <i class="fas fa-university"></i> 振込準備
+                        </button>
+                        {% else %}
+                        <button class="btn-details" onclick="editContractor('{{ contractor_payment.contractor.id }}')">
+                            <i class="fas fa-edit"></i> 口座情報設定
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">💸</div>
+                    <h3>支払対象の業者がありません</h3>
+                    <p>選択した期間に支払予定の業者は見つかりませんでした。</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function changeMonth() {
+    const month = document.getElementById('month-select').value;
+    const year = document.getElementById('year-select').value;
+    window.location.href = `?month=${month}&year=${year}`;
+}
+
+function changeYear() {
+    const month = document.getElementById('month-select').value;
+    const year = document.getElementById('year-select').value;
+    window.location.href = `?month=${month}&year=${year}`;
+}
+
+function filterByStatus() {
+    const status = document.getElementById('status-filter').value;
+    const cards = document.querySelectorAll('.contractor-payment-card');
+
+    cards.forEach(card => {
+        if (!status || card.dataset.status === status) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+function toggleSites(button) {
+    const sitesContent = button.closest('.sites-list').querySelector('.sites-content');
+    const icon = button.querySelector('i');
+
+    if (sitesContent.style.display === 'none') {
+        sitesContent.style.display = 'block';
+        icon.className = 'fas fa-chevron-up';
+        button.innerHTML = '<i class="fas fa-chevron-up"></i> 詳細非表示';
+    } else {
+        sitesContent.style.display = 'none';
+        icon.className = 'fas fa-chevron-down';
+        button.innerHTML = '<i class="fas fa-chevron-down"></i> 詳細表示';
+    }
+}
+
+function viewContractorDetail(contractorId) {
+    // 業者詳細画面を表示
+    window.location.href = `/contractors/${contractorId}/`;
+}
+
+function editContractor(contractorId) {
+    // 業者編集画面を表示
+    window.location.href = `/contractors/${contractorId}/edit/`;
+}
+
+function prepareTransfer(contractorId) {
+    // 振込準備画面を表示
+    if (confirm('この業者への振込準備を開始しますか？')) {
+        // 振込データ作成処理
+        alert('振込データを作成しました。銀行システムにアップロードしてください。');
+    }
+}
+
+function bulkTransfer() {
+    const visibleCards = document.querySelectorAll('.contractor-payment-card[style="display: block"], .contractor-payment-card:not([style])');
+    if (visibleCards.length === 0) {
+        alert('振込対象の業者がありません。');
+        return;
+    }
+
+    if (confirm(`${visibleCards.length}件の業者への一括振込データを作成しますか？`)) {
+        // 一括振込データ作成処理
+        alert('一括振込データを作成しました。銀行システムにアップロードしてください。');
+    }
+}
+
+function exportToExcel() {
+    // Excel出力機能
+    alert('Excel出力機能（実装予定）');
+}
+
+// ページ読み込み時のアニメーション
+document.addEventListener('DOMContentLoaded', function() {
+    const cards = document.querySelectorAll('.contractor-payment-card, .stat-card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            card.style.transition = 'all 0.6s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+</script>
+{% endblock %}

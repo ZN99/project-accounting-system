@@ -1,0 +1,309 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+
+{% block title %}職人評価 - {{ contractor.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .review-container {
+        background: #f8f9fa;
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .review-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .review-header {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+    }
+
+    .contractor-info {
+        background: #fef3c7;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        border-left: 4px solid #f59e0b;
+    }
+
+    .rating-group {
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background: #f9fafb;
+        border-radius: 8px;
+    }
+
+    .rating-label {
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        color: #374151;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .star-rating {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .star-rating input[type="radio"] {
+        display: none;
+    }
+
+    .star-rating label {
+        font-size: 2rem;
+        color: #d1d5db;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin: 0;
+    }
+
+    .star-rating label:hover,
+    .star-rating label:hover ~ label,
+    .star-rating input[type="radio"]:checked ~ label {
+        color: #f59e0b;
+        transform: scale(1.1);
+    }
+
+    .star-rating {
+        flex-direction: row-reverse;
+        justify-content: flex-end;
+    }
+
+    .rating-description {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-top: 0.5rem;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 2px solid #e5e7eb;
+    }
+
+    .btn-submit {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        border: none;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+    }
+
+    .btn-submit:hover {
+        background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+    }
+
+    .recommend-section {
+        background: #fef3c7;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+    }
+
+    .form-check-input:checked {
+        background-color: #f59e0b;
+        border-color: #f59e0b;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="review-container">
+    <div class="container">
+        <div class="review-card">
+            <div class="review-header">
+                <h2 class="mb-2">
+                    <i class="fas fa-star me-2"></i>職人評価
+                </h2>
+                <p class="mb-0 opacity-75">Contractor Performance Review</p>
+            </div>
+
+            <!-- 職人情報 -->
+            <div class="contractor-info">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5 class="mb-1">
+                            <i class="fas fa-user-hard-hat me-2"></i>{{ contractor.name }}
+                        </h5>
+                        <p class="text-muted mb-0 small">{{ contractor.company_name }}</p>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <p class="mb-0">
+                            <strong>案件:</strong>
+                            <a href="{% url 'order_management:project_detail' project.pk %}">
+                                {{ project.site_name }}
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+
+                <!-- 総合評価 -->
+                <div class="rating-group">
+                    <div class="rating-label">
+                        <i class="fas fa-trophy text-warning"></i>
+                        総合評価
+                        <span class="badge bg-danger">必須</span>
+                    </div>
+                    <div class="star-rating" id="overall-rating">
+                        {% for i in "54321" %}
+                        <input type="radio" id="overall-{{ i }}" name="overall_rating" value="{{ i }}" required>
+                        <label for="overall-{{ i }}">★</label>
+                        {% endfor %}
+                    </div>
+                    <div class="rating-description">
+                        1: 不満 | 2: やや不満 | 3: 普通 | 4: 良い | 5: 非常に良い
+                    </div>
+                </div>
+
+                <!-- 品質評価 -->
+                <div class="rating-group">
+                    <div class="rating-label">
+                        <i class="fas fa-check-circle text-success"></i>
+                        施工品質
+                        <span class="badge bg-danger">必須</span>
+                    </div>
+                    <div class="star-rating" id="quality-rating">
+                        {% for i in "54321" %}
+                        <input type="radio" id="quality-{{ i }}" name="quality_score" value="{{ i }}" required>
+                        <label for="quality-{{ i }}">★</label>
+                        {% endfor %}
+                    </div>
+                    <div class="rating-description">
+                        仕上がりの丁寧さ、技術力の高さを評価
+                    </div>
+                </div>
+
+                <!-- スピード評価 -->
+                <div class="rating-group">
+                    <div class="rating-label">
+                        <i class="fas fa-tachometer-alt text-primary"></i>
+                        作業スピード
+                        <span class="badge bg-danger">必須</span>
+                    </div>
+                    <div class="star-rating" id="speed-rating">
+                        {% for i in "54321" %}
+                        <input type="radio" id="speed-{{ i }}" name="speed_score" value="{{ i }}" required>
+                        <label for="speed-{{ i }}">★</label>
+                        {% endfor %}
+                    </div>
+                    <div class="rating-description">
+                        工期遵守、効率的な作業進行を評価
+                    </div>
+                </div>
+
+                <!-- コミュニケーション評価 -->
+                <div class="rating-group">
+                    <div class="rating-label">
+                        <i class="fas fa-comments text-info"></i>
+                        コミュニケーション
+                        <span class="badge bg-danger">必須</span>
+                    </div>
+                    <div class="star-rating" id="communication-rating">
+                        {% for i in "54321" %}
+                        <input type="radio" id="communication-{{ i }}" name="communication_score" value="{{ i }}" required>
+                        <label for="communication-{{ i }}">★</label>
+                        {% endfor %}
+                    </div>
+                    <div class="rating-description">
+                        報告・連絡・相談の適切さを評価
+                    </div>
+                </div>
+
+                <!-- 評価コメント -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-comment-alt me-2"></i>評価コメント
+                    </label>
+                    {{ form.review_comment }}
+                    <div class="form-text">
+                        具体的な評価ポイントや改善点などを記入してください
+                    </div>
+                </div>
+
+                <!-- 推奨 -->
+                <div class="recommend-section">
+                    <div class="form-check">
+                        {{ form.would_recommend }}
+                        <label class="form-check-label fw-bold" for="{{ form.would_recommend.id_for_label }}">
+                            <i class="fas fa-thumbs-up me-2"></i>
+                            この職人を他の案件でも推奨しますか？
+                        </label>
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        今後の職人選定の参考にさせていただきます
+                    </small>
+                </div>
+
+                {% if form.errors %}
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    入力内容にエラーがあります。ご確認ください。
+                    {{ form.errors }}
+                </div>
+                {% endif %}
+
+                <!-- アクション -->
+                <div class="form-actions">
+                    <a href="{% url 'order_management:project_detail' project.pk %}"
+                       class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-2"></i>キャンセル
+                    </a>
+                    <button type="submit" class="btn btn-primary btn-submit">
+                        <i class="fas fa-save me-2"></i>評価を登録
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Star rating interaction
+    document.querySelectorAll('.star-rating').forEach(function(ratingGroup) {
+        const inputs = ratingGroup.querySelectorAll('input[type="radio"]');
+        const labels = ratingGroup.querySelectorAll('label');
+
+        labels.forEach(function(label, index) {
+            label.addEventListener('mouseenter', function() {
+                for (let i = labels.length - 1; i >= index; i--) {
+                    labels[i].style.color = '#f59e0b';
+                }
+            });
+        });
+
+        ratingGroup.addEventListener('mouseleave', function() {
+            const checkedInput = ratingGroup.querySelector('input[type="radio"]:checked');
+            labels.forEach(function(label) {
+                label.style.color = '#d1d5db';
+            });
+            if (checkedInput) {
+                const checkedIndex = Array.from(inputs).indexOf(checkedInput);
+                for (let i = labels.length - 1; i >= checkedIndex; i--) {
+                    labels[i].style.color = '#f59e0b';
+                }
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

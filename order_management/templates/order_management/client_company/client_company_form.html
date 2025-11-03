@@ -1,0 +1,262 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        background: #f8f9fa;
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .form-header {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .form-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #374151;
+        border-bottom: 2px solid #3b82f6;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+        margin-top: 2rem;
+    }
+
+    .section-title:first-of-type {
+        margin-top: 0;
+    }
+
+    .form-label {
+        font-weight: 500;
+        color: #4b5563;
+        margin-bottom: 0.5rem;
+    }
+
+    .required::after {
+        content: "*";
+        color: #ef4444;
+        margin-left: 0.25rem;
+    }
+
+    .btn-submit {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn-cancel {
+        background: #6b7280;
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        font-weight: 500;
+    }
+
+    .help-text {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+
+    .errorlist {
+        list-style: none;
+        padding: 0;
+        margin: 0.5rem 0 0 0;
+    }
+
+    .errorlist li {
+        color: #ef4444;
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="form-header">
+        <div class="container">
+            <h1 class="mb-0">
+                <i class="fas fa-building me-3"></i>{{ title }}
+            </h1>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="form-card">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                        {% endif %}
+
+                        <!-- 基本情報 -->
+                        <div class="section-title">
+                            <i class="fas fa-info-circle me-2"></i>基本情報
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label for="{{ form.company_name.id_for_label }}" class="form-label required">
+                                    会社名
+                                </label>
+                                {{ form.company_name }}
+                                {{ form.company_name.errors }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.contact_person.id_for_label }}" class="form-label">
+                                    担当者名
+                                </label>
+                                {{ form.contact_person }}
+                                {{ form.contact_person.errors }}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.email.id_for_label }}" class="form-label">
+                                    メールアドレス
+                                </label>
+                                {{ form.email }}
+                                {{ form.email.errors }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.phone.id_for_label }}" class="form-label">
+                                    電話番号
+                                </label>
+                                {{ form.phone }}
+                                {{ form.phone.errors }}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.address.id_for_label }}" class="form-label">
+                                住所
+                            </label>
+                            {{ form.address }}
+                            {{ form.address.errors }}
+                        </div>
+
+                        <!-- 鍵受け渡し設定 -->
+                        <div class="section-title">
+                            <i class="fas fa-key me-2"></i>鍵受け渡し設定
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.default_key_handover_location.id_for_label }}" class="form-label">
+                                デフォルト受け渡し場所
+                            </label>
+                            {{ form.default_key_handover_location }}
+                            <div class="help-text">案件登録時に自動入力されます</div>
+                            {{ form.default_key_handover_location.errors }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.key_handover_notes.id_for_label }}" class="form-label">
+                                特記事項
+                            </label>
+                            {{ form.key_handover_notes }}
+                            {{ form.key_handover_notes.errors }}
+                        </div>
+
+                        <!-- 完了報告設定 -->
+                        <div class="section-title">
+                            <i class="fas fa-file-alt me-2"></i>完了報告設定
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.completion_report_template.id_for_label }}" class="form-label">
+                                完了報告シートテンプレート
+                            </label>
+                            {{ form.completion_report_template }}
+                            <div class="help-text">Excel/PDF形式のテンプレートをアップロード</div>
+                            {{ form.completion_report_template.errors }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.completion_report_notes.id_for_label }}" class="form-label">
+                                特記事項
+                            </label>
+                            {{ form.completion_report_notes }}
+                            {{ form.completion_report_notes.errors }}
+                        </div>
+
+                        <!-- 承認設定 -->
+                        <div class="section-title">
+                            <i class="fas fa-check-circle me-2"></i>承認設定
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.approval_threshold.id_for_label }}" class="form-label">
+                                承認必要金額閾値（円）
+                            </label>
+                            {{ form.approval_threshold }}
+                            <div class="help-text">この金額以上の案件は承認が必要になります</div>
+                            {{ form.approval_threshold.errors }}
+                        </div>
+
+                        <!-- 運用ルール -->
+                        <div class="section-title">
+                            <i class="fas fa-clipboard-list me-2"></i>運用ルール・特記事項
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.special_notes.id_for_label }}" class="form-label">
+                                特記事項
+                            </label>
+                            {{ form.special_notes }}
+                            <div class="help-text">この会社との取引における注意事項や運用ルールを記載</div>
+                            {{ form.special_notes.errors }}
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            {{ form.is_active }}
+                            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                アクティブ
+                            </label>
+                            {{ form.is_active.errors }}
+                        </div>
+
+                        <!-- ボタン -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'order_management:client_company_list' %}" class="btn btn-cancel">
+                                <i class="fas fa-times me-2"></i>キャンセル
+                            </a>
+                            <button type="submit" class="btn btn-submit">
+                                <i class="fas fa-save me-2"></i>{{ submit_text }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,257 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        background: #f8f9fa;
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .form-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+    }
+
+    .form-header {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        padding: 1.5rem 2rem;
+        position: relative;
+    }
+
+    .form-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #fca5a5, #f87171);
+    }
+
+    .form-body {
+        padding: 2rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-control, .form-select {
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        transition: all 0.3s ease;
+        font-size: 0.95rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #ef4444;
+        box-shadow: 0 0 0 0.2rem rgba(239, 68, 68, 0.25);
+    }
+
+    .btn-submit {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        color: white;
+        transition: all 0.3s ease;
+    }
+
+    .btn-submit:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        color: white;
+    }
+
+    .btn-cancel {
+        background: #6b7280;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        color: white;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        display: inline-block;
+    }
+
+    .btn-cancel:hover {
+        background: #4b5563;
+        color: white;
+        text-decoration: none;
+    }
+
+    .form-check {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: #f8fafc;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .form-check-input:checked {
+        background-color: #ef4444;
+        border-color: #ef4444;
+    }
+
+    .help-text {
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+
+    .required-field::after {
+        content: " *";
+        color: #ef4444;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 col-md-10">
+                <div class="form-card">
+                    <div class="form-header">
+                        <h2><i class="fas fa-coins"></i> {{ title }}</h2>
+                        <p class="mb-0">毎月発生する固定的な費用を管理します</p>
+                    </div>
+
+                    <div class="form-body">
+                        {% if form.errors %}
+                            <div class="alert alert-danger">
+                                <h5><i class="fas fa-exclamation-triangle"></i> 入力エラーがあります</h5>
+                                {% for field, errors in form.errors.items %}
+                                    {% for error in errors %}
+                                        <p class="mb-1">{{ error }}</p>
+                                    {% endfor %}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <form method="post">
+                            {% csrf_token %}
+
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="form-group">
+                                        <label for="{{ form.name.id_for_label }}" class="form-label required-field">費目名</label>
+                                        {{ form.name }}
+                                        <div class="help-text">例: 事務所家賃、保険料、税理士費用</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="{{ form.cost_type.id_for_label }}" class="form-label required-field">種別</label>
+                                        {{ form.cost_type }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="{{ form.monthly_amount.id_for_label }}" class="form-label required-field">月額（円）</label>
+                                        {{ form.monthly_amount }}
+                                        <div class="help-text">毎月発生する金額を入力</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="{{ form.start_date.id_for_label }}" class="form-label required-field">開始日</label>
+                                        {{ form.start_date }}
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="{{ form.end_date.id_for_label }}" class="form-label">終了日</label>
+                                        {{ form.end_date }}
+                                        <div class="help-text">無期限の場合は空欄</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="{{ form.notes.id_for_label }}" class="form-label">備考</label>
+                                {{ form.notes }}
+                            </div>
+
+                            <div class="form-check">
+                                {{ form.is_active }}
+                                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                    <strong>アクティブ</strong>
+                                    <div class="help-text">チェックを外すと、この固定費は計算に含まれなくなります</div>
+                                </label>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center mt-4">
+                                <a href="{% url 'order_management:fixed_cost_list' %}" class="btn-cancel">
+                                    <i class="fas fa-arrow-left"></i> 一覧に戻る
+                                </a>
+                                <button type="submit" class="btn-submit">
+                                    <i class="fas fa-save"></i> {{ submit_text }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // フォームのアニメーション
+    const formCard = document.querySelector('.form-card');
+    formCard.style.animation = 'fadeInUp 0.6s ease-out forwards';
+
+    // 金額入力のフォーマット
+    const amountInput = document.querySelector('input[name="monthly_amount"]');
+    if (amountInput) {
+        amountInput.addEventListener('input', function(e) {
+            // 数字以外を除去
+            let value = e.target.value.replace(/[^\d]/g, '');
+            e.target.value = value;
+        });
+    }
+});
+
+// アニメーション定義
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

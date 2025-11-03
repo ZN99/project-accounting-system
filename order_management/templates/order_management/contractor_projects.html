@@ -1,0 +1,294 @@
+{% extends "order_management/base.html" %}
+{% load humanize %}
+
+{% block title %}{{ contractor.name }} - 案件一覧{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- ヘッダー -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <div>
+            <h1 class="h2">
+                <i class="fas fa-building me-2"></i>{{ contractor.name }}
+            </h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'order_management:dashboard' %}">ダッシュボード</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'order_management:contractor_dashboard' %}">受注業務</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ contractor.name }}</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <a href="{% url 'order_management:contractor_edit' contractor.pk %}" class="btn btn-outline-primary">
+                    <i class="fas fa-edit me-1"></i>業者情報編集
+                </a>
+                <a href="{% url 'order_management:contractor_dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>受注業務に戻る
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 業者情報カード -->
+    <div class="card mb-4 border-primary">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-info-circle me-2"></i>業者情報
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <h6 class="fw-bold">{{ contractor.name }}</h6>
+                    {% if contractor.address %}
+                    <p class="text-muted mb-2">
+                        <i class="fas fa-map-marker-alt me-1"></i>{{ contractor.address }}
+                    </p>
+                    {% endif %}
+                    <div class="row">
+                        {% if contractor.phone %}
+                        <div class="col-sm-6">
+                            <small class="text-muted">
+                                <i class="fas fa-phone me-1"></i>{{ contractor.phone }}
+                            </small>
+                        </div>
+                        {% endif %}
+                        {% if contractor.email %}
+                        <div class="col-sm-6">
+                            <small class="text-muted">
+                                <i class="fas fa-envelope me-1"></i>{{ contractor.email }}
+                            </small>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% if contractor.specialties %}
+                    <p class="mt-2 mb-0">
+                        <strong>専門分野:</strong> {{ contractor.specialties }}
+                    </p>
+                    {% endif %}
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="d-flex flex-column gap-2">
+                        <span class="badge bg-{% if contractor.is_active %}success{% else %}secondary{% endif %} fs-6">
+                            {% if contractor.is_active %}アクティブ{% else %}非アクティブ{% endif %}
+                        </span>
+                        {% if contractor.contact_person %}
+                        <small class="text-muted">
+                            <i class="fas fa-user me-1"></i>担当者: {{ contractor.contact_person }}
+                        </small>
+                        {% endif %}
+                        <div class="mt-2">
+                            <a href="{% url 'order_management:contractor_edit' contractor.pk %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-edit me-1"></i>編集
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 統計情報カード -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-info">{{ stats.total_projects }}</h5>
+                    <p class="card-text">総案件数</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-success">{{ stats.active_projects }}</h5>
+                    <p class="card-text">受注済み</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-primary">{{ stats.completed_projects }}</h5>
+                    <p class="card-text">完了済み</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-warning">¥{{ stats.total_revenue|floatformat:0|intcomma }}</h5>
+                    <p class="card-text">総売上</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 月別統計 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>月別実績（直近6ヶ月）
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for stat in monthly_stats %}
+                        <div class="col-md-2 col-sm-4 mb-3 text-center">
+                            <div class="card bg-light">
+                                <div class="card-body py-2">
+                                    <div class="fw-bold text-primary">{{ stat.count }}件</div>
+                                    <small class="text-muted">{{ stat.month }}</small>
+                                    <div class="small text-success">¥{{ stat.revenue|floatformat:0|intcomma }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 案件一覧 -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-list me-2"></i>案件一覧
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if projects %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>管理番号</th>
+                                <th>現場名</th>
+                                <th>住所</th>
+                                <th>施工種別</th>
+                                <th>受注状況</th>
+                                <th class="text-end">受注金額</th>
+                                <th>見積発行日</th>
+                                <th class="text-center">アクション</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for project in projects %}
+                            <tr class="clickable-row" onclick="window.location.href='{% url 'order_management:project_detail' project.pk %}'">
+                                <td>
+                                    <strong>{{ project.management_no }}</strong>
+                                </td>
+                                <td>
+                                    <div class="fw-bold">{{ project.site_name }}</div>
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ project.site_address|truncatechars:30 }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ project.work_type }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge
+                                        {% if project.project_status == '完工' %}bg-success
+                                        {% elif project.project_status == 'NG' %}bg-danger
+                                        {% elif project.project_status == '施工日待ち' %}bg-warning text-dark
+                                        {% else %}bg-secondary
+                                        {% endif %}">
+                                        {{ project.project_status }}
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <strong>¥{{ project.order_amount|floatformat:0|intcomma }}</strong>
+                                </td>
+                                <td>
+                                    {% if project.estimate_issued_date %}
+                                        <small>{{ project.estimate_issued_date|date:"Y/m/d" }}</small>
+                                    {% else %}
+                                        <span class="text-muted">未発行</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{% url 'order_management:project_detail' project.pk %}"
+                                           class="btn btn-outline-primary" title="詳細表示"
+                                           onclick="event.stopPropagation();">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{% url 'order_management:project_update' project.pk %}"
+                                           class="btn btn-outline-secondary" title="編集"
+                                           onclick="event.stopPropagation();">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- ページネーション -->
+                {% if is_paginated %}
+                <nav aria-label="案件一覧ページネーション">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1">最初</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">前へ</a>
+                            </li>
+                        {% endif %}
+
+                        <li class="page-item active">
+                            <span class="page-link">
+                                {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+                            </span>
+                        </li>
+
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}">次へ</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">最後</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">この業者に関連する案件がありません</h5>
+                    <p class="text-muted">新しい案件が登録されると、こちらに表示されます。</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // テーブル行のホバー効果
+    const clickableRows = document.querySelectorAll('.clickable-row');
+    clickableRows.forEach(row => {
+        row.style.cursor = 'pointer';
+        row.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = '#f8f9fa';
+        });
+        row.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,264 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}固定費削除確認{% endblock %}
+
+{% block extra_css %}
+<style>
+    .delete-container {
+        background: #f8f9fa;
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .delete-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .delete-header {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        padding: 1.5rem 2rem;
+        position: relative;
+    }
+
+    .delete-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #fca5a5, #f87171);
+    }
+
+    .delete-body {
+        padding: 2rem;
+    }
+
+    .warning-box {
+        background: #fef2f2;
+        border: 2px solid #fecaca;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+    }
+
+    .cost-details {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+    }
+
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+
+    .detail-label {
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .detail-value {
+        color: #6b7280;
+        font-family: 'SF Mono', 'Monaco', monospace;
+    }
+
+    .amount-value {
+        color: #ef4444;
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+
+    .btn-delete {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        color: white;
+        transition: all 0.3s ease;
+    }
+
+    .btn-delete:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        color: white;
+    }
+
+    .btn-cancel {
+        background: #6b7280;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        color: white;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        display: inline-block;
+    }
+
+    .btn-cancel:hover {
+        background: #4b5563;
+        color: white;
+        text-decoration: none;
+    }
+
+    .impact-info {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 1rem 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="delete-container">
+    <div class="container">
+        <div class="delete-card">
+            <div class="delete-header">
+                <h2><i class="fas fa-exclamation-triangle"></i> 固定費削除確認</h2>
+                <p class="mb-0">以下の固定費を削除してもよろしいですか？</p>
+            </div>
+
+            <div class="delete-body">
+                <div class="warning-box">
+                    <h5 class="text-danger"><i class="fas fa-warning"></i> 注意</h5>
+                    <p class="mb-0">この操作は取り消すことができません。削除すると、この固定費に関連するすべてのデータが完全に削除されます。</p>
+                </div>
+
+                <div class="cost-details">
+                    <h5><i class="fas fa-info-circle"></i> 削除対象の固定費詳細</h5>
+
+                    <div class="detail-row">
+                        <span class="detail-label">費目名</span>
+                        <span class="detail-value">{{ object.name }}</span>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">種別</span>
+                        <span class="detail-value">{{ object.get_cost_type_display }}</span>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">月額</span>
+                        <span class="detail-value amount-value">¥{{ object.monthly_amount|intcomma }}</span>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">開始日</span>
+                        <span class="detail-value">{{ object.start_date|date:"Y年m月d日" }}</span>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">終了日</span>
+                        <span class="detail-value">
+                            {% if object.end_date %}
+                                {{ object.end_date|date:"Y年m月d日" }}
+                            {% else %}
+                                無期限
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">状態</span>
+                        <span class="detail-value">
+                            {% if object.is_active %}
+                                <span style="color: #059669;">アクティブ</span>
+                            {% else %}
+                                <span style="color: #dc2626;">無効</span>
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    {% if object.notes %}
+                    <div class="detail-row">
+                        <span class="detail-label">備考</span>
+                        <span class="detail-value">{{ object.notes }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if object.is_active %}
+                <div class="impact-info">
+                    <h6><i class="fas fa-calculator"></i> 削除による影響</h6>
+                    <ul class="mb-0">
+                        <li>月額固定費から <strong>¥{{ object.monthly_amount|intcomma }}</strong> が減額されます</li>
+                        <li>年額では <strong>¥{{ object.monthly_amount|mul:12|intcomma }}</strong> の影響があります</li>
+                        <li>今後の損益計算書から除外されます</li>
+                    </ul>
+                </div>
+                {% endif %}
+
+                <form method="post" class="mt-4">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a href="{% url 'order_management:fixed_cost_list' %}" class="btn-cancel">
+                            <i class="fas fa-arrow-left"></i> キャンセル
+                        </a>
+                        <button type="submit" class="btn-delete">
+                            <i class="fas fa-trash"></i> 削除する
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // カードのアニメーション
+    const deleteCard = document.querySelector('.delete-card');
+    deleteCard.style.animation = 'fadeInUp 0.6s ease-out forwards';
+
+    // 削除ボタンの確認
+    const deleteBtn = document.querySelector('.btn-delete');
+    deleteBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+
+        if (confirm('本当に削除してもよろしいですか？この操作は取り消せません。')) {
+            this.closest('form').submit();
+        }
+    });
+});
+
+// アニメーション定義
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

@@ -1,0 +1,411 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}ガントチャート{% endblock %}
+
+{% block extra_css %}
+<!-- Frappe Gantt CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.1/dist/frappe-gantt.css">
+<style>
+    .gantt-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .gantt-container {
+        background: white;
+        border-radius: 10px;
+        padding: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        overflow-x: auto;
+    }
+
+    .controls {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+    }
+
+    .view-mode-buttons .btn {
+        min-width: 100px;
+    }
+
+    .legend {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 1.5rem;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .legend-color {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+    }
+
+    #gantt {
+        overflow-x: auto;
+    }
+
+    /* Frappe Gantt カスタムスタイル */
+    .gantt .bar {
+        cursor: pointer;
+    }
+
+    .gantt .bar-wrapper:hover .bar-progress {
+        fill: #667eea !important;
+    }
+
+    .gantt .bar-label {
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    /* ステータス別のバーの色 */
+    .gantt .bar[data-status="ネタ"] {
+        fill: #6c757d !important;
+    }
+
+    .gantt .bar[data-status="施工日待ち"] {
+        fill: #ffc107 !important;
+    }
+
+    .gantt .bar[data-status="進行中"] {
+        fill: #28a745 !important;
+    }
+
+    .gantt .bar[data-status="完工"] {
+        fill: #007bff !important;
+    }
+
+    .stats-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #667eea;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        text-transform: uppercase;
+    }
+
+    .month-nav {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- ヘッダー -->
+    <div class="gantt-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-2">
+                    <i class="fas fa-tasks me-2"></i>ガントチャート
+                </h2>
+                <p class="mb-0 opacity-75">案件の工事期間と進捗状況を時系列で表示</p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <div class="month-nav">
+                    <a href="?year={{ year }}&month={{ month|add:'-3' }}" class="btn btn-light">
+                        <i class="fas fa-chevron-left"></i> 前期
+                    </a>
+                    <a href="{% url 'order_management:gantt_chart' %}" class="btn btn-light">
+                        今期
+                    </a>
+                    <a href="?year={{ year }}&month={{ month|add:'3' }}" class="btn btn-light">
+                        次期 <i class="fas fa-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 統計カード -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card text-center">
+                <div class="stat-label">総案件数</div>
+                <div class="stat-number" id="totalProjects">-</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card text-center">
+                <div class="stat-label">進行中</div>
+                <div class="stat-number text-success" id="inProgressProjects">-</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card text-center">
+                <div class="stat-label">施工日待ち</div>
+                <div class="stat-number text-warning" id="waitingProjects">-</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card text-center">
+                <div class="stat-label">完工</div>
+                <div class="stat-number text-primary" id="completedProjects">-</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- コントロール -->
+    <div class="gantt-container">
+        <div class="controls">
+            <div class="view-mode-buttons">
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-primary" onclick="changeViewMode('Day')">日</button>
+                    <button type="button" class="btn btn-outline-primary active" onclick="changeViewMode('Week')">週</button>
+                    <button type="button" class="btn btn-outline-primary" onclick="changeViewMode('Month')">月</button>
+                </div>
+            </div>
+            <div class="ms-auto">
+                <button class="btn btn-outline-secondary" onclick="exportToCSV()">
+                    <i class="fas fa-download me-2"></i>CSV出力
+                </button>
+            </div>
+        </div>
+
+        <!-- ガントチャート表示エリア -->
+        <div id="gantt"></div>
+
+        <!-- ローディング -->
+        <div id="loading" class="text-center py-5">
+            <i class="fas fa-spinner fa-spin fa-3x text-muted"></i>
+            <p class="mt-3 text-muted">データを読み込み中...</p>
+        </div>
+    </div>
+
+    <!-- 凡例 -->
+    <div class="legend">
+        <strong>ステータス凡例:</strong>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #6c757d;"></div>
+            <span>ネタ</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #ffc107;"></div>
+            <span>施工日待ち</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #28a745;"></div>
+            <span>進行中</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #007bff;"></div>
+            <span>完工</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Frappe Gantt JS -->
+<script src="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.1/dist/frappe-gantt.umd.js"></script>
+
+<script>
+const currentYear = {{ year }};
+const currentMonth = {{ month }};
+let ganttChart = null;
+let tasksData = [];
+let currentViewMode = 'Week';
+
+// ガントチャートデータの読み込み
+function loadGanttData() {
+    fetch(`{% url 'order_management:gantt_data_api' %}?year=${currentYear}&month=${currentMonth}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            tasksData = data.tasks || [];
+            displayStatistics(tasksData);
+            renderGanttChart(tasksData);
+            document.getElementById('loading').style.display = 'none';
+        })
+        .catch(error => {
+            console.error('Error loading gantt data:', error);
+            document.getElementById('loading').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    データの読み込みに失敗しました
+                </div>
+            `;
+        });
+}
+
+// 統計情報の表示
+function displayStatistics(tasks) {
+    const totalProjects = tasks.length;
+    const inProgress = tasks.filter(t => t.status === '進行中').length;
+    const waiting = tasks.filter(t => t.status === '施工日待ち').length;
+    const completed = tasks.filter(t => t.status === '完工').length;
+
+    document.getElementById('totalProjects').textContent = totalProjects;
+    document.getElementById('inProgressProjects').textContent = inProgress;
+    document.getElementById('waitingProjects').textContent = waiting;
+    document.getElementById('completedProjects').textContent = completed;
+}
+
+// ガントチャートの描画
+function renderGanttChart(tasks) {
+    if (tasks.length === 0) {
+        document.getElementById('gantt').innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <p class="text-muted">この期間の案件はありません</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Frappe Ganttの形式に変換
+    const frappeT asks = tasks.map(task => ({
+        id: task.id,
+        name: task.name,
+        start: task.start,
+        end: task.end,
+        progress: task.progress,
+        custom_class: task.status,
+    }));
+
+    ganttChart = new Gantt("#gantt", frappeT asks, {
+        view_mode: currentViewMode,
+        language: 'ja',
+        bar_height: 30,
+        bar_corner_radius: 3,
+        arrow_curve: 5,
+        padding: 18,
+        date_format: 'YYYY-MM-DD',
+        popup_trigger: 'click',
+        on_click: function(task) {
+            // 案件詳細ページへ遷移
+            const projectId = task.id;
+            window.location.href = `/orders/${projectId}/`;
+        },
+        on_date_change: function(task, start, end) {
+            console.log(task, start, end);
+        },
+        on_progress_change: function(task, progress) {
+            console.log(task, progress);
+        },
+        custom_popup_html: function(task) {
+            const taskData = tasksData.find(t => t.id === task.id);
+            if (!taskData) return '';
+
+            const start_date = new Date(task._start);
+            const end_date = new Date(task._end);
+            const duration = Math.ceil((end_date - start_date) / (1000 * 60 * 60 * 24));
+
+            return `
+                <div class="p-3" style="min-width: 300px;">
+                    <h5 class="mb-3">${task.name}</h5>
+                    <div class="mb-2">
+                        <strong>ステータス:</strong>
+                        <span class="badge" style="background-color: ${taskData.color};">${taskData.status}</span>
+                    </div>
+                    <div class="mb-2"><strong>元請:</strong> ${taskData.client}</div>
+                    <div class="mb-2"><strong>担当:</strong> ${taskData.manager}</div>
+                    <div class="mb-2"><strong>受注金額:</strong> ¥${taskData.amount.toLocaleString()}</div>
+                    <div class="mb-2"><strong>期間:</strong> ${duration}日間</div>
+                    <div class="mb-2"><strong>進捗:</strong> ${task.progress}%</div>
+                    <div class="mt-3">
+                        <button class="btn btn-sm btn-primary" onclick="window.location.href='/orders/${taskData.project_id}/'">
+                            詳細を見る
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+    });
+
+    // ステータスごとにバーの色を設定
+    tasks.forEach(task => {
+        const barElement = document.querySelector(`.bar[data-id="${task.id}"]`);
+        if (barElement) {
+            barElement.setAttribute('data-status', task.status);
+            barElement.style.fill = task.color;
+        }
+    });
+}
+
+// 表示モード変更
+function changeViewMode(mode) {
+    currentViewMode = mode;
+    if (ganttChart) {
+        ganttChart.change_view_mode(mode);
+    }
+
+    // アクティブボタンの更新
+    document.querySelectorAll('.view-mode-buttons .btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+}
+
+// CSV出力
+function exportToCSV() {
+    if (tasksData.length === 0) {
+        alert('出力するデータがありません');
+        return;
+    }
+
+    const headers = ['案件名', 'ステータス', '元請', '担当', '受注金額', '開始日', '終了日', '進捗率'];
+    const rows = tasksData.map(task => [
+        task.name,
+        task.status,
+        task.client,
+        task.manager,
+        task.amount,
+        task.start,
+        task.end,
+        task.progress + '%'
+    ]);
+
+    let csvContent = '\ufeff' + headers.join(',') + '\n';
+    rows.forEach(row => {
+        csvContent += row.map(cell => `"${cell}"`).join(',') + '\n';
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `gantt_chart_${currentYear}_${currentMonth}.csv`;
+    link.click();
+}
+
+// ページ読み込み時にデータ取得
+document.addEventListener('DOMContentLoaded', function() {
+    loadGanttData();
+});
+</script>
+{% endblock %}

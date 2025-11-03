@@ -1,0 +1,204 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+
+{% block title %}ファイルアップロード - {{ project.site_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .upload-container {
+        background: #f8f9fa;
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .upload-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .upload-header {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+    }
+
+    .project-info {
+        background: #f3f4f6;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+    }
+
+    .file-input-wrapper {
+        position: relative;
+        overflow: hidden;
+        display: inline-block;
+        width: 100%;
+    }
+
+    .file-input-label {
+        display: block;
+        padding: 1rem;
+        background: #f8f9fa;
+        border: 2px dashed #d1d5db;
+        border-radius: 8px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .file-input-label:hover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+
+    .file-input-label.has-file {
+        border-color: #10b981;
+        background: #d1fae5;
+    }
+
+    #file-name-display {
+        font-weight: 600;
+        color: #059669;
+        margin-top: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="upload-container">
+    <div class="container">
+        <div class="upload-card">
+            <div class="upload-header">
+                <h2 class="mb-2">
+                    <i class="fas fa-cloud-upload-alt me-2"></i>ファイルアップロード
+                </h2>
+                <p class="mb-0 opacity-75">File Upload</p>
+            </div>
+
+            <!-- 案件情報 -->
+            <div class="project-info">
+                <h6 class="mb-2">
+                    <i class="fas fa-briefcase me-2"></i>案件情報
+                </h6>
+                <p class="mb-1"><strong>案件名:</strong> {{ project.site_name }}</p>
+                <p class="mb-0"><strong>管理番号:</strong> {{ project.management_no }}</p>
+            </div>
+
+            <form method="post" enctype="multipart/form-data" id="upload-form">
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-file me-2"></i>ファイル <span class="text-danger">*</span>
+                    </label>
+                    <div class="file-input-wrapper">
+                        <label for="{{ form.file.id_for_label }}" class="file-input-label" id="file-label">
+                            <i class="fas fa-file-upload fa-2x mb-2 text-muted"></i>
+                            <p class="mb-0">クリックしてファイルを選択</p>
+                            <small class="text-muted">またはドラッグ&ドロップ</small>
+                            <div id="file-name-display" class="d-none"></div>
+                        </label>
+                        {{ form.file }}
+                    </div>
+                    <div class="form-text">
+                        対応形式: PDF, Word, Excel, 画像ファイル (最大10MB)
+                    </div>
+                    {% if form.file.errors %}
+                    <div class="text-danger small mt-1">{{ form.file.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-comment-alt me-2"></i>説明
+                    </label>
+                    {{ form.description }}
+                    <div class="form-text">
+                        ファイルの内容や目的を記入（任意）
+                    </div>
+                    {% if form.description.errors %}
+                    <div class="text-danger small mt-1">{{ form.description.errors }}</div>
+                    {% endif %}
+                </div>
+
+                {% if form.errors %}
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    入力内容にエラーがあります。ご確認ください。
+                </div>
+                {% endif %}
+
+                <div class="d-flex gap-2 justify-content-end">
+                    <a href="{% url 'order_management:project_detail' project.pk %}"
+                       class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-2"></i>キャンセル
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload me-2"></i>アップロード
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('{{ form.file.id_for_label }}');
+    const fileLabel = document.getElementById('file-label');
+    const fileNameDisplay = document.getElementById('file-name-display');
+
+    fileInput.addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            const file = e.target.files[0];
+            fileLabel.classList.add('has-file');
+            fileNameDisplay.classList.remove('d-none');
+            fileNameDisplay.innerHTML = `
+                <i class="fas fa-file-alt me-2"></i>${file.name}
+                <br><small>${(file.size / 1024 / 1024).toFixed(2)} MB</small>
+            `;
+        } else {
+            fileLabel.classList.remove('has-file');
+            fileNameDisplay.classList.add('d-none');
+            fileNameDisplay.textContent = '';
+        }
+    });
+
+    // Drag and drop support
+    fileLabel.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        fileLabel.style.borderColor = '#3b82f6';
+        fileLabel.style.background = '#eff6ff';
+    });
+
+    fileLabel.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!fileLabel.classList.contains('has-file')) {
+            fileLabel.style.borderColor = '#d1d5db';
+            fileLabel.style.background = '#f8f9fa';
+        }
+    });
+
+    fileLabel.addEventListener('drop', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            const event = new Event('change', { bubbles: true });
+            fileInput.dispatchEvent(event);
+        }
+    });
+});
+</script>
+{% endblock %}

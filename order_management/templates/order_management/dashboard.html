@@ -1,0 +1,328 @@
+{% extends "order_management/base.html" %}
+{% load humanize %}
+
+{% block title %}ダッシュボード - 建築派遣管理システム{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        transition: transform 0.2s;
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+    }
+    .progress-circle {
+        width: 80px;
+        height: 80px;
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-tachometer-alt"></i> ダッシュボード</h2>
+        <p class="text-muted">案件進捗状況と統計情報</p>
+    </div>
+    <div class="col text-end">
+        <a href="{% url 'order_management:project_list' %}" class="btn btn-primary">
+            <i class="fas fa-list"></i> 案件一覧
+        </a>
+        <a href="{% url 'order_management:project_create' %}" class="btn btn-success">
+            <i class="fas fa-plus-circle"></i> 新規登録
+        </a>
+    </div>
+</div>
+
+<!-- 統計サマリーカード -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ total_projects }}</h4>
+                        <p class="mb-0">総案件数</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-building fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>¥{{ revenue_stats.received_amount|floatformat:0|intcomma }}</h4>
+                        <p class="mb-0">受注確定額</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-yen-sign fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>¥{{ revenue_stats.pending_amount|floatformat:0|intcomma }}</h4>
+                        <p class="mb-0">検討中案件額</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ this_month_projects }}</h4>
+                        <p class="mb-0">今月新規案件</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calendar-plus fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- 案件進捗別統計 -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-pie-chart"></i> 案件進捗別統計</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="statusChart"></canvas>
+                </div>
+                <div class="mt-3">
+                    {% for stat in status_stats %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <span class="status-indicator" style="background-color:
+                                {% if stat.project_status == '完工' %}#28a745
+                                {% elif stat.project_status == 'NG' %}#6c757d
+                                {% elif stat.project_status == '施工日待ち' %}#dc3545
+                                {% else %}#ffc107{% endif %};"></span>
+                            {{ stat.project_status }}
+                        </div>
+                        <div>
+                            <strong>{{ stat.count }}件</strong>
+                            <small class="text-muted">(¥{{ stat.total_amount|floatformat:0|default:"0" }})</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 月別推移 -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-line"></i> 月別案件推移</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- 進行中案件 -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-tools"></i> 進行中案件</h5>
+            </div>
+            <div class="card-body">
+                {% if ongoing_projects %}
+                    {% for project in ongoing_projects %}
+                    <div class="d-flex justify-content-between align-items-center mb-3 p-2 border-start border-4 border-success">
+                        <div>
+                            <strong>{{ project.site_name }}</strong>
+                            <br><small class="text-muted">{{ project.client_name }}</small>
+                        </div>
+                        <div class="text-end">
+                            <div class="badge bg-success">進行中</div>
+                            <br><small>{{ project.work_end_date|date:"m/d" }}完了予定</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center">現在進行中の案件はありません</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 近日開始予定 -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-calendar-alt"></i> 近日開始予定</h5>
+            </div>
+            <div class="card-body">
+                {% if upcoming_projects %}
+                    {% for project in upcoming_projects %}
+                    <div class="d-flex justify-content-between align-items-center mb-3 p-2 border-start border-4 border-warning">
+                        <div>
+                            <strong>{{ project.site_name }}</strong>
+                            <br><small class="text-muted">{{ project.client_name }}</small>
+                        </div>
+                        <div class="text-end">
+                            <div class="badge bg-warning text-dark">開始予定</div>
+                            <br><small>{{ project.work_start_date|date:"m/d" }}開始</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center">30日以内の開始予定案件はありません</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 売上サマリー -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-bar"></i> 売上サマリー</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 text-center mb-3">
+                        <h4 class="text-primary">¥{{ revenue_stats.total_estimate|floatformat:0|intcomma }}</h4>
+                        <p class="mb-0">総受注金額</p>
+                    </div>
+                    <div class="col-md-3 text-center mb-3">
+                        <h4 class="text-success">¥{{ revenue_stats.total_billing|floatformat:0|intcomma }}</h4>
+                        <p class="mb-0">総請求金額</p>
+                    </div>
+                    <div class="col-md-3 text-center mb-3">
+                        <h4 class="text-success">¥{{ revenue_stats.received_amount|floatformat:0|intcomma }}</h4>
+                        <p class="mb-0">受注確定額</p>
+                    </div>
+                    <div class="col-md-3 text-center mb-3">
+                        <h4 class="text-warning">¥{{ revenue_stats.pending_amount|floatformat:0|intcomma }}</h4>
+                        <p class="mb-0">検討中金額</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// 案件進捗別統計チャート
+const statusCtx = document.getElementById('statusChart').getContext('2d');
+const statusData = {
+    labels: [{% for stat in status_stats %}'{{ stat.project_status }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+    datasets: [{
+        data: [{% for stat in status_stats %}{{ stat.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+        backgroundColor: [
+            {% for stat in status_stats %}
+            {% if stat.project_status == '完工' %}'#28a745'
+            {% elif stat.project_status == 'NG' %}'#6c757d'
+            {% elif stat.project_status == '施工日待ち' %}'#dc3545'
+            {% else %}'#ffc107'{% endif %}{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ],
+        borderWidth: 2,
+        borderColor: '#fff'
+    }]
+};
+
+new Chart(statusCtx, {
+    type: 'doughnut',
+    data: statusData,
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+
+// 月別推移チャート
+const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+const monthlyData = {
+    labels: [{% for stat in monthly_stats %}'{{ stat.month }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+    datasets: [{
+        label: '総案件数',
+        data: [{% for stat in monthly_stats %}{{ stat.total }}{% if not forloop.last %},{% endif %}{% endfor %}],
+        borderColor: '#007bff',
+        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+        tension: 0.4
+    }, {
+        label: '受注件数',
+        data: [{% for stat in monthly_stats %}{{ stat.received }}{% if not forloop.last %},{% endif %}{% endfor %}],
+        borderColor: '#28a745',
+        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+        tension: 0.4
+    }]
+};
+
+new Chart(monthlyCtx, {
+    type: 'line',
+    data: monthlyData,
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

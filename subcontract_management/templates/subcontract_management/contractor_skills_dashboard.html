@@ -1,0 +1,390 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}職人スキル管理ダッシュボード{% endblock %}
+
+{% block extra_css %}
+<style>
+    .skills-dashboard {
+        background: #f8f9fa;
+        min-height: 100vh;
+    }
+
+    .dashboard-header {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .stats-row {
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        text-align: center;
+    }
+
+    .stat-icon {
+        font-size: 2.5rem;
+        color: #f59e0b;
+        margin-bottom: 0.75rem;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1f2937;
+        font-family: 'SF Mono', 'Monaco', monospace;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: #6b7280;
+        margin-top: 0.5rem;
+    }
+
+    .filter-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        margin-bottom: 2rem;
+    }
+
+    .contractor-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .contractor-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s ease;
+    }
+
+    .contractor-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 30px rgba(71,85,105,0.15);
+    }
+
+    .contractor-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 1rem;
+    }
+
+    .contractor-name {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+    }
+
+    .trust-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .trust-5 {
+        background: #10b981;
+        color: white;
+    }
+
+    .trust-4 {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .trust-3 {
+        background: #f59e0b;
+        color: white;
+    }
+
+    .trust-2, .trust-1 {
+        background: #ef4444;
+        color: white;
+    }
+
+    .skill-level-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .skill-expert {
+        background: #7c3aed;
+        color: white;
+    }
+
+    .skill-advanced {
+        background: #2563eb;
+        color: white;
+    }
+
+    .skill-intermediate {
+        background: #10b981;
+        color: white;
+    }
+
+    .skill-beginner {
+        background: #6b7280;
+        color: white;
+    }
+
+    .skill-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin: 0.75rem 0;
+    }
+
+    .skill-tag {
+        background: #f3f4f6;
+        color: #4b5563;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.813rem;
+    }
+
+    .performance-row {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .performance-item {
+        text-align: center;
+        flex: 1;
+    }
+
+    .performance-value {
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: #f59e0b;
+    }
+
+    .performance-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+
+    .rating-stars {
+        color: #fbbf24;
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="skills-dashboard">
+    <div class="dashboard-header">
+        <div class="container">
+            <h1 class="mb-2">
+                <i class="fas fa-users-cog me-3"></i>職人スキル管理ダッシュボード
+            </h1>
+            <p class="mb-0 opacity-75">Contractor Skills Management Dashboard</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 統計カード -->
+        <div class="row stats-row">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-users"></i></div>
+                    <div class="stat-value">{{ total_contractors }}</div>
+                    <div class="stat-label">総職人数</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-shield-alt"></i></div>
+                    <div class="stat-value">{{ high_trust_contractors }}</div>
+                    <div class="stat-label">高信頼度（≥4）</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-star"></i></div>
+                    <div class="stat-value">{{ expert_contractors }}</div>
+                    <div class="stat-label">エキスパート</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+                    <div class="stat-value">{{ avg_rating|floatformat:1 }}</div>
+                    <div class="stat-label">平均評価</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- フィルタ -->
+        <div class="filter-card">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">スキルレベル</label>
+                    <select name="skill_level" class="form-select">
+                        <option value="">すべて</option>
+                        {% for value, label in skill_level_choices %}
+                        <option value="{{ value }}" {% if current_skill_level == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">最低信頼度</label>
+                    <select name="trust_level" class="form-select">
+                        <option value="">すべて</option>
+                        {% for level in trust_levels %}
+                        <option value="{{ level }}" {% if current_trust_level == level|stringformat:"s" %}selected{% endif %}>
+                            {{ level }}以上
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">ステータス</label>
+                    <select name="is_active" class="form-select">
+                        <option value="">すべて</option>
+                        <option value="true" {% if current_is_active == "true" %}selected{% endif %}>アクティブ</option>
+                        <option value="false" {% if current_is_active == "false" %}selected{% endif %}>無効</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">検索</label>
+                    <input type="text" name="search" value="{{ current_search }}" class="form-control" placeholder="名前、スキル、資格で検索">
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 職人一覧 -->
+        <div class="contractor-grid">
+            {% for contractor in contractors %}
+            <div class="contractor-card">
+                <div class="contractor-header">
+                    <div>
+                        <div class="contractor-name">{{ contractor.name }}</div>
+                        {% if contractor.skill_level %}
+                        <span class="skill-level-badge skill-{{ contractor.skill_level }}">
+                            {{ contractor.get_skill_level_display }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <span class="trust-badge trust-{{ contractor.trust_level }}">
+                        信頼度 {{ contractor.trust_level }}
+                    </span>
+                </div>
+
+                {% if contractor.skill_categories %}
+                <div class="skill-tags">
+                    {% for skill in contractor.skill_categories %}
+                    <span class="skill-tag">{{ skill }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if contractor.service_areas %}
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <i class="fas fa-map-marker-alt me-1"></i>
+                        {{ contractor.service_areas|join:", " }}
+                    </small>
+                </div>
+                {% endif %}
+
+                <div class="performance-row">
+                    <div class="performance-item">
+                        <div class="performance-value">
+                            {% if contractor.average_rating > 0 %}
+                            {{ contractor.average_rating|floatformat:1 }}
+                            {% else %}
+                            —
+                            {% endif %}
+                        </div>
+                        <div class="performance-label">平均評価</div>
+                    </div>
+                    <div class="performance-item">
+                        <div class="performance-value">{{ contractor.total_projects }}</div>
+                        <div class="performance-label">総案件数</div>
+                    </div>
+                    <div class="performance-item">
+                        <div class="performance-value">{{ contractor.success_rate|floatformat:0 }}%</div>
+                        <div class="performance-label">成功率</div>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <a href="{% url 'subcontract_management:contractor_skills_detail' contractor.pk %}" class="btn btn-sm btn-outline-primary w-100">
+                        <i class="fas fa-eye me-2"></i>詳細を見る
+                    </a>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center py-5">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <p class="text-muted mb-0">条件に合う職人が見つかりませんでした</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- ページネーション -->
+        {% if is_paginated %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1">最初</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">前へ</a>
+                </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+                </li>
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">次へ</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">最後</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

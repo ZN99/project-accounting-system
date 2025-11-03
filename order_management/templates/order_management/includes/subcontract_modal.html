@@ -1,0 +1,666 @@
+<!-- 改善版 実施体制・業者追加モーダル -->
+<div class="modal fade" id="improvedSubcontractModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-users-cog me-2"></i>実施体制・業者を追加
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="improvedSubcontractForm">
+                <div class="modal-body">
+                    <!-- ステップインジケーター -->
+                    <div class="step-indicator mb-4">
+                        <div class="d-flex justify-content-between">
+                            <div class="step-item active" data-step="1">
+                                <div class="step-number">1</div>
+                                <div class="step-label">基本情報</div>
+                            </div>
+                            <div class="step-item" data-step="2">
+                                <div class="step-number">2</div>
+                                <div class="step-label">料金設定</div>
+                            </div>
+                            <div class="step-item" data-step="3">
+                                <div class="step-number">3</div>
+                                <div class="step-label">詳細情報</div>
+                            </div>
+                        </div>
+                        <div class="progress mt-2">
+                            <div class="progress-bar" role="progressbar" style="width: 33%"></div>
+                        </div>
+                    </div>
+
+                    <!-- ステップ1: 基本情報 -->
+                    <div class="step-content" id="step1">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-info-circle me-1"></i>基本情報（必須）
+                        </h6>
+
+                        <!-- リソースタイプ選択 -->
+                        <div class="mb-4 p-3 bg-light rounded">
+                            <label class="form-label fw-bold">リソースタイプ <span class="text-danger">*</span></label>
+                            <div class="d-flex gap-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="resource_type" id="external" value="external" checked>
+                                    <label class="form-check-label" for="external">
+                                        <i class="fas fa-building me-1"></i>外注業者
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="resource_type" id="internal" value="internal">
+                                    <label class="form-check-label" for="internal">
+                                        <i class="fas fa-user-tie me-1"></i>社内リソース
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 外注業者選択 -->
+                        <div id="externalResourceSection">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">業者選択方法 <span class="text-danger">*</span></label>
+                                        <div class="btn-group w-100" role="group">
+                                            <input type="radio" class="btn-check" name="contractor_selection" id="existing" value="existing" checked>
+                                            <label class="btn btn-outline-primary" for="existing">既存業者</label>
+                                            <input type="radio" class="btn-check" name="contractor_selection" id="new" value="new">
+                                            <label class="btn btn-outline-primary" for="new">新規登録</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3" id="existingContractorDiv">
+                                        <label class="form-label">元請名 <span class="text-danger">*</span></label>
+                                        <select class="form-select" name="contractor_id" id="contractorSelect">
+                                            <option value="">選択してください</option>
+                                            <!-- データベースから読み込み -->
+                                        </select>
+                                        <small class="text-muted">住所・連絡先は自動入力されます</small>
+                                    </div>
+                                    <div class="mb-3 d-none" id="newContractorDiv">
+                                        <label class="form-label">元請名 <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="client_name" placeholder="株式会社○○">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">担当者名</label>
+                                        <input type="text" class="form-control" name="contractor_person" id="contractorPerson" placeholder="自動入力または入力">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">連絡先</label>
+                                        <input type="text" class="form-control" name="contractor_contact" id="contractorContact" placeholder="自動入力または入力">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 社内リソース選択 -->
+                        <div id="internalResourceSection" class="d-none">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">担当者名 <span class="text-danger">*</span></label>
+                                        <select class="form-select" name="internal_worker_id" id="internalWorkerSelect">
+                                            <option value="">選択してください</option>
+                                            <!-- データベースから読み込み -->
+                                        </select>
+                                        <small class="text-muted">時給・部署は自動入力されます</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">所属部署</label>
+                                        <input type="text" class="form-control" name="internal_department" id="internalDepartment" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 作業内容 -->
+                        <div class="mb-3">
+                            <label class="form-label">作業内容 <span class="text-danger">*</span></label>
+                            <textarea class="form-control" name="work_description" rows="3" placeholder="具体的な作業内容を入力してください" required></textarea>
+                        </div>
+                    </div>
+
+                    <!-- ステップ2: 料金設定 -->
+                    <div class="step-content d-none" id="step2">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-yen-sign me-1"></i>料金設定（必須）
+                        </h6>
+
+                        <!-- 料金体系選択 -->
+                        <div class="mb-4 p-3 bg-light rounded">
+                            <label class="form-label fw-bold">料金体系 <span class="text-danger">*</span></label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card border-primary pricing-card" data-pricing="hourly">
+                                        <div class="card-body">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="pricing_type" id="hourlyPricing" value="hourly" checked>
+                                                <label class="form-check-label" for="hourlyPricing">
+                                                    <strong>時給ベース</strong>
+                                                    <small class="d-block text-muted">時給 × 工数で計算</small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card border-secondary pricing-card" data-pricing="project">
+                                        <div class="card-body">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="pricing_type" id="projectPricing" value="project">
+                                                <label class="form-check-label" for="projectPricing">
+                                                    <strong>案件単位</strong>
+                                                    <small class="d-block text-muted">固定金額で計算</small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 時給ベース設定 -->
+                        <div id="hourlySettings">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">時給単価 <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">¥</span>
+                                            <input type="number" class="form-control" name="hourly_rate" id="hourlyRate" placeholder="3000">
+                                            <span class="input-group-text">/時間</span>
+                                        </div>
+                                        <small class="text-muted" id="hourlyRateHint">データベースから自動入力可能</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">予定工数 <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" name="estimated_hours" step="0.5" placeholder="8">
+                                            <span class="input-group-text">時間</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">基本料金</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">¥</span>
+                                            <input type="text" class="form-control" id="baseAmount" readonly>
+                                        </div>
+                                        <small class="text-muted">自動計算</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 案件単位設定 -->
+                        <div id="projectSettings" class="d-none">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">契約金額 <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">¥</span>
+                                            <input type="number" class="form-control" name="contract_amount" placeholder="100000">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">被請求額</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">¥</span>
+                                            <input type="number" class="form-control" name="billed_amount" placeholder="100000">
+                                        </div>
+                                        <small class="text-muted">実際に請求される金額</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 追加費用 -->
+                        <div class="mt-4">
+                            <h6 class="mb-3">追加費用</h6>
+                            <div id="additionalCostItems">
+                                <!-- 動的に追加される -->
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="addCostItem">
+                                <i class="fas fa-plus me-1"></i>追加費用項目を追加
+                            </button>
+                        </div>
+
+                        <!-- 料金サマリー -->
+                        <div class="mt-4 p-3 bg-warning bg-opacity-10 rounded">
+                            <h6 class="mb-2">料金サマリー</h6>
+                            <div class="d-flex justify-content-between">
+                                <span>基本料金:</span>
+                                <strong>¥<span id="summaryBase">0</span></strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>追加費用:</span>
+                                <strong>¥<span id="summaryAdditional">0</span></strong>
+                            </div>
+                            <hr>
+                            <div class="d-flex justify-content-between">
+                                <span class="fw-bold">合計:</span>
+                                <strong class="text-primary">¥<span id="summaryTotal">0</span></strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ステップ3: 詳細情報 -->
+                    <div class="step-content d-none" id="step3">
+                        <h6 class="text-info mb-3">
+                            <i class="fas fa-file-alt me-1"></i>詳細情報（オプション）
+                        </h6>
+                        <div class="p-3 bg-light bg-opacity-50 rounded">
+
+                            <!-- 支払い管理 -->
+                            <h6 class="mb-3">支払い管理</h6>
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">支払い状況</label>
+                                        <select class="form-select" name="payment_status">
+                                            <option value="pending">未処理</option>
+                                            <option value="scheduled">出金予定</option>
+                                            <option value="paid">出金済</option>
+                                            <option value="overdue">遅延</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">出金予定日</label>
+                                        <input type="date" class="form-control" name="payment_due_date">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">実際の出金日</label>
+                                        <input type="date" class="form-control" name="payment_date">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 書類管理 -->
+                            <h6 class="mb-3">書類管理</h6>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="purchase_order_issued" id="poIssued">
+                                        <label class="form-check-label" for="poIssued">
+                                            注文書発行済み
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="invoice_received" id="invReceived">
+                                        <label class="form-check-label" for="invReceived">
+                                            請求書受領済み
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">請求書番号</label>
+                                        <input type="text" class="form-control" name="invoice_number" placeholder="INV-2024-001">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 備考 -->
+                            <div class="mb-3">
+                                <label class="form-label">備考</label>
+                                <textarea class="form-control" name="notes" rows="3" placeholder="特記事項があれば入力してください"></textarea>
+                            </div>
+
+                            <!-- 部材費（外注の場合） -->
+                            <div class="external-only">
+                                <h6 class="mb-3">部材費</h6>
+                                <div id="materialCostItems">
+                                    <!-- 動的に追加される -->
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="addMaterialItem">
+                                    <i class="fas fa-plus me-1"></i>部材費項目を追加
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="prevStep" style="display: none;">
+                        <i class="fas fa-arrow-left me-1"></i>前へ
+                    </button>
+                    <button type="button" class="btn btn-primary" id="nextStep">
+                        次へ<i class="fas fa-arrow-right ms-1"></i>
+                    </button>
+                    <button type="submit" class="btn btn-success d-none" id="submitBtn">
+                        <i class="fas fa-save me-1"></i>保存
+                    </button>
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">キャンセル</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+/* ステップインジケーター */
+.step-indicator {
+    margin-bottom: 2rem;
+}
+
+.step-item {
+    text-align: center;
+    position: relative;
+    flex: 1;
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e9ecef;
+    color: #6c757d;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.step-item.active .step-number {
+    background: #0d6efd;
+    color: white;
+}
+
+.step-item.completed .step-number {
+    background: #198754;
+    color: white;
+}
+
+.step-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.step-item.active .step-label {
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+/* 料金カード */
+.pricing-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.pricing-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.pricing-card.selected {
+    border-color: #0d6efd !important;
+    background-color: #f0f8ff;
+}
+
+/* セクション背景 */
+.bg-light.bg-opacity-50 {
+    background-color: rgba(248, 249, 250, 0.5);
+}
+</style>
+
+<script>
+$(document).ready(function() {
+    let currentStep = 1;
+    const totalSteps = 3;
+
+    // ステップナビゲーション
+    function showStep(step) {
+        // ステップコンテンツの表示/非表示
+        $('.step-content').addClass('d-none');
+        $(`#step${step}`).removeClass('d-none');
+
+        // ステップインジケーターの更新
+        $('.step-item').removeClass('active completed');
+        for (let i = 1; i < step; i++) {
+            $(`.step-item[data-step="${i}"]`).addClass('completed');
+        }
+        $(`.step-item[data-step="${step}"]`).addClass('active');
+
+        // プログレスバーの更新
+        const progress = (step / totalSteps) * 100;
+        $('.progress-bar').css('width', `${progress}%`);
+
+        // ボタンの表示/非表示
+        $('#prevStep').toggle(step > 1);
+        $('#nextStep').toggle(step < totalSteps);
+        $('#submitBtn').toggleClass('d-none', step !== totalSteps);
+
+        currentStep = step;
+    }
+
+    // 次へボタン
+    $('#nextStep').click(function() {
+        if (validateStep(currentStep)) {
+            showStep(currentStep + 1);
+        }
+    });
+
+    // 前へボタン
+    $('#prevStep').click(function() {
+        showStep(currentStep - 1);
+    });
+
+    // ステップバリデーション
+    function validateStep(step) {
+        // 簡単なバリデーション例
+        if (step === 1) {
+            const resourceType = $('input[name="resource_type"]:checked').val();
+            if (resourceType === 'external') {
+                const contractorId = $('#contractorSelect').val();
+                const contractorName = $('input[name="client_name"]').val();
+                if (!contractorId && !contractorName) {
+                    alert('業者を選択してください');
+                    return false;
+                }
+            } else {
+                const workerId = $('#internalWorkerSelect').val();
+                if (!workerId) {
+                    alert('担当者を選択してください');
+                    return false;
+                }
+            }
+            const workDesc = $('textarea[name="work_description"]').val();
+            if (!workDesc) {
+                alert('作業内容を入力してください');
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // リソースタイプ切り替え
+    $('input[name="resource_type"]').change(function() {
+        const isExternal = $(this).val() === 'external';
+        $('#externalResourceSection').toggleClass('d-none', !isExternal);
+        $('#internalResourceSection').toggleClass('d-none', isExternal);
+        $('.external-only').toggle(isExternal);
+    });
+
+    // 業者選択方法切り替え
+    $('input[name="contractor_selection"]').change(function() {
+        const isExisting = $(this).val() === 'existing';
+        $('#existingContractorDiv').toggleClass('d-none', !isExisting);
+        $('#newContractorDiv').toggleClass('d-none', isExisting);
+    });
+
+    // 料金体系切り替え
+    $('input[name="pricing_type"]').change(function() {
+        const isHourly = $(this).val() === 'hourly';
+        $('#hourlySettings').toggleClass('d-none', !isHourly);
+        $('#projectSettings').toggleClass('d-none', isHourly);
+
+        // カードのハイライト
+        $('.pricing-card').removeClass('selected');
+        $(this).closest('.pricing-card').addClass('selected');
+
+        calculateTotal();
+    });
+
+    // 時給・工数変更時の自動計算
+    $('#hourlyRate, input[name="estimated_hours"]').on('input', function() {
+        const rate = parseFloat($('#hourlyRate').val()) || 0;
+        const hours = parseFloat($('input[name="estimated_hours"]').val()) || 0;
+        const base = rate * hours;
+        $('#baseAmount').val(base.toLocaleString());
+        calculateTotal();
+    });
+
+    // 追加費用項目の追加
+    let costItemCount = 0;
+    $('#addCostItem').click(function() {
+        costItemCount++;
+        const html = `
+            <div class="row mb-2 cost-item" data-id="${costItemCount}">
+                <div class="col-md-6">
+                    <input type="text" class="form-control" name="cost_items[]" placeholder="項目名">
+                </div>
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text">¥</span>
+                        <input type="number" class="form-control cost-amount" name="cost_amounts[]" placeholder="0">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-danger btn-sm remove-cost-item">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        $('#additionalCostItems').append(html);
+    });
+
+    // 追加費用項目の削除
+    $(document).on('click', '.remove-cost-item', function() {
+        $(this).closest('.cost-item').remove();
+        calculateTotal();
+    });
+
+    // 部材費項目の追加
+    let materialItemCount = 0;
+    $('#addMaterialItem').click(function() {
+        materialItemCount++;
+        const html = `
+            <div class="row mb-2 material-item" data-id="${materialItemCount}">
+                <div class="col-md-6">
+                    <input type="text" class="form-control" name="material_items[]" placeholder="部材名">
+                </div>
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text">¥</span>
+                        <input type="number" class="form-control material-amount" name="material_amounts[]" placeholder="0">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-danger btn-sm remove-material-item">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        $('#materialCostItems').append(html);
+    });
+
+    // 部材費項目の削除
+    $(document).on('click', '.remove-material-item', function() {
+        $(this).closest('.material-item').remove();
+    });
+
+    // 合計金額の計算
+    function calculateTotal() {
+        const pricingType = $('input[name="pricing_type"]:checked').val();
+        let base = 0;
+
+        if (pricingType === 'hourly') {
+            const rate = parseFloat($('#hourlyRate').val()) || 0;
+            const hours = parseFloat($('input[name="estimated_hours"]').val()) || 0;
+            base = rate * hours;
+        } else {
+            base = parseFloat($('input[name="contract_amount"]').val()) || 0;
+        }
+
+        let additional = 0;
+        $('.cost-amount').each(function() {
+            additional += parseFloat($(this).val()) || 0;
+        });
+
+        const total = base + additional;
+
+        $('#summaryBase').text(base.toLocaleString());
+        $('#summaryAdditional').text(additional.toLocaleString());
+        $('#summaryTotal').text(total.toLocaleString());
+    }
+
+    // 金額入力時の自動計算
+    $(document).on('input', '.cost-amount, input[name="contract_amount"]', calculateTotal);
+
+    // 既存業者選択時の自動入力
+    $('#contractorSelect').change(function() {
+        const selectedOption = $(this).find('option:selected');
+        const person = selectedOption.data('person') || '';
+        const contact = selectedOption.data('contact') || '';
+        $('#contractorPerson').val(person);
+        $('#contractorContact').val(contact);
+    });
+
+    // 社内リソース選択時の自動入力
+    $('#internalWorkerSelect').change(function() {
+        const selectedOption = $(this).find('option:selected');
+        const department = selectedOption.data('department') || '';
+        const hourlyRate = selectedOption.data('hourly-rate') || '';
+        $('#internalDepartment').val(department);
+        if (hourlyRate) {
+            $('#hourlyRate').val(hourlyRate);
+            $('#hourlyRateHint').text(`標準時給: ¥${hourlyRate}`);
+            calculateTotal();
+        }
+    });
+
+    // フォーム送信
+    $('#improvedSubcontractForm').submit(function(e) {
+        e.preventDefault();
+
+        // データ収集と送信処理
+        const formData = $(this).serialize();
+        console.log('Form data:', formData);
+
+        // ここでAJAXでデータを送信
+        alert('保存しました');
+        $('#improvedSubcontractModal').modal('hide');
+    });
+
+    // モーダルリセット
+    $('#improvedSubcontractModal').on('hidden.bs.modal', function() {
+        showStep(1);
+        $('#improvedSubcontractForm')[0].reset();
+        $('#additionalCostItems').empty();
+        $('#materialCostItems').empty();
+    });
+});
+</script>

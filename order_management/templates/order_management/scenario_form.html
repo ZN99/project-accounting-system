@@ -1,0 +1,224 @@
+{% extends 'order_management/base.html' %}
+
+{% block title %}{% if object %}シナリオ編集{% else %}シナリオ作成{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <h2 class="mb-4">
+        <i class="fas fa-edit me-2"></i>
+        {% if object %}シナリオ編集{% else %}新規シナリオ作成{% endif %}
+    </h2>
+
+    <form method="post" class="needs-validation" novalidate>
+        {% csrf_token %}
+
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">基本情報</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="{{ form.name.id_for_label }}" class="form-label">シナリオ名 *</label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                            <div class="invalid-feedback d-block">{{ form.name.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">説明</label>
+                            {{ form.description }}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.scenario_type.id_for_label }}" class="form-label">シナリオタイプ</label>
+                                {{ form.scenario_type }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.forecast_months.id_for_label }}" class="form-label">予測月数</label>
+                                {{ form.forecast_months }}
+                            </div>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            {{ form.seasonality_enabled }}
+                            <label class="form-check-label" for="{{ form.seasonality_enabled.id_for_label }}">
+                                季節性を考慮する
+                            </label>
+                            <small class="form-text text-muted d-block ms-4">
+                                過去の月別売上パターン（3月は多い、1月は少ないなど）を予測に反映します
+                            </small>
+                            {% if object %}
+                            <div class="ms-4 mt-2">
+                                <a href="{% url 'order_management:seasonality_edit' object.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-calendar-alt me-1"></i>季節性指数を詳細編集
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-check mb-3">
+                            {{ form.is_default }}
+                            <label class="form-check-label" for="{{ form.is_default.id_for_label }}">
+                                デフォルトシナリオに設定
+                            </label>
+                        </div>
+
+                        {% if object %}
+                        <div class="form-check">
+                            {{ form.is_active }}
+                            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                アクティブ
+                            </label>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">成約率設定</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.conversion_rate_neta.id_for_label }}" class="form-label">
+                                    ネタ成約率 (%)
+                                </label>
+                                {{ form.conversion_rate_neta }}
+                                <small class="form-text text-muted">ネタ→完工への成約確率</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.conversion_rate_waiting.id_for_label }}" class="form-label">
+                                    施工日待ち成約率 (%)
+                                </label>
+                                {{ form.conversion_rate_waiting }}
+                                <small class="form-text text-muted">施工日待ち→完工への成約確率</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">コスト設定</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.cost_rate.id_for_label }}" class="form-label">
+                                    原価率 (%)
+                                </label>
+                                {{ form.cost_rate }}
+                                <small class="form-text text-muted">売上に対する原価の割合</small>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.fixed_cost_multiplier.id_for_label }}" class="form-label">
+                                    固定費係数
+                                </label>
+                                {{ form.fixed_cost_multiplier }}
+                                <small class="form-text text-muted">1.0 = 現状維持</small>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.variable_cost_multiplier.id_for_label }}" class="form-label">
+                                    変動費係数
+                                </label>
+                                {{ form.variable_cost_multiplier }}
+                                <small class="form-text text-muted">1.0 = 現状維持</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'order_management:forecast_dashboard' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>キャンセル
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>保存
+                    </button>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card sticky-top" style="top: 20px;">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>設定ガイド</h6>
+                    </div>
+                    <div class="card-body">
+                        <h6>シナリオタイプ</h6>
+                        <ul class="small">
+                            <li><strong>最悪:</strong> 保守的な予測（成約率低・原価率高）</li>
+                            <li><strong>通常:</strong> 標準的な予測</li>
+                            <li><strong>最良:</strong> 楽観的な予測（成約率高・原価率低）</li>
+                            <li><strong>カスタム:</strong> 自由に設定</li>
+                        </ul>
+
+                        <hr>
+
+                        <h6>成約率の目安</h6>
+                        <ul class="small">
+                            <li><strong>ネタ:</strong> 20-40%</li>
+                            <li><strong>施工日待ち:</strong> 70-90%</li>
+                        </ul>
+
+                        <hr>
+
+                        <h6>原価率の目安</h6>
+                        <ul class="small">
+                            <li><strong>高原価:</strong> 80-90%</li>
+                            <li><strong>標準:</strong> 70-80%</li>
+                            <li><strong>低原価:</strong> 60-70%</li>
+                        </ul>
+
+                        <hr>
+
+                        <h6>季節性とは？</h6>
+                        <p class="small">
+                            時期によって売上が変動する傾向です。<br>
+                            例: 建設業では3月（年度末）が多く、1月（冬季）が少ないなど。
+                        </p>
+                        <p class="small">
+                            <strong>ONにすると:</strong><br>
+                            過去12ヶ月の月別パターンを分析し、予測に反映します。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Bootstrap form validation
+    (function() {
+        'use strict';
+        var forms = document.querySelectorAll('.needs-validation');
+        Array.prototype.slice.call(forms).forEach(function(form) {
+            form.addEventListener('submit', function(event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    })();
+
+    // Add Bootstrap classes to form fields
+    document.addEventListener('DOMContentLoaded', function() {
+        const textInputs = document.querySelectorAll('input[type="text"], input[type="number"], textarea, select');
+        textInputs.forEach(input => {
+            input.classList.add('form-control');
+        });
+
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.classList.add('form-check-input');
+        });
+    });
+</script>
+{% endblock %}

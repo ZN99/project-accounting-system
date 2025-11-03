@@ -1,0 +1,174 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+
+{% block title %}{{ object.company_name }} - 削除確認{% endblock %}
+
+{% block extra_css %}
+<style>
+    .delete-container {
+        background: #f8f9fa;
+        min-height: 100vh;
+        padding: 3rem 0;
+    }
+
+    .delete-card {
+        background: white;
+        border-radius: 12px;
+        padding: 3rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .warning-icon {
+        font-size: 4rem;
+        color: #ef4444;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .company-name {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1f2937;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+
+    .warning-text {
+        text-align: center;
+        color: #6b7280;
+        margin-bottom: 2rem;
+    }
+
+    .warning-box {
+        background: #fef2f2;
+        border: 2px solid #fecaca;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .warning-box h5 {
+        color: #dc2626;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+
+    .warning-box ul {
+        margin-bottom: 0;
+        color: #991b1b;
+    }
+
+    .btn-delete {
+        background: #ef4444;
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        font-weight: 500;
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+
+    .btn-delete:hover {
+        background: #dc2626;
+    }
+
+    .btn-cancel {
+        background: #6b7280;
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        font-weight: 500;
+        width: 100%;
+    }
+
+    .btn-cancel:hover {
+        background: #4b5563;
+    }
+
+    .info-item {
+        padding: 0.75rem;
+        background: #f8fafc;
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+    }
+
+    .info-label {
+        font-weight: 500;
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+
+    .info-value {
+        color: #1f2937;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="delete-container">
+    <div class="container">
+        <div class="delete-card">
+            <div class="warning-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+
+            <div class="company-name">
+                {{ object.company_name }}
+            </div>
+
+            <p class="warning-text">
+                この元請会社を削除しようとしています。<br>
+                本当に削除してよろしいですか？
+            </p>
+
+            <div class="warning-box">
+                <h5><i class="fas fa-exclamation-circle me-2"></i>重要な注意事項</h5>
+                <ul>
+                    <li>この操作は取り消すことができません</li>
+                    {% if related_projects_count > 0 %}
+                    <li class="text-danger fw-bold">関連する{{ related_projects_count }}件の案件情報にも影響があります</li>
+                    {% else %}
+                    <li>現在この会社に関連する案件はありません</li>
+                    {% endif %}
+                    <li>削除後は復元できませんのでご注意ください</li>
+                </ul>
+            </div>
+
+            <div class="info-item">
+                <div class="info-label">会社名</div>
+                <div class="info-value">{{ object.company_name }}</div>
+            </div>
+
+            {% if object.contact_person %}
+            <div class="info-item">
+                <div class="info-label">担当者</div>
+                <div class="info-value">{{ object.contact_person }}</div>
+            </div>
+            {% endif %}
+
+            {% if related_projects_count > 0 %}
+            <div class="info-item">
+                <div class="info-label">関連案件数</div>
+                <div class="info-value text-danger">{{ related_projects_count }}件</div>
+            </div>
+            {% endif %}
+
+            <form method="post" class="mt-4">
+                {% csrf_token %}
+
+                <button type="submit" class="btn btn-delete">
+                    <i class="fas fa-trash me-2"></i>削除を実行する
+                </button>
+
+                <a href="{% url 'order_management:client_company_detail' object.pk %}" class="btn btn-cancel">
+                    <i class="fas fa-times me-2"></i>キャンセル
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

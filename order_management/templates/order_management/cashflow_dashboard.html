@@ -1,0 +1,506 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}キャッシュフロー管理{% endblock %}
+
+{% block extra_css %}
+<style>
+    .metric-card {
+        border-left: 4px solid;
+        transition: transform 0.2s;
+    }
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .metric-card.revenue {
+        border-color: #28a745;
+    }
+    .metric-card.expense {
+        border-color: #dc3545;
+    }
+    .metric-card.receivable {
+        border-color: #ffc107;
+    }
+    .metric-card.payable {
+        border-color: #fd7e14;
+    }
+    .metric-card.net {
+        border-color: #17a2b8;
+    }
+    .metric-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+    }
+    .metric-label {
+        color: #6c757d;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin: 20px 0;
+    }
+    .nav-tabs .nav-link {
+        color: #495057;
+    }
+    .nav-tabs .nav-link.active {
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-chart-line text-info"></i> キャッシュフロー管理</h2>
+            <p class="text-muted mb-0">発生主義 vs 現金主義の比較分析</p>
+        </div>
+        <div>
+            <!-- 月ナビゲーション -->
+            <div class="btn-group">
+                <a href="?year={{ prev_year }}&month={{ prev_month }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-chevron-left"></i> 前月
+                </a>
+                <button class="btn btn-outline-primary" disabled>
+                    {{ current_year }}年{{ current_month }}月
+                </button>
+                <a href="?year={{ next_year }}&month={{ next_month }}" class="btn btn-outline-secondary">
+                    次月 <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 当月サマリーカード -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card metric-card revenue">
+                <div class="card-body">
+                    <div class="metric-label">売上（発生）</div>
+                    <div class="metric-value text-success">¥{{ current_month_summary.revenue_accrual|floatformat:0|intcomma|default:"0" }}</div>
+                    <small class="text-muted">完工ベース</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card metric-card revenue">
+                <div class="card-body">
+                    <div class="metric-label">入金（実績）</div>
+                    <div class="metric-value text-success">¥{{ current_month_summary.revenue_cash|floatformat:0|intcomma|default:"0" }}</div>
+                    <small class="text-muted">現金ベース</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card metric-card receivable">
+                <div class="card-body">
+                    <div class="metric-label">売掛金</div>
+                    <div class="metric-value text-warning">¥{{ receivables.total_receivable|floatformat:0|intcomma|default:"0" }}</div>
+                    <small class="text-muted">{{ receivables.count }}件の未回収案件</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card metric-card payable">
+                <div class="card-body">
+                    <div class="metric-label">買掛金</div>
+                    <div class="metric-value text-danger">¥{{ payables.total_payable|floatformat:0|intcomma|default:"0" }}</div>
+                    <small class="text-muted">{{ payables.count }}件の未払い</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card metric-card expense">
+                <div class="card-body">
+                    <div class="metric-label">支出（発生）</div>
+                    <div class="metric-value text-danger">¥{{ current_month_summary.expense_accrual|floatformat:0|intcomma|default:"0" }}</div>
+                    <small class="text-muted">発注ベース</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card metric-card expense">
+                <div class="card-body">
+                    <div class="metric-label">出金（実績）</div>
+                    <div class="metric-value text-danger">¥{{ current_month_summary.expense_cash|floatformat:0|intcomma|default:"0" }}</div>
+                    <small class="text-muted">現金ベース</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card metric-card net">
+                <div class="card-body">
+                    <div class="metric-label">純利益（発生）</div>
+                    <div class="metric-value {% if current_month_summary.net_accrual >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        ¥{{ current_month_summary.net_accrual|floatformat:0|intcomma|default:"0" }}
+                    </div>
+                    <small class="text-muted">発生主義ベース</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card metric-card net">
+                <div class="card-body">
+                    <div class="metric-label">キャッシュフロー</div>
+                    <div class="metric-value {% if current_month_summary.net_cash >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        ¥{{ current_month_summary.net_cash|floatformat:0|intcomma|default:"0" }}
+                    </div>
+                    <small class="text-muted">現金主義ベース</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- タブナビゲーション -->
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#daily-tab">
+                <i class="fas fa-calendar-day"></i> 日別入出金
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#comparison-tab">
+                <i class="fas fa-balance-scale"></i> 発生 vs 現金
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#receivables-tab">
+                <i class="fas fa-file-invoice-dollar"></i> 売掛金詳細
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#payables-tab">
+                <i class="fas fa-money-bill-wave"></i> 買掛金詳細
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#forecast-tab">
+                <i class="fas fa-chart-area"></i> 予測
+            </button>
+        </li>
+    </ul>
+
+    <!-- タブコンテンツ -->
+    <div class="tab-content">
+        <!-- 日別入出金タブ -->
+        <div class="tab-pane fade show active" id="daily-tab">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-calendar-day"></i> 日別キャッシュフロー</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="dailyCashFlowChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 発生 vs 現金タブ -->
+        <div class="tab-pane fade" id="comparison-tab">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-balance-scale"></i> 発生主義 vs 現金主義</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="comparisonChart"></canvas>
+                    </div>
+                    <div class="table-responsive mt-4">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>項目</th>
+                                    <th class="text-end">発生主義</th>
+                                    <th class="text-end">現金主義</th>
+                                    <th class="text-end">差額</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>売上</strong></td>
+                                    <td class="text-end">¥{{ monthly_comparison.revenue.accrual|floatformat:0|intcomma }}</td>
+                                    <td class="text-end">¥{{ monthly_comparison.revenue.cash|floatformat:0|intcomma }}</td>
+                                    <td class="text-end text-warning">¥{{ monthly_comparison.revenue.receivable|floatformat:0|intcomma }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>支出</strong></td>
+                                    <td class="text-end">¥{{ monthly_comparison.expenses.accrual|floatformat:0|intcomma }}</td>
+                                    <td class="text-end">¥{{ monthly_comparison.expenses.cash|floatformat:0|intcomma }}</td>
+                                    <td class="text-end text-warning">¥{{ monthly_comparison.expenses.payable|floatformat:0|intcomma }}</td>
+                                </tr>
+                                <tr class="table-primary">
+                                    <td><strong>純利益</strong></td>
+                                    <td class="text-end"><strong>¥{{ monthly_comparison.net.accrual|floatformat:0|intcomma }}</strong></td>
+                                    <td class="text-end"><strong>¥{{ monthly_comparison.net.cash|floatformat:0|intcomma }}</strong></td>
+                                    <td class="text-end"><strong>-</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 売掛金詳細タブ -->
+        <div class="tab-pane fade" id="receivables-tab">
+            <div class="card">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-file-invoice-dollar"></i> 売掛金詳細</h5>
+                    <span class="badge bg-warning">合計: ¥{{ receivables.total_receivable|floatformat:0|intcomma }}</span>
+                </div>
+                <div class="card-body">
+                    {% if receivables.projects %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>管理No</th>
+                                    <th>現場名</th>
+                                    <th class="text-end">売上（発生）</th>
+                                    <th class="text-end">入金済み</th>
+                                    <th class="text-end">売掛金</th>
+                                    <th>経過日数</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in receivables.projects %}
+                                <tr>
+                                    <td><a href="{% url 'order_management:project_detail' item.project.pk %}">{{ item.project.management_no }}</a></td>
+                                    <td>{{ item.project.site_name }}</td>
+                                    <td class="text-end">¥{{ item.accrual|floatformat:0|intcomma }}</td>
+                                    <td class="text-end">¥{{ item.cash|floatformat:0|intcomma }}</td>
+                                    <td class="text-end text-warning"><strong>¥{{ item.receivable|floatformat:0|intcomma }}</strong></td>
+                                    <td>
+                                        <span class="badge {% if item.days_overdue > 30 %}bg-danger{% elif item.days_overdue > 15 %}bg-warning{% else %}bg-secondary{% endif %}">
+                                            {{ item.days_overdue }}日経過
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> 売掛金はありません
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 買掛金詳細タブ -->
+        <div class="tab-pane fade" id="payables-tab">
+            <div class="card">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-money-bill-wave"></i> 買掛金詳細</h5>
+                    <span class="badge bg-danger">合計: ¥{{ payables.total_payable|floatformat:0|intcomma }}</span>
+                </div>
+                <div class="card-body">
+                    {% if payables.subcontracts %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>管理No</th>
+                                    <th>案件名</th>
+                                    <th>業者</th>
+                                    <th class="text-end">契約金額</th>
+                                    <th>経過日数</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in payables.subcontracts %}
+                                <tr>
+                                    <td>{{ item.subcontract.management_no }}</td>
+                                    <td><a href="{% url 'order_management:project_detail' item.project.pk %}">{{ item.project.site_name }}</a></td>
+                                    <td>{{ item.subcontract.contractor.name }}</td>
+                                    <td class="text-end"><strong>¥{{ item.amount|floatformat:0|intcomma }}</strong></td>
+                                    <td>
+                                        <span class="badge {% if item.days_since_created > 30 %}bg-danger{% elif item.days_since_created > 15 %}bg-warning{% else %}bg-secondary{% endif %}">
+                                            {{ item.days_since_created }}日経過
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> 買掛金はありません
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 予測タブ -->
+        <div class="tab-pane fade" id="forecast-tab">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-chart-area"></i> キャッシュフロー予測（今後3ヶ月）</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>月</th>
+                                    <th class="text-end">入金予定</th>
+                                    <th class="text-end">出金予定</th>
+                                    <th class="text-end">予想CF</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in forecast %}
+                                <tr>
+                                    <td><strong>{{ item.year|stringformat:"d" }}年{{ item.month|stringformat:"d" }}月</strong></td>
+                                    <td class="text-end">¥{{ item.planned_revenue|floatformat:0|intcomma }}</td>
+                                    <td class="text-end">¥{{ item.planned_expenses|floatformat:0|intcomma }}</td>
+                                    <td class="text-end {% if item.net >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        <strong>¥{{ item.net|floatformat:0|intcomma }}</strong>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+// 日別キャッシュフローグラフ
+const dailyChartData = {{ chart_data.daily|safe }};
+const dailyCtx = document.getElementById('dailyCashFlowChart').getContext('2d');
+new Chart(dailyCtx, {
+    type: 'bar',
+    data: {
+        labels: dailyChartData.labels,
+        datasets: [
+            {
+                label: '入金',
+                data: dailyChartData.revenue,
+                backgroundColor: 'rgba(40, 167, 69, 0.7)',
+                borderColor: 'rgba(40, 167, 69, 1)',
+                borderWidth: 1
+            },
+            {
+                label: '出金',
+                data: dailyChartData.expenses,
+                backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                borderColor: 'rgba(220, 53, 69, 1)',
+                borderWidth: 1
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '¥' + value.toLocaleString();
+                    }
+                }
+            }
+        },
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.dataset.label + ': ¥' + context.parsed.y.toLocaleString();
+                    }
+                }
+            }
+        }
+    }
+});
+
+// 発生 vs 現金 比較グラフ
+const comparisonChartData = {{ chart_data.comparison|safe }};
+const comparisonCtx = document.getElementById('comparisonChart').getContext('2d');
+new Chart(comparisonCtx, {
+    type: 'line',
+    data: {
+        labels: comparisonChartData.labels,
+        datasets: [
+            {
+                label: '売上（発生）',
+                data: comparisonChartData.accrual_revenue,
+                borderColor: 'rgba(40, 167, 69, 1)',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                fill: true,
+                tension: 0.4
+            },
+            {
+                label: '売上（入金）',
+                data: comparisonChartData.cash_revenue,
+                borderColor: 'rgba(40, 167, 69, 0.5)',
+                backgroundColor: 'rgba(40, 167, 69, 0.05)',
+                fill: true,
+                tension: 0.4,
+                borderDash: [5, 5]
+            },
+            {
+                label: '支出（発生）',
+                data: comparisonChartData.accrual_expense,
+                borderColor: 'rgba(220, 53, 69, 1)',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                fill: true,
+                tension: 0.4
+            },
+            {
+                label: '支出（出金）',
+                data: comparisonChartData.cash_expense,
+                borderColor: 'rgba(220, 53, 69, 0.5)',
+                backgroundColor: 'rgba(220, 53, 69, 0.05)',
+                fill: true,
+                tension: 0.4,
+                borderDash: [5, 5]
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '¥' + value.toLocaleString();
+                    }
+                }
+            }
+        },
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.dataset.label + ': ¥' + context.parsed.y.toLocaleString();
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,279 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}コスト管理ダッシュボード{% endblock %}
+
+{% block extra_css %}
+<style>
+    .cost-dashboard {
+        background: #f8f9fa;
+        min-height: 100vh;
+    }
+
+    .dashboard-header {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(71,85,105,0.12);
+    }
+
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        font-family: 'SF Mono', 'Monaco', monospace;
+    }
+
+    .stat-label {
+        color: #64748b;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .stat-fixed { color: #ef4444; }
+    .stat-variable { color: #f59e0b; }
+    .stat-total { color: #8b5cf6; }
+
+    .quick-actions {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+    }
+
+    .btn-action {
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+        margin: 0.25rem;
+    }
+
+    .btn-action:hover {
+        transform: translateY(-1px);
+        text-decoration: none;
+    }
+
+    .btn-fixed {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: white;
+    }
+
+    .btn-variable {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: white;
+    }
+
+    .recent-costs {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+    }
+
+    .recent-costs-header {
+        background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        font-weight: 600;
+    }
+
+    .cost-item {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #f1f5f9;
+        transition: background-color 0.2s ease;
+    }
+
+    .cost-item:hover {
+        background-color: #f8fafc;
+    }
+
+    .cost-item:last-child {
+        border-bottom: none;
+    }
+
+    .cost-amount {
+        font-family: 'SF Mono', 'Monaco', monospace;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cost-dashboard">
+    <!-- ヘッダー -->
+    <div class="dashboard-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1><i class="fas fa-calculator"></i> コスト管理ダッシュボード</h1>
+                    <p class="mb-0">{{ current_year }}年{{ current_month }}月のコスト状況</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="d-flex gap-2 justify-content-end">
+                        <a href="{% url 'order_management:fixed_cost_create' %}" class="btn btn-light">
+                            <i class="fas fa-plus"></i> 固定費追加
+                        </a>
+                        <a href="{% url 'order_management:variable_cost_create' %}" class="btn btn-light">
+                            <i class="fas fa-plus"></i> 変動費追加
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid">
+        <!-- 統計カード -->
+        <div class="row mb-4">
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-value stat-fixed">¥{{ total_monthly_fixed|intcomma }}</div>
+                    <div class="stat-label">月額固定費</div>
+                    <small class="text-muted">{{ active_fixed_costs_count }}件アクティブ</small>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-value stat-variable">¥{{ total_this_month_variable|intcomma }}</div>
+                    <div class="stat-label">今月変動費</div>
+                    <small class="text-muted">{{ this_month_variable_count }}件</small>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-value stat-total">¥{{ total_monthly_cost|intcomma }}</div>
+                    <div class="stat-label">今月総コスト</div>
+                    <small class="text-muted">固定費+変動費</small>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-value stat-variable">¥{{ total_ytd_variable|intcomma }}</div>
+                    <div class="stat-label">年度累計変動費</div>
+                    <small class="text-muted">{{ ytd_variable_count }}件</small>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-8 col-sm-12 mb-3">
+                <div class="quick-actions">
+                    <h5><i class="fas fa-rocket"></i> クイックアクション</h5>
+                    <div class="d-flex flex-wrap">
+                        <a href="{% url 'order_management:fixed_cost_list' %}" class="btn-action btn-fixed">
+                            <i class="fas fa-list"></i> 固定費一覧
+                        </a>
+                        <a href="{% url 'order_management:variable_cost_list' %}" class="btn-action btn-variable">
+                            <i class="fas fa-list"></i> 変動費一覧
+                        </a>
+                        <a href="{% url 'order_management:fixed_cost_create' %}" class="btn-action btn-fixed">
+                            <i class="fas fa-plus"></i> 固定費登録
+                        </a>
+                        <a href="{% url 'order_management:variable_cost_create' %}" class="btn-action btn-variable">
+                            <i class="fas fa-plus"></i> 変動費登録
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 最近の変動費 -->
+        <div class="row">
+            <div class="col-12">
+                <div class="recent-costs">
+                    <div class="recent-costs-header">
+                        <i class="fas fa-history"></i> 最近の変動費（10件）
+                    </div>
+                    <div class="recent-costs-body">
+                        {% for cost in recent_variable_costs %}
+                        <div class="cost-item">
+                            <div class="row align-items-center">
+                                <div class="col-md-3">
+                                    <strong>{{ cost.name }}</strong>
+                                    <br><small class="text-muted">{{ cost.get_cost_type_display }}</small>
+                                </div>
+                                <div class="col-md-2">
+                                    <span class="cost-amount">¥{{ cost.amount|intcomma }}</span>
+                                </div>
+                                <div class="col-md-2">
+                                    <small class="text-muted">{{ cost.incurred_date|date:"Y/m/d" }}</small>
+                                </div>
+                                <div class="col-md-3">
+                                    {% if cost.project %}
+                                        <small class="text-primary">{{ cost.project.site_name|truncatechars:30 }}</small>
+                                    {% else %}
+                                        <small class="text-muted">一般経費</small>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-2 text-end">
+                                    <a href="{% url 'order_management:variable_cost_update' cost.pk %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'order_management:variable_cost_delete' cost.pk %}" class="btn btn-sm btn-outline-danger ms-1">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="cost-item text-center text-muted">
+                            変動費の登録がありません。
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 統計カードのアニメーション
+    const statCards = document.querySelectorAll('.stat-card');
+    statCards.forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.1}s`;
+        card.style.animation = 'fadeInUp 0.6s ease-out forwards';
+    });
+});
+
+// アニメーション定義
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

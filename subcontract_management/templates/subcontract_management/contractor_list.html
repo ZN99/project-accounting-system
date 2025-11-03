@@ -1,0 +1,221 @@
+{% extends "order_management/base.html" %}
+
+{% block title %}外注先マスター管理 - 建築派遣管理システム{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-users"></i> 外注先マスター管理</h2>
+    </div>
+    <div class="col text-end">
+        <a href="{% url 'subcontract_management:contractor_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus-circle"></i> 外注先新規登録
+        </a>
+    </div>
+</div>
+
+<!-- フィルター -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">業者種別</label>
+                <select name="contractor_type" class="form-select">
+                    <option value="">すべて</option>
+                    {% for value, label in contractor_type_choices %}
+                    <option value="{{ value }}" {% if value == contractor_type %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">ステータス</label>
+                <select name="is_active" class="form-select">
+                    <option value="">すべて</option>
+                    <option value="true" {% if is_active == 'true' %}selected{% endif %}>有効</option>
+                    <option value="false" {% if is_active == 'false' %}selected{% endif %}>無効</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">検索</label>
+                <div class="input-group">
+                    <input type="text" name="search" class="form-control" value="{{ search_query|default_if_none:'' }}" placeholder="業者名・担当者名・得意分野">
+                    <button class="btn btn-outline-secondary" type="submit">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 外注先一覧 -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>業者名</th>
+                        <th>種別</th>
+                        <th>担当者</th>
+                        <th>連絡先</th>
+                        <th>得意分野</th>
+                        <th>時給単価</th>
+                        <th>外注実績</th>
+                        <th>未払金額</th>
+                        <th>ステータス</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contractor in contractors %}
+                    <tr>
+                        <td>
+                            <strong>{{ contractor.name }}</strong>
+                            <br><small class="text-muted">{{ contractor.address|truncatechars:30 }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">
+                                {{ contractor.get_contractor_type_display }}
+                            </span>
+                        </td>
+                        <td>{{ contractor.contact_person|default:"-" }}</td>
+                        <td>
+                            {% if contractor.phone %}
+                            <i class="fas fa-phone"></i> {{ contractor.phone }}<br>
+                            {% endif %}
+                            {% if contractor.email %}
+                            <i class="fas fa-envelope"></i> {{ contractor.email }}
+                            {% endif %}
+                        </td>
+                        <td>{{ contractor.specialties|default:"-"|truncatechars:30 }}</td>
+                        <td class="text-end">
+                            {% if contractor.hourly_rate %}
+                            ¥{{ contractor.hourly_rate|floatformat:0 }}/時
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-primary">{{ contractor.get_total_subcontracts }}件</span>
+                            <br><small class="text-muted">¥{{ contractor.get_total_amount|floatformat:0 }}</small>
+                        </td>
+                        <td class="text-end">
+                            {% if contractor.get_unpaid_amount > 0 %}
+                            <span class="text-warning fw-bold">¥{{ contractor.get_unpaid_amount|floatformat:0 }}</span>
+                            {% else %}
+                            <span class="text-muted">¥0</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if contractor.is_active %}
+                            <span class="badge bg-success">有効</span>
+                            {% else %}
+                            <span class="badge bg-secondary">無効</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button class="btn btn-info btn-sm" title="詳細" data-bs-toggle="modal" data-bs-target="#contractorModal{{ contractor.pk }}">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- 外注先詳細モーダル -->
+                    <div class="modal fade" id="contractorModal{{ contractor.pk }}" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">{{ contractor.name }} - 詳細情報</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>基本情報</h6>
+                                            <dl class="row">
+                                                <dt class="col-sm-4">業者名:</dt>
+                                                <dd class="col-sm-8">{{ contractor.name }}</dd>
+                                                <dt class="col-sm-4">種別:</dt>
+                                                <dd class="col-sm-8">{{ contractor.get_contractor_type_display }}</dd>
+                                                <dt class="col-sm-4">住所:</dt>
+                                                <dd class="col-sm-8">{{ contractor.address }}</dd>
+                                                <dt class="col-sm-4">担当者:</dt>
+                                                <dd class="col-sm-8">{{ contractor.contact_person|default:"-" }}</dd>
+                                                <dt class="col-sm-4">電話:</dt>
+                                                <dd class="col-sm-8">{{ contractor.phone|default:"-" }}</dd>
+                                                <dt class="col-sm-4">メール:</dt>
+                                                <dd class="col-sm-8">{{ contractor.email|default:"-" }}</dd>
+                                            </dl>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>業務情報</h6>
+                                            <dl class="row">
+                                                <dt class="col-sm-4">得意分野:</dt>
+                                                <dd class="col-sm-8">{{ contractor.specialties|default:"-" }}</dd>
+                                                <dt class="col-sm-4">時給単価:</dt>
+                                                <dd class="col-sm-8">
+                                                    {% if contractor.hourly_rate %}
+                                                    ¥{{ contractor.hourly_rate|floatformat:0 }}/時
+                                                    {% else %}
+                                                    -
+                                                    {% endif %}
+                                                </dd>
+                                                <dt class="col-sm-4">外注実績:</dt>
+                                                <dd class="col-sm-8">{{ contractor.get_total_subcontracts }}件</dd>
+                                                <dt class="col-sm-4">総取引額:</dt>
+                                                <dd class="col-sm-8">¥{{ contractor.get_total_amount|floatformat:0 }}</dd>
+                                                <dt class="col-sm-4">未払金額:</dt>
+                                                <dd class="col-sm-8">¥{{ contractor.get_unpaid_amount|floatformat:0 }}</dd>
+                                                <dt class="col-sm-4">登録日:</dt>
+                                                <dd class="col-sm-8">{{ contractor.created_at|date:"Y年m月d日" }}</dd>
+                                            </dl>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted">外注先データがありません</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ページネーション -->
+        {% if page_obj.has_other_pages %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}&contractor_type={{ contractor_type }}&is_active={{ is_active }}&search={{ search_query }}">前へ</a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}&contractor_type={{ contractor_type }}&is_active={{ is_active }}&search={{ search_query }}">{{ num }}</a></li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}&contractor_type={{ contractor_type }}&is_active={{ is_active }}&search={{ search_query }}">次へ</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

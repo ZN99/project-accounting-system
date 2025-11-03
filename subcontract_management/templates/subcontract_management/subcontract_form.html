@@ -1,0 +1,233 @@
+{% extends "order_management/base.html" %}
+
+{% block title %}{{ title }} - 建築派遣管理システム{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-10 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-handshake"></i> {{ title }}</h3>
+                <p class="mb-0 text-muted">{{ project.management_no }} - {{ project.site_name }}</p>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <!-- 外注先情報 -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">外注先情報</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.contractor.id_for_label }}" class="form-label">
+                                        外注先 <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.contractor }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.work_description.id_for_label }}" class="form-label">
+                                        作業内容
+                                    </label>
+                                    {{ form.work_description }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 金額管理 -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">金額管理</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.contract_amount.id_for_label }}" class="form-label">
+                                        契約金額 <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">¥</span>
+                                        {{ form.contract_amount }}
+                                    </div>
+                                    <small class="form-text text-muted">{{ form.contract_amount.help_text }}</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.billed_amount.id_for_label }}" class="form-label">
+                                        被請求額
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">¥</span>
+                                        {{ form.billed_amount }}
+                                    </div>
+                                    <small class="form-text text-muted">{{ form.billed_amount.help_text }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 支払い管理 -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">支払い管理</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="{{ form.payment_status.id_for_label }}" class="form-label">
+                                        支払い状況
+                                    </label>
+                                    {{ form.payment_status }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="{{ form.payment_due_date.id_for_label }}" class="form-label">
+                                        出金予定日
+                                    </label>
+                                    {{ form.payment_due_date }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="{{ form.payment_date.id_for_label }}" class="form-label">
+                                        出金日
+                                    </label>
+                                    {{ form.payment_date }}
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <div class="form-check">
+                                        {{ form.purchase_order_issued }}
+                                        <label class="form-check-label" for="{{ form.purchase_order_issued.id_for_label }}">
+                                            発注書発行済み
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 部材費管理 -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">部材費管理</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.material_item_1.id_for_label }}" class="form-label">
+                                        部材費項目①
+                                    </label>
+                                    {{ form.material_item_1 }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.material_cost_1.id_for_label }}" class="form-label">
+                                        部材費代①
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">¥</span>
+                                        {{ form.material_cost_1 }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.material_item_2.id_for_label }}" class="form-label">
+                                        部材費項目②
+                                    </label>
+                                    {{ form.material_item_2 }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.material_cost_2.id_for_label }}" class="form-label">
+                                        部材費代②
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">¥</span>
+                                        {{ form.material_cost_2 }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.material_item_3.id_for_label }}" class="form-label">
+                                        部材費項目③
+                                    </label>
+                                    {{ form.material_item_3 }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.material_cost_3.id_for_label }}" class="form-label">
+                                        部材費代③
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">¥</span>
+                                        {{ form.material_cost_3 }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 備考 -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">備考</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="{{ form.notes.id_for_label }}" class="form-label">備考</label>
+                                {{ form.notes }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ボタン -->
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-save"></i> 保存
+                        </button>
+                        <a href="{% url 'subcontract_management:project_subcontract_list' project.pk %}" class="btn btn-secondary btn-lg">
+                            <i class="fas fa-times"></i> キャンセル
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // 自動計算の表示
+    function calculateTotal() {
+        var material1 = parseFloat($('#id_material_cost_1').val()) || 0;
+        var material2 = parseFloat($('#id_material_cost_2').val()) || 0;
+        var material3 = parseFloat($('#id_material_cost_3').val()) || 0;
+        var billed = parseFloat($('#id_billed_amount').val()) || 0;
+
+        var totalMaterial = material1 + material2 + material3;
+        var totalCost = billed + totalMaterial;
+
+        // 部材費合計の表示（実際の保存はサーバー側で行う）
+        if ($('#material_total_display').length === 0) {
+            $('#id_material_cost_3').closest('.card-body').append(
+                '<div id="material_total_display" class="alert alert-info mt-3">' +
+                '<strong>部材費合計: ¥<span id="material_total_amount">0</span></strong><br>' +
+                '<strong>総コスト: ¥<span id="total_cost_amount">0</span></strong>' +
+                '</div>'
+            );
+        }
+
+        $('#material_total_amount').text(totalMaterial.toLocaleString());
+        $('#total_cost_amount').text(totalCost.toLocaleString());
+    }
+
+    // 金額フィールドの変更を監視
+    $('#id_material_cost_1, #id_material_cost_2, #id_material_cost_3, #id_billed_amount').on('input', calculateTotal);
+
+    // 初期計算
+    calculateTotal();
+});
+</script>
+{% endblock %}

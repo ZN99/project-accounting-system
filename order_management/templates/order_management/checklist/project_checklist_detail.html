@@ -1,0 +1,327 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+
+{% block title %}チェックリスト - {{ project.site_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .checklist-container {
+        background: #f8f9fa;
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .checklist-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+    }
+
+    .checklist-header {
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+    }
+
+    .progress-section {
+        background: #f3f4f6;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+    }
+
+    .progress {
+        height: 30px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .checklist-item-box {
+        background: white;
+        padding: 1.25rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        border: 2px solid #e5e7eb;
+        transition: all 0.3s ease;
+    }
+
+    .checklist-item-box:hover {
+        border-color: #6366f1;
+        box-shadow: 0 4px 12px rgba(99,102,241,0.1);
+    }
+
+    .checklist-item-box.completed {
+        background: #f0fdf4;
+        border-color: #86efac;
+    }
+
+    .checklist-item-box.completed .item-name {
+        text-decoration: line-through;
+        color: #6b7280;
+    }
+
+    .custom-checkbox {
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+    }
+
+    .custom-checkbox:checked {
+        background-color: #10b981;
+        border-color: #10b981;
+    }
+
+    .item-name {
+        font-size: 1.1rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .item-description {
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+
+    .item-meta {
+        font-size: 0.813rem;
+        color: #9ca3af;
+    }
+
+    .notes-input {
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .completion-badge {
+        font-size: 1.2rem;
+        padding: 0.5rem 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="checklist-container">
+    <div class="container">
+        <div class="checklist-card">
+            <div class="checklist-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h2 class="mb-2">
+                            <i class="fas fa-clipboard-check me-2"></i>
+                            {% if checklist.template %}{{ checklist.template.name }}{% else %}カスタムチェックリスト{% endif %}
+                        </h2>
+                        <p class="mb-0 opacity-75">
+                            <a href="{% url 'order_management:project_detail' project.pk %}" class="text-white">
+                                <i class="fas fa-arrow-left me-2"></i>{{ project.site_name }}
+                            </a>
+                        </p>
+                    </div>
+                    <div class="col-auto">
+                        <a href="{% url 'order_management:project_checklist_delete' project.pk checklist.pk %}"
+                           class="btn btn-outline-light">
+                            <i class="fas fa-trash me-2"></i>削除
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 進捗状況 -->
+            <div class="progress-section">
+                <div class="row align-items-center mb-3">
+                    <div class="col">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>進捗状況
+                        </h5>
+                    </div>
+                    <div class="col-auto">
+                        <span class="badge completion-badge" id="completion-badge"
+                              style="background-color: {% if completion_rate == 100 %}#10b981{% else %}#f59e0b{% endif %};">
+                            <span id="completion-rate">{{ completion_rate }}</span>%
+                        </span>
+                    </div>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar" id="progress-bar" role="progressbar"
+                         style="width: {{ completion_rate }}%; background-color: {% if completion_rate == 100 %}#10b981{% else %}#6366f1{% endif %};"
+                         aria-valuenow="{{ completion_rate }}" aria-valuemin="0" aria-valuemax="100">
+                        <span id="progress-text">{{ completion_rate }}%完了</span>
+                    </div>
+                </div>
+                {% if checklist.completed_at %}
+                <div class="alert alert-success mt-3 mb-0">
+                    <i class="fas fa-check-circle me-2"></i>
+                    全ての項目が完了しました！ ({{ checklist.completed_at|date:"Y/m/d H:i" }})
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- チェックリスト項目 -->
+            <h5 class="mb-3">
+                <i class="fas fa-list-check me-2"></i>チェック項目
+            </h5>
+
+            {% for item in checklist.items %}
+            <div class="checklist-item-box {% if item.completed %}completed{% endif %}"
+                 id="item-{{ forloop.counter0 }}">
+                <div class="row align-items-start">
+                    <div class="col-auto">
+                        <input type="checkbox" class="form-check-input custom-checkbox"
+                               id="checkbox-{{ forloop.counter0 }}"
+                               {% if item.completed %}checked{% endif %}
+                               onchange="updateItem({{ forloop.counter0 }}, this.checked)">
+                    </div>
+                    <div class="col">
+                        <div class="item-name">
+                            <label for="checkbox-{{ forloop.counter0 }}" style="cursor: pointer;">
+                                {{ forloop.counter }}. {{ item.name }}
+                            </label>
+                        </div>
+                        {% if item.description %}
+                        <div class="item-description">
+                            {{ item.description }}
+                        </div>
+                        {% endif %}
+
+                        <!-- メモ入力 -->
+                        <div class="mt-2">
+                            <textarea class="form-control notes-input" rows="2"
+                                      id="notes-{{ forloop.counter0 }}"
+                                      placeholder="メモを入力（任意）"
+                                      onchange="updateItemNotes({{ forloop.counter0 }}, this.value)">{{ item.notes }}</textarea>
+                        </div>
+
+                        {% if item.completed_at %}
+                        <div class="item-meta mt-2">
+                            <i class="fas fa-check-circle me-1"></i>
+                            完了: {{ item.completed_at|date:"Y/m/d H:i" }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-4 text-muted">
+                <i class="fas fa-inbox fa-2x mb-3"></i>
+                <p>チェック項目がありません</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+const projectPk = {{ project.pk }};
+const checklistPk = {{ checklist.pk }};
+
+function updateItem(itemIndex, completed) {
+    const notes = document.getElementById(`notes-${itemIndex}`).value;
+
+    fetch(`/order_management/projects/${projectPk}/checklists/${checklistPk}/update-item/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            item_index: itemIndex,
+            completed: completed,
+            notes: notes
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update UI
+            const itemBox = document.getElementById(`item-${itemIndex}`);
+            if (completed) {
+                itemBox.classList.add('completed');
+            } else {
+                itemBox.classList.remove('completed');
+            }
+
+            // Update progress
+            updateProgress(data.completion_rate);
+
+            // Show completion message
+            if (data.all_completed) {
+                location.reload();
+            }
+        } else {
+            alert('エラーが発生しました: ' + data.error);
+            // Revert checkbox
+            document.getElementById(`checkbox-${itemIndex}`).checked = !completed;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('更新に失敗しました');
+        // Revert checkbox
+        document.getElementById(`checkbox-${itemIndex}`).checked = !completed;
+    });
+}
+
+function updateItemNotes(itemIndex, notes) {
+    const completed = document.getElementById(`checkbox-${itemIndex}`).checked;
+
+    fetch(`/order_management/projects/${projectPk}/checklists/${checklistPk}/update-item/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            item_index: itemIndex,
+            completed: completed,
+            notes: notes
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            alert('エラーが発生しました: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+
+function updateProgress(completionRate) {
+    document.getElementById('completion-rate').textContent = completionRate;
+    document.getElementById('progress-bar').style.width = completionRate + '%';
+    document.getElementById('progress-bar').setAttribute('aria-valuenow', completionRate);
+    document.getElementById('progress-text').textContent = completionRate + '%完了';
+
+    const badge = document.getElementById('completion-badge');
+    const progressBar = document.getElementById('progress-bar');
+
+    if (completionRate === 100) {
+        badge.style.backgroundColor = '#10b981';
+        progressBar.style.backgroundColor = '#10b981';
+    } else {
+        badge.style.backgroundColor = '#f59e0b';
+        progressBar.style.backgroundColor = '#6366f1';
+    }
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

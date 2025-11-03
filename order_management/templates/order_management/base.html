@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}建築派遣管理システム{% endblock %}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- DataTables CSS -->
+    <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        body {
+            padding-top: 70px;
+            background-color: #f8f9fa;
+        }
+        .navbar-brand {
+            font-weight: bold;
+        }
+        .card {
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+        }
+        .table-responsive {
+            font-size: 0.9rem;
+        }
+        .btn-action {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+        .status-badge {
+            padding: 0.35em 0.65em;
+            font-size: 0.75em;
+            font-weight: 700;
+            line-height: 1;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: baseline;
+            border-radius: 0.25rem;
+        }
+        .status-ordered {
+            background-color: #28a745;
+            color: white;
+        }
+        .status-ng {
+            background-color: #6c757d;
+            color: white;
+        }
+        .status-a {
+            background-color: #dc3545;
+            color: white;
+        }
+        .status-pending {
+            background-color: #ffc107;
+            color: black;
+        }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'order_management:dashboard' %}">
+                <i class="fas fa-building"></i> 建築派遣管理
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <!-- 1. ダッシュボード -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'order_management:dashboard' %}">
+                            <i class="fas fa-tachometer-alt"></i> ダッシュボード
+                        </a>
+                    </li>
+
+                    <!-- 2. 案件管理 -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="projectDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-folder-open"></i> 案件管理
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="projectDropdown">
+                            <li><a class="dropdown-item" href="{% url 'order_management:project_list' %}">
+                                <i class="fas fa-list"></i> 案件一覧
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'order_management:project_create' %}">
+                                <i class="fas fa-plus-circle"></i> 新規案件登録
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><small class="dropdown-header text-muted">検索・フィルタ</small></li>
+                            <li><a class="dropdown-item" href="{% url 'order_management:project_list' %}?status=受注">
+                                <i class="fas fa-check-circle text-success"></i> 受注案件
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'order_management:project_list' %}?status=進行中">
+                                <i class="fas fa-spinner text-primary"></i> 進行中案件
+                            </a></li>
+                        </ul>
+                    </li>
+
+                    {# Field survey system removed in this version
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="surveysDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-search"></i> 現場調査
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="surveysDropdown">
+                            <li><a class="dropdown-item" href="#">
+                                <i class="fas fa-list"></i> 調査一覧
+                            </a></li>
+                            <li><a class="dropdown-item" href="#">
+                                <i class="fas fa-calendar-alt"></i> スケジュール管理
+                            </a></li>
+                            <li><a class="dropdown-item" href="#">
+                                <i class="fas fa-plus-circle"></i> 調査予約作成
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/admin/surveys/surveyor/">
+                                <i class="fas fa-users"></i> 調査員管理
+                            </a></li>
+                        </ul>
+                    </li>
+                    #}
+
+                    <!-- 4. 業者管理 -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="contractorDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-handshake"></i> 業者管理
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="contractorDropdown">
+                            <li><a class="dropdown-item" href="{% url 'order_management:contractor_dashboard' %}">
+                                <i class="fas fa-building text-success"></i> 受注業者
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'order_management:ordering_dashboard' %}">
+                                <i class="fas fa-file-contract text-warning"></i> 発注業者
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'subcontract_management:contractor_list' %}">
+                                <i class="fas fa-users"></i> 業者マスター
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'subcontract_management:dashboard' %}">
+                                <i class="fas fa-chart-line"></i> 発注管理ダッシュボード
+                            </a></li>
+                        </ul>
+                    </li>
+
+                    <!-- 5. 経理・支払 -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="accountingDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-calculator"></i> 経理・支払
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="accountingDropdown">
+                            <li><a class="dropdown-item" href="{% url 'order_management:accounting_dashboard' %}">
+                                <i class="fas fa-chart-line"></i> 経理ダッシュボード
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'order_management:cashflow_dashboard' %}">
+                                <i class="fas fa-exchange-alt text-info"></i> キャッシュフロー管理
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'order_management:forecast_dashboard' %}">
+                                <i class="fas fa-crystal-ball text-primary"></i> 売上予測
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'order_management:report_dashboard' %}">
+                                <i class="fas fa-file-alt text-success"></i> レポート管理
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'order_management:receipt_dashboard' %}">
+                                <i class="fas fa-arrow-down text-success"></i> 入金管理
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'order_management:payment_dashboard' %}">
+                                <i class="fas fa-arrow-up text-danger"></i> 出金管理
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'subcontract_management:payment_tracking' %}">
+                                <i class="fas fa-credit-card"></i> 支払い追跡
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'subcontract_management:profit_analysis_list' %}">
+                                <i class="fas fa-chart-bar"></i> 利益分析
+                            </a></li>
+                        </ul>
+                    </li>
+
+                    <!-- 6. カレンダー・業績 -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="calendarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-calendar"></i> カレンダー・業績
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="calendarDropdown">
+                            <li><a class="dropdown-item" href="{% url 'order_management:construction_calendar' %}">
+                                <i class="fas fa-calendar-alt"></i> 施工カレンダー
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'order_management:gantt_chart' %}">
+                                <i class="fas fa-tasks"></i> ガントチャート
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'order_management:performance_monthly' %}">
+                                <i class="fas fa-chart-line"></i> 月次業績
+                            </a></li>
+                        </ul>
+                    </li>
+
+                    <!-- 7. システム管理 -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/">
+                            <i class="fas fa-cog"></i> システム管理
+                        </a>
+                    </li>
+                </ul>
+                <!-- ユーザー情報 -->
+                <ul class="navbar-nav">
+                    {% if user.is_authenticated %}
+                    <!-- 通知ベル -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link position-relative" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-bell"></i>
+                            <span id="notification-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display: none;">
+                                0
+                            </span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="notificationDropdown" style="min-width: 350px; max-height: 500px; overflow-y: auto;">
+                            <li><h6 class="dropdown-header">通知</h6></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <div id="notifications-container">
+                                <li class="text-center py-3">
+                                    <i class="fas fa-spinner fa-spin"></i> 読み込み中...
+                                </li>
+                            </div>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item text-center small" href="javascript:void(0)" onclick="markAllNotificationsRead()">
+                                    <i class="fas fa-check-double"></i> 全て既読にする
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user"></i> {{ user.first_name|default:user.username }}さん
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li><h6 class="dropdown-header">{{ user.first_name }} {{ user.last_name }}</h6></li>
+                            <li><span class="dropdown-item-text small text-muted">{{ user.email }}</span></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'order_management:logout' %}">
+                                <i class="fas fa-sign-out-alt"></i> ログアウト
+                            </a></li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'order_management:login' %}">
+                            <i class="fas fa-sign-in-alt"></i> ログイン
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Messages -->
+    {% if messages %}
+    <div class="container mt-3">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <main class="container-fluid">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center text-muted mt-5 mb-3">
+        <hr>
+        <p>&copy; 2025 建築派遣管理システム</p>
+        <small style="opacity: 0.5;">Version 2.3.0 - Build 2025.10.27</small>
+    </footer>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+
+    {% block extra_js %}{% endblock %}
+
+    <!-- 通知機能JavaScript -->
+    <script>
+    // 通知機能
+    function loadNotifications() {
+        {% if user.is_authenticated %}
+        fetch('/orders/api/notifications/')
+            .then(response => response.json())
+            .then(data => {
+                displayNotifications(data.notifications, data.unread_count);
+            })
+            .catch(error => {
+                console.error('通知取得エラー:', error);
+            });
+        {% endif %}
+    }
+
+    function displayNotifications(notifications, unreadCount) {
+        const container = document.getElementById('notifications-container');
+        const badge = document.getElementById('notification-badge');
+
+        // バッジ更新
+        if (unreadCount > 0) {
+            badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+
+        // 通知一覧表示
+        if (notifications.length === 0) {
+            container.innerHTML = '<li class="text-center py-3 text-muted"><i class="fas fa-inbox"></i> 通知はありません</li>';
+            return;
+        }
+
+        let html = '';
+        notifications.forEach(notif => {
+            const readClass = notif.is_read ? 'bg-light' : 'bg-white';
+            const icon = notif.type === 'mention' ? 'at' : 'comment';
+
+            html += `
+                <li>
+                    <a class="dropdown-item ${readClass}" href="${notif.link || '#'}" onclick="markNotificationRead(${notif.id})">
+                        <div class="d-flex align-items-start">
+                            <i class="fas fa-${icon} text-primary mt-1 me-2"></i>
+                            <div class="flex-grow-1">
+                                <div class="fw-bold small">${escapeHtml(notif.title)}</div>
+                                <div class="small text-muted">${escapeHtml(notif.message)}</div>
+                                <div class="small text-muted mt-1">
+                                    <i class="far fa-clock"></i> ${notif.created_at}
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </li>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    function markNotificationRead(notificationId) {
+        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        fetch(`/orders/api/notifications/${notificationId}/read/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            }
+        })
+        .then(() => {
+            loadNotifications(); // 再読み込み
+        })
+        .catch(error => {
+            console.error('通知既読エラー:', error);
+        });
+    }
+
+    function markAllNotificationsRead() {
+        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        fetch('/orders/api/notifications/read-all/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            }
+        })
+        .then(() => {
+            loadNotifications(); // 再読み込み
+        })
+        .catch(error => {
+            console.error('一括既読エラー:', error);
+        });
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ページ読み込み時とドロップダウン開閉時に通知を読み込み
+    document.addEventListener('DOMContentLoaded', function() {
+        loadNotifications();
+
+        // 30秒ごとに通知を更新
+        setInterval(loadNotifications, 30000);
+
+        // ドロップダウンが開かれた時も更新
+        const notificationDropdown = document.getElementById('notificationDropdown');
+        if (notificationDropdown) {
+            notificationDropdown.addEventListener('click', function() {
+                loadNotifications();
+            });
+        }
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,230 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}承認管理{% endblock %}
+
+{% block extra_css %}
+<style>
+    .approval-container {
+        background: #f8f9fa;
+        min-height: 100vh;
+    }
+
+    .approval-header {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .nav-tabs .nav-link {
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    .nav-tabs .nav-link.active {
+        color: #8b5cf6;
+        border-bottom: 3px solid #8b5cf6;
+    }
+
+    .approval-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border-left: 4px solid #e5e7eb;
+        transition: all 0.3s ease;
+    }
+
+    .approval-card:hover {
+        transform: translateX(4px);
+        box-shadow: 0 6px 24px rgba(71,85,105,0.12);
+    }
+
+    .approval-card.pending {
+        border-left-color: #f59e0b;
+    }
+
+    .approval-card.approved {
+        border-left-color: #10b981;
+    }
+
+    .approval-card.rejected {
+        border-left-color: #ef4444;
+    }
+
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .status-pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-approved {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-rejected {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .type-badge {
+        background: #e0e7ff;
+        color: #3730a3;
+        padding: 0.25rem 0.75rem;
+        border-radius: 0.375rem;
+        font-size: 0.813rem;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="approval-container">
+    <div class="approval-header">
+        <div class="container">
+            <h1 class="mb-2">
+                <i class="fas fa-check-circle me-3"></i>承認管理
+            </h1>
+            <p class="mb-0 opacity-75">Approval Management</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- タブナビゲーション -->
+        <ul class="nav nav-tabs mb-4">
+            <li class="nav-item">
+                <a class="nav-link {% if view_type == 'pending' %}active{% endif %}"
+                   href="?view=pending">
+                    承認待ち
+                    {% if pending_count > 0 %}
+                    <span class="badge bg-warning text-dark ms-2">{{ pending_count }}</span>
+                    {% endif %}
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if view_type == 'my_requests' %}active{% endif %}"
+                   href="?view=my_requests">
+                    自分の申請
+                    <span class="badge bg-secondary ms-2">{{ my_requests_count }}</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if view_type == 'approved' %}active{% endif %}"
+                   href="?view=approved">
+                    承認済み
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if view_type == 'rejected' %}active{% endif %}"
+                   href="?view=rejected">
+                    却下
+                </a>
+            </li>
+        </ul>
+
+        <!-- 承認リスト -->
+        {% for approval in approvals %}
+        <div class="approval-card {{ approval.status }}">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="type-badge me-2">{{ approval.get_approval_type_display }}</span>
+                        <span class="status-badge status-{{ approval.status }}">
+                            {{ approval.get_status_display }}
+                        </span>
+                    </div>
+
+                    <h5 class="mb-1">
+                        <a href="{% url 'order_management:project_detail' approval.project.pk %}">
+                            {{ approval.project.site_name }}
+                        </a>
+                    </h5>
+
+                    <div class="text-muted small">
+                        <i class="fas fa-user me-1"></i>
+                        申請者: {{ approval.requester.get_full_name|default:approval.requester.username }}
+
+                        {% if approval.amount %}
+                        <span class="ms-3">
+                            <i class="fas fa-yen-sign me-1"></i>
+                            ¥{{ approval.amount|intcomma }}
+                        </span>
+                        {% endif %}
+
+                        <span class="ms-3">
+                            <i class="fas fa-clock me-1"></i>
+                            {{ approval.requested_at|date:"Y/m/d H:i" }}
+                        </span>
+                    </div>
+
+                    {% if approval.request_reason %}
+                    <p class="mt-2 mb-0 text-muted small">
+                        {{ approval.request_reason|truncatewords:20 }}
+                    </p>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-4 text-end">
+                    <a href="{% url 'order_management:approval_detail' approval.pk %}"
+                       class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-eye me-1"></i>詳細を見る
+                    </a>
+
+                    {% if is_executive and approval.status == 'pending' %}
+                    <a href="{% url 'order_management:approval_action' approval.pk %}"
+                       class="btn btn-sm btn-success ms-2">
+                        <i class="fas fa-check me-1"></i>処理する
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="text-center py-5">
+            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+            <p class="text-muted mb-0">承認申請がありません</p>
+        </div>
+        {% endfor %}
+
+        <!-- ページネーション -->
+        {% if is_paginated %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?view={{ view_type }}&page=1">最初</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?view={{ view_type }}&page={{ page_obj.previous_page_number }}">前へ</a>
+                </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+                </li>
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?view={{ view_type }}&page={{ page_obj.next_page_number }}">次へ</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?view={{ view_type }}&page={{ page_obj.paginator.num_pages }}">最後</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

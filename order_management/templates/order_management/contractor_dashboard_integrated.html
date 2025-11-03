@@ -1,0 +1,278 @@
+{% extends "order_management/base.html" %}
+{% load humanize %}
+
+{% block title %}受注業務ダッシュボード - 建築派遣管理システム{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-card {
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    .chart-container {
+        position: relative;
+        height: 500px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- グラフセクション -->
+    <div class="row">
+        <!-- 統合グラフ（月別売上・利益・利益率推移） -->
+        <div class="col-lg-12 mb-4">
+            <div class="card dashboard-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-area me-2"></i>月別売上・利益・利益率推移
+                    </h6>
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#integratedChartOptions">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="collapse mb-3" id="integratedChartOptions">
+                        <div class="border rounded p-3 bg-light">
+                            <!-- データタイプ選択 -->
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <strong>表示データ:</strong>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="showRevenue" checked>
+                                        <label class="form-check-label" for="showRevenue">💰 売上</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="showProfit" checked>
+                                        <label class="form-check-label" for="showProfit">📈 利益額</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="showProfitRate" checked>
+                                        <label class="form-check-label" for="showProfitRate">📊 利益率(%)</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>利益率表示方式:</strong>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="profitRateMode" id="profitRateSingle" checked>
+                                        <label class="form-check-label" for="profitRateSingle">単月利益率</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="profitRateMode" id="profitRateCumulative">
+                                        <label class="form-check-label" for="profitRateCumulative">累計利益率</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>チャート種別:</strong>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="chartType" id="chartTypeLine" checked>
+                                        <label class="form-check-label" for="chartTypeLine">線グラフ</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="chartType" id="chartTypeBar">
+                                        <label class="form-check-label" for="chartTypeBar">棒グラフ</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="integratedChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// グローバル変数
+let integratedChartInstance = null;
+let monthlyData = [
+    {revenue: 5000000, profit: 1000000, profit_rate: 20},
+    {revenue: 6000000, profit: 1200000, profit_rate: 20},
+    {revenue: 7000000, profit: 1750000, profit_rate: 25},
+    {revenue: 5500000, profit: 1100000, profit_rate: 20},
+    {revenue: 8000000, profit: 2400000, profit_rate: 30},
+    {revenue: 9000000, profit: 2250000, profit_rate: 25}
+];
+let chartLabels = ['1月', '2月', '3月', '4月', '5月', '6月'];
+
+// チャートの初期化
+function initializeCharts() {
+    const integratedCtx = document.getElementById('integratedChart').getContext('2d');
+    integratedChartInstance = new Chart(integratedCtx, {
+        type: 'line',
+        data: {
+            labels: chartLabels,
+            datasets: [
+                {
+                    label: '💰 売上高',
+                    data: monthlyData.map(d => d.revenue),
+                    borderColor: 'rgb(54, 162, 235)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                    tension: 0.1,
+                    yAxisID: 'y'
+                },
+                {
+                    label: '📈 利益',
+                    data: monthlyData.map(d => d.profit),
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                    tension: 0.1,
+                    yAxisID: 'y'
+                },
+                {
+                    label: '📊 利益率',
+                    data: monthlyData.map(d => d.profit_rate),
+                    borderColor: 'rgb(255, 99, 132)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    tension: 0.1,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.datasetIndex === 2) { // 利益率
+                                label += context.parsed.y.toFixed(1) + '%';
+                            } else { // 売上・利益
+                                label += '¥' + context.parsed.y.toLocaleString();
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: '月'
+                    }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: '金額 (円)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return '¥' + (value / 1000000).toFixed(1) + 'M';
+                        }
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: '利益率 (%)'
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // チェックボックスイベント
+    document.getElementById('showRevenue').addEventListener('change', updateChart);
+    document.getElementById('showProfit').addEventListener('change', updateChart);
+    document.getElementById('showProfitRate').addEventListener('change', updateChart);
+    document.querySelectorAll('input[name="chartType"]').forEach(radio => {
+        radio.addEventListener('change', updateChart);
+    });
+}
+
+function updateChart() {
+    const showRevenue = document.getElementById('showRevenue').checked;
+    const showProfit = document.getElementById('showProfit').checked;
+    const showProfitRate = document.getElementById('showProfitRate').checked;
+    const chartType = document.querySelector('input[name="chartType"]:checked').value;
+
+    const datasets = [];
+
+    if (showRevenue) {
+        datasets.push({
+            label: '💰 売上高',
+            data: monthlyData.map(d => d.revenue),
+            borderColor: 'rgb(54, 162, 235)',
+            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+            tension: 0.1,
+            yAxisID: 'y'
+        });
+    }
+
+    if (showProfit) {
+        datasets.push({
+            label: '📈 利益',
+            data: monthlyData.map(d => d.profit),
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+            tension: 0.1,
+            yAxisID: 'y'
+        });
+    }
+
+    if (showProfitRate) {
+        datasets.push({
+            label: '📊 利益率',
+            data: monthlyData.map(d => d.profit_rate),
+            borderColor: 'rgb(255, 99, 132)',
+            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+            tension: 0.1,
+            yAxisID: 'y1'
+        });
+    }
+
+    integratedChartInstance.data.datasets = datasets;
+    integratedChartInstance.config.type = chartType === 'chartTypeBar' ? 'bar' : 'line';
+    integratedChartInstance.update();
+}
+
+// ページ読み込み時の初期化
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+});
+</script>
+{% endblock %}

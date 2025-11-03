@@ -1,0 +1,970 @@
+{% extends "order_management/base.html" %}
+{% load humanize %}
+
+{% block title %}発注業務ダッシュボード - 建築派遣管理システム{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-card {
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    .metric-card {
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .metric-card-external {
+        background: linear-gradient(135deg, #42a5f5 0%, #1e88e5 100%);
+    }
+    .metric-card-internal {
+        background: linear-gradient(135deg, #66bb6a 0%, #43a047 100%);
+    }
+    .metric-card-supplier {
+        background: linear-gradient(135deg, #ffa726 0%, #ff9800 100%);
+    }
+    .metric-card-total {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .metric-value {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+    .metric-label {
+        opacity: 0.9;
+        font-size: 0.9rem;
+    }
+
+    /* 発注先タイプ別のカード */
+    .ordering-section {
+        margin-bottom: 30px;
+    }
+
+    /* 請求書・発注書作成 */
+    .invoice-generation-card, .purchase-order-card {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        height: 100%;
+    }
+
+    .invoice-icon-wrapper, .purchase-icon-wrapper {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(239, 68, 68, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .purchase-icon-wrapper {
+        background: rgba(59, 130, 246, 0.1);
+    }
+
+    .invoice-icon-wrapper i {
+        font-size: 20px;
+    }
+
+    .purchase-icon-wrapper i {
+        font-size: 20px;
+    }
+
+    .stats-row {
+        border-top: 1px solid #e5e7eb;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 10px 0;
+    }
+
+    .action-buttons .btn {
+        transition: all 0.2s ease;
+    }
+
+    .action-buttons .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .recent-documents table {
+        font-size: 0.85rem;
+    }
+
+    .btn-xs {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        border-radius: 0.25rem;
+    }
+    .section-header {
+        padding: 15px 20px;
+        border-radius: 8px 8px 0 0;
+        margin: 0;
+        color: white;
+    }
+    .external-header {
+        background: linear-gradient(135deg, #42a5f5 0%, #1e88e5 100%);
+    }
+    .internal-header {
+        background: linear-gradient(135deg, #66bb6a 0%, #43a047 100%);
+    }
+    .supplier-header {
+        background: linear-gradient(135deg, #ffa726 0%, #ff9800 100%);
+    }
+
+    .contractor-item {
+        border-left: 4px solid;
+        background: white;
+        padding: 15px 20px;
+        margin-bottom: 1px;
+        transition: all 0.2s;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .contractor-item:hover {
+        background: #f8f9fa;
+        transform: translateX(2px);
+    }
+    .contractor-item:last-child {
+        border-radius: 0 0 8px 8px;
+        border-bottom: none;
+    }
+
+    .external-item {
+        border-left-color: #1e88e5;
+    }
+    .internal-item {
+        border-left-color: #43a047;
+    }
+    .supplier-item {
+        border-left-color: #ff9800;
+    }
+
+    .contractor-name {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    .contractor-specialty {
+        color: #666;
+        font-size: 0.9rem;
+        margin-bottom: 8px;
+    }
+    .contractor-stats {
+        font-size: 0.85rem;
+        color: #888;
+    }
+
+    .action-buttons {
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    .contractor-item:hover .action-buttons {
+        opacity: 1;
+    }
+
+    .resource-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 15px;
+        flex-shrink: 0;
+    }
+    .external-icon {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        color: #1976d2;
+    }
+    .internal-icon {
+        background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%);
+        color: #388e3c;
+    }
+    .supplier-icon {
+        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+        color: #f57c00;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 20px;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #999;
+    }
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 15px;
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- ヘッダー -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="fas fa-file-contract me-2"></i>発注業務ダッシュボード
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel me-1"></i>Excel出力
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="printReport()">
+                    <i class="fas fa-print me-1"></i>印刷
+                </button>
+            </div>
+            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
+                <i class="fas fa-filter me-1"></i>フィルター
+            </button>
+        </div>
+    </div>
+
+    <!-- サマリーカード -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="metric-card metric-card-external">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="metric-value">{{ summary.external_contractor_count }}</div>
+                        <div class="metric-label">外注業者数</div>
+                    </div>
+                    <div>
+                        <i class="fas fa-building fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="metric-card metric-card-internal">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="metric-value">{{ internal_resources|length }}</div>
+                        <div class="metric-label">社内リソース</div>
+                    </div>
+                    <div>
+                        <i class="fas fa-users fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="metric-card metric-card-supplier">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="metric-value">{{ summary.supplier_count }}</div>
+                        <div class="metric-label">資材屋数</div>
+                    </div>
+                    <div>
+                        <i class="fas fa-boxes fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="metric-card metric-card-total">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="metric-value">¥{{ summary.total_order_amount|floatformat:0|intcomma }}</div>
+                        <div class="metric-label">今月発注金額</div>
+                    </div>
+                    <div>
+                        <i class="fas fa-yen-sign fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 発注先管理 -->
+    <!-- 1. 外注業者 -->
+    <div class="ordering-section">
+        <div class="card dashboard-card">
+            <div class="section-header external-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-building me-2"></i>外注業者
+                        <span class="badge bg-light text-dark ms-2">{{ external_contractors|length }}社</span>
+                    </h5>
+                    <div>
+                        <a href="{% url 'order_management:external_contractor_management' %}" class="btn btn-light btn-sm me-2">
+                            <i class="fas fa-list me-1"></i>すべて見る
+                        </a>
+                        <button type="button" class="btn btn-success btn-sm" onclick="openAddContractorModal('external')">
+                            <i class="fas fa-plus me-1"></i>新規追加
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if external_contractors %}
+                    {% for contractor in external_contractors|slice:":8" %}
+                    <div class="contractor-item external-item">
+                        <div class="d-flex align-items-center">
+                            <div class="resource-icon external-icon">
+                                <i class="fas fa-building"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="contractor-name">{{ contractor.name }}</div>
+                                {% if contractor.specialties %}
+                                <div class="contractor-specialty">{{ contractor.specialties }}</div>
+                                {% endif %}
+                                <div class="contractor-stats">
+                                    案件数: {{ contractor.project_count }}件 | 総金額: ¥{{ contractor.total_amount|floatformat:0|intcomma }}
+                                </div>
+                            </div>
+                            <div class="action-buttons">
+                                <a href="{% url 'order_management:contractor_edit' contractor.id %}" class="btn btn-sm btn-outline-primary me-1">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'order_management:contractor_projects' contractor.id %}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-list"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if external_contractors|length > 8 %}
+                    <div class="contractor-item external-item text-center" style="border-left: none;">
+                        <a href="{% url 'order_management:external_contractor_management' %}" class="btn btn-outline-primary btn-sm">
+                            すべての外注業者を見る ({{ external_contractors|length }}社)
+                        </a>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-building"></i>
+                        <div>外注業者が登録されていません</div>
+                        <small>新しい外注業者を登録して発注業務を開始しましょう</small>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. 社内リソース -->
+    <div class="ordering-section">
+        <div class="card dashboard-card">
+            <div class="section-header internal-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users me-2"></i>社内リソース
+                        <span class="badge bg-light text-dark ms-2">{{ internal_resources|length }}名</span>
+                    </h5>
+                    <div>
+                        <button type="button" class="btn btn-light btn-sm me-2" onclick="showInternalResourceDetails()">
+                            <i class="fas fa-chart-bar me-1"></i>詳細分析
+                        </button>
+                        <button type="button" class="btn btn-success btn-sm" onclick="openAddStaffModal()">
+                            <i class="fas fa-plus me-1"></i>スタッフ追加
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if internal_resources %}
+                    {% for resource in internal_resources|slice:":8" %}
+                    <div class="contractor-item internal-item">
+                        <div class="d-flex align-items-center">
+                            <div class="resource-icon internal-icon">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="contractor-name">{{ resource.project_manager }}</div>
+                                <div class="contractor-specialty">社内プロジェクトマネージャー</div>
+                                <div class="contractor-stats">
+                                    担当案件: {{ resource.project_count }}件 | 総金額: ¥{{ resource.total_amount|floatformat:0|intcomma }}
+                                </div>
+                            </div>
+                            <div class="action-buttons">
+                                <button class="btn btn-sm btn-outline-success me-1" title="担当案件一覧">
+                                    <i class="fas fa-tasks"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" title="実績詳細">
+                                    <i class="fas fa-chart-bar"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-users"></i>
+                        <div>社内リソース情報がありません</div>
+                        <small>プロジェクト担当者が登録されると表示されます</small>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 資材屋 -->
+    <div class="ordering-section">
+        <div class="card dashboard-card">
+            <div class="section-header supplier-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-boxes me-2"></i>資材屋
+                        <span class="badge bg-light text-dark ms-2">{{ suppliers|length }}社</span>
+                    </h5>
+                    <div>
+                        <a href="{% url 'order_management:supplier_management' %}" class="btn btn-light btn-sm me-2">
+                            <i class="fas fa-list me-1"></i>すべて見る
+                        </a>
+                        <button type="button" class="btn btn-success btn-sm" onclick="openAddContractorModal('supplier')">
+                            <i class="fas fa-plus me-1"></i>新規追加
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if suppliers %}
+                    {% for supplier in suppliers|slice:":8" %}
+                    <div class="contractor-item supplier-item">
+                        <div class="d-flex align-items-center">
+                            <div class="resource-icon supplier-icon">
+                                <i class="fas fa-boxes"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="contractor-name">{{ supplier.name }}</div>
+                                {% if supplier.specialties %}
+                                <div class="contractor-specialty">{{ supplier.specialties }}</div>
+                                {% endif %}
+                                <div class="contractor-stats">
+                                    利用回数: {{ supplier.usage_count }}回
+                                </div>
+                            </div>
+                            <div class="action-buttons">
+                                <a href="{% url 'order_management:contractor_edit' supplier.id %}" class="btn btn-sm btn-outline-primary me-1">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'order_management:contractor_projects' supplier.id %}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-history"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if suppliers|length > 8 %}
+                    <div class="contractor-item supplier-item text-center" style="border-left: none;">
+                        <a href="{% url 'order_management:supplier_management' %}" class="btn btn-outline-warning btn-sm">
+                            すべての資材屋を見る ({{ suppliers|length }}社)
+                        </a>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-boxes"></i>
+                        <div>資材屋が登録されていません</div>
+                        <small>新しい資材屋を登録して資材調達を効率化しましょう</small>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 請求書・発注書作成 -->
+    <div class="ordering-section">
+        <div class="card dashboard-card">
+            <div class="section-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-invoice-dollar me-2"></i>請求書・発注書作成
+                        <span class="badge bg-light text-dark ms-2">一括作成</span>
+                    </h5>
+                    <div>
+                        <button type="button" class="btn btn-light btn-sm me-2" onclick="showBulkInvoiceModal()">
+                            <i class="fas fa-download me-1"></i>一括ダウンロード
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- 請求書作成セクション -->
+                    <div class="col-md-6">
+                        <div class="invoice-generation-card">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="invoice-icon-wrapper me-3">
+                                    <i class="fas fa-file-invoice text-danger"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 fw-bold">請求書作成</h6>
+                                    <small class="text-muted">受注先への請求書を自動生成</small>
+                                </div>
+                            </div>
+
+                            <div class="stats-row mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">今月の案件:</span>
+                                    <span class="fw-bold">{{ current_month_projects.count }}件</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">請求予定額:</span>
+                                    <span class="fw-bold text-success">¥{{ total_invoice_amount|floatformat:0|intcomma }}</span>
+                                </div>
+                            </div>
+
+                            <div class="action-buttons">
+                                <button class="btn btn-outline-danger btn-sm w-100 mb-2" onclick="generateInvoicesByClient()">
+                                    <i class="fas fa-magic me-1"></i>受注先別請求書作成
+                                </button>
+                                <button class="btn btn-danger btn-sm w-100" onclick="generateMonthlyInvoice()">
+                                    <i class="fas fa-file-pdf me-1"></i>今月分一括作成
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 発注書作成セクション -->
+                    <div class="col-md-6">
+                        <div class="purchase-order-card">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="purchase-icon-wrapper me-3">
+                                    <i class="fas fa-file-contract text-primary"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 fw-bold">発注書作成</h6>
+                                    <small class="text-muted">外注先への発注書を自動生成</small>
+                                </div>
+                            </div>
+
+                            <div class="stats-row mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">外注件数:</span>
+                                    <span class="fw-bold">{{ external_orders_count }}件</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">発注予定額:</span>
+                                    <span class="fw-bold text-primary">¥{{ total_purchase_amount|floatformat:0|intcomma }}</span>
+                                </div>
+                            </div>
+
+                            <div class="action-buttons">
+                                <button class="btn btn-outline-primary btn-sm w-100 mb-2" onclick="generatePurchaseOrdersByContractor()">
+                                    <i class="fas fa-users me-1"></i>外注先別発注書作成
+                                </button>
+                                <button class="btn btn-primary btn-sm w-100" onclick="generateMonthlyPurchaseOrders()">
+                                    <i class="fas fa-file-alt me-1"></i>今月分一括作成
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 最近の請求書・発注書履歴 -->
+                <div class="recent-documents mt-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="fas fa-history me-2"></i>最近作成された書類
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>作成日</th>
+                                    <th>種類</th>
+                                    <th>宛先</th>
+                                    <th>金額</th>
+                                    <th>ステータス</th>
+                                    <th>アクション</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>2024-01-15</td>
+                                    <td><span class="badge bg-danger">請求書</span></td>
+                                    <td>株式会社サンプル</td>
+                                    <td>¥500,000</td>
+                                    <td><span class="badge bg-success">送付済み</span></td>
+                                    <td>
+                                        <button class="btn btn-outline-secondary btn-xs" onclick="downloadDocument('inv_001')">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>2024-01-14</td>
+                                    <td><span class="badge bg-primary">発注書</span></td>
+                                    <td>田中工務店</td>
+                                    <td>¥200,000</td>
+                                    <td><span class="badge bg-warning">作成済み</span></td>
+                                    <td>
+                                        <button class="btn btn-outline-secondary btn-xs" onclick="downloadDocument('po_001')">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 発注統計 -->
+    {% if ordering_stats.monthly_stats %}
+    <div class="ordering-section">
+        <div class="card dashboard-card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-line me-2"></i>発注推移（過去6ヶ月）
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="orderingChart" width="400" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- フィルターモーダル -->
+<div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="filterModalLabel">
+                    <i class="fas fa-filter me-2"></i>フィルター設定
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">業者タイプ</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="external" id="filterExternal" checked>
+                        <label class="form-check-label" for="filterExternal">外注業者</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="internal" id="filterInternal" checked>
+                        <label class="form-check-label" for="filterInternal">社内リソース</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="supplier" id="filterSupplier" checked>
+                        <label class="form-check-label" for="filterSupplier">資材屋</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-primary" onclick="applyFilter()">適用</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    {% if ordering_stats.monthly_stats %}
+    // 発注推移グラフ
+    const ctx = document.getElementById('orderingChart').getContext('2d');
+    const monthlyData = {{ ordering_stats.monthly_stats|safe }};
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: monthlyData.map(item => item.month),
+            datasets: [{
+                label: '発注件数',
+                data: monthlyData.map(item => item.project_count),
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                tension: 0.1,
+                yAxisID: 'y'
+            }, {
+                label: '発注金額（万円）',
+                data: monthlyData.map(item => Math.round(item.total_amount / 10000)),
+                borderColor: '#764ba2',
+                backgroundColor: 'rgba(118, 75, 162, 0.1)',
+                tension: 0.1,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: '月'
+                    }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: '件数'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: '金額（万円）'
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                }
+            }
+        }
+    });
+    {% endif %}
+});
+
+// Excel出力機能
+function exportToExcel() {
+    alert('Excel出力機能は開発中です。');
+}
+
+// 印刷機能
+function printReport() {
+    window.print();
+}
+
+// フィルター適用
+function applyFilter() {
+    const external = document.getElementById('filterExternal').checked;
+    const internal = document.getElementById('filterInternal').checked;
+    const supplier = document.getElementById('filterSupplier').checked;
+
+    // 各セクションの表示/非表示を切り替え
+    const sections = document.querySelectorAll('.ordering-section');
+    sections[0].style.display = external ? 'block' : 'none';  // 外注業者
+    sections[1].style.display = internal ? 'block' : 'none';  // 社内リソース
+    sections[2].style.display = supplier ? 'block' : 'none';  // 資材屋
+
+    // モーダルを閉じる
+    const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
+    modal.hide();
+}
+
+// 業者追加モーダル
+function openAddContractorModal(type) {
+    let modalTitle = '';
+    let contractorType = '';
+
+    switch(type) {
+        case 'external':
+            modalTitle = '新規外注業者追加';
+            contractorType = 'is_ordering';
+            break;
+        case 'supplier':
+            modalTitle = '新規資材屋追加';
+            contractorType = 'is_supplier';
+            break;
+    }
+
+    // 新規作成ページに移動
+    const currentUrl = window.location.href;
+    window.location.href = `{% url 'order_management:contractor_create' %}?type=${contractorType}&back=${encodeURIComponent(currentUrl)}`;
+}
+
+// スタッフ追加モーダル
+function openAddStaffModal() {
+    alert('社内スタッフ管理機能は開発中です。\n現在はプロジェクトの担当者フィールドから自動的に検出されます。');
+}
+
+// 社内リソース詳細
+function showInternalResourceDetails() {
+    alert('社内リソース詳細分析機能は開発中です。\n今後、スタッフごとの稼働率や効率性の分析機能を追加予定です。');
+}
+
+// 請求書・発注書生成機能
+function generateInvoicesByClient() {
+    if (confirm('受注先別に請求書を生成しますか？\n\n※完了済みプロジェクトの外注費用から自動計算されます。')) {
+        // Loading状態を表示
+        const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
+        btn.disabled = true;
+
+        // API呼び出し
+        fetch('/orders/api/generate-invoices-by-client/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`成功：${data.invoice_count}件の請求書を生成しました。\n\n生成された請求書:\n${data.invoices.map(inv => `・${inv.client_name}: ¥${inv.amount.toLocaleString()}`).join('\n')}`);
+                location.reload();
+            } else {
+                alert(`エラー: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('請求書生成中にエラーが発生しました。');
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    }
+}
+
+function generateMonthlyInvoice() {
+    if (confirm('今月分の請求書を一括生成しますか？')) {
+        const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>PDF生成中...';
+        btn.disabled = true;
+
+        fetch('/orders/api/generate-monthly-invoice/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.blob();
+            }
+            throw new Error('PDF生成に失敗しました');
+        })
+        .then(blob => {
+            // PDFダウンロード
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `請求書_${new Date().getFullYear()}年${new Date().getMonth() + 1}月.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+
+            alert('PDF請求書が生成され、ダウンロードが開始されました。');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('PDF生成中にエラーが発生しました。');
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    }
+}
+
+function generatePurchaseOrdersByContractor() {
+    if (confirm('外注先別に発注書を生成しますか？')) {
+        const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
+        btn.disabled = true;
+
+        fetch('/orders/api/generate-purchase-orders/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`成功：${data.order_count}件の発注書を生成しました。\n\n生成された発注書:\n${data.orders.map(order => `・${order.client_name}: ¥${order.amount.toLocaleString()}`).join('\n')}`);
+                location.reload();
+            } else {
+                alert(`エラー: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('発注書生成中にエラーが発生しました。');
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    }
+}
+
+function generateMonthlyPurchaseOrders() {
+    if (confirm('今月分の発注書を一括生成しますか？')) {
+        const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>PDF生成中...';
+        btn.disabled = true;
+
+        fetch('/orders/api/generate-monthly-purchase-orders/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.blob();
+            }
+            throw new Error('PDF生成に失敗しました');
+        })
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `発注書_${new Date().getFullYear()}年${new Date().getMonth() + 1}月.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+
+            alert('PDF発注書が生成され、ダウンロードが開始されました。');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('PDF生成中にエラーが発生しました。');
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    }
+}
+
+function showBulkInvoiceModal() {
+    // 一括ダウンロードモーダルを表示
+    alert('一括ダウンロード機能は開発中です。\n今後、複数の請求書・発注書をZipファイルで一括ダウンロードできるようになります。');
+}
+
+function downloadDocument(docId) {
+    // 個別書類のダウンロード
+    window.open(`/orders/api/download-document/${docId}/`, '_blank');
+}
+
+function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+           document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '';
+}
+</script>
+{% endblock %}

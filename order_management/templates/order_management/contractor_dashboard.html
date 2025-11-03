@@ -1,0 +1,1289 @@
+{% extends "order_management/base.html" %}
+{% load humanize %}
+
+{% block title %}受注業務ダッシュボード - 建築派遣管理システム{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-card {
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .metric-value {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+    .metric-label {
+        opacity: 0.9;
+        font-size: 0.9rem;
+    }
+    .profit-positive {
+        color: #28a745;
+        font-weight: bold;
+    }
+    .profit-negative {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    .table-hover tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 20px;
+    }
+    .performance-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    .performance-excellent {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .performance-good {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+    .performance-average {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    .performance-poor {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- ヘッダー -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="fas fa-handshake me-2"></i>受注業務ダッシュボード
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel me-1"></i>Excel出力
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="printReport()">
+                    <i class="fas fa-print me-1"></i>印刷
+                </button>
+            </div>
+            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
+                <i class="fas fa-filter me-1"></i>フィルター
+            </button>
+        </div>
+    </div>
+
+    <!-- サマリーカード -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="metric-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="metric-label">総業者数</div>
+                        <div class="metric-value">{{ summary.total_contractors }}</div>
+                    </div>
+                    <i class="fas fa-building fa-2x opacity-75"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="metric-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="metric-label">総案件数</div>
+                        <div class="metric-value">{{ summary.total_projects|intcomma }}</div>
+                    </div>
+                    <i class="fas fa-folder fa-2x opacity-75"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="metric-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="metric-label">総売上高</div>
+                        <div class="metric-value">¥{{ summary.total_revenue|floatformat:0|intcomma }}</div>
+                    </div>
+                    <i class="fas fa-yen-sign fa-2x opacity-75"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="metric-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="metric-label">平均利益率</div>
+                        <div class="metric-value">{{ summary.avg_profit_rate|floatformat:1 }}%</div>
+                    </div>
+                    <i class="fas fa-percentage fa-2x opacity-75"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 業者別パフォーマンステーブル -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card dashboard-card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-table me-2"></i>業者別パフォーマンス一覧
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="contractorTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="sortable" data-sort="name" style="cursor: pointer;">
+                                        業者名 <i class="fas fa-sort ms-1"></i>
+                                    </th>
+                                    <th class="text-center">業者タイプ・専門分野</th>
+                                    <th class="text-end sortable" data-sort="project_count" style="cursor: pointer;">
+                                        受注件数 <i class="fas fa-sort ms-1"></i>
+                                    </th>
+                                    <th class="text-end sortable" data-sort="total_revenue" style="cursor: pointer;">
+                                        売上合計 <i class="fas fa-sort ms-1"></i>
+                                    </th>
+                                    <th class="text-end sortable" data-sort="total_cost" style="cursor: pointer;">
+                                        原価 <i class="fas fa-sort ms-1"></i>
+                                    </th>
+                                    <th class="text-end sortable" data-sort="profit" style="cursor: pointer;">
+                                        利益額 <i class="fas fa-sort ms-1"></i>
+                                    </th>
+                                    <th class="text-center sortable" data-sort="profit_rate" style="cursor: pointer;">
+                                        利益率 <i class="fas fa-sort ms-1"></i>
+                                    </th>
+                                    <th class="text-center">評価</th>
+                                    <th class="text-center">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for contractor in contractors %}
+                                <tr class="contractor-row" data-contractor-id="{{ contractor.id }}"
+                                    data-name="{{ contractor.name }}"
+                                    data-project-count="{{ contractor.project_count }}"
+                                    data-total-revenue="{{ contractor.total_revenue }}"
+                                    data-total-cost="{{ contractor.total_cost }}"
+                                    data-profit="{{ contractor.profit }}"
+                                    data-profit-rate="{{ contractor.profit_rate }}"
+                                    style="cursor: pointer;">
+                                    <td>
+                                        <strong>{{ contractor.name }}</strong>
+                                        {% if contractor.status == 'active' %}
+                                            <span class="badge bg-success ms-2">アクティブ</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary ms-2">非アクティブ</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="mb-1">
+                                            {% for tag in contractor.contractor_tags %}
+                                                {% if tag == "発注業者" %}
+                                                    <span class="badge bg-primary me-1">{{ tag }}</span>
+                                                {% elif tag == "受注業者" %}
+                                                    <span class="badge bg-success me-1">{{ tag }}</span>
+                                                {% elif tag == "資材屋" %}
+                                                    <span class="badge bg-warning text-dark me-1">{{ tag }}</span>
+                                                {% elif tag == "その他" %}
+                                                    <span class="badge bg-secondary me-1">{{ tag }}</span>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                        <small class="text-muted">{{ contractor.specialties|default:"未設定" }}</small>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="badge bg-info">{{ contractor.project_count }}件</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong>¥{{ contractor.total_revenue|floatformat:0|intcomma }}</strong>
+                                    </td>
+                                    <td class="text-end text-muted">
+                                        ¥{{ contractor.total_cost|floatformat:0|intcomma }}
+                                    </td>
+                                    <td class="text-end {% if contractor.profit > 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                                        ¥{{ contractor.profit|floatformat:0|intcomma }}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if contractor.profit_rate >= 25 %}
+                                            <span class="performance-badge performance-excellent">
+                                                {{ contractor.profit_rate|floatformat:1 }}%
+                                            </span>
+                                        {% elif contractor.profit_rate >= 20 %}
+                                            <span class="performance-badge performance-good">
+                                                {{ contractor.profit_rate|floatformat:1 }}%
+                                            </span>
+                                        {% elif contractor.profit_rate >= 15 %}
+                                            <span class="performance-badge performance-average">
+                                                {{ contractor.profit_rate|floatformat:1 }}%
+                                            </span>
+                                        {% else %}
+                                            <span class="performance-badge performance-poor">
+                                                {{ contractor.profit_rate|floatformat:1 }}%
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if contractor.profit_rate >= 25 %}
+                                            <i class="fas fa-star text-warning"></i>
+                                            <i class="fas fa-star text-warning"></i>
+                                            <i class="fas fa-star text-warning"></i>
+                                        {% elif contractor.profit_rate >= 20 %}
+                                            <i class="fas fa-star text-warning"></i>
+                                            <i class="fas fa-star text-warning"></i>
+                                            <i class="far fa-star text-warning"></i>
+                                        {% elif contractor.profit_rate >= 15 %}
+                                            <i class="fas fa-star text-warning"></i>
+                                            <i class="far fa-star text-warning"></i>
+                                            <i class="far fa-star text-warning"></i>
+                                        {% else %}
+                                            <i class="far fa-star text-muted"></i>
+                                            <i class="far fa-star text-muted"></i>
+                                            <i class="far fa-star text-muted"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); viewContractorDetail('{{ contractor.id }}', '{{ contractor.name }}')">
+                                            <i class="fas fa-chart-line"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation(); editContractor('{{ contractor.id }}')">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- グラフセクション -->
+    <div class="row">
+        <!-- 統合グラフ（月別売上・利益・利益率推移） -->
+        <div class="col-lg-12 mb-4">
+            <div class="card dashboard-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-area me-2"></i>月別売上・利益・利益率推移
+                    </h6>
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#integratedChartOptions">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="collapse mb-3" id="integratedChartOptions">
+                        <div class="border rounded p-3 bg-light">
+                            <!-- データタイプ選択 -->
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <strong>表示データ:</strong>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="showRevenue" checked>
+                                        <label class="form-check-label" for="showRevenue">💰 売上</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="showProfit" checked>
+                                        <label class="form-check-label" for="showProfit">📈 利益額</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="showProfitRate" checked>
+                                        <label class="form-check-label" for="showProfitRate">📊 利益率(%)</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>利益率表示方式:</strong>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="profitRateMode" id="profitRateSingle" checked>
+                                        <label class="form-check-label" for="profitRateSingle">単月利益率</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="profitRateMode" id="profitRateCumulative">
+                                        <label class="form-check-label" for="profitRateCumulative">累計利益率</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>チャート種別:</strong>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="chartType" id="chartTypeLine" checked>
+                                        <label class="form-check-label" for="chartTypeLine">線グラフ</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="chartType" id="chartTypeBar">
+                                        <label class="form-check-label" for="chartTypeBar">棒グラフ</label>
+                                    </div>
+                                </div>
+                            </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>集計方式:</strong>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="revenueAggregation" id="revenueSingle" checked>
+                                        <label class="form-check-label" for="revenueSingle">単月</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="revenueAggregation" id="revenueCumulative">
+                                        <label class="form-check-label" for="revenueCumulative">累計</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 業者選択 -->
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong>表示する業者:</strong>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                            選択オプション
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); event.stopPropagation(); selectAllContractors('revenue');"><i class="fas fa-check-square me-2"></i>すべて選択</a></li>
+                                            <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); event.stopPropagation(); clearAllContractors('revenue');"><i class="far fa-square me-2"></i>すべてクリア</a></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); event.stopPropagation(); selectTopPerformers('revenue');"><i class="fas fa-star me-2"></i>上位業者のみ</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-check form-check-inline mb-2">
+                                <input class="form-check-input revenue-contractor-checkbox" type="checkbox" id="revenueAllToggle" checked>
+                                <label class="form-check-label fw-bold text-primary" for="revenueAllToggle">
+                                    全体合計
+                                </label>
+                            </div>
+                            <div class="border-top pt-2">
+                                {% for contractor in contractors %}
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input contractor-checkbox" type="checkbox" id="contractor{{ forloop.counter }}" value="{{ contractor.name }}" data-index="{{ forloop.counter0 }}" checked>
+                                    <label class="form-check-label" for="contractor{{ forloop.counter }}">
+                                        {{ contractor.name }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container" style="height: 500px;">
+                        <canvas id="integratedChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 業者別売上構成 -->
+        <div class="col-lg-6 mb-4">
+            <div class="card dashboard-card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>業者別売上構成
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="contractorPieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 業者別利益率比較 -->
+        <div class="col-lg-6 mb-4">
+            <div class="card dashboard-card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>業者別利益率比較
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="profitRateBarChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 業者詳細モーダル -->
+<div class="modal fade" id="contractorDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-building me-2"></i>
+                    <span id="modalContractorName"></span>の詳細分析
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="chart-container" style="height: 400px;">
+                            <canvas id="contractorTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+                <button type="button" class="btn btn-primary" onclick="exportContractorData()">
+                    <i class="fas fa-download me-1"></i>データ出力
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- フィルターモーダル -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-filter me-2"></i>フィルター設定
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="filterForm">
+                    <div class="mb-3">
+                        <label class="form-label">期間</label>
+                        <select class="form-select" name="period">
+                            <option value="all">全期間</option>
+                            <option value="12months" selected>過去12ヶ月</option>
+                            <option value="6months">過去6ヶ月</option>
+                            <option value="3months">過去3ヶ月</option>
+                            <option value="1month">過去1ヶ月</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">業者ステータス</label>
+                        <select class="form-select" name="status">
+                            <option value="all">すべて</option>
+                            <option value="active">アクティブのみ</option>
+                            <option value="inactive">非アクティブのみ</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">利益率</label>
+                        <select class="form-select" name="profit_rate">
+                            <option value="all">すべて</option>
+                            <option value="excellent">25%以上</option>
+                            <option value="good">20%以上</option>
+                            <option value="average">15%以上</option>
+                            <option value="poor">15%未満</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-primary" onclick="applyFilter()">適用</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// グローバル変数をJSONとして受け取る
+let contractorsData = JSON.parse('{{ contractors_json|escapejs }}');
+let monthlyData = JSON.parse('{{ monthly_data_json|escapejs }}');
+let chartLabels = JSON.parse('{{ chart_labels_json|escapejs }}');
+
+// チャートインスタンスを保持
+let integratedChartInstance = null;
+
+// 重複した初期化を削除
+// ページ読み込み時の初期化は最後の方で統一
+
+// チャートの初期化
+function initializeCharts() {
+    // 月別売上・利益推移チャート
+    const integratedCtx = document.getElementById('integratedChart').getContext('2d');
+    integratedChartInstance = new Chart(integratedCtx, {
+        type: 'line',
+        data: {
+            labels: chartLabels,
+            datasets: [
+                {
+                    label: '売上高',
+                    data: monthlyData.map(d => d.revenue),
+                    borderColor: 'rgb(54, 162, 235)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                    tension: 0.1
+                },
+                {
+                    label: '利益',
+                    data: monthlyData.map(d => d.profit),
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                    tension: 0.1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += '¥' + context.parsed.y.toLocaleString();
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '¥' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // 月別利益率推移チャート
+    const profitRateCtx = document.getElementById('profitRateChart').getContext('2d');
+    profitRateChartInstance = new Chart(profitRateCtx, {
+        type: 'line',
+        data: {
+            labels: chartLabels,
+            datasets: [{
+                label: '利益率',
+                data: monthlyData.map(d => d.profit_rate),
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return '利益率: ' + context.parsed.y.toFixed(1) + '%';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // 業者別売上構成チャート
+    const pieCtx = document.getElementById('contractorPieChart').getContext('2d');
+    const topContractors = contractorsData.slice(0, 5);
+    new Chart(pieCtx, {
+        type: 'pie',
+        data: {
+            labels: topContractors.map(c => c.name),
+            datasets: [{
+                data: topContractors.map(c => c.total_revenue),
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.8)',
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(255, 206, 86, 0.8)',
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(153, 102, 255, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = '¥' + context.parsed.toLocaleString();
+                            const percentage = ((context.parsed / context.dataset.data.reduce((a, b) => a + b, 0)) * 100).toFixed(1);
+                            return label + ': ' + value + ' (' + percentage + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // 業者別利益率比較チャート
+    const barCtx = document.getElementById('profitRateBarChart').getContext('2d');
+    new Chart(barCtx, {
+        type: 'bar',
+        data: {
+            labels: contractorsData.map(c => c.name),
+            datasets: [{
+                label: '利益率',
+                data: contractorsData.map(c => c.profit_rate),
+                backgroundColor: contractorsData.map(c => {
+                    if (c.profit_rate >= 25) return 'rgba(40, 167, 69, 0.8)';
+                    if (c.profit_rate >= 20) return 'rgba(23, 162, 184, 0.8)';
+                    if (c.profit_rate >= 15) return 'rgba(255, 193, 7, 0.8)';
+                    return 'rgba(220, 53, 69, 0.8)';
+                })
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return '利益率: ' + context.parsed.y.toFixed(1) + '%';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 業者詳細表示
+function viewContractorDetail(contractorId, contractorName) {
+    const contractor = contractorsData.find(c => c.id == contractorId);
+    if (!contractor) return;
+
+    document.getElementById('modalContractorName').textContent = contractorName;
+
+    const modal = new bootstrap.Modal(document.getElementById('contractorDetailModal'));
+    modal.show();
+
+    // モーダル表示後にチャートを描画
+    setTimeout(() => {
+        const ctx = document.getElementById('contractorTrendChart').getContext('2d');
+
+        // 既存のチャートがあれば破棄
+        if (window.contractorChart) {
+            window.contractorChart.destroy();
+        }
+
+        window.contractorChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: contractor.monthly_trends.map(d => d.month),
+                datasets: [
+                    {
+                        label: '売上高',
+                        data: contractor.monthly_trends.map(d => d.revenue),
+                        borderColor: 'rgb(54, 162, 235)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        yAxisID: 'y',
+                        tension: 0.1
+                    },
+                    {
+                        label: '利益',
+                        data: contractor.monthly_trends.map(d => d.profit),
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        yAxisID: 'y',
+                        tension: 0.1
+                    },
+                    {
+                        label: '利益率',
+                        data: contractor.monthly_trends.map(d => d.profit_rate),
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                        yAxisID: 'y1',
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        ticks: {
+                            callback: function(value) {
+                                return '¥' + value.toLocaleString();
+                            }
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }, 200);
+}
+
+// 業者編集
+function editContractor(contractorId) {
+    // 業者編集画面へ遷移
+    window.location.href = `/orders/contractors/${contractorId}/edit/`;
+}
+
+// データテーブル初期化
+function initializeDataTable() {
+    // 業者行のクリックイベントを設定
+    document.querySelectorAll('.contractor-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            // ボタンクリック時は行クリックを無視
+            if (e.target.closest('button')) return;
+
+            const contractorId = this.dataset.contractorId;
+            if (contractorId) {
+                window.location.href = `/orders/contractor/${contractorId}/projects/`;
+            }
+        });
+
+        // ホバー効果を追加
+        row.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = '#f8f9fa';
+        });
+
+        row.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+    });
+}
+
+// フィルター適用
+function applyFilter() {
+    const form = document.getElementById('filterForm');
+    const formData = new FormData(form);
+
+    // フィルター条件に基づいてデータを再取得
+    console.log('フィルター適用:', Object.fromEntries(formData));
+
+    // モーダルを閉じる
+    bootstrap.Modal.getInstance(document.getElementById('filterModal')).hide();
+
+    // ページをリロードまたはAJAXでデータ更新
+    location.reload();
+}
+
+// Excel出力
+function exportToExcel() {
+    // Excel出力処理
+    alert('Excel出力機能は実装予定です');
+}
+
+// 印刷
+function printReport() {
+    window.print();
+}
+
+// 業者データ出力
+function exportContractorData() {
+    alert('業者データ出力機能は実装予定です');
+}
+
+// チェックボックスリスナーの設定
+function setupChartCheckboxListeners() {
+    // 売上・利益チェックボックス
+    document.querySelectorAll('.revenue-contractor-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateRevenueChart);
+    });
+
+    // 利益率チェックボックス
+    document.querySelectorAll('.profit-rate-contractor-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateProfitRateChart);
+    });
+
+    // データタイプと集計方式のリスナー
+    ['revenueShowRevenue', 'revenueShowProfit', 'revenueSingle', 'revenueCumulative'].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('change', updateRevenueChart);
+        }
+    });
+
+    ['profitRateSingle', 'profitRateCumulative'].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('change', updateProfitRateChart);
+        }
+    });
+}
+
+// 売上・利益チャートの更新
+function updateRevenueChart() {
+    const showTotal = document.getElementById('revenueAllToggle').checked;
+    const showRevenue = document.getElementById('revenueShowRevenue').checked;
+    const showProfit = document.getElementById('revenueShowProfit').checked;
+    const isCumulative = document.getElementById('revenueCumulative').checked;
+    const selectedContractors = [];
+
+    document.querySelectorAll('.revenue-contractor-checkbox:not(#revenueAllToggle)').forEach(checkbox => {
+        if (checkbox.checked) {
+            selectedContractors.push(checkbox.value);
+        }
+    });
+
+    // データを処理（累計または単月）
+    let processedMonthlyData = [...monthlyData];
+    if (isCumulative) {
+        let cumulativeRevenue = 0;
+        let cumulativeProfit = 0;
+        processedMonthlyData = monthlyData.map(item => {
+            cumulativeRevenue += item.revenue;
+            cumulativeProfit += item.profit;
+            return {
+                ...item,
+                revenue: cumulativeRevenue,
+                profit: cumulativeProfit
+            };
+        });
+    }
+
+    // 新しいデータセットを作成
+    const newDatasets = [];
+
+    // 全体合計を表示
+    if (showTotal) {
+        if (showRevenue) {
+            newDatasets.push({
+                label: '売上高（全体）',
+                data: processedMonthlyData.map(d => d.revenue),
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                tension: 0.1,
+                borderWidth: 3
+            });
+        }
+        if (showProfit) {
+            newDatasets.push({
+                label: '利益（全体）',
+                data: processedMonthlyData.map(d => d.profit),
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                tension: 0.1,
+                borderWidth: 3
+            });
+        }
+    }
+
+    // 各業者のデータを追加
+    const colors = [
+        { border: 'rgb(255, 99, 132)', bg: 'rgba(255, 99, 132, 0.1)' },
+        { border: 'rgb(255, 159, 64)', bg: 'rgba(255, 159, 64, 0.1)' },
+        { border: 'rgb(255, 205, 86)', bg: 'rgba(255, 205, 86, 0.1)' },
+        { border: 'rgb(153, 102, 255)', bg: 'rgba(153, 102, 255, 0.1)' },
+        { border: 'rgb(201, 203, 207)', bg: 'rgba(201, 203, 207, 0.1)' }
+    ];
+
+    selectedContractors.forEach((contractorName, index) => {
+        const contractor = contractorsData.find(c => c.name === contractorName);
+        if (contractor && contractor.monthly_trends) {
+            const colorIndex = index % colors.length;
+
+            // 累計処理
+            let contractorData = [...contractor.monthly_trends];
+            if (isCumulative) {
+                let cumulativeRevenue = 0;
+                let cumulativeProfit = 0;
+                contractorData = contractor.monthly_trends.map(item => {
+                    cumulativeRevenue += item.revenue;
+                    cumulativeProfit += item.profit;
+                    return {
+                        ...item,
+                        revenue: cumulativeRevenue,
+                        profit: cumulativeProfit
+                    };
+                });
+            }
+
+            // 売上データ
+            if (showRevenue) {
+                newDatasets.push({
+                    label: `売上（${contractor.name}）`,
+                    data: contractorData.map(d => d.revenue),
+                    borderColor: colors[colorIndex].border,
+                    backgroundColor: colors[colorIndex].bg,
+                    tension: 0.1,
+                    borderWidth: 2,
+                    borderDash: [5, 5]
+                });
+            }
+
+            // 利益データ
+            if (showProfit) {
+                newDatasets.push({
+                    label: `利益（${contractor.name}）`,
+                    data: contractorData.map(d => d.profit),
+                    borderColor: colors[colorIndex].border,
+                    backgroundColor: colors[colorIndex].bg,
+                    tension: 0.1,
+                    borderWidth: 1,
+                    borderDash: [2, 2]
+                });
+            }
+        }
+    });
+
+    // チャートを更新
+    revenueChartInstance.data.datasets = newDatasets;
+    revenueChartInstance.update();
+}
+
+// 利益率チャートの更新
+function updateProfitRateChart() {
+    const showAverage = document.getElementById('profitRateAllToggle').checked;
+    const isCumulative = document.getElementById('profitRateCumulative').checked;
+    const selectedContractors = [];
+
+    document.querySelectorAll('.profit-rate-contractor-checkbox:not(#profitRateAllToggle)').forEach(checkbox => {
+        if (checkbox.checked) {
+            selectedContractors.push(checkbox.value);
+        }
+    });
+
+    // データを処理（累計または単月）
+    let processedMonthlyData = [...monthlyData];
+    if (isCumulative) {
+        let cumulativeRevenue = 0;
+        let cumulativeProfit = 0;
+        processedMonthlyData = monthlyData.map(item => {
+            cumulativeRevenue += item.revenue;
+            cumulativeProfit += item.profit;
+            const profitRate = cumulativeRevenue > 0 ? (cumulativeProfit / cumulativeRevenue * 100) : 0;
+            return {
+                ...item,
+                profit_rate: profitRate
+            };
+        });
+    }
+
+    // 新しいデータセットを作成
+    const newDatasets = [];
+
+    // 全体平均を表示
+    if (showAverage) {
+        newDatasets.push({
+            label: '利益率（全体平均）',
+            data: processedMonthlyData.map(d => d.profit_rate),
+            borderColor: 'rgb(255, 99, 132)',
+            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+            tension: 0.1,
+            borderWidth: 3
+        });
+    }
+
+    // 各業者のデータを追加
+    const colors = [
+        'rgb(54, 162, 235)',
+        'rgb(255, 159, 64)',
+        'rgb(75, 192, 192)',
+        'rgb(153, 102, 255)',
+        'rgb(255, 205, 86)'
+    ];
+
+    selectedContractors.forEach((contractorName, index) => {
+        const contractor = contractorsData.find(c => c.name === contractorName);
+        if (contractor && contractor.monthly_trends) {
+            const colorIndex = index % colors.length;
+
+            // 累計処理
+            let contractorData = [...contractor.monthly_trends];
+            if (isCumulative) {
+                let cumulativeRevenue = 0;
+                let cumulativeProfit = 0;
+                contractorData = contractor.monthly_trends.map(item => {
+                    cumulativeRevenue += item.revenue;
+                    cumulativeProfit += item.profit;
+                    const profitRate = cumulativeRevenue > 0 ? (cumulativeProfit / cumulativeRevenue * 100) : 0;
+                    return {
+                        ...item,
+                        profit_rate: profitRate
+                    };
+                });
+            }
+
+            newDatasets.push({
+                label: contractor.name,
+                data: contractorData.map(d => d.profit_rate),
+                borderColor: colors[colorIndex],
+                backgroundColor: colors[colorIndex].replace('rgb', 'rgba').replace(')', ', 0.1)'),
+                tension: 0.1,
+                borderWidth: 2,
+                borderDash: [5, 5]
+            });
+        }
+    });
+
+    // チャートを更新
+    profitRateChartInstance.data.datasets = newDatasets;
+    profitRateChartInstance.update();
+}
+
+// Excel風セレクション機能
+function selectAllContractors(chartType) {
+    console.log('=== selectAllContractors DEBUG START ===');
+    console.log('chartType:', chartType);
+
+    // 全体平均/合計もチェック
+    const allToggleId = `${chartType}AllToggle`;
+    console.log('Looking for element with ID:', allToggleId);
+    const allToggle = document.getElementById(allToggleId);
+    console.log('All toggle element found:', allToggle);
+    console.log('All toggle current checked state:', allToggle ? allToggle.checked : 'element not found');
+
+    if (allToggle) {
+        allToggle.checked = true;
+        console.log('Set all toggle to checked');
+    } else {
+        console.error('All toggle element not found!');
+    }
+
+    // 個別業者もすべてチェック
+    const selector = `.${chartType}-contractor-checkbox:not(#${chartType}AllToggle)`;
+    console.log('Checkbox selector:', selector);
+    const checkboxes = document.querySelectorAll(selector);
+    console.log('Individual checkboxes found:', checkboxes.length);
+    console.log('Individual checkboxes:', checkboxes);
+
+    checkboxes.forEach((checkbox, index) => {
+        console.log(`Setting checkbox ${index} (${checkbox.id}) to checked`);
+        checkbox.checked = true;
+    });
+
+    console.log('Calling update function for chart type:', chartType);
+    if (chartType === 'revenue') {
+        updateRevenueChart();
+    } else if (chartType === 'profitRate') {
+        updateProfitRateChart();
+    }
+
+    console.log('=== selectAllContractors DEBUG END ===');
+}
+
+function clearAllContractors(chartType) {
+    // 全体平均/合計チェックボックスも含めてすべてクリア
+    const allCheckboxes = document.querySelectorAll(`.${chartType}-contractor-checkbox`);
+    allCheckboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+
+    if (chartType === 'revenue') {
+        updateRevenueChart();
+    } else if (chartType === 'profitRate') {
+        updateProfitRateChart();
+    }
+}
+
+function selectTopPerformers(chartType) {
+    // 全体平均/合計はクリア
+    const allToggle = document.getElementById(`${chartType}AllToggle`);
+    if (allToggle) {
+        allToggle.checked = false;
+    }
+
+    // 上位3業者のみを選択
+    const checkboxes = document.querySelectorAll(`.${chartType}-contractor-checkbox:not(#${chartType}AllToggle)`);
+    checkboxes.forEach((checkbox, index) => {
+        checkbox.checked = index < 3;
+    });
+
+    if (chartType === 'revenue') {
+        updateRevenueChart();
+    } else if (chartType === 'profitRate') {
+        updateProfitRateChart();
+    }
+}
+
+// テーブルソート機能
+let currentSortColumn = null;
+let sortDirection = 'desc'; // デフォルトは降順
+
+function initializeTableSort() {
+    document.querySelectorAll('.sortable').forEach(header => {
+        header.addEventListener('click', function() {
+            const sortBy = this.dataset.sort;
+            sortTable(sortBy);
+        });
+    });
+}
+
+function sortTable(column) {
+    const tbody = document.querySelector('#contractorTable tbody');
+    const rows = Array.from(tbody.querySelectorAll('.contractor-row'));
+
+    // ソート方向を決定
+    if (currentSortColumn === column) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortDirection = 'desc'; // 新しい列は降順から開始
+        currentSortColumn = column;
+    }
+
+    // ソートアイコンを更新
+    updateSortIcons(column, sortDirection);
+
+    // データをソート
+    rows.sort((a, b) => {
+        let aValue, bValue;
+
+        switch(column) {
+            case 'name':
+                aValue = a.dataset.name.toLowerCase();
+                bValue = b.dataset.name.toLowerCase();
+                break;
+            case 'project_count':
+                aValue = parseInt(a.dataset.projectCount);
+                bValue = parseInt(b.dataset.projectCount);
+                break;
+            case 'total_revenue':
+                aValue = parseFloat(a.dataset.totalRevenue);
+                bValue = parseFloat(b.dataset.totalRevenue);
+                break;
+            case 'total_cost':
+                aValue = parseFloat(a.dataset.totalCost);
+                bValue = parseFloat(b.dataset.totalCost);
+                break;
+            case 'profit':
+                aValue = parseFloat(a.dataset.profit);
+                bValue = parseFloat(b.dataset.profit);
+                break;
+            case 'profit_rate':
+                aValue = parseFloat(a.dataset.profitRate);
+                bValue = parseFloat(b.dataset.profitRate);
+                break;
+            default:
+                return 0;
+        }
+
+        if (typeof aValue === 'string') {
+            return sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+        } else {
+            return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+        }
+    });
+
+    // ソートされた行を再挿入
+    rows.forEach(row => tbody.appendChild(row));
+
+    // 行クリックイベントを再設定
+    initializeDataTable();
+}
+
+function updateSortIcons(activeColumn, direction) {
+    // すべてのソートアイコンをリセット
+    document.querySelectorAll('.sortable i').forEach(icon => {
+        icon.className = 'fas fa-sort ms-1';
+    });
+
+    // アクティブな列のアイコンを更新
+    const activeHeader = document.querySelector(`[data-sort="${activeColumn}"]`);
+    const icon = activeHeader.querySelector('i');
+
+    if (direction === 'asc') {
+        icon.className = 'fas fa-sort-up ms-1';
+    } else {
+        icon.className = 'fas fa-sort-down ms-1';
+    }
+}
+
+// ページ読み込み時にソート機能を初期化
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('=== PAGE LOADED DEBUG ===');
+
+    // 利益率チャートの要素を確認
+    console.log('Checking profit rate elements...');
+    const profitRateAllToggle = document.getElementById('profitRateAllToggle');
+    console.log('profitRateAllToggle:', profitRateAllToggle);
+
+    const profitRateCheckboxes = document.querySelectorAll('.profit-rate-contractor-checkbox');
+    console.log('profit-rate-contractor-checkbox elements:', profitRateCheckboxes.length);
+    profitRateCheckboxes.forEach((cb, i) => {
+        console.log(`Checkbox ${i}:`, cb.id, cb.checked);
+    });
+
+    initializeCharts();
+    initializeDataTable();
+    setupChartCheckboxListeners();
+    initializeTableSort();
+
+    // デフォルトで売上順にソート
+    sortTable('total_revenue');
+
+    console.log('=== PAGE LOADED DEBUG END ===');
+});
+</script>
+{% endblock %}

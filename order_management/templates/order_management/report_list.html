@@ -1,0 +1,113 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}レポート一覧{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-list me-2"></i>レポート一覧</h2>
+        <a href="{% url 'order_management:report_generate' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>新規作成
+        </a>
+    </div>
+
+    <!-- フィルタ -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">レポートタイプ</label>
+                    <select name="type" class="form-select" onchange="this.form.submit()">
+                        <option value="">すべて</option>
+                        <option value="monthly" {% if selected_type == 'monthly' %}selected{% endif %}>月次経営レポート</option>
+                        <option value="project" {% if selected_type == 'project' %}selected{% endif %}>プロジェクト別レポート</option>
+                        <option value="cashflow" {% if selected_type == 'cashflow' %}selected{% endif %}>キャッシュフローレポート</option>
+                        <option value="forecast" {% if selected_type == 'forecast' %}selected{% endif %}>予測レポート</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- レポート一覧 -->
+    {% if reports %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>タイトル</th>
+                    <th>タイプ</th>
+                    <th>対象期間</th>
+                    <th>生成日時</th>
+                    <th>PDF</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for report in reports %}
+                <tr>
+                    <td>
+                        <a href="{% url 'order_management:report_detail' report.id %}">
+                            <strong>{{ report.title }}</strong>
+                        </a>
+                    </td>
+                    <td><span class="badge bg-secondary">{{ report.get_report_type_display }}</span></td>
+                    <td>{{ report.period_start|date:"Y/m/d" }} 〜 {{ report.period_end|date:"Y/m/d" }}</td>
+                    <td>{{ report.generated_date|date:"Y/m/d H:i" }}</td>
+                    <td>
+                        {% if report.pdf_file %}
+                        <a href="{% url 'order_management:report_download_pdf' report.id %}" class="btn btn-sm btn-success">
+                            <i class="fas fa-download"></i>
+                        </a>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'order_management:report_detail' report.id %}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        <a href="{% url 'order_management:report_delete' report.id %}" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ページネーション -->
+    {% if is_paginated %}
+    <nav>
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_type %}&type={{ selected_type }}{% endif %}">前へ</a>
+            </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}{% if selected_type %}&type={{ selected_type }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_type %}&type={{ selected_type }}{% endif %}">次へ</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>レポートがありません。
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

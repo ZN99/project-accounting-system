@@ -1,0 +1,257 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}変動費削除確認{% endblock %}
+
+{% block extra_css %}
+<style>
+    .delete-container {
+        background: #f8f9fa;
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .delete-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .delete-header {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        padding: 1.5rem 2rem;
+        position: relative;
+    }
+
+    .delete-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #fbbf24, #f59e0b);
+    }
+
+    .delete-body {
+        padding: 2rem;
+    }
+
+    .warning-box {
+        background: #fef2f2;
+        border: 2px solid #fecaca;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+    }
+
+    .cost-details {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+    }
+
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+
+    .detail-label {
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .detail-value {
+        color: #6b7280;
+        font-family: 'SF Mono', 'Monaco', monospace;
+    }
+
+    .amount-value {
+        color: #f59e0b;
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+
+    .btn-delete {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        color: white;
+        transition: all 0.3s ease;
+    }
+
+    .btn-delete:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+        color: white;
+    }
+
+    .btn-cancel {
+        background: #6b7280;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        color: white;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        display: inline-block;
+    }
+
+    .btn-cancel:hover {
+        background: #4b5563;
+        color: white;
+        text-decoration: none;
+    }
+
+    .project-info {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 1rem 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="delete-container">
+    <div class="container">
+        <div class="delete-card">
+            <div class="delete-header">
+                <h2><i class="fas fa-exclamation-triangle"></i> 変動費削除確認</h2>
+                <p class="mb-0">以下の変動費を削除してもよろしいですか？</p>
+            </div>
+
+            <div class="delete-body">
+                <div class="warning-box">
+                    <h5 class="text-danger"><i class="fas fa-warning"></i> 注意</h5>
+                    <p class="mb-0">この操作は取り消すことができません。削除すると、この変動費に関連するすべてのデータが完全に削除されます。</p>
+                </div>
+
+                <div class="cost-details">
+                    <h5><i class="fas fa-info-circle"></i> 削除対象の変動費詳細</h5>
+
+                    <div class="detail-row">
+                        <span class="detail-label">費目名</span>
+                        <span class="detail-value">{{ object.name }}</span>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">種別</span>
+                        <span class="detail-value">{{ object.get_cost_type_display }}</span>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">金額</span>
+                        <span class="detail-value amount-value">¥{{ object.amount|intcomma }}</span>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">発生日</span>
+                        <span class="detail-value">{{ object.incurred_date|date:"Y年m月d日" }}</span>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">関連案件</span>
+                        <span class="detail-value">
+                            {% if object.project %}
+                                {{ object.project.site_name }}
+                            {% else %}
+                                一般経費
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">登録日</span>
+                        <span class="detail-value">{{ object.created_at|date:"Y年m月d日 H:i" }}</span>
+                    </div>
+
+                    {% if object.notes %}
+                    <div class="detail-row">
+                        <span class="detail-label">備考</span>
+                        <span class="detail-value">{{ object.notes }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if object.project %}
+                <div class="project-info">
+                    <h6><i class="fas fa-project-diagram"></i> 案件への影響</h6>
+                    <ul class="mb-0">
+                        <li>案件「{{ object.project.site_name }}」の原価から <strong>¥{{ object.amount|intcomma }}</strong> が除外されます</li>
+                        <li>損益計算への影響が発生する可能性があります</li>
+                    </ul>
+                </div>
+                {% endif %}
+
+                <form method="post" class="mt-4">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a href="{% url 'order_management:variable_cost_list' %}" class="btn-cancel">
+                            <i class="fas fa-arrow-left"></i> キャンセル
+                        </a>
+                        <button type="submit" class="btn-delete">
+                            <i class="fas fa-trash"></i> 削除する
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // カードのアニメーション
+    const deleteCard = document.querySelector('.delete-card');
+    deleteCard.style.animation = 'fadeInUp 0.6s ease-out forwards';
+
+    // 削除ボタンの確認
+    const deleteBtn = document.querySelector('.btn-delete');
+    deleteBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+
+        if (confirm('本当に削除してもよろしいですか？この操作は取り消せません。')) {
+            this.closest('form').submit();
+        }
+    });
+});
+
+// アニメーション定義
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

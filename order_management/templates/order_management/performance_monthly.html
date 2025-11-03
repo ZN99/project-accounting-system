@@ -1,0 +1,450 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+{% load role_tags %}
+
+{% block title %}月次業績{% endblock %}
+
+{% block extra_css %}
+<style>
+    .performance-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .performance-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+
+    .manager-card {
+        border-left: 4px solid #667eea;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .manager-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    }
+
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: bold;
+        color: #667eea;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        text-transform: uppercase;
+    }
+
+    .project-list {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .project-item {
+        padding: 0.75rem;
+        border-bottom: 1px solid #f0f0f0;
+        transition: background-color 0.2s;
+    }
+
+    .project-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .project-item:last-child {
+        border-bottom: none;
+    }
+
+    .profit-positive {
+        color: #28a745;
+        font-weight: bold;
+    }
+
+    .profit-negative {
+        color: #dc3545;
+        font-weight: bold;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 400px;
+        margin-top: 2rem;
+    }
+
+    .month-nav {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .ranking-badge {
+        display: inline-block;
+        width: 32px;
+        height: 32px;
+        line-height: 32px;
+        text-align: center;
+        border-radius: 50%;
+        font-weight: bold;
+        font-size: 1rem;
+    }
+
+    .rank-1 {
+        background: linear-gradient(135deg, #FFD700, #FFA500);
+        color: white;
+    }
+
+    .rank-2 {
+        background: linear-gradient(135deg, #C0C0C0, #808080);
+        color: white;
+    }
+
+    .rank-3 {
+        background: linear-gradient(135deg, #CD7F32, #8B4513);
+        color: white;
+    }
+
+    .rank-other {
+        background: #e9ecef;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- ヘッダー -->
+    <div class="performance-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-2">
+                    <i class="fas fa-chart-line me-2"></i>月次業績レポート
+                </h2>
+                <p class="mb-0 opacity-75">営業担当別のパフォーマンス分析 - {{ month_name }}</p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <div class="month-nav">
+                    <a href="?year={{ prev_year }}&month={{ prev_month }}" class="btn btn-light">
+                        <i class="fas fa-chevron-left"></i> 前月
+                    </a>
+                    <a href="{% url 'order_management:performance_monthly' %}" class="btn btn-light">
+                        今月
+                    </a>
+                    <a href="?year={{ next_year }}&month={{ next_month }}" class="btn btn-light">
+                        次月 <i class="fas fa-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- サマリーカード -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="performance-card text-center">
+                <div class="stat-label">総案件数</div>
+                <div class="stat-value" id="totalProjects">-</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="performance-card text-center">
+                <div class="stat-label">総売上</div>
+                <div class="stat-value text-primary" id="totalRevenue">-</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="performance-card text-center">
+                <div class="stat-label">総コスト</div>
+                <div class="stat-value text-danger" id="totalCost">-</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="performance-card text-center">
+                <div class="stat-label">総利益</div>
+                <div class="stat-value text-success" id="totalProfit">-</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 担当者別業績 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="performance-card">
+                <h4 class="mb-4">
+                    <i class="fas fa-trophy me-2 text-warning"></i>営業担当別ランキング
+                </h4>
+                <div id="performanceList">
+                    <div class="text-center py-5">
+                        <i class="fas fa-spinner fa-spin fa-3x text-muted"></i>
+                        <p class="mt-3 text-muted">データを読み込み中...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- グラフ表示 -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="performance-card">
+                <h5 class="mb-3">担当者別売上比較</h5>
+                <div class="chart-container">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="performance-card">
+                <h5 class="mb-3">担当者別利益比較</h5>
+                <div class="chart-container">
+                    <canvas id="profitChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+const currentYear = {{ year }};
+const currentMonth = {{ month }};
+const canViewProfit = {{ user|can_view_profit|yesno:"true,false" }};
+
+let revenueChart = null;
+let profitChart = null;
+
+// 業績データの読み込み
+function loadPerformanceData() {
+    fetch(`{% url 'order_management:performance_monthly_api' %}?year=${currentYear}&month=${currentMonth}`)
+        .then(response => response.json())
+        .then(data => {
+            displayPerformanceSummary(data.performance);
+            displayPerformanceList(data.performance);
+            displayCharts(data.performance);
+        })
+        .catch(error => {
+            console.error('Error loading performance data:', error);
+            document.getElementById('performanceList').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    データの読み込みに失敗しました
+                </div>
+            `;
+        });
+}
+
+// サマリー表示
+function displayPerformanceSummary(performance) {
+    const totalProjects = performance.reduce((sum, p) => sum + p.project_count, 0);
+    const totalRevenue = performance.reduce((sum, p) => sum + p.total_revenue, 0);
+    const totalCost = performance.reduce((sum, p) => sum + p.total_cost, 0);
+    const totalProfit = performance.reduce((sum, p) => sum + p.total_profit, 0);
+
+    document.getElementById('totalProjects').textContent = totalProjects + '件';
+    document.getElementById('totalRevenue').textContent = '¥' + totalRevenue.toLocaleString();
+    document.getElementById('totalCost').textContent = '¥' + totalCost.toLocaleString();
+
+    if (canViewProfit) {
+        document.getElementById('totalProfit').textContent = '¥' + totalProfit.toLocaleString();
+    } else {
+        document.getElementById('totalProfit').textContent = '非表示';
+    }
+}
+
+// 業績リスト表示
+function displayPerformanceList(performance) {
+    if (performance.length === 0) {
+        document.getElementById('performanceList').innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <p class="text-muted">この月の完工案件はありません</p>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    performance.forEach((manager, index) => {
+        const rank = index + 1;
+        const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-other';
+        const profitClass = manager.total_profit >= 0 ? 'profit-positive' : 'profit-negative';
+
+        html += `
+            <div class="manager-card performance-card mb-3">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        <div class="ranking-badge ${rankClass}">${rank}</div>
+                    </div>
+                    <div class="col">
+                        <h5 class="mb-1">${manager.manager}</h5>
+                        <span class="text-muted">${manager.project_count}件の案件</span>
+                    </div>
+                    <div class="col-auto text-end">
+                        <div class="mb-1">
+                            <small class="text-muted">売上:</small>
+                            <strong class="text-primary">¥${manager.total_revenue.toLocaleString()}</strong>
+                        </div>
+                        ${canViewProfit ? `
+                        <div>
+                            <small class="text-muted">利益:</small>
+                            <strong class="${profitClass}">¥${manager.total_profit.toLocaleString()}</strong>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-sm btn-outline-primary" type="button"
+                                data-bs-toggle="collapse" data-bs-target="#projects-${index}">
+                            <i class="fas fa-list"></i> 案件一覧
+                        </button>
+                    </div>
+                </div>
+                <div class="collapse mt-3" id="projects-${index}">
+                    <div class="project-list">
+                        ${manager.projects.map(project => `
+                            <div class="project-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <a href="/orders/${project.id}/" class="text-decoration-none">
+                                            <strong>${project.site_name}</strong>
+                                        </a>
+                                        <span class="badge bg-secondary ms-2">${project.status}</span>
+                                    </div>
+                                    <div class="text-end">
+                                        <div><small class="text-muted">売上:</small> ¥${project.revenue.toLocaleString()}</div>
+                                        ${canViewProfit ? `
+                                        <div>
+                                            <small class="text-muted">利益:</small>
+                                            <span class="${project.profit >= 0 ? 'profit-positive' : 'profit-negative'}">
+                                                ¥${project.profit.toLocaleString()}
+                                            </span>
+                                        </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    document.getElementById('performanceList').innerHTML = html;
+}
+
+// グラフ表示
+function displayCharts(performance) {
+    const managers = performance.map(p => p.manager);
+    const revenues = performance.map(p => p.total_revenue);
+    const profits = performance.map(p => p.total_profit);
+
+    // 売上チャート
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    if (revenueChart) revenueChart.destroy();
+    revenueChart = new Chart(revenueCtx, {
+        type: 'bar',
+        data: {
+            labels: managers,
+            datasets: [{
+                label: '売上',
+                data: revenues,
+                backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                borderColor: 'rgba(102, 126, 234, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '¥' + value.toLocaleString();
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return '売上: ¥' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // 利益チャート（役員のみ）
+    if (canViewProfit) {
+        const profitCtx = document.getElementById('profitChart').getContext('2d');
+        if (profitChart) profitChart.destroy();
+        profitChart = new Chart(profitCtx, {
+            type: 'bar',
+            data: {
+                labels: managers,
+                datasets: [{
+                    label: '利益',
+                    data: profits,
+                    backgroundColor: profits.map(p => p >= 0 ? 'rgba(40, 167, 69, 0.8)' : 'rgba(220, 53, 69, 0.8)'),
+                    borderColor: profits.map(p => p >= 0 ? 'rgba(40, 167, 69, 1)' : 'rgba(220, 53, 69, 1)'),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: function(value) {
+                                return '¥' + value.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return '利益: ¥' + context.parsed.y.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        document.getElementById('profitChart').parentElement.parentElement.innerHTML = `
+            <div class="performance-card">
+                <div class="text-center py-5">
+                    <i class="fas fa-lock fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">利益情報は役員のみ表示されます</p>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// ページ読み込み時にデータ取得
+document.addEventListener('DOMContentLoaded', function() {
+    loadPerformanceData();
+});
+</script>
+{% endblock %}

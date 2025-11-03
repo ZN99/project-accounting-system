@@ -1,0 +1,343 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+.material-header {
+    background: linear-gradient(135deg, #ff9800, #f57c00);
+    color: white;
+}
+.material-form {
+    background: linear-gradient(135deg, #fff8e1, #fff3c4);
+    border-left: 4px solid #ff9800;
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.1);
+}
+.btn-material {
+    background: linear-gradient(135deg, #ff9800, #f57c00);
+    border: none;
+    color: white;
+}
+.btn-material:hover {
+    background: linear-gradient(135deg, #f57c00, #ef6c00);
+    color: white;
+}
+.form-control:focus {
+    border-color: #ff9800;
+    box-shadow: 0 0 0 0.2rem rgba(255, 152, 0, 0.25);
+}
+.material-item-row {
+    background: rgba(255, 152, 0, 0.05);
+    border: 1px solid rgba(255, 152, 0, 0.2);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    padding: 15px;
+}
+.add-item-btn {
+    background: rgba(255, 152, 0, 0.1);
+    border: 2px dashed #ff9800;
+    color: #ff9800;
+    padding: 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+.add-item-btn:hover {
+    background: rgba(255, 152, 0, 0.2);
+    border-color: #f57c00;
+}
+.contractor-section {
+    background: rgba(255, 193, 7, 0.1);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+.total-amount {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #f57c00;
+    background: rgba(255, 152, 0, 0.1);
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+}
+</style>
+{% endblock %}
+
+{% block title %}
+{% if order %}資材発注編集{% else %}新規資材発注{% endif %} - {{ project.name }}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="material-header p-4 mb-4 rounded">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-1">
+                    {% if order %}
+                    📝 資材発注編集
+                    {% else %}
+                    ➕ 新規資材発注
+                    {% endif %}
+                </h2>
+                <p class="mb-0">案件: {{ project.name }}</p>
+                {% if order %}
+                <p class="mb-0">発注番号: {{ order.order_number }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <form method="post" class="material-form card p-4">
+        {% csrf_token %}
+
+        <!-- 業者選択セクション -->
+        <div class="contractor-section">
+            <h4 class="text-warning mb-3"><i class="fas fa-building"></i> 資材業者</h4>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <label class="form-label">既存業者から選択</label>
+                    <select name="contractor_id" class="form-select" id="contractor-select">
+                        <option value="">-- 新規業者を登録 --</option>
+                        {% for contractor in contractors %}
+                        <option value="{{ contractor.id }}"
+                                {% if order and order.contractor.id == contractor.id %}selected{% endif %}>
+                            {{ contractor.name }}
+                            {% if contractor.address %}({{ contractor.address }}){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div id="new-contractor-section" class="mt-3" style="{% if order %}display:none;{% endif %}">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">元請名 <span class="text-danger">*</span></label>
+                        <input type="text" name="client_name" class="form-control"
+                               placeholder="例: ○○建材株式会社">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">住所</label>
+                        <input type="text" name="client_address" class="form-control"
+                               placeholder="例: 東京都○○区○○">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 発注基本情報 -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <label class="form-label">発注日 <span class="text-danger">*</span></label>
+                <input type="date" name="order_date" class="form-control" required
+                       value="{% if order %}{{ order.order_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">希望納期</label>
+                <input type="date" name="delivery_date" class="form-control"
+                       value="{% if order and order.delivery_date %}{{ order.delivery_date|date:'Y-m-d' }}{% endif %}">
+            </div>
+            {% if order %}
+            <div class="col-md-4">
+                <label class="form-label">ステータス</label>
+                <select name="status" class="form-select">
+                    {% for value, label in order.ORDER_STATUS_CHOICES %}
+                    <option value="{{ value }}" {% if order.status == value %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <label class="form-label">実際の納品日</label>
+                <input type="date" name="actual_delivery_date" class="form-control"
+                       value="{% if order and order.actual_delivery_date %}{{ order.actual_delivery_date|date:'Y-m-d' }}{% endif %}">
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 資材項目 -->
+        <div class="mb-4">
+            <h4 class="text-warning mb-3"><i class="fas fa-boxes"></i> 資材項目</h4>
+
+            <div id="material-items">
+                {% if order.items.exists %}
+                    {% for item in order.items.all %}
+                    <div class="material-item-row">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label class="form-label">資材名</label>
+                                <input type="text" name="material_name[]" class="form-control"
+                                       value="{{ item.material_name }}" placeholder="例: コンクリート">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">仕様・規格</label>
+                                <input type="text" name="specification[]" class="form-control"
+                                       value="{{ item.specification }}" placeholder="例: 24-21-20">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">数量</label>
+                                <input type="number" name="quantity[]" class="form-control quantity-input"
+                                       value="{{ item.quantity }}" step="0.01" placeholder="0.00">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">単位</label>
+                                <input type="text" name="unit[]" class="form-control"
+                                       value="{{ item.unit }}" placeholder="例: m³">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">単価(円)</label>
+                                <div class="input-group">
+                                    <input type="number" name="unit_price[]" class="form-control unit-price-input"
+                                           value="{{ item.unit_price }}" step="0.01" placeholder="0.00">
+                                    <button type="button" class="btn btn-outline-danger remove-item-btn">×</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="material-item-row">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label class="form-label">資材名</label>
+                                <input type="text" name="material_name[]" class="form-control" placeholder="例: コンクリート">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">仕様・規格</label>
+                                <input type="text" name="specification[]" class="form-control" placeholder="例: 24-21-20">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">数量</label>
+                                <input type="number" name="quantity[]" class="form-control quantity-input" step="0.01" placeholder="0.00">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">単位</label>
+                                <input type="text" name="unit[]" class="form-control" placeholder="例: m³">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">単価(円)</label>
+                                <div class="input-group">
+                                    <input type="number" name="unit_price[]" class="form-control unit-price-input" step="0.01" placeholder="0.00">
+                                    <button type="button" class="btn btn-outline-danger remove-item-btn">×</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="add-item-btn text-center" onclick="addMaterialItem()">
+                <i class="fas fa-plus"></i> 資材項目を追加
+            </div>
+        </div>
+
+        <!-- 合計金額表示 -->
+        <div class="total-amount mb-4">
+            <div>合計金額: ¥<span id="total-amount">0</span></div>
+        </div>
+
+        <!-- 備考 -->
+        <div class="mb-4">
+            <label class="form-label">備考</label>
+            <textarea name="notes" class="form-control" rows="3"
+                      placeholder="特記事項があれば記入してください">{% if order %}{{ order.notes }}{% endif %}</textarea>
+        </div>
+
+        <!-- 送信ボタン -->
+        <div class="d-flex justify-content-between">
+            <a href="{% if order %}{% url 'order_management:material_order_detail' project.id order.id %}{% else %}{% url 'order_management:material_order_list' project.id %}{% endif %}"
+               class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> キャンセル
+            </a>
+            <button type="submit" class="btn btn-material btn-lg">
+                <i class="fas fa-save"></i>
+                {% if order %}更新{% else %}作成{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function addMaterialItem() {
+    const container = document.getElementById('material-items');
+    const newItem = document.createElement('div');
+    newItem.className = 'material-item-row';
+    newItem.innerHTML = `
+        <div class="row">
+            <div class="col-md-3">
+                <label class="form-label">資材名</label>
+                <input type="text" name="material_name[]" class="form-control" placeholder="例: コンクリート">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">仕様・規格</label>
+                <input type="text" name="specification[]" class="form-control" placeholder="例: 24-21-20">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">数量</label>
+                <input type="number" name="quantity[]" class="form-control quantity-input" step="0.01" placeholder="0.00">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">単位</label>
+                <input type="text" name="unit[]" class="form-control" placeholder="例: m³">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">単価(円)</label>
+                <div class="input-group">
+                    <input type="number" name="unit_price[]" class="form-control unit-price-input" step="0.01" placeholder="0.00">
+                    <button type="button" class="btn btn-outline-danger remove-item-btn">×</button>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(newItem);
+    updateEventListeners();
+}
+
+function updateEventListeners() {
+    // 削除ボタンのイベント
+    document.querySelectorAll('.remove-item-btn').forEach(btn => {
+        btn.onclick = function() {
+            if (document.querySelectorAll('.material-item-row').length > 1) {
+                this.closest('.material-item-row').remove();
+                calculateTotal();
+            }
+        };
+    });
+
+    // 金額計算のイベント
+    document.querySelectorAll('.quantity-input, .unit-price-input').forEach(input => {
+        input.addEventListener('input', calculateTotal);
+    });
+}
+
+function calculateTotal() {
+    let total = 0;
+    document.querySelectorAll('.material-item-row').forEach(row => {
+        const quantity = parseFloat(row.querySelector('.quantity-input').value) || 0;
+        const unitPrice = parseFloat(row.querySelector('.unit-price-input').value) || 0;
+        total += quantity * unitPrice;
+    });
+    document.getElementById('total-amount').textContent = total.toLocaleString();
+}
+
+// 業者選択の制御
+document.getElementById('contractor-select').addEventListener('change', function() {
+    const newContractorSection = document.getElementById('new-contractor-section');
+    if (this.value === '') {
+        newContractorSection.style.display = 'block';
+    } else {
+        newContractorSection.style.display = 'none';
+    }
+});
+
+// 初期化
+document.addEventListener('DOMContentLoaded', function() {
+    updateEventListeners();
+    calculateTotal();
+});
+</script>
+{% endblock %}

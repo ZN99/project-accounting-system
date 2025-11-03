@@ -1,0 +1,814 @@
+{% extends "order_management/base.html" %}
+{% load humanize %}
+
+{% block title %}案件一覧 - 建築派遣管理システム{% endblock %}
+
+{% block extra_css %}
+<style>
+    .progress-cell {
+        min-width: 120px;
+    }
+    .progress-indicator {
+        margin-bottom: 2px;
+    }
+    .deadline-warning {
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    .table-responsive {
+        min-height: 400px;
+    }
+    .clickable-row {
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .clickable-row:hover {
+        background-color: rgba(0, 123, 255, 0.05) !important;
+        transform: translateX(2px);
+    }
+    .summary-card {
+        cursor: pointer;
+        transition: all 0.3s;
+        border: 1px solid #dee2e6;
+        height: 100%;
+    }
+    .summary-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+        border-color: #007bff;
+    }
+    .mode-toggle {
+        position: relative;
+        display: inline-block;
+    }
+    .list-view-item {
+        cursor: pointer;
+        transition: all 0.2s;
+        border-left: 4px solid transparent;
+    }
+    .list-view-item:hover {
+        background-color: rgba(0, 123, 255, 0.05);
+        transform: translateX(2px);
+    }
+    .summary-card:hover {
+        transform: translateY(-2px) scale(1.02);
+    }
+    .view-toggle-group {
+        display: inline-flex;
+        gap: 5px;
+    }
+    .col-md-1-5 {
+        flex: 0 0 auto;
+        width: 12.5%;
+    }
+    @media (max-width: 767.98px) {
+        .col-md-1-5 {
+            width: 100%;
+        }
+    }
+    /* 視覚的な改善 */
+    .stats-card {
+        transition: all 0.3s ease;
+        border-radius: 12px;
+    }
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    .filter-card {
+        border-radius: 12px;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    }
+    .card-header {
+        border-radius: 12px 12px 0 0 !important;
+    }
+    .summary-card {
+        border-radius: 12px;
+        transition: all 0.3s ease;
+    }
+    .summary-card:hover {
+        transform: translateY(-2px) scale(1.02);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        border: none;
+        border-radius: 8px;
+    }
+    .btn-lg {
+        padding: 12px 24px;
+        font-size: 1.1rem;
+    }
+    .progress-enhanced {
+        border-radius: 10px;
+        overflow: hidden;
+        background: rgba(0,0,0,0.1);
+    }
+    .progress-bar {
+        border-radius: 10px;
+    }
+
+    /* 統一カラーコード: verified（濃い緑）- 完了チェックボックスON */
+    .bg-verified {
+        background-color: #155724 !important;
+    }
+    .badge.bg-verified {
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ヘッダーとクイック統計 -->
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-list me-2"></i>案件一覧</h2>
+        <p class="text-muted mb-3">プロジェクトの一覧表示・検索・進捗管理</p>
+    </div>
+    <div class="col-auto text-end">
+        <div class="view-toggle-group me-3">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-secondary" id="detailModeBtn" onclick="switchMode('detail')">
+                    <i class="fas fa-table"></i> 詳細モード
+                </button>
+                <button type="button" class="btn btn-outline-secondary" id="summaryModeBtn" onclick="switchMode('summary')">
+                    <i class="fas fa-th-large"></i> サマリーモード
+                </button>
+            </div>
+            <div class="btn-group" id="summaryViewToggle" style="display: none;">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="tileViewBtn" onclick="switchSummaryView('tile')">
+                    <i class="fas fa-th"></i> タイル
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="listViewBtn" onclick="switchSummaryView('list')">
+                    <i class="fas fa-list"></i> リスト
+                </button>
+            </div>
+        </div>
+        <a href="{% url 'order_management:project_create' %}" class="btn btn-primary btn-lg shadow-sm">
+            <i class="fas fa-plus-circle me-2"></i>新規案件登録
+        </a>
+    </div>
+</div>
+
+<!-- クイック統計カード -->
+<div class="row mb-4 g-3">
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100 stats-card">
+            <div class="card-body text-center">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="text-primary mb-1">{{ total_count }}</h4>
+                        <small class="text-muted">総案件数</small>
+                    </div>
+                    <div class="text-primary">
+                        <i class="fas fa-briefcase fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100 stats-card">
+            <div class="card-body text-center">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="text-success mb-1">{{ received_count }}</h4>
+                        <small class="text-muted">受注済み</small>
+                    </div>
+                    <div class="text-success">
+                        <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100 stats-card">
+            <div class="card-body text-center">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="text-warning mb-1">{{ in_progress_count }}</h4>
+                        <small class="text-muted">進行中</small>
+                    </div>
+                    <div class="text-warning">
+                        <i class="fas fa-clock fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100 stats-card">
+            <div class="card-body text-center">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="text-info mb-1">{{ completed_count }}</h4>
+                        <small class="text-muted">完了済み</small>
+                    </div>
+                    <div class="text-info">
+                        <i class="fas fa-flag-checkered fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 検索・フィルター -->
+<div class="card border-0 shadow-sm mb-4 filter-card">
+    <div class="card-header bg-white border-0">
+        <h6 class="mb-0">
+            <i class="fas fa-filter me-2"></i>検索・フィルター
+            <button class="btn btn-sm btn-outline-secondary float-end" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </h6>
+    </div>
+    <div class="collapse show" id="filterCollapse">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label"><i class="fas fa-tag me-1"></i>案件進捗</label>
+                    <select name="project_status" class="form-select border-0 shadow-sm">
+                        <option value="">すべて</option>
+                        {% for value, label in project_status_choices %}
+                        <option value="{{ value }}" {% if value == project_status %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label"><i class="fas fa-cogs me-1"></i>施工種別</label>
+                    <input type="text" name="work_type" class="form-control border-0 shadow-sm" value="{{ work_type|default_if_none:'' }}" placeholder="種別を入力">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label"><i class="fas fa-user-tie me-1"></i>案件担当</label>
+                    <input type="text" name="project_manager" class="form-control border-0 shadow-sm" value="{{ project_manager|default_if_none:'' }}" placeholder="担当者名">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label"><i class="fas fa-search me-1"></i>キーワード検索</label>
+                    <div class="input-group">
+                        <input type="text" name="search" class="form-control border-0 shadow-sm" value="{{ search_query|default_if_none:'' }}" placeholder="現場名、住所、管理No...">
+                        <button class="btn btn-primary shadow-sm" type="submit">
+                            <i class="fas fa-search"></i> 検索
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Phase 11: 詳細スケジュールフィルター -->
+                <div class="col-12 mt-3">
+                    <h6 class="text-muted mb-3"><i class="fas fa-calendar-check me-2"></i>詳細スケジュールフィルター</h6>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label"><i class="fas fa-handshake me-1"></i>立ち会い</label>
+                    <select name="witness_status" class="form-select border-0 shadow-sm">
+                        <option value="">すべて</option>
+                        {% for value, label in witness_status_choices %}
+                        <option value="{{ value }}" {% if value == witness_status %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label"><i class="fas fa-map-marked-alt me-1"></i>現地調査</label>
+                    <select name="survey_status" class="form-select border-0 shadow-sm">
+                        <option value="">すべて</option>
+                        {% for value, label in survey_status_choices %}
+                        <option value="{{ value }}" {% if value == survey_status %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label"><i class="fas fa-file-invoice me-1"></i>見積もり</label>
+                    <select name="estimate_status" class="form-select border-0 shadow-sm">
+                        <option value="">すべて</option>
+                        {% for value, label in estimate_status_choices %}
+                        <option value="{{ value }}" {% if value == estimate_status %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label"><i class="fas fa-hammer me-1"></i>工事</label>
+                    <select name="construction_status" class="form-select border-0 shadow-sm">
+                        <option value="">すべて</option>
+                        {% for value, label in construction_status_choices %}
+                        <option value="{{ value }}" {% if value == construction_status %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label"><i class="fas fa-user me-1"></i>担当者名</label>
+                    <input type="text" name="assignee_name" class="form-control border-0 shadow-sm" value="{{ assignee_name|default_if_none:'' }}" placeholder="担当者名で絞り込み">
+                </div>
+
+                {% if search_query or project_status or work_type or project_manager or witness_status or survey_status or estimate_status or construction_status or assignee_name %}
+                <div class="col-12">
+                    <a href="{% url 'order_management:project_list' %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-times me-1"></i>フィルターをクリア
+                    </a>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- データテーブル（詳細モード） -->
+<div class="card" id="detailMode">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="projectTable" class="table table-striped table-hover" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>管理No</th>
+                        <th>現場名</th>
+                        <th>現場住所</th>
+                        <th>施工種別</th>
+                        <th>案件進捗</th>
+                        <th>進捗状況</th>
+                        <th>手配状況</th>
+                        <th>見積書発行日</th>
+                        <th>売上内訳</th>
+                        <th>駐車場代</th>
+                        <th>元請名</th>
+                        <th>元請住所</th>
+                        <th>案件担当</th>
+                        <th>入金予定日</th>
+                        <th>工事開始日</th>
+                        <th>工事終了日</th>
+                        <th>契約日</th>
+                        <th>請求書発行</th>
+                        <th>諸経費①</th>
+                        <th>諸経費金額①</th>
+                        <th>諸経費②</th>
+                        <th>諸経費金額②</th>
+                        <th>請求額実請求</th>
+                        <th>増減</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for project in projects %}
+                    <tr class="clickable-row" style="background-color: {{ project.get_status_color_hex }}20;" onclick="window.location='{% url 'order_management:project_detail' project.pk %}';" data-href="{% url 'order_management:project_detail' project.pk %}">
+                        <td>{{ project.management_no }}</td>
+                        <td>
+                            <a href="{% url 'order_management:project_detail' project.pk %}">
+                                {{ project.site_name }}
+                            </a>
+                        </td>
+                        <td>{{ project.site_address|truncatechars:30 }}</td>
+                        <td>{{ project.work_type }}</td>
+                        <td>
+                            {% with stage=project.get_current_project_stage %}
+                            <span class="badge bg-{{ stage.color }}">
+                                {{ stage.stage }}
+                            </span>
+                            {% endwith %}
+                        </td>
+                        <td class="progress-cell">
+                            {% with stage=project.get_current_project_stage details=project.get_progress_details %}
+                            <div class="d-flex flex-column">
+                                <div class="d-flex justify-content-between align-items-center mb-1 progress-indicator">
+                                    <span class="badge bg-{{ stage.color }}">{{ stage.stage }}</span>
+                                    {% if details.total_steps > 0 %}
+                                    <small class="text-muted fw-bold">{{ details.completed_steps }}/{{ details.total_steps }}</small>
+                                    {% elif details.total_steps == 0 and details.completed_steps == 0 %}
+                                    <small class="text-muted fw-bold">0%</small>
+                                    {% endif %}
+                                </div>
+                                {% if details.total_steps > 0 %}
+                                <div class="progress progress-enhanced" style="height: 6px;">
+                                    <div class="progress-bar bg-{{ stage.color }}" role="progressbar"
+                                         style="width: {% widthratio details.completed_steps details.total_steps 100 %}%"
+                                         aria-valuenow="{% widthratio details.completed_steps details.total_steps 100 %}"
+                                         aria-valuemin="0" aria-valuemax="100">
+                                    </div>
+                                </div>
+                                <small class="text-muted mt-1" title="完了済み: {{ details.completed_steps }}/{{ details.total_steps }}ステップ">
+                                    <i class="fas fa-tasks"></i> {{ details.completed_steps }}/{{ details.total_steps }}
+                                </small>
+                                {% elif details.total_steps == 0 %}
+                                <div class="progress progress-enhanced" style="height: 6px;">
+                                    <div class="progress-bar bg-{{ stage.color }}" role="progressbar"
+                                         style="width: 0%"
+                                         aria-valuenow="0"
+                                         aria-valuemin="0" aria-valuemax="100">
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% if project.is_deadline_approaching %}
+                                <small class="text-danger mt-1 deadline-warning">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    あと{{ project.get_days_until_deadline }}日
+                                </small>
+                                {% elif project.get_days_until_deadline %}
+                                <small class="text-muted mt-1">
+                                    <i class="fas fa-calendar"></i>
+                                    あと{{ project.get_days_until_deadline }}日
+                                </small>
+                                {% endif %}
+                            </div>
+                            {% endwith %}
+                        </td>
+                        <td class="text-center">
+                            {% with subcontract_status=project.get_subcontract_status %}
+                            <div class="d-flex flex-column align-items-center">
+                                <span class="badge bg-{{ subcontract_status.color }} mb-1">
+                                    <i class="fas {{ subcontract_status.icon }}"></i> {{ subcontract_status.status }}
+                                </span>
+                                {% if subcontract_status.count > 0 %}
+                                <small class="text-muted">{{ subcontract_status.count }}件</small>
+                                {% endif %}
+                            </div>
+                            {% endwith %}
+                        </td>
+                        <td>{{ project.estimate_issued_date|date:"Y-m-d"|default:"-" }}</td>
+                        <td class="text-end" style="min-width: 120px;">
+                            {% with revenue=project.get_revenue_breakdown %}
+                            <div style="font-size: 0.8rem; line-height: 1.2;">
+                                <div class="text-success fw-bold">売上 ¥{{ revenue.revenue|floatformat:0|intcomma }}</div>
+                                <div class="text-warning">原価 ¥{{ revenue.cost_of_sales|floatformat:0|intcomma }}</div>
+                                <div class="text-primary">利益 ¥{{ revenue.gross_profit|floatformat:0|intcomma }} ({{ revenue.profit_margin|floatformat:1 }}%)</div>
+                            </div>
+                            {% endwith %}
+                        </td>
+                        <td class="text-end">¥{{ project.parking_fee|floatformat:0|intcomma|default:"0" }}</td>
+                        <td>{{ project.client_name }}</td>
+                        <td>{{ project.client_address|truncatechars:30 }}</td>
+                        <td>{{ project.project_manager }}</td>
+                        <td>{{ project.payment_due_date|date:"Y-m-d"|default:"-" }}</td>
+                        <td>{{ project.work_start_date|date:"Y-m-d"|default:"-" }}</td>
+                        <td>{{ project.work_end_date|date:"Y-m-d"|default:"-" }}</td>
+                        <td>{{ project.contract_date|date:"Y-m-d"|default:"-" }}</td>
+                        <td class="text-center">
+                            {% if project.invoice_issued %}
+                            <i class="fas fa-check-circle text-success"></i>
+                            {% else %}
+                            <i class="fas fa-times-circle text-muted"></i>
+                            {% endif %}
+                        </td>
+                        <td>{{ project.expense_item_1|default:"-" }}</td>
+                        <td class="text-end">¥{{ project.expense_amount_1|floatformat:0|intcomma|default:"0" }}</td>
+                        <td>{{ project.expense_item_2|default:"-" }}</td>
+                        <td class="text-end">¥{{ project.expense_amount_2|floatformat:0|intcomma|default:"0" }}</td>
+                        <td class="text-end fw-bold">¥{{ project.billing_amount|floatformat:0|intcomma|default:"0" }}</td>
+                        <td class="text-end {% if project.amount_difference > 0 %}text-success{% elif project.amount_difference < 0 %}text-danger{% endif %}">
+                            ¥{{ project.amount_difference|floatformat:0|intcomma|default:"0" }}
+                        </td>
+                        <td onclick="event.stopPropagation();">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{% url 'order_management:project_detail' project.pk %}" class="btn btn-info btn-action" title="詳細">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'subcontract_management:project_subcontract_list' project.pk %}" class="btn btn-success btn-action" title="発注">
+                                    <i class="fas fa-handshake"></i>
+                                </a>
+                                <a href="{% url 'order_management:project_update' project.pk %}" class="btn btn-warning btn-action" title="編集">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="23" class="text-center text-muted">案件データがありません</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ページネーション -->
+        {% if page_obj.has_other_pages %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}&project_status={{ project_status }}&work_type={{ work_type }}&project_manager={{ project_manager }}&search={{ search_query }}&witness_status={{ witness_status }}&survey_status={{ survey_status }}&estimate_status={{ estimate_status }}&construction_status={{ construction_status }}&assignee_name={{ assignee_name }}">前へ</a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}&project_status={{ project_status }}&work_type={{ work_type }}&project_manager={{ project_manager }}&search={{ search_query }}&witness_status={{ witness_status }}&survey_status={{ survey_status }}&estimate_status={{ estimate_status }}&construction_status={{ construction_status }}&assignee_name={{ assignee_name }}">{{ num }}</a></li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}&project_status={{ project_status }}&work_type={{ work_type }}&project_manager={{ project_manager }}&search={{ search_query }}&witness_status={{ witness_status }}&survey_status={{ survey_status }}&estimate_status={{ estimate_status }}&construction_status={{ construction_status }}&assignee_name={{ assignee_name }}">次へ</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+<!-- サマリーモード -->
+<div class="container-fluid" id="summaryMode" style="display: none;">
+    <!-- タイル表示 -->
+    <div class="row g-3" id="tileView">
+        {% for project in projects %}
+        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+            <div class="card summary-card h-100" onclick="window.location='{% url 'order_management:project_detail' project.pk %}';" style="border-left: 4px solid {{ project.get_status_color_hex }};">
+                {% with stage=project.get_current_project_stage %}
+                <div class="card-header bg-{{ stage.color }} text-white">
+                    <h6 class="mb-0 text-truncate" title="{{ project.site_name }}">{{ project.site_name }}</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <small class="text-muted">種別:</small>
+                        <strong>{{ project.work_type|default:"-" }}</strong>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">案件進捗:</small>
+                        <span class="badge bg-{{ stage.color }}">
+                            {{ stage.stage }}
+                        </span>
+                    </div>
+                {% endwith %}
+                    <div class="mb-2">
+                        <small class="text-muted">進捗:</small>
+                        {% with stage=project.get_current_project_stage details=project.get_progress_details %}
+                        <div class="progress progress-enhanced" style="height: 20px;">
+                            <div class="progress-bar bg-{{ stage.color }}"
+                                 role="progressbar"
+                                 style="width: {% if details.total_steps > 0 %}{% widthratio details.completed_steps details.total_steps 100 %}{% else %}0{% endif %}%"
+                                 aria-valuenow="{% if details.total_steps > 0 %}{% widthratio details.completed_steps details.total_steps 100 %}{% else %}0{% endif %}"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">
+                                {% if details.total_steps > 0 %}{{ details.completed_steps }}/{{ details.total_steps }}{% else %}0%{% endif %}
+                            </div>
+                        </div>
+                        {% if details.total_steps > 0 %}
+                        <small class="text-muted">
+                            <i class="fas fa-tasks"></i> {{ details.completed_steps }}/{{ details.total_steps }} 完了
+                        </small>
+                        {% endif %}
+                        {% endwith %}
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">手配状況:</small>
+                        {% with subcontract_status=project.get_subcontract_status %}
+                        <span class="badge bg-{{ subcontract_status.color }}">
+                            <i class="fas {{ subcontract_status.icon }}"></i> {{ subcontract_status.status }}
+                            {% if subcontract_status.count > 0 %} ({{ subcontract_status.count }}件){% endif %}
+                        </span>
+                        {% endwith %}
+                    </div>
+                    <div>
+                        <small class="text-muted">売上内訳:</small>
+                        {% with revenue=project.get_revenue_breakdown %}
+                        <div style="font-size: 0.85rem; line-height: 1.3; margin-top: 0.25rem;">
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">売上</span>
+                                <span class="text-success fw-bold">¥{{ revenue.revenue|floatformat:0|intcomma }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">原価</span>
+                                <span class="text-warning">¥{{ revenue.cost_of_sales|floatformat:0|intcomma }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">利益</span>
+                                <span class="text-primary fw-bold">¥{{ revenue.gross_profit|floatformat:0|intcomma }} <small class="text-info">({{ revenue.profit_margin|floatformat:1 }}%)</small></span>
+                            </div>
+                        </div>
+                        {% endwith %}
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <small class="text-muted">{{ project.management_no }}</small>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle"></i> 案件データがありません
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- リスト表示 -->
+    <div id="listView" style="display: none;">
+        <div class="list-group">
+            {% for project in projects %}
+            <div class="list-group-item list-view-item" onclick="window.location='{% url 'order_management:project_detail' project.pk %}'" style="border-left: 4px solid {{ project.get_status_color_hex }};">
+                <div class="row align-items-center">
+                    <div class="col-md-3">
+                        <h6 class="mb-1">{{ project.site_name }}</h6>
+                        <small class="text-muted">{{ project.management_no }}</small>
+                    </div>
+                    <div class="col-md-1-5">
+                        <small class="text-muted d-block">施工種別</small>
+                        <strong>{{ project.work_type|default:"-" }}</strong>
+                    </div>
+                    <div class="col-md-1-5">
+                        <small class="text-muted d-block">案件進捗</small>
+                        {% with stage=project.get_current_project_stage %}
+                        <span class="badge bg-{{ stage.color }}">
+                            {{ stage.stage }}
+                        </span>
+                        {% endwith %}
+                    </div>
+                    <div class="col-md-2">
+                        <small class="text-muted d-block">進捗</small>
+                        {% with stage=project.get_current_project_stage details=project.get_progress_details %}
+                        <div class="progress progress-enhanced" style="height: 15px;">
+                            <div class="progress-bar bg-{{ stage.color }}"
+                                 style="width: {% if details.total_steps > 0 %}{% widthratio details.completed_steps details.total_steps 100 %}{% else %}0{% endif %}%">
+                                {% if details.total_steps > 0 %}{{ details.completed_steps }}/{{ details.total_steps }}{% else %}0%{% endif %}
+                            </div>
+                        </div>
+                        {% if details.total_steps > 0 %}
+                        <small class="text-muted">{{ details.completed_steps }}/{{ details.total_steps }}</small>
+                        {% endif %}
+                        {% endwith %}
+                    </div>
+                    <div class="col-md-1-5">
+                        <small class="text-muted d-block">手配状況</small>
+                        {% with subcontract_status=project.get_subcontract_status %}
+                        <span class="badge bg-{{ subcontract_status.color }}">
+                            <i class="fas {{ subcontract_status.icon }}"></i> {{ subcontract_status.status }}
+                        </span>
+                        {% endwith %}
+                    </div>
+                    <div class="col-md-1-5">
+                        <small class="text-muted d-block">工期・入金予定</small>
+                        <div style="font-size: 0.75rem; line-height: 1.3;">
+                            {% if project.work_start_date and project.work_end_date %}
+                            <div class="text-muted mb-1">
+                                <i class="fas fa-calendar-alt"></i> {{ project.work_start_date|date:"m/d" }}~{{ project.work_end_date|date:"m/d" }}
+                            </div>
+                            {% else %}
+                            <div class="text-muted mb-1">-</div>
+                            {% endif %}
+                            {% if project.payment_due_date %}
+                            <div class="text-info">
+                                <i class="fas fa-yen-sign"></i> {{ project.payment_due_date|date:"m/d" }}
+                            </div>
+                            {% else %}
+                            <div class="text-muted">未定</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-end">
+                        <small class="text-muted d-block">売上内訳</small>
+                        {% with revenue=project.get_revenue_breakdown %}
+                        <div style="font-size: 0.8rem; line-height: 1.2;">
+                            <div class="text-success fw-bold">¥{{ revenue.revenue|floatformat:0|intcomma }}</div>
+                            <div class="text-warning">-¥{{ revenue.cost_of_sales|floatformat:0|intcomma }}</div>
+                            <div class="text-primary fw-bold">¥{{ revenue.gross_profit|floatformat:0|intcomma }} <small class="text-info">({{ revenue.profit_margin|floatformat:1 }}%)</small></div>
+                        </div>
+                        {% endwith %}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle"></i> 案件データがありません
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- ページネーション（サマリーモード用） -->
+    {% if page_obj.has_other_pages %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&project_status={{ project_status }}&work_type={{ work_type }}&project_manager={{ project_manager }}&search={{ search_query }}&witness_status={{ witness_status }}&survey_status={{ survey_status }}&estimate_status={{ estimate_status }}&construction_status={{ construction_status }}&assignee_name={{ assignee_name }}">前へ</a>
+            </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <li class="page-item"><a class="page-link" href="?page={{ num }}&project_status={{ project_status }}&work_type={{ work_type }}&project_manager={{ project_manager }}&search={{ search_query }}&witness_status={{ witness_status }}&survey_status={{ survey_status }}&estimate_status={{ estimate_status }}&construction_status={{ construction_status }}&assignee_name={{ assignee_name }}">{{ num }}</a></li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}&project_status={{ project_status }}&work_type={{ work_type }}&project_manager={{ project_manager }}&search={{ search_query }}&witness_status={{ witness_status }}&survey_status={{ survey_status }}&estimate_status={{ estimate_status }}&construction_status={{ construction_status }}&assignee_name={{ assignee_name }}">次へ</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// モード切り替え機能
+function switchMode(mode) {
+    if (mode === 'detail') {
+        document.getElementById('detailMode').style.display = 'block';
+        document.getElementById('summaryMode').style.display = 'none';
+        document.getElementById('summaryViewToggle').style.display = 'none';
+        document.getElementById('detailModeBtn').classList.add('btn-primary');
+        document.getElementById('detailModeBtn').classList.remove('btn-outline-secondary');
+        document.getElementById('summaryModeBtn').classList.remove('btn-primary');
+        document.getElementById('summaryModeBtn').classList.add('btn-outline-secondary');
+        localStorage.setItem('projectViewMode', 'detail');
+    } else {
+        document.getElementById('detailMode').style.display = 'none';
+        document.getElementById('summaryMode').style.display = 'block';
+        document.getElementById('summaryViewToggle').style.display = 'inline-flex';
+        document.getElementById('summaryModeBtn').classList.add('btn-primary');
+        document.getElementById('summaryModeBtn').classList.remove('btn-outline-secondary');
+        document.getElementById('detailModeBtn').classList.remove('btn-primary');
+        document.getElementById('detailModeBtn').classList.add('btn-outline-secondary');
+        localStorage.setItem('projectViewMode', 'summary');
+
+        // サマリービューのデフォルトを復元
+        var savedSummaryView = localStorage.getItem('summaryViewType') || 'tile';
+        switchSummaryView(savedSummaryView);
+    }
+}
+
+// サマリーモードのビュー切り替え（タイル/リスト）
+function switchSummaryView(view) {
+    if (view === 'tile') {
+        document.getElementById('tileView').style.display = 'flex';
+        document.getElementById('listView').style.display = 'none';
+        document.getElementById('tileViewBtn').classList.add('btn-primary');
+        document.getElementById('tileViewBtn').classList.remove('btn-outline-secondary');
+        document.getElementById('listViewBtn').classList.remove('btn-primary');
+        document.getElementById('listViewBtn').classList.add('btn-outline-secondary');
+        localStorage.setItem('summaryViewType', 'tile');
+    } else {
+        document.getElementById('tileView').style.display = 'none';
+        document.getElementById('listView').style.display = 'block';
+        document.getElementById('listViewBtn').classList.add('btn-primary');
+        document.getElementById('listViewBtn').classList.remove('btn-outline-secondary');
+        document.getElementById('tileViewBtn').classList.remove('btn-primary');
+        document.getElementById('tileViewBtn').classList.add('btn-outline-secondary');
+        localStorage.setItem('summaryViewType', 'list');
+    }
+}
+
+$(document).ready(function() {
+    // DataTableの初期化（レスポンシブ対応強化）
+    var table = $('#projectTable').DataTable({
+        responsive: {
+            details: {
+                type: 'column',
+                target: 'tr'
+            }
+        },
+        language: {
+            url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/ja.json"
+        },
+        pageLength: 25,
+        order: [[0, 'desc']],
+        columnDefs: [
+            { targets: -1, orderable: false, searchable: false },
+            // モバイル向けの列優先順位設定
+            { responsivePriority: 1, targets: 0 }, // 管理No
+            { responsivePriority: 2, targets: 1 }, // 現場名
+            { responsivePriority: 3, targets: 4 }, // 案件進捗
+            { responsivePriority: 4, targets: 5 }, // 進捗状況
+            { responsivePriority: 5, targets: -1 }, // 操作
+            { responsivePriority: 10000, targets: '_all' } // その他の列
+        ],
+        scrollX: false, // レスポンシブモードと競合するため無効化
+        paging: false, // ページネーションはサーバーサイドで処理
+        info: false
+    });
+
+    // 保存されたモードの復元（デフォルトをサマリーのリストモードに）
+    var savedMode = localStorage.getItem('projectViewMode') || 'summary';
+    switchMode(savedMode);
+
+    // サマリーモードの場合、リストビューをデフォルトに
+    if (savedMode === 'summary' && !localStorage.getItem('summaryViewType')) {
+        localStorage.setItem('summaryViewType', 'list');
+    }
+
+    // 行クリック時の処理（DataTablesイベントを使用）
+    $('#projectTable tbody').on('click', 'tr.clickable-row', function(e) {
+        // ボタン要素のクリックは除外
+        if (!$(e.target).closest('.btn').length && !$(e.target).hasClass('btn')) {
+            var href = $(this).data('href');
+            if (href) {
+                window.location = href;
+            }
+        }
+    });
+});
+</script>
+
+<!-- DataTables Responsive CSS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+{% endblock %}

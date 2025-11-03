@@ -1,0 +1,878 @@
+{% extends "order_management/base.html" %}
+{% load humanize %}
+
+{% block title %}📊 受注業務ダッシュボード - 建築派遣管理システム{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-color: #2c3e50;
+        --success-color: #27ae60;
+        --warning-color: #f39c12;
+        --danger-color: #e74c3c;
+        --info-color: #3498db;
+        --light-bg: #ecf0f1;
+        --card-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        --hover-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    }
+
+    .executive-dashboard {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .dashboard-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #34495e 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        box-shadow: var(--card-shadow);
+    }
+
+    .dashboard-title {
+        font-size: 2.5rem;
+        font-weight: 300;
+        margin: 0;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .dashboard-subtitle {
+        opacity: 0.9;
+        font-size: 1.1rem;
+        margin-top: 0.5rem;
+    }
+
+    /* KPI Cards */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .kpi-card {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: var(--card-shadow);
+        transition: all 0.3s ease;
+        border: none;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .kpi-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: var(--primary-color);
+    }
+
+    .kpi-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--hover-shadow);
+    }
+
+    .kpi-card.revenue::before { background: linear-gradient(90deg, #27ae60, #2ecc71); }
+    .kpi-card.profit::before { background: linear-gradient(90deg, #3498db, #74b9ff); }
+    .kpi-card.margin::before { background: linear-gradient(90deg, #f39c12, #fdcb6e); }
+    .kpi-card.projects::before { background: linear-gradient(90deg, #9b59b6, #a29bfe); }
+    .kpi-card.efficiency::before { background: linear-gradient(90deg, #e74c3c, #fd79a8); }
+    .kpi-card.growth::before { background: linear-gradient(90deg, #00b894, #55efc4); }
+
+    .kpi-header {
+        display: flex;
+        justify-content: between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+
+    .kpi-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+        margin-bottom: 1rem;
+    }
+
+    .kpi-icon.revenue { background: linear-gradient(135deg, #27ae60, #2ecc71); }
+    .kpi-icon.profit { background: linear-gradient(135deg, #3498db, #74b9ff); }
+    .kpi-icon.margin { background: linear-gradient(135deg, #f39c12, #fdcb6e); }
+    .kpi-icon.projects { background: linear-gradient(135deg, #9b59b6, #a29bfe); }
+    .kpi-icon.efficiency { background: linear-gradient(135deg, #e74c3c, #fd79a8); }
+    .kpi-icon.growth { background: linear-gradient(135deg, #00b894, #55efc4); }
+
+    .kpi-title {
+        font-size: 0.9rem;
+        color: #7f8c8d;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        margin: 0;
+    }
+
+    .kpi-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        margin: 0.5rem 0;
+        line-height: 1;
+    }
+
+    .kpi-change {
+        font-size: 0.9rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .kpi-change.positive { color: var(--success-color); }
+    .kpi-change.negative { color: var(--danger-color); }
+    .kpi-change.neutral { color: #7f8c8d; }
+
+    /* Business Intelligence Section */
+    .bi-section {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .chart-card {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: var(--card-shadow);
+        transition: all 0.3s ease;
+    }
+
+    .chart-card:hover {
+        box-shadow: var(--hover-shadow);
+    }
+
+    .chart-header {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #ecf0f1;
+    }
+
+    .chart-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        margin: 0;
+    }
+
+    .chart-controls {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .chart-btn {
+        padding: 0.5rem 1rem;
+        border: 2px solid #ecf0f1;
+        background: white;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .chart-btn.active {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+
+    .chart-container {
+        height: 400px;
+        position: relative;
+    }
+
+    /* Key Insights Panel */
+    .insights-panel {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: var(--card-shadow);
+        height: fit-content;
+    }
+
+    .insights-header {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #ecf0f1;
+    }
+
+    .insights-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        margin: 0;
+    }
+
+    .insight-item {
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 10px;
+        border-left: 4px solid;
+        transition: all 0.3s ease;
+    }
+
+    .insight-item:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .insight-item.success {
+        background: #d5f4e6;
+        border-color: var(--success-color);
+    }
+
+    .insight-item.warning {
+        background: #fef9e7;
+        border-color: var(--warning-color);
+    }
+
+    .insight-item.danger {
+        background: #fdf2f2;
+        border-color: var(--danger-color);
+    }
+
+    .insight-item.info {
+        background: #e8f4fd;
+        border-color: var(--info-color);
+    }
+
+    .insight-icon {
+        font-size: 1.2rem;
+        margin-right: 0.5rem;
+    }
+
+    .insight-text {
+        font-size: 0.9rem;
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    /* Performance Table */
+    .performance-table {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: var(--card-shadow);
+        margin-bottom: 2rem;
+    }
+
+    .table-header {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #ecf0f1;
+    }
+
+    .table-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        margin: 0;
+    }
+
+    .performance-table-wrapper {
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid #ecf0f1;
+    }
+
+    .performance-table-wrapper table {
+        margin: 0;
+        font-size: 0.9rem;
+    }
+
+    .performance-table-wrapper th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: var(--primary-color);
+        border: none;
+        padding: 1rem 0.75rem;
+    }
+
+    .performance-table-wrapper td {
+        padding: 1rem 0.75rem;
+        border: none;
+        border-bottom: 1px solid #ecf0f1;
+        vertical-align: middle;
+    }
+
+    .performance-table-wrapper tbody tr:hover {
+        background: #f8f9fa;
+        cursor: pointer;
+    }
+
+    .contractor-name {
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+
+    .performance-badge {
+        padding: 0.3rem 0.8rem;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .badge-excellent {
+        background: #d5f4e6;
+        color: #27ae60;
+    }
+
+    .badge-good {
+        background: #e8f4fd;
+        color: #3498db;
+    }
+
+    .badge-average {
+        background: #fef9e7;
+        color: #f39c12;
+    }
+
+    .badge-poor {
+        background: #fdf2f2;
+        color: #e74c3c;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .action-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .action-btn.view {
+        background: #e8f4fd;
+        color: #3498db;
+    }
+
+    .action-btn.edit {
+        background: #fef9e7;
+        color: #f39c12;
+    }
+
+    .action-btn:hover {
+        transform: scale(1.1);
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .bi-section {
+            grid-template-columns: 1fr;
+        }
+
+        .kpi-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .dashboard-title {
+            font-size: 2rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="executive-dashboard">
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="dashboard-title">📊 受注業務ダッシュボード</h1>
+                    <p class="dashboard-subtitle">経営判断のための重要指標とビジネスインテリジェンス</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="btn-group">
+                        <button class="btn btn-light" onclick="exportToExcel()">
+                            <i class="fas fa-file-excel"></i> Excel
+                        </button>
+                        <button class="btn btn-light" onclick="printReport()">
+                            <i class="fas fa-print"></i> 印刷
+                        </button>
+                        <button class="btn btn-primary" onclick="refreshData()">
+                            <i class="fas fa-sync"></i> 更新
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid">
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+            <!-- 月間売上 -->
+            <div class="kpi-card revenue">
+                <div class="kpi-icon revenue">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h3 class="kpi-title">月間売上</h3>
+                <div class="kpi-value">¥{{ kpi.monthly_revenue|intcomma }}</div>
+                <div class="kpi-change positive">
+                    <i class="fas fa-arrow-up"></i>
+                    +15.3% vs 先月
+                </div>
+            </div>
+
+            <!-- 月間粗利 -->
+            <div class="kpi-card profit">
+                <div class="kpi-icon profit">
+                    <i class="fas fa-coins"></i>
+                </div>
+                <h3 class="kpi-title">月間粗利</h3>
+                <div class="kpi-value">¥{{ kpi.monthly_profit|intcomma }}</div>
+                <div class="kpi-change positive">
+                    <i class="fas fa-arrow-up"></i>
+                    +8.7% vs 先月
+                </div>
+            </div>
+
+            <!-- 粗利率 -->
+            <div class="kpi-card margin">
+                <div class="kpi-icon margin">
+                    <i class="fas fa-percentage"></i>
+                </div>
+                <h3 class="kpi-title">平均粗利率</h3>
+                <div class="kpi-value">{{ kpi.avg_margin|floatformat:1 }}%</div>
+                <div class="kpi-change {% if kpi.margin_change >= 0 %}positive{% else %}negative{% endif %}">
+                    <i class="fas fa-arrow-{% if kpi.margin_change >= 0 %}up{% else %}down{% endif %}"></i>
+                    {{ kpi.margin_change|floatformat:1 }}% vs 先月
+                </div>
+            </div>
+
+            <!-- アクティブ案件数 -->
+            <div class="kpi-card projects">
+                <div class="kpi-icon projects">
+                    <i class="fas fa-tasks"></i>
+                </div>
+                <h3 class="kpi-title">アクティブ案件</h3>
+                <div class="kpi-value">{{ kpi.active_projects }}</div>
+                <div class="kpi-change positive">
+                    <i class="fas fa-arrow-up"></i>
+                    +{{ kpi.new_projects }}件 今月
+                </div>
+            </div>
+
+            <!-- 案件効率性 -->
+            <div class="kpi-card efficiency">
+                <div class="kpi-icon efficiency">
+                    <i class="fas fa-tachometer-alt"></i>
+                </div>
+                <h3 class="kpi-title">案件効率性</h3>
+                <div class="kpi-value">{{ kpi.project_efficiency|floatformat:1 }}</div>
+                <div class="kpi-change positive">
+                    <i class="fas fa-arrow-up"></i>
+                    目標達成率 92%
+                </div>
+            </div>
+
+            <!-- 成長率 -->
+            <div class="kpi-card growth">
+                <div class="kpi-icon growth">
+                    <i class="fas fa-rocket"></i>
+                </div>
+                <h3 class="kpi-title">年間成長率</h3>
+                <div class="kpi-value">{{ kpi.growth_rate|floatformat:1 }}%</div>
+                <div class="kpi-change positive">
+                    <i class="fas fa-arrow-up"></i>
+                    業界平均 {{ kpi.industry_avg|floatformat:1 }}%
+                </div>
+            </div>
+        </div>
+
+        <!-- Business Intelligence Section -->
+        <div class="bi-section">
+            <!-- Revenue & Profit Chart -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3 class="chart-title">💰 売上・利益推移分析</h3>
+                    <div class="chart-controls">
+                        <button class="chart-btn active" data-period="6m">6ヶ月</button>
+                        <button class="chart-btn" data-period="1y">1年</button>
+                        <button class="chart-btn" data-period="3y">3年</button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Key Insights Panel -->
+            <div class="insights-panel">
+                <div class="insights-header">
+                    <h3 class="insights-title">🎯 重要インサイト</h3>
+                </div>
+
+                <div class="insight-item success">
+                    <p class="insight-text">
+                        <i class="fas fa-thumbs-up insight-icon"></i>
+                        <strong>優秀業者:</strong> ABC建設が今月+23%の売上向上。継続発注推奨。
+                    </p>
+                </div>
+
+                <div class="insight-item warning">
+                    <p class="insight-text">
+                        <i class="fas fa-exclamation-triangle insight-icon"></i>
+                        <strong>注意:</strong> XYZ工務店の利益率が業界平均を下回っています。
+                    </p>
+                </div>
+
+                <div class="insight-item info">
+                    <p class="insight-text">
+                        <i class="fas fa-lightbulb insight-icon"></i>
+                        <strong>機会:</strong> 新規エリアでの案件獲得機会が3件見込まれます。
+                    </p>
+                </div>
+
+                <div class="insight-item danger">
+                    <p class="insight-text">
+                        <i class="fas fa-chart-line-down insight-icon"></i>
+                        <strong>リスク:</strong> 2業者で支払い遅延が発生。キャッシュフロー要注意。
+                    </p>
+                </div>
+
+                <div class="insight-item success">
+                    <p class="insight-text">
+                        <i class="fas fa-trophy insight-icon"></i>
+                        <strong>成果:</strong> 今月の粗利率が目標20%を達成しました。
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Table -->
+        <div class="performance-table">
+            <div class="table-header">
+                <h3 class="table-title">🏆 業者別パフォーマンス（経営重視）</h3>
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-primary active" data-view="profit">利益重視</button>
+                    <button class="btn btn-sm btn-outline-primary" data-view="growth">成長重視</button>
+                    <button class="btn btn-sm btn-outline-primary" data-view="risk">リスク重視</button>
+                </div>
+            </div>
+
+            <div class="performance-table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>業者名</th>
+                            <th class="text-end">月間売上</th>
+                            <th class="text-end">粗利額</th>
+                            <th class="text-center">粗利率</th>
+                            <th class="text-center">案件数</th>
+                            <th class="text-center">ROI</th>
+                            <th class="text-center">総合評価</th>
+                            <th class="text-center">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr onclick="viewContractorDetail(1)">
+                            <td class="contractor-name">🏢 ABC建設株式会社</td>
+                            <td class="text-end fw-bold">¥15,800,000</td>
+                            <td class="text-end text-success fw-bold">¥3,950,000</td>
+                            <td class="text-center">
+                                <span class="badge-excellent performance-badge">25.0%</span>
+                            </td>
+                            <td class="text-center">12</td>
+                            <td class="text-center text-success fw-bold">318%</td>
+                            <td class="text-center">
+                                <span class="badge-excellent performance-badge">優秀</span>
+                            </td>
+                            <td class="text-center">
+                                <div class="action-buttons">
+                                    <button class="action-btn view" title="詳細表示">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="action-btn edit" title="編集">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr onclick="viewContractorDetail(2)">
+                            <td class="contractor-name">🏗️ DEF工務店</td>
+                            <td class="text-end fw-bold">¥12,300,000</td>
+                            <td class="text-end text-success fw-bold">¥2,460,000</td>
+                            <td class="text-center">
+                                <span class="badge-good performance-badge">20.0%</span>
+                            </td>
+                            <td class="text-center">8</td>
+                            <td class="text-center text-success fw-bold">245%</td>
+                            <td class="text-center">
+                                <span class="badge-good performance-badge">良好</span>
+                            </td>
+                            <td class="text-center">
+                                <div class="action-buttons">
+                                    <button class="action-btn view" title="詳細表示">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="action-btn edit" title="編集">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr onclick="viewContractorDetail(3)">
+                            <td class="contractor-name">🔧 GHI建築</td>
+                            <td class="text-end fw-bold">¥8,900,000</td>
+                            <td class="text-end text-warning fw-bold">¥1,335,000</td>
+                            <td class="text-center">
+                                <span class="badge-average performance-badge">15.0%</span>
+                            </td>
+                            <td class="text-center">6</td>
+                            <td class="text-center text-warning fw-bold">156%</td>
+                            <td class="text-center">
+                                <span class="badge-average performance-badge">普通</span>
+                            </td>
+                            <td class="text-center">
+                                <div class="action-buttons">
+                                    <button class="action-btn view" title="詳細表示">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="action-btn edit" title="編集">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr onclick="viewContractorDetail(4)">
+                            <td class="contractor-name">⚠️ JKL建設</td>
+                            <td class="text-end fw-bold">¥6,200,000</td>
+                            <td class="text-end text-danger fw-bold">¥620,000</td>
+                            <td class="text-center">
+                                <span class="badge-poor performance-badge">10.0%</span>
+                            </td>
+                            <td class="text-center">4</td>
+                            <td class="text-center text-danger fw-bold">87%</td>
+                            <td class="text-center">
+                                <span class="badge-poor performance-badge">要改善</span>
+                            </td>
+                            <td class="text-center">
+                                <div class="action-buttons">
+                                    <button class="action-btn view" title="詳細表示">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="action-btn edit" title="編集">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Mock Data for Demo
+const mockKPI = {
+    monthly_revenue: 43200000,
+    monthly_profit: 8640000,
+    avg_margin: 20.2,
+    margin_change: 2.3,
+    active_projects: 30,
+    new_projects: 5,
+    project_efficiency: 8.7,
+    growth_rate: 18.5,
+    industry_avg: 12.3
+};
+
+// Chart Data
+const monthlyData = [
+    { month: '1月', revenue: 35000000, profit: 7000000 },
+    { month: '2月', revenue: 38000000, profit: 7600000 },
+    { month: '3月', revenue: 41000000, profit: 8200000 },
+    { month: '4月', revenue: 39000000, profit: 7800000 },
+    { month: '5月', revenue: 43000000, profit: 8600000 },
+    { month: '6月', revenue: 43200000, profit: 8640000 }
+];
+
+// Initialize Revenue Chart
+function initializeRevenueChart() {
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: monthlyData.map(d => d.month),
+            datasets: [
+                {
+                    label: '売上',
+                    data: monthlyData.map(d => d.revenue),
+                    borderColor: '#27ae60',
+                    backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: '粗利',
+                    data: monthlyData.map(d => d.profit),
+                    borderColor: '#3498db',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20,
+                        font: {
+                            size: 12,
+                            weight: '600'
+                        }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    titleColor: 'white',
+                    bodyColor: 'white',
+                    borderColor: '#ddd',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ¥' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '¥' + (value / 1000000) + 'M';
+                        },
+                        font: {
+                            size: 11
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0,0,0,0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        font: {
+                            size: 11
+                        }
+                    }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            }
+        }
+    });
+}
+
+// Event Handlers
+function viewContractorDetail(id) {
+    window.location.href = `/orders/${id}/`;
+}
+
+function exportToExcel() {
+    alert('Excel出力機能を実装します');
+}
+
+function printReport() {
+    window.print();
+}
+
+function refreshData() {
+    location.reload();
+}
+
+// Chart Controls
+document.querySelectorAll('.chart-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        // Update chart based on period
+        console.log('Period changed to:', this.dataset.period);
+    });
+});
+
+// Table View Controls
+document.querySelectorAll('[data-view]').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('[data-view]').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        // Update table view
+        console.log('View changed to:', this.dataset.view);
+    });
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initializeRevenueChart();
+
+    // Animate KPI cards
+    const kpiCards = document.querySelectorAll('.kpi-card');
+    kpiCards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            card.style.transition = 'all 0.6s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+</script>
+{% endblock %}

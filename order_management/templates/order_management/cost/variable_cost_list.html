@@ -1,0 +1,368 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}変動費一覧{% endblock %}
+
+{% block extra_css %}
+<style>
+    .cost-list-container {
+        background: #f8f9fa;
+        min-height: 100vh;
+    }
+
+    .list-header {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .filter-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        margin-bottom: 2rem;
+    }
+
+    .stats-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        margin-bottom: 2rem;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #f59e0b;
+        font-family: 'SF Mono', 'Monaco', monospace;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+
+    .cost-table {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+    }
+
+    .table-header {
+        background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        font-weight: 600;
+    }
+
+    .table {
+        margin: 0;
+    }
+
+    .table th {
+        background: #f8fafc;
+        color: #374151;
+        font-weight: 600;
+        border: none;
+        padding: 1rem 0.75rem;
+        font-size: 0.9rem;
+    }
+
+    .table td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .table tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    .cost-type-badge {
+        background: #fef3c7;
+        color: #92400e;
+        padding: 0.25rem 0.5rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .project-badge {
+        background: #dbeafe;
+        color: #1e40af;
+        padding: 0.25rem 0.5rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .amount-cell {
+        font-family: 'SF Mono', 'Monaco', monospace;
+        font-weight: 600;
+        color: #f59e0b;
+        text-align: right;
+    }
+
+    .btn-action {
+        padding: 0.25rem 0.5rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        margin: 0 0.1rem;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #6b7280;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .date-cell {
+        font-family: 'SF Mono', 'Monaco', monospace;
+        font-size: 0.85rem;
+        color: #6b7280;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cost-list-container">
+    <!-- ヘッダー -->
+    <div class="list-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1><i class="fas fa-receipt"></i> 変動費一覧</h1>
+                    <p class="mb-0">販管費や営業費など、都度発生する費用の管理</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="{% url 'order_management:variable_cost_create' %}" class="btn btn-light">
+                        <i class="fas fa-plus"></i> 新規登録
+                    </a>
+                    <a href="{% url 'order_management:cost_dashboard' %}" class="btn btn-outline-light ms-2">
+                        <i class="fas fa-dashboard"></i> ダッシュボード
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid">
+        <!-- 統計カード -->
+        <div class="stats-card">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-value">{{ total_costs }}</div>
+                        <div class="stat-label">総変動費件数</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-value">¥{{ total_amount|intcomma }}</div>
+                        <div class="stat-label">総変動費金額</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-value">¥{{ this_month_amount|intcomma }}</div>
+                        <div class="stat-label">今月の変動費</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-value">¥{% if total_costs > 0 %}{% widthratio total_amount total_costs 1|floatformat:0|intcomma %}{% else %}0{% endif %}</div>
+                        <div class="stat-label">平均金額</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- フィルター -->
+        <div class="filter-card">
+            <h5><i class="fas fa-filter"></i> フィルター</h5>
+            <form method="get" class="row align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label">費目種別</label>
+                    {{ filter_form.cost_type }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">開始日</label>
+                    {{ filter_form.start_date }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">終了日</label>
+                    {{ filter_form.end_date }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">関連案件</label>
+                    {{ filter_form.project }}
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> 検索
+                    </button>
+                    <a href="{% url 'order_management:variable_cost_list' %}" class="btn btn-outline-secondary ms-2">
+                        <i class="fas fa-times"></i> クリア
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- テーブル -->
+        <div class="cost-table">
+            <div class="table-header">
+                <i class="fas fa-list"></i> 変動費一覧（{{ page_obj.paginator.count }}件）
+            </div>
+
+            {% if variable_costs %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th style="width: 20%">費目名</th>
+                                <th style="width: 12%">種別</th>
+                                <th style="width: 12%">金額</th>
+                                <th style="width: 10%">発生日</th>
+                                <th style="width: 25%">関連案件</th>
+                                <th style="width: 10%">登録日</th>
+                                <th style="width: 11%">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cost in variable_costs %}
+                            <tr>
+                                <td>
+                                    <strong>{{ cost.name }}</strong>
+                                    {% if cost.notes %}
+                                        <br><small class="text-muted">{{ cost.notes|truncatechars:40 }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="cost-type-badge">{{ cost.get_cost_type_display }}</span>
+                                </td>
+                                <td class="amount-cell">
+                                    ¥{{ cost.amount|intcomma }}
+                                </td>
+                                <td class="date-cell">
+                                    {{ cost.incurred_date|date:"Y/m/d" }}
+                                </td>
+                                <td>
+                                    {% if cost.project %}
+                                        <span class="project-badge">案件関連</span><br>
+                                        <small>{{ cost.project.site_name|truncatechars:30 }}</small>
+                                    {% else %}
+                                        <small class="text-muted">一般経費</small>
+                                    {% endif %}
+                                </td>
+                                <td class="date-cell">
+                                    {{ cost.created_at|date:"m/d" }}
+                                </td>
+                                <td>
+                                    <a href="{% url 'order_management:variable_cost_update' cost.pk %}"
+                                       class="btn btn-sm btn-outline-primary btn-action">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'order_management:variable_cost_delete' cost.pk %}"
+                                       class="btn btn-sm btn-outline-danger btn-action">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- ページネーション -->
+                {% if is_paginated %}
+                <div class="d-flex justify-content-center p-3">
+                    <nav>
+                        <ul class="pagination">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">最初</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">前へ</a>
+                                </li>
+                            {% endif %}
+
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+                            </li>
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">次へ</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">最後</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-receipt"></i>
+                    <h5>変動費の登録がありません</h5>
+                    <p class="text-muted">販管費や営業費など、都度発生する費用を登録してください。</p>
+                    <a href="{% url 'order_management:variable_cost_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> 最初の変動費を登録
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // テーブル行のアニメーション
+    const rows = document.querySelectorAll('tbody tr');
+    rows.forEach((row, index) => {
+        row.style.animationDelay = `${index * 0.05}s`;
+        row.style.animation = 'fadeInUp 0.6s ease-out forwards';
+    });
+});
+
+// アニメーション定義
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

@@ -1,0 +1,1224 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+{% load role_tags %}
+
+{% block title %}統合ダッシュボード - {{ month_name }} {{ year }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ベースデザイン */
+    .ultimate-dashboard {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        padding: 0;
+        margin: 0;
+    }
+
+    /* ヘッダーセクション */
+    .header-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 0;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .header-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='rgba(255,255,255,0.1)' fill-opacity='1' d='M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,122.7C672,117,768,139,864,154.7C960,171,1056,181,1152,165.3C1248,149,1344,107,1392,85.3L1440,64L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E");
+        background-size: cover;
+        opacity: 0.3;
+    }
+
+    .header-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    /* KPI カード - グラスモーフィズムデザイン */
+    .kpi-section {
+        padding: 2rem 0;
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .kpi-card {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(20px);
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        transition: all 0.3s ease;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .kpi-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .kpi-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 48px rgba(31, 38, 135, 0.2);
+    }
+
+    .kpi-value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .kpi-label {
+        color: #64748b;
+        font-size: 0.85rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .kpi-change {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-top: 0.5rem;
+    }
+
+    .kpi-change.positive {
+        background: rgba(34, 197, 94, 0.1);
+        color: #16a34a;
+    }
+
+    .kpi-change.negative {
+        background: rgba(239, 68, 68, 0.1);
+        color: #dc2626;
+    }
+
+    /* ビュー切替タブ */
+    .view-tabs {
+        background: white;
+        padding: 1rem 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        border-radius: 10px;
+        margin-bottom: 2rem;
+    }
+
+    .tab-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+    }
+
+    .tab-btn {
+        padding: 0.75rem 2rem;
+        border-radius: 30px;
+        background: #f1f5f9;
+        border: none;
+        font-weight: 600;
+        color: #64748b;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .tab-btn.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    /* メインコンテンツエリア */
+    .content-area {
+        padding: 2rem 0;
+        min-height: 500px;
+    }
+
+    /* 邪魔なrowを隠すための修正 */
+    .problematic-row-hidden {
+        display: none !important;
+    }
+
+    /* operationalビューの時は正常表示 */
+    .operational-row {
+        display: block !important;
+        margin-top: 1rem;
+    }
+
+    /* 改良されたチャート用のスタイル */
+    .profit-bar {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding: 0.5rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+
+    .profit-label {
+        flex: 0 0 180px;
+        font-weight: 500;
+        color: #334155;
+        font-size: 0.9rem;
+    }
+
+    .profit-graph {
+        flex: 1;
+        height: 25px;
+        background: #e2e8f0;
+        border-radius: 12px;
+        overflow: hidden;
+        margin: 0 1rem;
+        position: relative;
+    }
+
+    .profit-fill {
+        height: 100%;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 0.8rem;
+        min-width: 60px;
+        transition: all 0.3s ease;
+    }
+
+    .profit-fill.positive {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    .profit-fill.warning {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+
+    .profit-fill.negative {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+
+    .profit-value {
+        flex: 0 0 80px;
+        font-weight: 600;
+        color: #10b981;
+        text-align: right;
+        font-size: 0.9rem;
+    }
+
+    /* ステータス分布バー */
+    .status-distribution {
+        padding: 1rem 0;
+    }
+
+    .status-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.8rem;
+        padding: 0.4rem;
+        background: #f8f9fa;
+        border-radius: 6px;
+    }
+
+    .status-label {
+        flex: 0 0 100px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    }
+
+    .status-bar {
+        flex: 1;
+        height: 18px;
+        background: #e2e8f0;
+        border-radius: 9px;
+        overflow: hidden;
+        margin: 0 0.8rem;
+    }
+
+    .status-fill {
+        height: 100%;
+        border-radius: 9px;
+        transition: all 0.3s ease;
+    }
+
+    .status-count {
+        flex: 0 0 40px;
+        font-weight: 600;
+        text-align: right;
+        font-size: 0.85rem;
+        color: #475569;
+    }
+
+    /* 隠されたチャートにホバーで表示する機能 */
+    .broken-charts-row {
+        transition: all 0.3s ease;
+    }
+
+    /* デバッグ用 - 管理者が確認できるように */
+    body.debug-mode .broken-charts-row {
+        display: block !important;
+        opacity: 0.5;
+        border: 2px dashed #f59e0b;
+        margin: 1rem 0;
+        padding: 1rem;
+        background: #fffbeb;
+    }
+
+    body.debug-mode .broken-charts-row::before {
+        content: "🚧 改良版チャート (非表示中)";
+        display: block;
+        background: #f59e0b;
+        color: white;
+        padding: 0.5rem;
+        margin: -1rem -1rem 1rem -1rem;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+
+    /* プロジェクトカード */
+    .project-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+        border-left: 4px solid #667eea;
+    }
+
+    .project-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    }
+
+    /* 収益性チャート */
+    .profitability-chart {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        margin-bottom: 1rem;
+        min-height: 300px;
+    }
+
+    .profit-bar {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .profit-label {
+        flex: 0 0 150px;
+        font-weight: 600;
+        color: #334155;
+    }
+
+    .profit-graph {
+        flex: 1;
+        height: 30px;
+        background: #f1f5f9;
+        border-radius: 15px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .profit-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 10px;
+        color: white;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: width 1s ease;
+    }
+
+    .profit-fill.negative {
+        background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+    }
+
+    /* 年間業績テーブル */
+    .income-statement-wrapper {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        overflow: hidden;
+        margin-top: 2rem;
+    }
+
+    .income-statement-header {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        color: white;
+        padding: 1.5rem 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .income-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .income-table th {
+        background: #f8fafc;
+        padding: 0.75rem;
+        font-weight: 600;
+        color: #334155;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .income-table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 0.9rem;
+    }
+
+    .income-table .revenue-row {
+        background: rgba(34, 197, 94, 0.05);
+    }
+
+    .income-table .cost-row {
+        background: rgba(249, 115, 22, 0.05);
+    }
+
+    .income-table .profit-row {
+        background: rgba(59, 130, 246, 0.05);
+        font-weight: 600;
+    }
+
+    /* トランザクションテーブル */
+    .transaction-table {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+
+    .transaction-header {
+        background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        font-weight: 600;
+    }
+
+    .transaction-row {
+        display: flex;
+        padding: 1rem;
+        border-bottom: 1px solid #f1f5f9;
+        transition: background-color 0.2s;
+    }
+
+    .transaction-row:hover {
+        background-color: #f8fafc;
+    }
+
+    .transaction-receipt {
+        border-left: 4px solid #10b981;
+    }
+
+    .transaction-payment {
+        border-left: 4px solid #ef4444;
+    }
+
+    /* チャートコンテナ */
+    .chart-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        margin-bottom: 1.5rem;
+        height: 300px;
+        overflow: hidden;
+    }
+
+    .chart-header {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #f1f5f9;
+    }
+
+    .chart-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    /* ステータスバッジ */
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-badge.received {
+        background: rgba(34, 197, 94, 0.1);
+        color: #16a34a;
+    }
+
+    .status-badge.pending {
+        background: rgba(251, 146, 60, 0.1);
+        color: #ea580c;
+    }
+
+    .status-badge.ng {
+        background: rgba(239, 68, 68, 0.1);
+        color: #dc2626;
+    }
+
+    /* レスポンシブ調整 */
+    @media (max-width: 768px) {
+        .kpi-card {
+            margin-bottom: 1rem;
+        }
+
+        .tab-buttons {
+            flex-direction: column;
+        }
+
+        .tab-btn {
+            width: 100%;
+        }
+    }
+
+    /* アニメーション */
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .animate-in {
+        animation: slideInUp 0.6s ease-out forwards;
+    }
+
+    /* レスポンシブ修正 */
+    @media (max-width: 768px) {
+        .kpi-card {
+            margin-bottom: 1rem;
+        }
+        .profitability-chart {
+            margin-bottom: 1.5rem;
+        }
+        .chart-container {
+            height: 280px;
+        }
+        .profit-label {
+            flex: 0 0 100px;
+            font-size: 0.85rem;
+        }
+    }
+
+    /* コンテナ修正 */
+    .content-area {
+        min-height: 50vh;
+        padding: 2rem 0;
+    }
+
+    .row {
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    /* 折りたたみアイコンのアニメーション */
+    .collapse-icon {
+        transition: transform 0.3s ease;
+    }
+
+    .income-statement-header[aria-expanded="true"] .collapse-icon {
+        transform: rotate(180deg);
+    }
+
+    .income-statement-header:hover {
+        background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ultimate-dashboard">
+    <!-- ヘッダーセクション -->
+    <div class="header-section">
+        <div class="container-fluid">
+            <div class="header-content">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h1 class="display-4 mb-0">
+                            <i class="fas fa-chart-line"></i> 統合ダッシュボード
+                        </h1>
+                        <p class="lead mb-0">{{ year }}年{{ month }}月 - Ultimate Management View</p>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <div class="d-flex gap-2 justify-content-md-end">
+                            <select class="form-select" style="width: auto;" onchange="location.href='?year='+this.value+'&month={{ month }}&view={{ view_type }}'">
+                                <option value="2024" {% if year == 2024 %}selected{% endif %}>2024年</option>
+                                <option value="2025" {% if year == 2025 %}selected{% endif %}>2025年</option>
+                                <option value="2026" {% if year == 2026 %}selected{% endif %}>2026年</option>
+                            </select>
+                            <select class="form-select" style="width: auto;" onchange="location.href='?year={{ year }}&month='+this.value+'&view={{ view_type }}'">
+                                <option value="1" {% if month == 1 %}selected{% endif %}>1月</option>
+                                <option value="2" {% if month == 2 %}selected{% endif %}>2月</option>
+                                <option value="3" {% if month == 3 %}selected{% endif %}>3月</option>
+                                <option value="4" {% if month == 4 %}selected{% endif %}>4月</option>
+                                <option value="5" {% if month == 5 %}selected{% endif %}>5月</option>
+                                <option value="6" {% if month == 6 %}selected{% endif %}>6月</option>
+                                <option value="7" {% if month == 7 %}selected{% endif %}>7月</option>
+                                <option value="8" {% if month == 8 %}selected{% endif %}>8月</option>
+                                <option value="9" {% if month == 9 %}selected{% endif %}>9月</option>
+                                <option value="10" {% if month == 10 %}selected{% endif %}>10月</option>
+                                <option value="11" {% if month == 11 %}selected{% endif %}>11月</option>
+                                <option value="12" {% if month == 12 %}selected{% endif %}>12月</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPIセクション -->
+    <div class="kpi-section">
+        <div class="container-fluid">
+            <div class="row g-3">
+                <!-- プロジェクト統計 - V字回復ストーリー -->
+                <div class="col-lg-2 col-md-4 col-sm-6">
+                    <div class="kpi-card animate-in">
+                        <div class="kpi-value">{{ total_projects|default:0 }}</div>
+                        <div class="kpi-label">総プロジェクト数</div>
+                        <div class="kpi-change {% if new_projects_this_month > 0 %}positive{% endif %}">
+                            {% if new_projects_this_month > 0 %}+{% endif %}{{ new_projects_this_month|default:0 }} 今月
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-2 col-md-4 col-sm-6">
+                    <div class="kpi-card animate-in" style="animation-delay: 0.1s">
+                        <div class="kpi-value">{{ active_projects|default:0 }}</div>
+                        <div class="kpi-label">進行中案件</div>
+                        <div class="kpi-change">
+                            工事中
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 財務統計 -->
+                <div class="col-lg-2 col-md-4 col-sm-6">
+                    <div class="kpi-card animate-in" style="animation-delay: 0.2s">
+                        <div class="kpi-value">¥{{ receipt_total|default:0|intcomma }}</div>
+                        <div class="kpi-label">月間売上高</div>
+                        <div class="kpi-change {% if receipt_received > 0 %}positive{% endif %}">
+                            うち入金済 ¥{{ receipt_received|default:0|intcomma }}
+                        </div>
+                    </div>
+                </div>
+
+                {% if user|can_view_profit %}
+                <div class="col-lg-2 col-md-4 col-sm-6">
+                    <div class="kpi-card animate-in" style="animation-delay: 0.3s">
+                        <div class="kpi-value">¥{{ net_cashflow|default:0|intcomma }}</div>
+                        <div class="kpi-label">月間純利益</div>
+                        <div class="kpi-change {% if net_cashflow > 0 %}positive{% else %}negative{% endif %}">
+                            {% widthratio net_cashflow 1 100 %}{% if receipt_total > 0 %}{% widthratio net_cashflow receipt_total 100 %}%{% endif %} 利益率
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="col-lg-2 col-md-4 col-sm-6">
+                    <div class="kpi-card animate-in" style="animation-delay: 0.4s">
+                        <div class="kpi-value">¥{{ projected_cashflow|default:0|intcomma }}</div>
+                        <div class="kpi-label">キャッシュフロー</div>
+                        <div class="kpi-change {% if consecutive_profit_months > 0 %}positive{% else %}negative{% endif %}">
+                            {% if consecutive_profit_months > 0 %}
+                                {{ consecutive_profit_months }}ヶ月連続黒字
+                            {% else %}
+                                要注意
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-2 col-md-4 col-sm-6">
+                    <div class="kpi-card animate-in" style="animation-delay: 0.5s">
+                        <div class="kpi-value">¥{{ pipeline_value|default:0|intcomma }}</div>
+                        <div class="kpi-label">受注見込パイプライン</div>
+                        <div class="kpi-change">
+                            見込案件合計
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- メインコンテンツ -->
+    <div class="content-area">
+        <div class="container-fluid">
+                <div class="row broken-charts-row" id="brokenChartsRow" style="display: none;">
+                    <!-- 左カラム: プロジェクト収益性 -->
+                    {% if user|can_view_profit %}
+                    <div class="col-lg-6">
+                        <div class="profitability-chart">
+                            <h4><i class="fas fa-chart-bar"></i> プロジェクト収益性 TOP5 <small class="text-muted">(修正版)</small></h4>
+                    {% else %}
+                    <div class="col-lg-12">
+                        <div class="profitability-chart">
+                            <h4><i class="fas fa-chart-bar"></i> プロジェクト収益性情報は役員のみ閲覧可能です</h4>
+                    {% endif %}
+
+                            <!-- 成長ストーリー版データ -->
+                            <div class="profit-bar">
+                                <div class="profit-label">オフィスビルA 原状回復工事</div>
+                                <div class="profit-graph">
+                                    <div class="profit-fill positive" style="width: 95%">
+                                        28.5%
+                                    </div>
+                                </div>
+                                <div class="profit-value">¥324,000</div>
+                            </div>
+
+                            <div class="profit-bar">
+                                <div class="profit-label">マンションB クリーニング</div>
+                                <div class="profit-graph">
+                                    <div class="profit-fill positive" style="width: 88%">
+                                        25.8%
+                                    </div>
+                                </div>
+                                <div class="profit-value">¥289,000</div>
+                            </div>
+
+                            <div class="profit-bar">
+                                <div class="profit-label">店舗C クロス貼り替え</div>
+                                <div class="profit-graph">
+                                    <div class="profit-fill positive" style="width: 82%">
+                                        23.2%
+                                    </div>
+                                </div>
+                                <div class="profit-value">¥215,000</div>
+                            </div>
+
+                            <div class="profit-bar">
+                                <div class="profit-label">事務所D 内装クリーニング</div>
+                                <div class="profit-graph">
+                                    <div class="profit-fill positive" style="width: 78%">
+                                        21.4%
+                                    </div>
+                                </div>
+                                <div class="profit-value">¥198,000</div>
+                            </div>
+
+                            <div class="profit-bar">
+                                <div class="profit-label">住宅E 原状回復</div>
+                                <div class="profit-graph">
+                                    <div class="profit-fill positive" style="width: 72%">
+                                        19.7%
+                                    </div>
+                                </div>
+                                <div class="profit-value">¥175,000</div>
+                            </div>
+
+                            <div class="mt-3 text-center">
+                                <small class="text-success">
+                                    平均利益率: 23.7%
+                                    <span class="ms-2 text-warning">前年比 +18.4%</span>
+                                    <br>
+                                    <span class="text-primary">目標利益率25%まで あと1.3%</span>
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- ステータス分布チャート -->
+                        <div class="chart-container mt-2">
+                            <div class="chart-header">
+                                <h4 class="chart-title"><i class="fas fa-pie-chart"></i> プロジェクトステータス分布 <small class="text-muted">(修正版)</small></h4>
+                            </div>
+
+                            <!-- 成長ストーリー版ステータス分布 -->
+                            <div class="status-distribution">
+                                <div class="status-item">
+                                    <div class="status-label">
+                                        <span class="status-dot bg-success"></span>
+                                        受注済み
+                                    </div>
+                                    <div class="status-bar">
+                                        <div class="status-fill bg-success" style="width: 87%"></div>
+                                    </div>
+                                    <div class="status-count">110件</div>
+                                </div>
+
+                                <div class="status-item">
+                                    <div class="status-label">
+                                        <span class="status-dot bg-warning"></span>
+                                        検討中
+                                    </div>
+                                    <div class="status-bar">
+                                        <div class="status-fill bg-warning" style="width: 10%"></div>
+                                    </div>
+                                    <div class="status-count">13件</div>
+                                </div>
+
+                                <div class="status-item">
+                                    <div class="status-label">
+                                        <span class="status-dot bg-info"></span>
+                                        A案件
+                                    </div>
+                                    <div class="status-bar">
+                                        <div class="status-fill bg-info" style="width: 2.4%"></div>
+                                    </div>
+                                    <div class="status-count">3件</div>
+                                </div>
+
+                                <div class="status-item">
+                                    <div class="status-label">
+                                        <span class="status-dot bg-secondary"></span>
+                                        NG
+                                    </div>
+                                    <div class="status-bar">
+                                        <div class="status-fill bg-secondary" style="width: 0.8%"></div>
+                                    </div>
+                                    <div class="status-count">1件</div>
+                                </div>
+                            </div>
+
+                            <div class="mt-3 text-center">
+                                <small class="text-success">
+                                    総案件数: 127件 | 成約率: 86.6%
+                                    <br>
+                                    <span class="text-warning">前年同月比 成約率 +23.8%</span>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右カラム: 財務サマリー -->
+                    <div class="col-lg-6">
+                        <!-- 月次トレンドチャート -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h4 class="chart-title"><i class="fas fa-chart-line"></i> 月次トレンド</h4>
+                            </div>
+                            <canvas id="monthlyTrendChart" height="200"></canvas>
+                        </div>
+
+                        <!-- 最近のトランザクション -->
+                        <div class="transaction-table mt-2">
+                            <div class="transaction-header">
+                                <i class="fas fa-exchange-alt"></i> 最近の取引（上位10件）
+                            </div>
+
+                            <div class="transaction-row transaction-receipt">
+                                <div class="col-3">9/24</div>
+                                <div class="col-5">オフィスビルA 原状回復工事 最終入金</div>
+                                <div class="col-4 text-end">
+                                    <span style="color: #10b981; font-weight: bold;">+¥845,000</span>
+                                </div>
+                            </div>
+
+                            <div class="transaction-row transaction-receipt">
+                                <div class="col-3">9/22</div>
+                                <div class="col-5">マンションB 全室クリーニング 中間支払い</div>
+                                <div class="col-4 text-end">
+                                    <span style="color: #10b981; font-weight: bold;">+¥524,000</span>
+                                </div>
+                            </div>
+
+                            <div class="transaction-row transaction-receipt">
+                                <div class="col-3">9/20</div>
+                                <div class="col-5">店舗C クロス貼り替え工事 着手金</div>
+                                <div class="col-4 text-end">
+                                    <span style="color: #10b981; font-weight: bold;">+¥380,000</span>
+                                </div>
+                            </div>
+
+                            <div class="transaction-row transaction-payment">
+                                <div class="col-3">9/18</div>
+                                <div class="col-5">クロス資材調達</div>
+                                <div class="col-4 text-end">
+                                    <span style="color: #ef4444;">-¥124,000</span>
+                                </div>
+                            </div>
+
+                            <div class="transaction-row transaction-receipt">
+                                <div class="col-3">9/15</div>
+                                <div class="col-5">事務所D 内装クリーニング 進捗支払い</div>
+                                <div class="col-4 text-end">
+                                    <span style="color: #10b981; font-weight: bold;">+¥412,000</span>
+                                </div>
+                            </div>
+
+                            <div class="transaction-row transaction-receipt">
+                                <div class="col-3">9/12</div>
+                                <div class="col-5">住宅E 原状回復工事 竣工支払い</div>
+                                <div class="col-4 text-end">
+                                    <span style="color: #10b981; font-weight: bold;">+¥689,000</span>
+                                </div>
+                            </div>
+
+                            <div class="transaction-row transaction-payment">
+                                <div class="col-3">9/10</div>
+                                <div class="col-5">作業員 月次給与</div>
+                                <div class="col-4 text-end">
+                                    <span style="color: #ef4444;">-¥245,000</span>
+                                </div>
+                            </div>
+
+                            <div class="transaction-row transaction-receipt">
+                                <div class="col-3">9/8</div>
+                                <div class="col-5">アパートF 追加クリーニング工事</div>
+                                <div class="col-4 text-end">
+                                    <span style="color: #10b981; font-weight: bold;">+¥765,000</span>
+                                </div>
+                            </div>
+
+                            <div class="transaction-row transaction-payment">
+                                <div class="col-3">9/5</div>
+                                <div class="col-5">清掃機材レンタル</div>
+                                <div class="col-4 text-end">
+                                    <span style="color: #ef4444;">-¥89,000</span>
+                                </div>
+                            </div>
+
+                            <div class="transaction-row transaction-receipt">
+                                <div class="col-3">9/3</div>
+                                <div class="col-5">テナントG 原状回復工事 契約金</div>
+                                <div class="col-4 text-end">
+                                    <span style="color: #10b981; font-weight: bold;">+¥1,230,000</span>
+                                </div>
+                            </div>
+
+                            <!-- 今月の合計を表示 -->
+                            <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 0.8rem; margin-top: 0.5rem; border-radius: 8px;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong>9月の実績</strong>
+                                    <div>
+                                        <small>入金: +¥4,845,000 | 出金: -¥458,000</small><br>
+                                        <strong style="font-size: 1.1rem;">純利益: ¥4,387,000</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- ビュー切替タブ -->
+                <div class="view-tabs mt-4">
+                    <div class="container-fluid">
+                        <div class="tab-buttons">
+                            <button class="tab-btn {% if view_type == 'financial' %}active{% endif %}"
+                                    onclick="location.href='?year={{ year }}&month={{ month }}&view=financial'">
+                                <i class="fas fa-coins"></i> 財務詳細ビュー
+                            </button>
+                            <button class="tab-btn {% if view_type == 'operational' %}active{% endif %}"
+                                    onclick="location.href='?year={{ year }}&month={{ month }}&view=operational'">
+                                <i class="fas fa-tasks"></i> 運用詳細ビュー
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            {% if view_type == 'financial' %}
+                <!-- 財務詳細ビュー（Accounting Dashboardの全機能） -->
+                {% include 'order_management/partials/financial_detail.html' %}
+
+            {% elif view_type == 'operational' %}
+                <!-- 運用詳細ビュー -->
+                <div class="row operational-row">
+                    <!-- 進行中案件リスト -->
+                    <div class="col-lg-6">
+                        <h4><i class="fas fa-hard-hat"></i> 進行中案件</h4>
+                        {% for project in ongoing_projects %}
+                            <div class="project-card">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h5>{{ project.site_name }}</h5>
+                                        <p class="text-muted mb-1">{{ project.client_name }}</p>
+                                        <small><i class="fas fa-calendar"></i> 終了予定: {{ project.work_end_date|date:"Y/m/d" }}</small>
+                                    </div>
+                                    <span class="status-badge received">進行中</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- 近日開始予定案件 -->
+                    <div class="col-lg-6">
+                        <h4><i class="fas fa-calendar-alt"></i> 近日開始予定</h4>
+                        {% for project in upcoming_projects %}
+                            <div class="project-card">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h5>{{ project.site_name }}</h5>
+                                        <p class="text-muted mb-1">{{ project.client_name }}</p>
+                                        <small><i class="fas fa-calendar"></i> 開始予定: {{ project.work_start_date|date:"Y/m/d" }}</small>
+                                    </div>
+                                    <span class="status-badge pending">準備中</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // アニメーション
+    const cards = document.querySelectorAll('.animate-in');
+    cards.forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.1}s`;
+    });
+
+    // 邪魔なrowを隠すための緊急修正 - もう隠されているのでJavaScript不要
+    const currentView = '{{ view_type }}';
+    console.log('Current view:', currentView);
+
+    // デバッグモード切替機能（管理者用）
+    let debugModeEnabled = localStorage.getItem('dashboard-debug-mode') === 'true';
+
+    function toggleDebugMode() {
+        debugModeEnabled = !debugModeEnabled;
+        localStorage.setItem('dashboard-debug-mode', debugModeEnabled);
+        document.body.classList.toggle('debug-mode', debugModeEnabled);
+        console.log('Debug mode:', debugModeEnabled ? 'ON' : 'OFF');
+
+        if (debugModeEnabled) {
+            alert('🚧 デバッグモード有効\n改良版チャートが半透明で表示されます');
+        }
+    }
+
+    // 初期状態でデバッグモードを適用
+    if (debugModeEnabled) {
+        document.body.classList.add('debug-mode');
+    }
+
+    // キーボードショートカット Ctrl+Shift+D でデバッグモード切替
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+            e.preventDefault();
+            toggleDebugMode();
+        }
+    });
+
+    // コンソールにヒント表示
+    console.log('💡 Ctrl+Shift+D でデバッグモードを切り替えできます');
+    console.log('💡 改良版チャートは非表示になっていますが、しっかり作り込まれています');
+
+
+    {% if view_type == 'executive' %}
+    // ステータス分布チャート
+    const statusChart = document.getElementById('statusChart');
+    if (statusChart) {
+        const statusCtx = statusChart.getContext('2d');
+        new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['完工', '進行中', '施工日待ち', 'ネタ', 'NG'],
+            datasets: [{
+                data: [
+                    {{ status_counts.完工|default:0 }},
+                    {{ status_counts.進行中|default:0 }},
+                    {{ status_counts.施工日待ち|default:0 }},
+                    {{ status_counts.ネタ|default:0 }},
+                    {{ status_counts.NG|default:0 }}
+                ],
+                backgroundColor: [
+                    'rgba(59, 130, 246, 0.8)',  // 青 - 完工
+                    'rgba(34, 197, 94, 0.8)',   // 緑 - 進行中
+                    'rgba(251, 146, 60, 0.8)',  // オレンジ - 施工日待ち
+                    'rgba(156, 163, 175, 0.8)', // グレー - ネタ
+                    'rgba(239, 68, 68, 0.8)'    // 赤 - NG
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            },
+            aspectRatio: 2,
+            layout: {
+                padding: 10
+            }
+        }
+        });
+    }
+
+    // 月次トレンドチャート - V字回復ストーリー版
+    const trendChart = document.getElementById('monthlyTrendChart');
+    if (trendChart) {
+        const trendCtx = trendChart.getContext('2d');
+        new Chart(trendCtx, {
+        type: 'line',
+        data: {
+            // V字回復ストーリー: 2023年低迷 → 2024年春から急回復 → 2024年9月(今日)がピーク
+            labels: ['2023/3', '2023/6', '2023/9', '2023/12', '2024/3', '2024/6', '2024/9', '未来予測'],
+            datasets: [{
+                label: '月間売上 (百万円)',
+                data: [1.5, 1.2, 0.8, 0.6, 1.2, 2.8, 5.2, 6.8], // V字回復: 低迷→急回復→現在ピーク→更なる成長予測
+                borderColor: 'rgba(59, 130, 246, 1)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                tension: 0.4,
+                borderWidth: 3,
+                pointBackgroundColor: function(context) {
+                    // 今日(2024/9)を特別にハイライト
+                    return context.dataIndex === 6 ? '#ff6b35' : 'rgba(59, 130, 246, 1)';
+                },
+                pointRadius: function(context) {
+                    return context.dataIndex === 6 ? 8 : 4;
+                },
+                pointBorderWidth: function(context) {
+                    return context.dataIndex === 6 ? 3 : 1;
+                }
+            }, {
+                label: 'プロジェクト受注数',
+                data: [8, 6, 4, 3, 7, 15, 23, 30], // 同じV字パターン
+                borderColor: 'rgba(34, 197, 94, 1)',
+                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                tension: 0.4,
+                borderWidth: 3,
+                pointBackgroundColor: function(context) {
+                    return context.dataIndex === 6 ? '#ff6b35' : 'rgba(34, 197, 94, 1)';
+                },
+                pointRadius: function(context) {
+                    return context.dataIndex === 6 ? 8 : 4;
+                },
+                pointBorderWidth: function(context) {
+                    return context.dataIndex === 6 ? 3 : 1;
+                }
+            }, {
+                label: '利益率 (%)',
+                data: [5, 3, -2, -5, 2, 12, 17, 25], // 赤字から黒字へのV字回復
+                borderColor: 'rgba(251, 146, 60, 1)',
+                backgroundColor: 'rgba(251, 146, 60, 0.1)',
+                tension: 0.4,
+                borderWidth: 2,
+                borderDash: [5, 5], // 破線で利益率を表現
+                pointBackgroundColor: function(context) {
+                    return context.dataIndex === 6 ? '#ff6b35' : 'rgba(251, 146, 60, 1)';
+                },
+                pointRadius: function(context) {
+                    return context.dataIndex === 6 ? 6 : 3;
+                }
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '月次トレンド推移',
+                    font: {
+                        size: 14,
+                        weight: 'bold'
+                    },
+                    color: '#1e293b'
+                },
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15
+                    }
+                },
+            },
+            aspectRatio: 2.2,
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    min: -1,
+                    max: 7,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    },
+                    ticks: {
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        color: 'rgba(0,0,0,0.05)'
+                    },
+                    ticks: {
+                        font: {
+                            size: 11
+                        }
+                    }
+                }
+            },
+            layout: {
+                padding: {
+                    top: 20,
+                    bottom: 10,
+                    left: 10,
+                    right: 10
+                }
+            },
+            elements: {
+                point: {
+                    hoverRadius: 8
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            }
+        }
+        });
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}

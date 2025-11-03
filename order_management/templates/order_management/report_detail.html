@@ -1,0 +1,78 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}{{ report.title }}{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-file-alt me-2"></i>{{ report.title }}</h2>
+        <div>
+            {% if report.pdf_file %}
+            <a href="{% url 'order_management:report_download_pdf' report.id %}" class="btn btn-success me-2">
+                <i class="fas fa-download me-2"></i>PDFダウンロード
+            </a>
+            {% else %}
+            <form method="post" action="{% url 'order_management:report_regenerate_pdf' report.id %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-success me-2">
+                    <i class="fas fa-file-pdf me-2"></i>PDF生成
+                </button>
+            </form>
+            {% endif %}
+            <a href="{% url 'order_management:report_list' %}" class="btn btn-secondary">
+                <i class="fas fa-list me-2"></i>一覧に戻る
+            </a>
+        </div>
+    </div>
+
+    <!-- レポート情報 -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <strong>レポートタイプ:</strong><br>
+                    <span class="badge bg-primary">{{ report.get_report_type_display }}</span>
+                </div>
+                <div class="col-md-3">
+                    <strong>対象期間:</strong><br>
+                    {{ report.period_start|date:"Y/m/d" }} 〜 {{ report.period_end|date:"Y/m/d" }}
+                </div>
+                <div class="col-md-3">
+                    <strong>生成日時:</strong><br>
+                    {{ report.generated_date|date:"Y/m/d H:i" }}
+                </div>
+                <div class="col-md-3">
+                    <strong>生成者:</strong><br>
+                    {{ report.generated_by.username }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- レポートデータ表示 -->
+    <div class="card">
+        <div class="card-body">
+            <h5 class="mb-4">レポートデータ</h5>
+
+            {% if report.report_type == 'monthly' %}
+                {% include 'order_management/includes/report_monthly_view.html' with data=report.report_data %}
+            {% elif report.report_type == 'project' %}
+                {% include 'order_management/includes/report_project_view.html' with data=report.report_data %}
+            {% elif report.report_type == 'cashflow' %}
+                {% include 'order_management/includes/report_cashflow_view.html' with data=report.report_data %}
+            {% elif report.report_type == 'forecast' %}
+                {% include 'order_management/includes/report_forecast_view.html' with data=report.report_data %}
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- アクション -->
+    <div class="text-center mt-4">
+        <a href="{% url 'order_management:report_delete' report.id %}" class="btn btn-outline-danger">
+            <i class="fas fa-trash me-2"></i>削除
+        </a>
+    </div>
+</div>
+{% endblock %}

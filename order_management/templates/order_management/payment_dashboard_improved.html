@@ -1,0 +1,598 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}💳 出金管理 - {{ month_name }} {{ year }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payment-dashboard {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+    }
+
+    .header-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem 0;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    }
+
+    .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .header-title h1 {
+        font-size: 2.5rem;
+        font-weight: 300;
+        margin: 0;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .total-amount {
+        font-size: 3rem;
+        font-weight: 700;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin: 2rem 0;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 20px;
+        padding: 2rem;
+        text-align: center;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        border: none;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 16px 48px rgba(0,0,0,0.15);
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        color: #7f8c8d;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.5px;
+    }
+
+    .payment-lists {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+        gap: 2rem;
+        margin: 2rem 0;
+    }
+
+    .payment-card {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        border: none;
+    }
+
+    .payment-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 48px rgba(0,0,0,0.15);
+    }
+
+    .payment-header {
+        padding: 2rem;
+        color: white;
+        display: flex;
+        justify-content: between;
+        align-items: center;
+    }
+
+    .payment-header.paid {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    }
+
+    .payment-header.pending {
+        background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+    }
+
+    .payment-header.overdue {
+        background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%);
+    }
+
+    .payment-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .payment-count {
+        background: rgba(255,255,255,0.2);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 600;
+        margin-left: auto;
+    }
+
+    .payment-body {
+        padding: 0;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .payment-item {
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid #f8f9fa;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .payment-item:hover {
+        background: #f8f9fa;
+        transform: translateX(8px);
+    }
+
+    .payment-item:last-child {
+        border-bottom: none;
+    }
+
+    .site-name {
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .site-details {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .contractor-name {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+
+    .payment-amount {
+        font-weight: 700;
+        font-size: 1.2rem;
+        color: #2c3e50;
+    }
+
+    .payment-date {
+        color: #6c757d;
+        font-size: 0.8rem;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: #6c757d;
+    }
+
+    .empty-icon {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 1rem;
+    }
+
+    .controls-section {
+        background: white;
+        padding: 1.5rem 0;
+        margin-bottom: 2rem;
+        border-radius: 15px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+    }
+
+    .filter-controls {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .filter-controls select {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        min-width: 150px;
+        background: white;
+    }
+
+    .filter-controls select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102,126,234,0.25);
+        outline: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="payment-dashboard">
+    <!-- ヘッダーセクション -->
+    <div class="header-section">
+        <div class="container-fluid">
+            <div class="header-content">
+                <div class="header-title">
+                    <h1>💳 出金管理</h1>
+                    <p>{{ month_name }} {{ year }}</p>
+                </div>
+                <div class="header-amount">
+                    <div class="total-amount">¥{{ stats.total_outflow|intcomma }}</div>
+                    <div class="amount-label">月間出金予定総額</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid">
+        <!-- コントロールセクション -->
+        <div class="controls-section">
+            <div class="filter-controls">
+                <label for="month-select">📅 月選択:</label>
+                <select id="month-select" onchange="changeMonth()">
+                    {% for month_option in month_options %}
+                    <option value="{{ month_option.value }}" {% if month_option.selected %}selected{% endif %}>
+                        {{ month_option.display }}
+                    </option>
+                    {% endfor %}
+                </select>
+
+                <label for="year-select">📅 年選択:</label>
+                <select id="year-select" onchange="changeYear()">
+                    {% for year_option in year_options %}
+                    <option value="{{ year_option }}" {% if year_option == year %}selected{% endif %}>
+                        {{ year_option }}年
+                    </option>
+                    {% endfor %}
+                </select>
+
+                <button class="btn btn-primary" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel"></i> Excel出力
+                </button>
+            </div>
+        </div>
+
+        <!-- 統計カード -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.paid_sites_count }}</div>
+                <div class="stat-label">✅ 支払済み現場</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">¥{{ stats.paid_amount|intcomma }}</div>
+                <div class="stat-label">✅ 支払済み金額</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.pending_sites_count }}</div>
+                <div class="stat-label">⏳ 支払予定現場</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">¥{{ stats.pending_amount|intcomma }}</div>
+                <div class="stat-label">⏳ 支払予定金額</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.overdue_sites_count }}</div>
+                <div class="stat-label">🚨 遅延現場</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">¥{{ stats.overdue_amount|intcomma }}</div>
+                <div class="stat-label">🚨 遅延金額</div>
+            </div>
+        </div>
+
+        <!-- 業者別支払い管理セクション -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-building me-2"></i>業者別支払い管理
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>業者名</th>
+                                        <th>支払予定日</th>
+                                        <th>支払金額</th>
+                                        <th>現場数</th>
+                                        <th>振込先</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for contractor_data in paid_contractors %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ contractor_data.name }}</strong>
+                                            <br><small class="text-muted">{{ contractor_data.payee_type }}</small>
+                                        </td>
+                                        <td>
+                                            {% if contractor_data.payment_date %}
+                                                <span class="badge bg-warning">{{ contractor_data.payment_date|date:"m/d" }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">未設定</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <strong class="text-success">¥{{ contractor_data.total_amount|intcomma }}</strong>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">{{ contractor_data.sites_count }}現場</span>
+                                        </td>
+                                        <td>
+                                            {% if contractor_data.bank_info and contractor_data.bank_info.bank_name %}
+                                                <small>
+                                                    {{ contractor_data.bank_info.bank_name }}<br>
+                                                    {{ contractor_data.bank_info.account_number }}
+                                                </small>
+                                            {% else %}
+                                                <span class="text-danger">
+                                                    <i class="fas fa-exclamation-triangle"></i> 未設定
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary" onclick="viewContractorDetail('{{ contractor_data.name }}')">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button class="btn btn-outline-success" onclick="prepareTransfer('{{ contractor_data.name }}')">
+                                                    <i class="fas fa-university"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    {% for contractor_data in pending_contractors %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ contractor_data.name }}</strong>
+                                            <br><small class="text-muted">{{ contractor_data.payee_type }}</small>
+                                        </td>
+                                        <td>
+                                            {% if contractor_data.payment_date %}
+                                                <span class="badge bg-info">{{ contractor_data.payment_date|date:"m/d" }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">未設定</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <strong class="text-warning">¥{{ contractor_data.total_amount|intcomma }}</strong>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">{{ contractor_data.sites_count }}現場</span>
+                                        </td>
+                                        <td>
+                                            {% if contractor_data.bank_info and contractor_data.bank_info.bank_name %}
+                                                <small>
+                                                    {{ contractor_data.bank_info.bank_name }}<br>
+                                                    {{ contractor_data.bank_info.account_number }}
+                                                </small>
+                                            {% else %}
+                                                <span class="text-danger">
+                                                    <i class="fas fa-exclamation-triangle"></i> 未設定
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary" onclick="viewContractorDetail('{{ contractor_data.name }}')">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button class="btn btn-outline-warning" onclick="prepareTransfer('{{ contractor_data.name }}')">
+                                                    <i class="fas fa-university"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-3">
+                            <button class="btn btn-success me-2" onclick="bulkTransfer()">
+                                <i class="fas fa-university"></i> 一括振込データ作成
+                            </button>
+                            <button class="btn btn-info" onclick="exportContractorList()">
+                                <i class="fas fa-file-excel"></i> 業者別Excel出力
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 支払いリスト -->
+        <div class="payment-lists">
+            <!-- 支払済み現場 -->
+            <div class="payment-card">
+                <div class="payment-header paid">
+                    <h3 class="payment-title">
+                        <i class="fas fa-check-circle"></i>
+                        支払済み現場
+                    </h3>
+                    <span class="payment-count">{{ stats.paid_sites_count }}件</span>
+                </div>
+                <div class="payment-body">
+                    {% if paid_sites %}
+                        {% for site in paid_sites %}
+                        <div class="payment-item" onclick="viewSiteDetail('{{ site.id }}')">
+                            <div class="site-name">{{ site.project.site_name }}</div>
+                            <div class="site-details">
+                                <span class="contractor-name">📍 {{ site.contractor.name }}</span>
+                                <span class="payment-amount">¥{{ site.contract_amount|intcomma }}</span>
+                            </div>
+                            <div class="payment-date">💳 {{ site.payment_date|date:"Y/m/d" }}</div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">
+                            <div class="empty-icon">💸</div>
+                            <p>今月の支払済み現場はありません</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 支払予定現場 -->
+            <div class="payment-card">
+                <div class="payment-header pending">
+                    <h3 class="payment-title">
+                        <i class="fas fa-clock"></i>
+                        支払予定現場
+                    </h3>
+                    <span class="payment-count">{{ stats.pending_sites_count }}件</span>
+                </div>
+                <div class="payment-body">
+                    {% if pending_sites %}
+                        {% for site in pending_sites %}
+                        <div class="payment-item" onclick="viewSiteDetail('{{ site.id }}')">
+                            <div class="site-name">{{ site.project.site_name }}</div>
+                            <div class="site-details">
+                                <span class="contractor-name">📍 {{ site.contractor.name }}</span>
+                                <span class="payment-amount">¥{{ site.contract_amount|intcomma }}</span>
+                            </div>
+                            <div class="payment-date">📅 予定: {{ site.payment_due_date|date:"Y/m/d" }}</div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">
+                            <div class="empty-icon">📅</div>
+                            <p>今月の支払予定現場はありません</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 遅延現場 -->
+            {% if overdue_sites %}
+            <div class="payment-card">
+                <div class="payment-header overdue">
+                    <h3 class="payment-title">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        遅延現場
+                    </h3>
+                    <span class="payment-count">{{ stats.overdue_sites_count }}件</span>
+                </div>
+                <div class="payment-body">
+                    {% for site in overdue_sites %}
+                    <div class="payment-item" onclick="viewSiteDetail('{{ site.id }}')">
+                        <div class="site-name">{{ site.project.site_name }}</div>
+                        <div class="site-details">
+                            <span class="contractor-name">📍 {{ site.contractor.name }}</span>
+                            <span class="payment-amount">¥{{ site.contract_amount|intcomma }}</span>
+                        </div>
+                        <div class="payment-date">🚨 期限: {{ site.payment_due_date|date:"Y/m/d" }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function viewSiteDetail(siteId) {
+    // 現場詳細を表示
+    window.location.href = `/orders/${siteId}/`;
+}
+
+function changeMonth() {
+    const month = document.getElementById('month-select').value;
+    const year = document.getElementById('year-select').value;
+    window.location.href = `?month=${month}&year=${year}`;
+}
+
+function changeYear() {
+    const month = document.getElementById('month-select').value;
+    const year = document.getElementById('year-select').value;
+    window.location.href = `?month=${month}&year=${year}`;
+}
+
+function exportToExcel() {
+    // Excel出力機能
+    alert('Excel出力機能（実装予定）');
+}
+
+function viewContractorDetail(contractorName) {
+    // 業者詳細画面を表示
+    alert(`${contractorName}の詳細を表示します`);
+}
+
+function prepareTransfer(contractorName) {
+    // 振込準備
+    if (confirm(`${contractorName}への振込準備を開始しますか？`)) {
+        alert('振込データを作成しました。銀行システムにアップロードしてください。');
+    }
+}
+
+function bulkTransfer() {
+    // 一括振込データ作成
+    if (confirm('表示されている全業者への一括振込データを作成しますか？')) {
+        alert('一括振込データを作成しました。銀行システムにアップロードしてください。');
+    }
+}
+
+function exportContractorList() {
+    // 業者別Excel出力
+    alert('業者別Excel出力機能（実装予定）');
+}
+
+// ページ読み込み時のアニメーション
+document.addEventListener('DOMContentLoaded', function() {
+    const cards = document.querySelectorAll('.stat-card, .payment-card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            card.style.transition = 'all 0.6s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+</script>
+{% endblock %}

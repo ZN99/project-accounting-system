@@ -1,0 +1,398 @@
+{% extends 'order_management/base.html' %}
+
+{% block title %}季節性指数編集 - {{ scenario.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .seasonality-chart {
+        height: 300px;
+        margin-bottom: 2rem;
+    }
+
+    .month-card {
+        background: white;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .month-card:hover {
+        border-color: #3b82f6;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    }
+
+    .month-card.high-season {
+        background: linear-gradient(135deg, #fef3c7 0%, #fef9e7 100%);
+        border-color: #f59e0b;
+    }
+
+    .month-card.low-season {
+        background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+        border-color: #3b82f6;
+    }
+
+    .month-label {
+        font-weight: 700;
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+        color: #1e293b;
+    }
+
+    .index-input {
+        font-size: 1.2rem;
+        font-weight: 600;
+        text-align: center;
+        border: 2px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 0.75rem;
+    }
+
+    .index-input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .quick-preset-btn {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        border: 2px solid #e2e8f0;
+        background: white;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+
+    .quick-preset-btn:hover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+
+    .season-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .season-badge.high {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .season-badge.normal {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    .season-badge.low {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="fas fa-calendar-alt me-2"></i>
+            季節性指数編集 - {{ scenario.name }}
+        </h2>
+        <a href="{% url 'order_management:scenario_update' scenario.id %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>シナリオに戻る
+        </a>
+    </div>
+
+    <!-- 説明カード -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="mb-3"><i class="fas fa-info-circle me-2"></i>季節性指数とは？</h5>
+            <p class="mb-2">
+                <strong>季節性指数</strong>は、月ごとの売上変動パターンを表す数値です（1.0 = 平均月）。
+            </p>
+            <ul class="small mb-0">
+                <li><strong>1.0より大きい</strong>：その月は平均より売上が多い（例: 3月 = 1.40 → 平均の140%）</li>
+                <li><strong>1.0</strong>：平均的な売上</li>
+                <li><strong>1.0より小さい</strong>：その月は平均より売上が少ない（例: 1月 = 0.75 → 平均の75%）</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- クイック設定 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-magic me-2"></i>クイック設定</h5>
+        </div>
+        <div class="card-body">
+            <div class="d-flex gap-2 flex-wrap">
+                <button type="button" class="quick-preset-btn" onclick="applyConstructionPattern()">
+                    <i class="fas fa-building me-2"></i>建設業パターン
+                    <small class="d-block text-muted">3月↑ 8月↓</small>
+                </button>
+                <button type="button" class="quick-preset-btn" onclick="applyRetailPattern()">
+                    <i class="fas fa-shopping-cart me-2"></i>小売業パターン
+                    <small class="d-block text-muted">12月↑ 2月↓</small>
+                </button>
+                <button type="button" class="quick-preset-btn" onclick="applyFlatPattern()">
+                    <i class="fas fa-minus me-2"></i>フラット（季節性なし）
+                    <small class="d-block text-muted">全月1.0</small>
+                </button>
+                <button type="button" class="quick-preset-btn" onclick="calculateFromHistorical()">
+                    <i class="fas fa-chart-line me-2"></i>過去データから自動計算
+                    <small class="d-block text-muted">実績ベース</small>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- チャートプレビュー -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>プレビュー</h5>
+        </div>
+        <div class="card-body">
+            <div class="seasonality-chart">
+                <canvas id="seasonalityChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 月別入力フォーム -->
+    <form id="seasonalityForm" method="post">
+        {% csrf_token %}
+
+        <div class="row g-3">
+            {% for month in months %}
+            <div class="col-md-3 col-sm-6">
+                <div class="month-card" data-month="{{ month.number }}">
+                    <div class="month-label">
+                        {{ month.name }}
+                        <span class="season-badge normal" data-badge="{{ month.number }}">通常</span>
+                    </div>
+                    <input type="number"
+                           name="month_{{ month.number }}"
+                           id="month_{{ month.number }}"
+                           class="form-control index-input"
+                           step="0.01"
+                           min="0.00"
+                           max="3.00"
+                           value="{{ month.index }}"
+                           onchange="updateChart(); updateBadge({{ month.number }})">
+                    <small class="text-muted d-block text-center mt-2">
+                        <span id="percent_{{ month.number }}">{{ month.percent }}%</span>
+                    </small>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="d-flex justify-content-between mt-4">
+            <a href="{% url 'order_management:scenario_update' scenario.id %}" class="btn btn-secondary">
+                <i class="fas fa-times me-2"></i>キャンセル
+            </a>
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-save me-2"></i>保存して予測を再計算
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+    let seasonalityChart;
+
+    // 初期データ
+    const monthData = [
+        {% for month in months %}
+        { number: {{ month.number }}, name: '{{ month.name }}', index: {{ month.index }} },
+        {% endfor %}
+    ];
+
+    // チャート初期化
+    function initChart() {
+        const ctx = document.getElementById('seasonalityChart').getContext('2d');
+        const labels = monthData.map(m => m.name);
+        const data = monthData.map(m => m.index);
+
+        seasonalityChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '季節性指数',
+                    data: data,
+                    borderColor: 'rgb(59, 130, 246)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 6,
+                    pointHoverRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return '指数: ' + context.parsed.y.toFixed(2) + ' (' + Math.round(context.parsed.y * 100) + '%)';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 2.0,
+                        ticks: {
+                            callback: function(value) {
+                                return value.toFixed(1);
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // チャート更新
+    function updateChart() {
+        const data = [];
+        for (let i = 1; i <= 12; i++) {
+            const value = parseFloat(document.getElementById(`month_${i}`).value) || 1.0;
+            data.push(value);
+        }
+        seasonalityChart.data.datasets[0].data = data;
+        seasonalityChart.update();
+
+        // パーセント表示更新
+        for (let i = 1; i <= 12; i++) {
+            const value = parseFloat(document.getElementById(`month_${i}`).value) || 1.0;
+            document.getElementById(`percent_${i}`).textContent = Math.round(value * 100) + '%';
+        }
+    }
+
+    // バッジ更新
+    function updateBadge(month) {
+        const value = parseFloat(document.getElementById(`month_${month}`).value) || 1.0;
+        const badge = document.querySelector(`[data-badge="${month}"]`);
+        const card = document.querySelector(`[data-month="${month}"]`);
+
+        // バッジクラス更新
+        badge.classList.remove('high', 'normal', 'low');
+        card.classList.remove('high-season', 'low-season');
+
+        if (value >= 1.15) {
+            badge.classList.add('high');
+            badge.textContent = '繁忙期';
+            card.classList.add('high-season');
+        } else if (value <= 0.85) {
+            badge.classList.add('low');
+            badge.textContent = '閑散期';
+            card.classList.add('low-season');
+        } else {
+            badge.classList.add('normal');
+            badge.textContent = '通常';
+        }
+    }
+
+    // 全バッジ初期化
+    function updateAllBadges() {
+        for (let i = 1; i <= 12; i++) {
+            updateBadge(i);
+        }
+    }
+
+    // クイック設定: 建設業パターン
+    function applyConstructionPattern() {
+        const pattern = {
+            1: 0.75, 2: 0.85, 3: 1.40, 4: 1.10,
+            5: 1.05, 6: 0.95, 7: 0.90, 8: 0.80,
+            9: 1.15, 10: 1.10, 11: 1.05, 12: 0.95
+        };
+        applyPattern(pattern);
+    }
+
+    // クイック設定: 小売業パターン
+    function applyRetailPattern() {
+        const pattern = {
+            1: 0.80, 2: 0.75, 3: 0.95, 4: 0.90,
+            5: 0.95, 6: 0.90, 7: 1.05, 8: 1.00,
+            9: 0.95, 10: 1.05, 11: 1.15, 12: 1.50
+        };
+        applyPattern(pattern);
+    }
+
+    // クイック設定: フラット
+    function applyFlatPattern() {
+        const pattern = {};
+        for (let i = 1; i <= 12; i++) {
+            pattern[i] = 1.00;
+        }
+        applyPattern(pattern);
+    }
+
+    // パターン適用
+    function applyPattern(pattern) {
+        for (let month = 1; month <= 12; month++) {
+            document.getElementById(`month_${month}`).value = pattern[month].toFixed(2);
+            updateBadge(month);
+        }
+        updateChart();
+    }
+
+    // 過去データから自動計算
+    function calculateFromHistorical() {
+        if (confirm('過去の実績データから季節性指数を自動計算しますか？\n現在の設定は上書きされます。')) {
+            fetch('{% url "order_management:seasonality_calculate_api" scenario.id %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 計算結果を入力欄に反映
+                    for (let month = 1; month <= 12; month++) {
+                        const index = data.seasonal_factors[month] || 1.00;
+                        document.getElementById(`month_${month}`).value = index.toFixed(2);
+                        updateBadge(month);
+                    }
+                    updateChart();
+                    alert('✅ 過去データから季節性指数を計算しました！');
+                } else {
+                    alert('❌ 計算に失敗しました: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('❌ エラーが発生しました');
+            });
+        }
+    }
+
+    // ページ読み込み時
+    document.addEventListener('DOMContentLoaded', function() {
+        initChart();
+        updateAllBadges();
+    });
+</script>
+{% endblock %}

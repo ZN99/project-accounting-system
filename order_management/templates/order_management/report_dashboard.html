@@ -1,0 +1,210 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}レポートダッシュボード{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-card {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+        transition: transform 0.3s ease;
+    }
+
+    .report-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+
+    .report-type-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        margin-bottom: 1rem;
+    }
+
+    .report-type-icon.monthly {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+    }
+
+    .report-type-icon.project {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+    }
+
+    .report-type-icon.cashflow {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+    }
+
+    .report-type-icon.forecast {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        color: white;
+    }
+
+    .report-count {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .report-label {
+        font-size: 1rem;
+        color: #64748b;
+        font-weight: 600;
+    }
+
+    .recent-report-item {
+        padding: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        transition: background 0.2s ease;
+    }
+
+    .recent-report-item:hover {
+        background: #f8fafc;
+    }
+
+    .recent-report-item:last-child {
+        border-bottom: none;
+    }
+
+    .btn-generate {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        border: none;
+        padding: 1rem 2rem;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-generate:hover {
+        transform: scale(1.05);
+        box-shadow: 0 8px 16px rgba(59, 130, 246, 0.3);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-file-alt me-2"></i>レポートダッシュボード</h2>
+        <div>
+            <a href="{% url 'order_management:report_generate' %}" class="btn btn-generate">
+                <i class="fas fa-plus-circle me-2"></i>新規レポート作成
+            </a>
+        </div>
+    </div>
+
+    <!-- レポートタイプ別カード -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <a href="{% url 'order_management:report_list' %}?type=monthly" class="text-decoration-none">
+                <div class="report-card">
+                    <div class="report-type-icon monthly">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <div class="report-count">{{ report_counts.monthly }}</div>
+                    <div class="report-label">月次経営レポート</div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a href="{% url 'order_management:report_list' %}?type=project" class="text-decoration-none">
+                <div class="report-card">
+                    <div class="report-type-icon project">
+                        <i class="fas fa-project-diagram"></i>
+                    </div>
+                    <div class="report-count">{{ report_counts.project }}</div>
+                    <div class="report-label">プロジェクト別レポート</div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a href="{% url 'order_management:report_list' %}?type=cashflow" class="text-decoration-none">
+                <div class="report-card">
+                    <div class="report-type-icon cashflow">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <div class="report-count">{{ report_counts.cashflow }}</div>
+                    <div class="report-label">キャッシュフローレポート</div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a href="{% url 'order_management:report_list' %}?type=forecast" class="text-decoration-none">
+                <div class="report-card">
+                    <div class="report-type-icon forecast">
+                        <i class="fas fa-crystal-ball"></i>
+                    </div>
+                    <div class="report-count">{{ report_counts.forecast }}</div>
+                    <div class="report-label">予測レポート</div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- 最近のレポート -->
+    <div class="report-card">
+        <h5 class="mb-3"><i class="fas fa-clock me-2"></i>最近のレポート</h5>
+
+        {% if recent_reports %}
+            {% for report in recent_reports %}
+            <div class="recent-report-item">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <a href="{% url 'order_management:report_detail' report.id %}" class="text-decoration-none">
+                            <strong>{{ report.title }}</strong>
+                        </a>
+                        <div class="small text-muted">
+                            <span class="badge bg-secondary me-2">{{ report.get_report_type_display }}</span>
+                            {{ report.period_start|date:"Y/m/d" }} 〜 {{ report.period_end|date:"Y/m/d" }}
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <div class="small text-muted">
+                            {{ report.generated_date|date:"Y/m/d H:i" }}
+                        </div>
+                        <div class="small">
+                            <a href="{% url 'order_management:report_detail' report.id %}" class="btn btn-sm btn-outline-primary me-1">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% if report.pdf_file %}
+                            <a href="{% url 'order_management:report_download_pdf' report.id %}" class="btn btn-sm btn-outline-success">
+                                <i class="fas fa-download"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <div class="text-center mt-3">
+                <a href="{% url 'order_management:report_list' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-list me-2"></i>すべてのレポートを見る
+                </a>
+            </div>
+        {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-inbox fa-3x mb-3"></i>
+                <p>レポートがありません</p>
+                <a href="{% url 'order_management:report_generate' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>最初のレポートを作成
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,359 @@
+{% load humanize %}
+<!-- 財務詳細ビュー - Accounting Dashboardの完全機能 -->
+<div class="row">
+    <!-- 日付情報カード -->
+    <div class="col-12 mb-3">
+        <div class="date-info-card" style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+            <div class="d-flex justify-content-around">
+                <div class="text-center">
+                    <div class="text-muted">今日</div>
+                    <div class="h3">{{ today|date:"Y/n/j" }}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-muted">今月度</div>
+                    <div class="h3">{{ month }}月</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-muted">会計年度</div>
+                    <div class="h3">FY{{ year }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 月次・年次パフォーマンス -->
+<div class="row mb-4">
+    <div class="col-lg-6">
+        <div class="performance-card" style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+            <h4 style="color: #10b981; border-bottom: 2px solid #10b981; padding-bottom: 0.5rem;">
+                <i class="fas fa-calendar-check"></i> 今月度実績
+            </h4>
+            <div class="mt-3">
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span>売上高</span>
+                    <strong>¥{% if annual_performance.current_month_data %}{{ annual_performance.current_month_data.revenue|intcomma|default:"0" }}{% else %}0{% endif %}</strong>
+                </div>
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span>売上原価</span>
+                    <strong>¥{% if annual_performance.current_month_data %}{{ annual_performance.current_month_data.cost_of_sales|intcomma|default:"0" }}{% else %}0{% endif %}</strong>
+                </div>
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span>粗利益</span>
+                    <strong>¥{% if annual_performance.current_month_data %}{{ annual_performance.current_month_data.gross_profit|intcomma|default:"0" }}{% else %}0{% endif %}</strong>
+                </div>
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span>販管費</span>
+                    <strong>¥{% if annual_performance.current_month_data %}{{ annual_performance.current_month_data.sales_expense|intcomma|default:"0" }}{% else %}0{% endif %}</strong>
+                </div>
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span>固定費</span>
+                    <strong>¥{% if annual_performance.current_month_data %}{{ annual_performance.current_month_data.fixed_costs|intcomma|default:"0" }}{% else %}0{% endif %}</strong>
+                </div>
+                <div class="d-flex justify-content-between py-2" style="background: rgba(16, 185, 129, 0.1); padding: 0.5rem; border-radius: 8px;">
+                    <span><strong>営業利益</strong></span>
+                    <strong style="color: {% if annual_performance.current_month_data and annual_performance.current_month_data.operating_profit < 0 %}#ef4444{% else %}#10b981{% endif %}">
+                        ¥{% if annual_performance.current_month_data %}{{ annual_performance.current_month_data.operating_profit|intcomma|default:"0" }}{% else %}0{% endif %}
+                    </strong>
+                </div>
+                <div class="text-center mt-3">
+                    <span class="badge bg-primary" style="font-size: 1rem;">
+                        営業利益率: {{ annual_performance.current_month_margin|floatformat:2 }}%
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="performance-card" style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+            <h4 style="color: #3b82f6; border-bottom: 2px solid #3b82f6; padding-bottom: 0.5rem;">
+                <i class="fas fa-chart-line"></i> 年度累計実績
+            </h4>
+            <div class="mt-3">
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span>売上高</span>
+                    <strong>¥{{ annual_performance.ytd_data.revenue|intcomma }}</strong>
+                </div>
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span>売上原価</span>
+                    <strong>¥{{ annual_performance.ytd_data.cost_of_sales|intcomma }}</strong>
+                </div>
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span>粗利益</span>
+                    <strong>¥{{ annual_performance.ytd_data.gross_profit|intcomma }}</strong>
+                </div>
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span>販管費</span>
+                    <strong>¥{{ annual_performance.ytd_data.sales_expense|intcomma }}</strong>
+                </div>
+                <div class="d-flex justify-content-between py-2 border-bottom">
+                    <span>固定費</span>
+                    <strong>¥{{ annual_performance.ytd_data.fixed_costs|intcomma }}</strong>
+                </div>
+                <div class="d-flex justify-content-between py-2" style="background: rgba(59, 130, 246, 0.1); padding: 0.5rem; border-radius: 8px;">
+                    <span><strong>営業利益</strong></span>
+                    <strong style="color: {% if annual_performance.ytd_data.operating_profit < 0 %}#ef4444{% else %}#3b82f6{% endif %}">
+                        ¥{{ annual_performance.ytd_data.operating_profit|intcomma }}
+                    </strong>
+                </div>
+                <div class="text-center mt-3">
+                    <span class="badge bg-primary" style="font-size: 1rem;">
+                        営業利益率: {{ annual_performance.ytd_margin|floatformat:2 }}%
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 財務チャート -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+            <h4><i class="fas fa-chart-bar"></i> 財務分析チャート</h4>
+            <div class="row">
+                <div class="col-lg-6">
+                    <canvas id="financialRevenueChart" height="200"></canvas>
+                </div>
+                <div class="col-lg-6">
+                    <canvas id="financialProfitChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 詳細Income Statement -->
+<div class="income-statement-wrapper">
+    <div class="income-statement-header">
+        <h4><i class="fas fa-table"></i> 損益計算書 - 年間</h4>
+        <div>
+            <span>FY {{ annual_performance.fiscal_year }}</span>
+            <span class="ms-3">～ {{ annual_performance.fiscal_year|add:1 }}</span>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="income-table">
+            <thead>
+                <tr>
+                    <th style="width: 150px;">項目</th>
+                    <th>月次</th>
+                    {% for key, month_data in annual_performance.monthly_data.items %}
+                        <th style="background: {% if month_data.is_current %}#fef3c7{% else %}#f8fafc{% endif %}; text-align: center;">
+                            {{ month_data.month }}
+                        </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="background: rgba(34, 197, 94, 0.05);">
+                    <td><strong>売上高</strong></td>
+                    <td></td>
+                    {% for key, month_data in annual_performance.monthly_data.items %}
+                        <td style="text-align: right;">{{ month_data.revenue|intcomma|default:"0" }}</td>
+                    {% endfor %}
+                </tr>
+                <tr style="background: rgba(249, 115, 22, 0.05);">
+                    <td><strong>売上原価</strong></td>
+                    <td></td>
+                    {% for key, month_data in annual_performance.monthly_data.items %}
+                        <td style="text-align: right;">{{ month_data.cost_of_sales|intcomma|default:"0" }}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td style="padding-left: 2rem;">職人さん人工</td>
+                    <td></td>
+                    {% for key, month_data in annual_performance.monthly_data.items %}
+                        <td style="text-align: right; color: #64748b;">{{ month_data.cost_labor|intcomma|default:"0" }}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td style="padding-left: 2rem;">資材</td>
+                    <td></td>
+                    {% for key, month_data in annual_performance.monthly_data.items %}
+                        <td style="text-align: right; color: #64748b;">{{ month_data.cost_materials|intcomma|default:"0" }}</td>
+                    {% endfor %}
+                </tr>
+                <tr style="background: rgba(59, 130, 246, 0.05);">
+                    <td><strong>売上総利益</strong></td>
+                    <td></td>
+                    {% for key, month_data in annual_performance.monthly_data.items %}
+                        <td style="text-align: right; font-weight: 600;">{{ month_data.gross_profit|intcomma|default:"0" }}</td>
+                    {% endfor %}
+                </tr>
+                <tr style="background: rgba(239, 68, 68, 0.05);">
+                    <td><strong>販管費</strong></td>
+                    <td>経費</td>
+                    {% for key, month_data in annual_performance.monthly_data.items %}
+                        <td style="text-align: right;">{{ month_data.sales_expense|intcomma|default:"0" }}</td>
+                    {% endfor %}
+                </tr>
+                <tr style="background: rgba(239, 68, 68, 0.05);">
+                    <td><strong>固定費</strong></td>
+                    <td></td>
+                    {% for key, month_data in annual_performance.monthly_data.items %}
+                        <td style="text-align: right;">{{ month_data.fixed_costs|intcomma|default:"0" }}</td>
+                    {% endfor %}
+                </tr>
+                <tr style="background: rgba(34, 197, 94, 0.1); font-weight: 700;">
+                    <td><strong>営業利益</strong></td>
+                    <td></td>
+                    {% for key, month_data in annual_performance.monthly_data.items %}
+                        <td style="text-align: right; color: {% if month_data.operating_profit < 0 %}#ef4444{% else %}#10b981{% endif %}">
+                            {% if month_data.operating_profit < 0 %}
+                                ({{ month_data.operating_profit|floatformat:0|cut:"-"|intcomma }})
+                            {% else %}
+                                {{ month_data.operating_profit|intcomma|default:"0" }}
+                            {% endif %}
+                        </td>
+                    {% endfor %}
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- トランザクション通帳ビュー -->
+<div class="mt-4">
+    <div class="transaction-table">
+        <div class="transaction-header">
+            <i class="fas fa-book"></i> 出入金明細（通帳ビュー）
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr style="background: #f8fafc;">
+                        <th>日付</th>
+                        <th>摘要</th>
+                        <th>取引先</th>
+                        <th>入金</th>
+                        <th>出金</th>
+                        <th>残高</th>
+                        <th>状態</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transaction in transactions %}
+                    <tr class="transaction-{{ transaction.type }}">
+                        <td>{{ transaction.date|date:"m/d" }}</td>
+                        <td>{{ transaction.description|truncatechars:30 }}</td>
+                        <td>{{ transaction.client|truncatechars:20 }}</td>
+                        <td style="text-align: right;">
+                            {% if transaction.type == 'receipt' %}
+                                <span style="color: #10b981;">¥{{ transaction.amount|intcomma }}</span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right;">
+                            {% if transaction.type == 'payment' %}
+                                <span style="color: #ef4444;">¥{{ transaction.amount|intcomma }}</span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right; font-weight: 600;">
+                            <span style="color: {% if transaction.balance >= 0 %}#10b981{% else %}#ef4444{% endif %}">
+                                ¥{{ transaction.balance|intcomma }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if transaction.status == 'completed' or transaction.status == 'paid' %}
+                                <span class="badge bg-success">完了</span>
+                            {% else %}
+                                <span class="badge bg-warning">保留</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+// 財務チャート初期化
+document.addEventListener('DOMContentLoaded', function() {
+    // 売上・原価チャート
+    const revenueCtx = document.getElementById('financialRevenueChart').getContext('2d');
+    new Chart(revenueCtx, {
+        type: 'bar',
+        data: {
+            labels: [{% for key, month_data in annual_performance.monthly_data.items %}'{{ month_data.month }}月'{% if not forloop.last %},{% endif %}{% endfor %}],
+            datasets: [{
+                label: '売上高',
+                data: [{% for key, month_data in annual_performance.monthly_data.items %}{{ month_data.revenue|default:0 }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                backgroundColor: 'rgba(34, 197, 94, 0.8)',
+                borderColor: 'rgba(34, 197, 94, 1)',
+                borderWidth: 1
+            }, {
+                label: '売上原価',
+                data: [{% for key, month_data in annual_performance.monthly_data.items %}{{ month_data.cost_of_sales|default:0 }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                backgroundColor: 'rgba(249, 115, 22, 0.8)',
+                borderColor: 'rgba(249, 115, 22, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '月次売上・原価推移'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '¥' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // 営業利益チャート
+    const profitCtx = document.getElementById('financialProfitChart').getContext('2d');
+    new Chart(profitCtx, {
+        type: 'line',
+        data: {
+            labels: [{% for key, month_data in annual_performance.monthly_data.items %}'{{ month_data.month }}月'{% if not forloop.last %},{% endif %}{% endfor %}],
+            datasets: [{
+                label: '営業利益',
+                data: [{% for key, month_data in annual_performance.monthly_data.items %}{{ month_data.operating_profit|default:0 }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                borderColor: 'rgba(59, 130, 246, 1)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '月次営業利益推移'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        callback: function(value) {
+                            return '¥' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>

@@ -1,0 +1,124 @@
+{% extends "order_management/base.html" %}
+
+{% block title %}支払い追跡 - 建築派遣管理システム{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-credit-card"></i> 支払い追跡</h2>
+    </div>
+    <div class="col text-end">
+        <a href="{% url 'subcontract_management:dashboard' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> ダッシュボードへ戻る
+        </a>
+    </div>
+</div>
+
+<!-- フィルター -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">支払い状況</label>
+                <select name="payment_status" class="form-select">
+                    <option value="">すべて</option>
+                    {% for value, label in payment_status_choices %}
+                    <option value="{{ value }}" {% if value == payment_status %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <div class="form-check mt-4">
+                    <input class="form-check-input" type="checkbox" name="overdue_only" id="overdue_only" {% if overdue_only %}checked{% endif %}>
+                    <label class="form-check-label" for="overdue_only">
+                        期限超過のみ表示
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button class="btn btn-outline-secondary" type="submit">
+                    <i class="fas fa-search"></i> フィルター適用
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 支払い一覧 -->
+<div class="card">
+    <div class="card-body">
+        {% if subcontracts %}
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>管理No</th>
+                        <th>現場名</th>
+                        <th>外注先</th>
+                        <th>被請求額</th>
+                        <th>支払状況</th>
+                        <th>出金予定日</th>
+                        <th>出金日</th>
+                        <th>期限</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for subcontract in subcontracts %}
+                    <tr class="{% if subcontract.is_payment_overdue %}table-warning{% endif %}">
+                        <td>{{ subcontract.management_no }}</td>
+                        <td>{{ subcontract.site_name|truncatechars:20 }}</td>
+                        <td>
+                            <strong>{{ subcontract.contractor.name }}</strong>
+                            {% if subcontract.contractor.contact_person %}
+                            <br><small class="text-muted">{{ subcontract.contractor.contact_person }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-bold">¥{{ subcontract.billed_amount|floatformat:0 }}</td>
+                        <td>
+                            <span class="badge bg-{{ subcontract.get_payment_status_color }}">
+                                {{ subcontract.get_payment_status_display }}
+                            </span>
+                        </td>
+                        <td>{{ subcontract.payment_due_date|date:"Y-m-d"|default:"-" }}</td>
+                        <td>{{ subcontract.payment_date|date:"Y-m-d"|default:"-" }}</td>
+                        <td>
+                            {% if subcontract.is_payment_overdue %}
+                            <span class="text-danger">
+                                <i class="fas fa-exclamation-triangle"></i> 期限超過
+                            </span>
+                            {% elif subcontract.payment_status == 'paid' %}
+                            <span class="text-success">
+                                <i class="fas fa-check-circle"></i> 支払済
+                            </span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{% url 'subcontract_management:subcontract_update' subcontract.pk %}"
+                                   class="btn btn-warning btn-sm" title="編集">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'subcontract_management:project_subcontract_list' subcontract.project.pk %}"
+                                   class="btn btn-info btn-sm" title="案件詳細">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-credit-card fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">該当する支払いデータがありません</h5>
+            <p class="text-muted">条件を変更してお試しください。</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

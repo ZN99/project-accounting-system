@@ -1,0 +1,284 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        background: #f8f9fa;
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .form-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+    }
+
+    .form-header {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        padding: 1.5rem 2rem;
+        position: relative;
+    }
+
+    .form-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #fbbf24, #f59e0b);
+    }
+
+    .form-body {
+        padding: 2rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-control, .form-select {
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        transition: all 0.3s ease;
+        font-size: 0.95rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #f59e0b;
+        box-shadow: 0 0 0 0.2rem rgba(245, 158, 11, 0.25);
+    }
+
+    .btn-submit {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        color: white;
+        transition: all 0.3s ease;
+    }
+
+    .btn-submit:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+        color: white;
+    }
+
+    .btn-cancel {
+        background: #6b7280;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        color: white;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        display: inline-block;
+    }
+
+    .btn-cancel:hover {
+        background: #4b5563;
+        color: white;
+        text-decoration: none;
+    }
+
+    .help-text {
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+
+    .required-field::after {
+        content: " *";
+        color: #f59e0b;
+        font-weight: bold;
+    }
+
+    .project-info {
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 col-md-10">
+                <div class="form-card">
+                    <div class="form-header">
+                        <h2><i class="fas fa-receipt"></i> {{ title }}</h2>
+                        <p class="mb-0">販管費や営業費など、その都度発生する費用を記録します</p>
+                    </div>
+
+                    <div class="form-body">
+                        {% if form.errors %}
+                            <div class="alert alert-danger">
+                                <h5><i class="fas fa-exclamation-triangle"></i> 入力エラーがあります</h5>
+                                {% for field, errors in form.errors.items %}
+                                    {% for error in errors %}
+                                        <p class="mb-1">{{ error }}</p>
+                                    {% endfor %}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <form method="post">
+                            {% csrf_token %}
+
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="form-group">
+                                        <label for="{{ form.name.id_for_label }}" class="form-label required-field">費目名</label>
+                                        {{ form.name }}
+                                        <div class="help-text">例: 交通費、接待費、営業活動費</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="{{ form.cost_type.id_for_label }}" class="form-label required-field">種別</label>
+                                        {{ form.cost_type }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="{{ form.amount.id_for_label }}" class="form-label required-field">金額（円）</label>
+                                        {{ form.amount }}
+                                        <div class="help-text">実際に支払った金額を入力</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="{{ form.incurred_date.id_for_label }}" class="form-label required-field">発生日</label>
+                                        {{ form.incurred_date }}
+                                        <div class="help-text">費用が発生した日付</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="{{ form.project.id_for_label }}" class="form-label">関連案件</label>
+                                {{ form.project }}
+                                <div class="help-text">
+                                    特定の案件に関連する費用の場合は選択してください。一般的な経費の場合は「関連案件なし」を選択。
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="{{ form.notes.id_for_label }}" class="form-label">備考</label>
+                                {{ form.notes }}
+                                <div class="help-text">支払い先や詳細な内容があれば記入</div>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center mt-4">
+                                <a href="{% url 'order_management:variable_cost_list' %}" class="btn-cancel">
+                                    <i class="fas fa-arrow-left"></i> 一覧に戻る
+                                </a>
+                                <button type="submit" class="btn-submit">
+                                    <i class="fas fa-save"></i> {{ submit_text }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // フォームのアニメーション
+    const formCard = document.querySelector('.form-card');
+    formCard.style.animation = 'fadeInUp 0.6s ease-out forwards';
+
+    // 金額入力のフォーマット
+    const amountInput = document.querySelector('input[name="amount"]');
+    if (amountInput) {
+        amountInput.addEventListener('input', function(e) {
+            // 数字以外を除去
+            let value = e.target.value.replace(/[^\d]/g, '');
+            e.target.value = value;
+        });
+    }
+
+    // プロジェクト選択時の情報表示
+    const projectSelect = document.querySelector('select[name="project"]');
+    if (projectSelect) {
+        projectSelect.addEventListener('change', function(e) {
+            const selectedOption = e.target.selectedOptions[0];
+            if (selectedOption && selectedOption.value) {
+                showProjectInfo(selectedOption.text);
+            } else {
+                hideProjectInfo();
+            }
+        });
+    }
+});
+
+function showProjectInfo(projectName) {
+    const existingInfo = document.querySelector('.project-info');
+    if (existingInfo) {
+        existingInfo.remove();
+    }
+
+    const projectGroup = document.querySelector('select[name="project"]').closest('.form-group');
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'project-info';
+    infoDiv.innerHTML = `
+        <i class="fas fa-info-circle"></i>
+        <strong>選択された案件:</strong> ${projectName}
+        <br><small>この費用は案件に関連付けられ、原価計算に影響します。</small>
+    `;
+    projectGroup.appendChild(infoDiv);
+}
+
+function hideProjectInfo() {
+    const existingInfo = document.querySelector('.project-info');
+    if (existingInfo) {
+        existingInfo.remove();
+    }
+}
+
+// アニメーション定義
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

@@ -1,0 +1,364 @@
+{% extends "order_management/base.html" %}
+{% load humanize %}
+
+{% block title %}案件別発注管理 - {{ project.site_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .amount-cell {
+        text-align: right;
+        font-family: 'Courier New', monospace;
+        font-weight: 500;
+        padding: 0.75rem 0.5rem;
+    }
+    .subcontract-table {
+        font-size: 0.9rem;
+    }
+    .subcontract-table th {
+        white-space: nowrap;
+        vertical-align: middle;
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+        font-weight: 600;
+        padding: 1rem 0.75rem;
+    }
+    .subcontract-table td {
+        vertical-align: middle;
+        padding: 0.75rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .contractor-info {
+        min-width: 150px;
+    }
+    .work-description {
+        max-width: 200px;
+        word-wrap: break-word;
+    }
+    .summary-card {
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+    .profit-analysis-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-top: 1.5rem;
+    }
+    .profit-metric {
+        text-align: center;
+        padding: 1rem;
+        border-radius: 8px;
+        background: white;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .profit-metric h4 {
+        margin-bottom: 0.5rem;
+        font-family: 'Courier New', monospace;
+    }
+    .table-container {
+        max-width: 100%;
+        margin: 0 auto;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-handshake"></i> 案件別発注管理</h2>
+        <p class="text-muted">{{ project.management_no }} - {{ project.site_name }}</p>
+    </div>
+    <div class="col text-end">
+        <a href="{% url 'subcontract_management:subcontract_create' project.pk %}" class="btn btn-primary">
+            <i class="fas fa-plus-circle"></i> 発注先追加
+        </a>
+        <a href="{% url 'order_management:project_detail' project.pk %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> 案件詳細へ戻る
+        </a>
+    </div>
+</div>
+
+<!-- 案件情報サマリー -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">案件情報</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <dl class="row">
+                    <dt class="col-sm-4">管理No:</dt>
+                    <dd class="col-sm-8">{{ project.management_no }}</dd>
+                    <dt class="col-sm-4">現場名:</dt>
+                    <dd class="col-sm-8">{{ project.site_name }}</dd>
+                    <dt class="col-sm-4">受注金額:</dt>
+                    <dd class="col-sm-8 text-primary fw-bold">¥{{ project.billing_amount|floatformat:0|intcomma }}</dd>
+                </dl>
+            </div>
+            {% if profit_analysis %}
+            <div class="col-md-6">
+                <dl class="row">
+                    <dt class="col-sm-4">発注費合計:</dt>
+                    <dd class="col-sm-8">¥{{ profit_analysis.total_subcontract_cost|floatformat:0|intcomma }}</dd>
+                    <dt class="col-sm-4">部材費合計:</dt>
+                    <dd class="col-sm-8">¥{{ profit_analysis.total_material_cost|floatformat:0|intcomma }}</dd>
+                    <dt class="col-sm-4">利益率:</dt>
+                    <dd class="col-sm-8">
+                        <span class="badge bg-{{ profit_analysis.get_profit_rate_color }} fs-6">
+                            {{ profit_analysis.profit_rate|floatformat:1 }}%
+                        </span>
+                    </dd>
+                </dl>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 発注一覧 -->
+<div class="table-container">
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-handshake"></i> 発注先一覧</h5>
+        </div>
+        <div class="card-body p-0">
+            {% if subcontracts %}
+            <div class="table-responsive">
+                <table class="table table-hover subcontract-table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="contractor-info">発注先/担当者</th>
+                            <th style="width: 80px;">タイプ</th>
+                            <th class="work-description">作業内容</th>
+                            <th style="width: 110px;">契約金額</th>
+                            <th style="width: 110px;">被請求額</th>
+                            <th style="width: 100px;">部材費</th>
+                            <th style="width: 110px;">総コスト</th>
+                            <th style="width: 100px;">支払状況</th>
+                            <th style="width: 100px;">出金予定日</th>
+                            <th style="width: 70px;">発注書</th>
+                            <th style="width: 100px;">操作</th>
+                        </tr>
+                    </thead>
+                <tbody>
+                    {% for subcontract in subcontracts %}
+                    <tr>
+                        <td>
+                            {% if subcontract.worker_type == 'external' %}
+                                {% if subcontract.contractor %}
+                                <strong>{{ subcontract.contractor.name }}</strong>
+                                {% if subcontract.contractor.contact_person %}
+                                <br><small class="text-muted">担当: {{ subcontract.contractor.contact_person }}</small>
+                                {% endif %}
+                                {% else %}
+                                <strong>-</strong>
+                                {% endif %}
+                            {% else %}
+                                <strong>
+                                    {% if subcontract.internal_worker %}
+                                        {{ subcontract.internal_worker.name }}
+                                    {% elif subcontract.internal_worker_name %}
+                                        {{ subcontract.internal_worker_name }}
+                                    {% else %}
+                                        社内担当者未設定
+                                    {% endif %}
+                                </strong>
+                                {% if subcontract.internal_department %}
+                                <br><small class="text-muted">{{ subcontract.internal_department }}</small>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if subcontract.worker_type == 'external' %}
+                                <span class="badge bg-info">
+                                    外注
+                                </span>
+                            {% else %}
+                                <span class="badge bg-success">
+                                    社内
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>{{ subcontract.work_description|default:"-"|truncatechars:30 }}</td>
+                        <td class="amount-cell">¥{{ subcontract.contract_amount|floatformat:0|intcomma }}</td>
+                        <td class="amount-cell">
+                            <strong class="text-primary">¥{{ subcontract.billed_amount|floatformat:0|intcomma }}</strong>
+                        </td>
+                        <td class="amount-cell">¥{{ subcontract.total_material_cost|floatformat:0|intcomma }}</td>
+                        <td class="amount-cell">
+                            <strong class="text-success">¥{{ subcontract.get_total_cost|floatformat:0|intcomma }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ subcontract.get_payment_status_color }}">
+                                {{ subcontract.get_payment_status_display }}
+                            </span>
+                            {% if subcontract.is_payment_overdue %}
+                            <br><small class="text-danger">
+                                <i class="fas fa-exclamation-triangle"></i> 期限超過
+                            </small>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">{{ subcontract.payment_due_date|date:"m/d"|default:"-" }}</td>
+                        <td class="text-center">
+                            {% if subcontract.purchase_order_issued %}
+                            <i class="fas fa-check-circle text-success" title="発行済み"></i>
+                            {% else %}
+                            <i class="fas fa-times-circle text-muted" title="未発行"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{% url 'subcontract_management:subcontract_update' subcontract.pk %}"
+                                   class="btn btn-warning btn-sm" title="編集">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-danger btn-sm" title="削除"
+                                        data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                        data-subcontract-id="{{ subcontract.pk }}"
+                                        data-contractor-name="{{ subcontract.contractor.name }}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-handshake fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">まだ外注先が登録されていません</h5>
+            <p class="text-muted">下のボタンから外注先を追加してください。</p>
+            <a href="{% url 'subcontract_management:subcontract_create' project.pk %}" class="btn btn-primary">
+                <i class="fas fa-plus-circle"></i> 最初の外注先を追加
+            </a>
+        </div>
+        {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 合計情報カード -->
+{% if subcontracts %}
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card summary-card border-primary">
+            <div class="card-body text-center">
+                <h6 class="text-primary mb-2">契約金額合計</h6>
+                <h4 class="text-primary amount-cell">¥{% widthratio 0 1 1 as total_contract %}{% for sub in subcontracts %}{% widthratio sub.contract_amount|add:total_contract 1 1 as total_contract %}{% endfor %}{{ total_contract|floatformat:0|intcomma }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card summary-card border-warning">
+            <div class="card-body text-center">
+                <h6 class="text-warning mb-2">被請求額合計</h6>
+                <h4 class="text-warning amount-cell">¥{% widthratio 0 1 1 as total_billed %}{% for sub in subcontracts %}{% widthratio sub.billed_amount|add:total_billed 1 1 as total_billed %}{% endfor %}{{ total_billed|floatformat:0|intcomma }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card summary-card border-info">
+            <div class="card-body text-center">
+                <h6 class="text-info mb-2">部材費合計</h6>
+                <h4 class="text-info amount-cell">¥{% widthratio 0 1 1 as total_material %}{% for sub in subcontracts %}{% widthratio sub.total_material_cost|add:total_material 1 1 as total_material %}{% endfor %}{{ total_material|floatformat:0|intcomma }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card summary-card border-success">
+            <div class="card-body text-center">
+                <h6 class="text-success mb-2">総コスト合計</h6>
+                <h4 class="text-success amount-cell">¥{% widthratio 0 1 1 as total_cost %}{% for sub in subcontracts %}{% widthratio sub.get_total_cost|add:total_cost 1 1 as total_cost %}{% endfor %}{{ total_cost|floatformat:0|intcomma }}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if profit_analysis %}
+<!-- 利益分析詳細 -->
+<div class="profit-analysis-card">
+    <h5 class="mb-4"><i class="fas fa-chart-bar"></i> 利益分析詳細</h5>
+    <div class="row g-3">
+        <div class="col-md-3">
+            <div class="profit-metric">
+                <h4 class="text-primary">¥{{ profit_analysis.total_revenue|floatformat:0|intcomma }}</h4>
+                <p class="mb-0 text-muted">総売上</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="profit-metric">
+                <h4 class="text-danger">¥{{ profit_analysis.total_expense|floatformat:0|intcomma }}</h4>
+                <p class="mb-0 text-muted">総支出</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="profit-metric">
+                <h4 class="text-success">¥{{ profit_analysis.gross_profit|floatformat:0|intcomma }}</h4>
+                <p class="mb-0 text-muted">粗利益</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="profit-metric">
+                <h4 class="text-{{ profit_analysis.get_profit_rate_color }}">{{ profit_analysis.profit_rate|floatformat:1 }}%</h4>
+                <p class="mb-0 text-muted">利益率</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 削除確認モーダル -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">外注先削除の確認</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>以下の外注先を削除してもよろしいですか？</p>
+                <p class="text-danger">
+                    <strong id="deleteContractorName"></strong>
+                </p>
+                <p class="text-muted">この操作は取り消せません。関連する支払い情報や部材費データも一緒に削除されます。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <form id="deleteForm" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">削除する</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // 削除モーダルの動的設定
+    $('#deleteModal').on('show.bs.modal', function (event) {
+        var button = $(event.relatedTarget);
+        var subcontractId = button.data('subcontract-id');
+        var contractorName = button.data('contractor-name');
+
+        var modal = $(this);
+        modal.find('#deleteContractorName').text(contractorName);
+        modal.find('#deleteForm').attr('action', '/subcontracts/' + subcontractId + '/delete/');
+    });
+});
+</script>
+{% endblock %}

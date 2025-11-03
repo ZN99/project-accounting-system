@@ -1,0 +1,594 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}売上予測ダッシュボード{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ダッシュボードスタイル */
+    .forecast-dashboard {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    /* ヘッダー */
+    .dashboard-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 16px;
+        margin-bottom: 2rem;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    }
+
+    .dashboard-header h1 {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    .dashboard-header .subtitle {
+        opacity: 0.9;
+        font-size: 1rem;
+        margin-top: 0.5rem;
+    }
+
+    /* メトリックカード */
+    .metric-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+
+    .metric-card .metric-label {
+        font-size: 0.875rem;
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+    }
+
+    .metric-card .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
+    }
+
+    .metric-card .metric-change {
+        font-size: 0.875rem;
+        color: #64748b;
+    }
+
+    .metric-card.revenue::before {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    .metric-card.profit::before {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+
+    .metric-card.pipeline::before {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+
+    /* シナリオセレクター */
+    .scenario-selector {
+        background: white;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .scenario-selector .form-select {
+        border-radius: 8px;
+        border: 2px solid #e2e8f0;
+        padding: 0.75rem 1rem;
+        font-weight: 500;
+    }
+
+    .scenario-selector .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .scenario-selector .btn {
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+    }
+
+    /* チャートコンテナ */
+    .chart-container {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+        position: relative;
+        height: 400px;
+    }
+
+    .chart-container h3 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        color: #1e293b;
+    }
+
+    /* タブ */
+    .nav-tabs .nav-link {
+        border: none;
+        border-bottom: 3px solid transparent;
+        color: #64748b;
+        font-weight: 600;
+        padding: 1rem 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .nav-tabs .nav-link:hover {
+        color: #667eea;
+        border-bottom-color: #667eea;
+    }
+
+    .nav-tabs .nav-link.active {
+        color: #667eea;
+        border-bottom-color: #667eea;
+        background: transparent;
+    }
+
+    .tab-content {
+        background: white;
+        border-radius: 0 0 16px 16px;
+        padding: 2rem;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    /* テーブル */
+    .forecast-table {
+        width: 100%;
+        margin-top: 1rem;
+    }
+
+    .forecast-table th {
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 700;
+        padding: 1rem;
+        text-align: right;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .forecast-table th:first-child {
+        text-align: left;
+    }
+
+    .forecast-table td {
+        padding: 1rem;
+        text-align: right;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .forecast-table td:first-child {
+        text-align: left;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .forecast-table tr:hover {
+        background: #f8fafc;
+    }
+
+    /* パイプライン */
+    .pipeline-item {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid #667eea;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .pipeline-item h4 {
+        font-size: 1.125rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: #1e293b;
+    }
+
+    .pipeline-item .pipeline-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #667eea;
+    }
+
+    .pipeline-item .pipeline-count {
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+
+    /* 空状態 */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: #cbd5e1;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state h3 {
+        color: #475569;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state p {
+        color: #64748b;
+        margin-bottom: 2rem;
+    }
+
+    /* アクションボタン */
+    .action-buttons {
+        margin-bottom: 2rem;
+    }
+
+    .action-buttons .btn {
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        margin-right: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="forecast-dashboard">
+    <div class="container-fluid">
+        <!-- ヘッダー -->
+        <div class="dashboard-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1><i class="fas fa-crystal-ball me-2"></i>売上予測ダッシュボード</h1>
+                    <div class="subtitle">過去実績とパイプラインから将来の売上・収支を予測</div>
+                </div>
+                <div class="action-buttons">
+                    <a href="{% url 'order_management:scenario_list' %}" class="btn btn-light">
+                        <i class="fas fa-list me-2"></i>シナリオ一覧
+                    </a>
+                    <a href="{% url 'order_management:scenario_create' %}" class="btn btn-light">
+                        <i class="fas fa-plus me-2"></i>新規シナリオ
+                    </a>
+                    <a href="{% url 'order_management:scenario_compare' %}" class="btn btn-light">
+                        <i class="fas fa-chart-bar me-2"></i>シナリオ比較
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- シナリオセレクター -->
+        <div class="scenario-selector">
+            <form method="get" class="row g-3 align-items-center">
+                <div class="col-auto">
+                    <label class="form-label fw-bold mb-0">シナリオ選択:</label>
+                </div>
+                <div class="col-md-4">
+                    <select name="scenario_id" class="form-select" onchange="this.form.submit()">
+                        {% if not selected_scenario %}
+                            <option value="">シナリオを選択してください</option>
+                        {% endif %}
+                        {% for scenario in all_scenarios %}
+                            <option value="{{ scenario.id }}" {% if selected_scenario and scenario.id == selected_scenario.id %}selected{% endif %}>
+                                {{ scenario.name }} ({{ scenario.get_scenario_type_display }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% if selected_scenario %}
+                <div class="col-auto">
+                    <a href="{% url 'order_management:scenario_update' selected_scenario.id %}" class="btn btn-outline-primary">
+                        <i class="fas fa-edit me-1"></i>編集
+                    </a>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+
+        {% if selected_scenario and summary %}
+            <!-- メトリックカード -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="metric-card revenue">
+                        <div class="metric-label">予測売上（{{ selected_scenario.forecast_months }}ヶ月）</div>
+                        <div class="metric-value">¥{{ summary.total_revenue|floatformat:0|intcomma }}</div>
+                        <div class="metric-change">
+                            <i class="fas fa-chart-line me-1"></i>月平均: ¥{{ summary.avg_monthly_revenue|floatformat:0|intcomma }}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="metric-card profit">
+                        <div class="metric-label">予測営業利益（{{ selected_scenario.forecast_months }}ヶ月）</div>
+                        <div class="metric-value">¥{{ summary.total_profit|floatformat:0|intcomma }}</div>
+                        <div class="metric-change">
+                            <i class="fas fa-percentage me-1"></i>利益率: {{ summary.profit_margin|floatformat:1 }}%
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="metric-card pipeline">
+                        <div class="metric-label">パイプライン総額</div>
+                        <div class="metric-value">¥{{ forecast_data.pipeline.total_value|floatformat:0|intcomma }}</div>
+                        <div class="metric-change">
+                            <i class="fas fa-project-diagram me-1"></i>{{ forecast_data.pipeline.neta_count|add:forecast_data.pipeline.waiting_count }} 案件
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- チャート -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="chart-container">
+                        <h3><i class="fas fa-chart-line me-2"></i>月次予測推移</h3>
+                        <canvas id="forecastChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- タブコンテンツ -->
+            <ul class="nav nav-tabs" role="tablist">
+                <li class="nav-item">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#monthly-tab">
+                        月次詳細
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#pipeline-tab">
+                        パイプライン分析
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#historical-tab">
+                        過去実績
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+                <!-- 月次詳細タブ -->
+                <div class="tab-pane fade show active" id="monthly-tab">
+                    <h4 class="mb-3">月次予測データ</h4>
+                    <table class="forecast-table">
+                        <thead>
+                            <tr>
+                                <th>月</th>
+                                <th>予測売上</th>
+                                <th>予測原価</th>
+                                <th>予測営業利益</th>
+                                <th>利益率</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for month in forecast_data.monthly_profit %}
+                            <tr>
+                                <td>{{ month.year|stringformat:"d" }}/{{ month.month|stringformat:"d" }} ({{ month.month_name }})</td>
+                                <td>¥{{ month.revenue|floatformat:0|intcomma }}</td>
+                                <td>¥{{ month.cost_of_sales|floatformat:0|intcomma }}</td>
+                                <td>¥{{ month.operating_profit|floatformat:0|intcomma }}</td>
+                                <td>{{ month.profit_margin|floatformat:1 }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- パイプライン分析タブ -->
+                <div class="tab-pane fade" id="pipeline-tab">
+                    <h4 class="mb-3">パイプライン分析</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="pipeline-item">
+                                <h4><i class="fas fa-lightbulb text-warning me-2"></i>ネタ案件</h4>
+                                <div class="pipeline-value">¥{{ forecast_data.pipeline.neta_value|floatformat:0|intcomma }}</div>
+                                <div class="pipeline-count">{{ forecast_data.pipeline.neta_count }} 件 × 成約率 {{ selected_scenario.conversion_rate_neta }}%</div>
+                                <div class="mt-2">
+                                    <strong>期待売上:</strong>
+                                    ¥{% widthratio forecast_data.pipeline.neta_value 100 selected_scenario.conversion_rate_neta|floatformat:0|intcomma %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="pipeline-item">
+                                <h4><i class="fas fa-clock text-info me-2"></i>施工日待ち</h4>
+                                <div class="pipeline-value">¥{{ forecast_data.pipeline.waiting_value|floatformat:0|intcomma }}</div>
+                                <div class="pipeline-count">{{ forecast_data.pipeline.waiting_count }} 件 × 成約率 {{ selected_scenario.conversion_rate_waiting }}%</div>
+                                <div class="mt-2">
+                                    <strong>期待売上:</strong>
+                                    ¥{% widthratio forecast_data.pipeline.waiting_value 100 selected_scenario.conversion_rate_waiting|floatformat:0|intcomma %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 過去実績タブ -->
+                <div class="tab-pane fade" id="historical-tab">
+                    <h4 class="mb-3">過去12ヶ月実績</h4>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="metric-card">
+                                <div class="metric-label">平均月次売上</div>
+                                <div class="metric-value">¥{{ forecast_data.historical.avg_revenue|floatformat:0|intcomma }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="metric-card">
+                                <div class="metric-label">平均受注額</div>
+                                <div class="metric-value">¥{{ forecast_data.historical.avg_order_amount|floatformat:0|intcomma }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="metric-card">
+                                <div class="metric-label">完工率</div>
+                                <div class="metric-value">{{ forecast_data.historical.completion_rate|floatformat:1 }}%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        {% else %}
+            <!-- 空状態 -->
+            <div class="empty-state">
+                <i class="fas fa-chart-line"></i>
+                <h3>シナリオを選択してください</h3>
+                <p>売上予測を表示するには、シナリオを選択するか新規作成してください。</p>
+                <a href="{% url 'order_management:scenario_create' %}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-plus me-2"></i>新規シナリオ作成
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if chart_data %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+    // チャートデータ
+    const chartData = {{ chart_data|safe }};
+
+    // 予測チャート
+    const ctx = document.getElementById('forecastChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartData.labels,
+            datasets: [
+                {
+                    label: '予測売上',
+                    data: chartData.revenue,
+                    borderColor: 'rgb(34, 197, 94)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: '予測営業利益',
+                    data: chartData.profit,
+                    borderColor: 'rgb(59, 130, 246)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        usePointStyle: true,
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleFont: {
+                        size: 14
+                    },
+                    bodyFont: {
+                        size: 13
+                    },
+                    padding: 12,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += '¥' + Math.round(context.parsed.y).toLocaleString();
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '¥' + value.toLocaleString();
+                        },
+                        font: {
+                            size: 12
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        font: {
+                            size: 12
+                        }
+                    }
+                }
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            }
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}

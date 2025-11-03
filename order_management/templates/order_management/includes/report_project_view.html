@@ -1,0 +1,137 @@
+{% load humanize %}
+
+<h6 class="mb-3">プロジェクト概要</h6>
+<table class="table table-bordered">
+    <tr>
+        <th>プロジェクト名</th>
+        <td>{{ data.project_info.name }}</td>
+    </tr>
+    <tr>
+        <th>顧客名</th>
+        <td>{{ data.project_info.client }}</td>
+    </tr>
+    <tr>
+        <th>ステータス</th>
+        <td>{{ data.project_info.status }}</td>
+    </tr>
+    <tr>
+        <th>受注金額</th>
+        <td class="text-end">¥{{ data.project_info.order_amount|floatformat:0|intcomma }}</td>
+    </tr>
+    <tr>
+        <th>契約日</th>
+        <td>{{ data.project_info.contract_date|date:"Y/m/d" }}</td>
+    </tr>
+    <tr>
+        <th>完工予定日</th>
+        <td>{{ data.project_info.expected_completion|date:"Y/m/d" }}</td>
+    </tr>
+</table>
+
+<h6 class="mb-3 mt-4">収支分析</h6>
+<table class="table table-bordered">
+    <tr>
+        <th>売上</th>
+        <td class="text-end">¥{{ data.financial_summary.revenue|floatformat:0|intcomma }}</td>
+    </tr>
+    <tr>
+        <th>総原価</th>
+        <td class="text-end">¥{{ data.financial_summary.total_cost|floatformat:0|intcomma }}</td>
+    </tr>
+    <tr>
+        <th style="padding-left: 2rem;">人件費</th>
+        <td class="text-end">¥{{ data.financial_summary.labor_cost|floatformat:0|intcomma }}</td>
+    </tr>
+    <tr>
+        <th style="padding-left: 2rem;">材料費</th>
+        <td class="text-end">¥{{ data.financial_summary.material_cost|floatformat:0|intcomma }}</td>
+    </tr>
+    <tr>
+        <th style="padding-left: 2rem;">外注費</th>
+        <td class="text-end">¥{{ data.financial_summary.subcontract_cost|floatformat:0|intcomma }}</td>
+    </tr>
+    <tr>
+        <th style="padding-left: 2rem;">その他原価</th>
+        <td class="text-end">¥{{ data.financial_summary.other_cost|floatformat:0|intcomma }}</td>
+    </tr>
+    <tr>
+        <th>利益</th>
+        <td class="text-end"><strong>¥{{ data.financial_summary.profit|floatformat:0|intcomma }}</strong></td>
+    </tr>
+    <tr>
+        <th>利益率</th>
+        <td class="text-end">{{ data.financial_summary.profit_margin|floatformat:1 }}%</td>
+    </tr>
+</table>
+
+<h6 class="mb-3 mt-4">進捗状況</h6>
+<table class="table table-bordered">
+    <tr>
+        <th>進捗率</th>
+        <td>
+            <div class="progress" style="height: 30px;">
+                <div class="progress-bar" role="progressbar"
+                     style="width: {{ data.progress.progress_rate }}%"
+                     aria-valuenow="{{ data.progress.progress_rate }}"
+                     aria-valuemin="0" aria-valuemax="100">
+                    {{ data.progress.progress_rate|floatformat:0 }}%
+                </div>
+            </div>
+        </td>
+    </tr>
+    <tr>
+        <th>現在のステータス</th>
+        <td>
+            {% if data.progress.status == 'on_track' %}
+            <span class="badge bg-success">順調</span>
+            {% elif data.progress.status == 'at_risk' %}
+            <span class="badge bg-warning">注意</span>
+            {% elif data.progress.status == 'delayed' %}
+            <span class="badge bg-danger">遅延</span>
+            {% else %}
+            <span class="badge bg-info">完了</span>
+            {% endif %}
+        </td>
+    </tr>
+    {% if data.progress.milestone_name %}
+    <tr>
+        <th>現在のマイルストーン</th>
+        <td>{{ data.progress.milestone_name }}</td>
+    </tr>
+    {% endif %}
+    {% if data.progress.has_risk %}
+    <tr>
+        <th>リスク</th>
+        <td>
+            <span class="badge bg-danger">リスクあり</span>
+            <span class="badge bg-{{ data.progress.risk_level_color }}">{{ data.progress.risk_level }}</span>
+        </td>
+    </tr>
+    {% endif %}
+</table>
+
+{% if data.cost_breakdown %}
+<h6 class="mb-3 mt-4">原価内訳</h6>
+<div class="row">
+    <div class="col-md-8">
+        <table class="table table-sm table-bordered">
+            <thead>
+                <tr>
+                    <th>カテゴリ</th>
+                    <th class="text-end">金額</th>
+                    <th class="text-end">比率</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in data.cost_breakdown %}
+                <tr>
+                    <td>{{ item.category }}</td>
+                    <td class="text-end">¥{{ item.amount|floatformat:0|intcomma }}</td>
+                    <td class="text-end">{{ item.percentage|floatformat:1 }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}

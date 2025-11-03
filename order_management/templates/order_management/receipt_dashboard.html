@@ -1,0 +1,2139 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}入金管理 - {{ month_name }} {{ year }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .receipt-dashboard {
+        background: #f8f9fa;
+        min-height: 100vh;
+        padding: 0;
+        margin: 0;
+    }
+
+    .header-section {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        padding: 1.5rem 0;
+        margin-bottom: 0;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        max-width: 100%;
+    }
+
+    .header-title h1 {
+        font-size: 2rem;
+        font-weight: 300;
+        margin: 0;
+    }
+
+    .header-title p {
+        font-size: 1rem;
+        opacity: 0.9;
+        margin: 0.3rem 0 0 0;
+    }
+
+    .header-amount {
+        text-align: right;
+    }
+
+    .total-amount {
+        font-size: 2.2rem;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .amount-label {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+
+    .controls-section {
+        background: white;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #e9ecef;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    }
+
+    .filter-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+    }
+
+    .filter-controls .form-label {
+        font-size: 0.8rem;
+        margin-bottom: 0;
+        white-space: nowrap;
+        margin-right: 0.2rem;
+    }
+
+    .filter-controls select {
+        border: 1px solid #e9ecef;
+        border-radius: 3px;
+        padding: 0.25rem 0.4rem;
+        font-size: 0.8rem;
+        transition: all 0.3s ease;
+        min-width: 80px;
+        max-width: 90px;
+    }
+
+    .filter-controls select:focus {
+        border-color: #28a745;
+        box-shadow: 0 0 0 0.2rem rgba(40,167,69,0.25);
+    }
+
+    .stats-section {
+        background: white;
+        padding: 1.5rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .stat-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        padding: 1.2rem;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        height: 100px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+
+    .stat-value {
+        font-size: 1.4rem;
+        font-weight: 700;
+        margin-bottom: 0.3rem;
+        font-family: 'SF Mono', 'Monaco', monospace;
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+
+    .stat-pending .stat-value { color: #ffc107; }
+    .stat-received .stat-value { color: #28a745; }
+    .stat-overdue .stat-value { color: #dc3545; }
+    .stat-total .stat-value { color: #17a2b8; }
+
+    .content-section {
+        background: white;
+        margin: 0;
+        padding: 1.5rem 0;
+    }
+
+    .receipt-table-wrapper {
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        margin: 0;
+    }
+
+    .table {
+        margin: 0;
+        font-size: 0.85rem;
+        width: 100%;
+    }
+
+    .table th {
+        background: #28a745;
+        color: white;
+        font-weight: 600;
+        padding: 0.8rem 0.5rem;
+        border: none;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+
+    .table td {
+        padding: 0.7rem 0.5rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #f8f9fa;
+        font-size: 0.85rem;
+    }
+
+    .client-header {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        font-weight: 600;
+    }
+
+    .client-header td {
+        padding: 0.8rem 0.5rem;
+        border: none;
+    }
+
+    .client-name {
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    .client-stats {
+        font-size: 0.8rem;
+        opacity: 0.9;
+    }
+
+    .project-row {
+        transition: background-color 0.2s ease;
+    }
+
+    .project-row:hover {
+        background-color: #f8f9fa;
+    }
+
+    .project-link {
+        color: #000;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s ease;
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 200px;
+    }
+
+    .project-link:hover {
+        color: #1e7e34;
+        text-decoration: underline;
+    }
+
+    .amount-cell {
+        text-align: right;
+        font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Droid Sans Mono', 'Source Code Pro', monospace;
+        font-weight: 600;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+
+    .date-cell {
+        text-align: left;
+        font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Droid Sans Mono', 'Source Code Pro', monospace;
+        color: #6c757d;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+
+    .status-badge {
+        padding: 0.3rem 0.6rem;
+        border-radius: 15px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        white-space: nowrap;
+    }
+
+    .status-pending {
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeeba;
+    }
+
+    .status-received {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+
+    .status-overdue {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+
+    .status-invoiced {
+        background: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+    }
+
+    .client-summary {
+        background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
+        border-top: 2px solid #28a745;
+        font-weight: 600;
+    }
+
+    .client-summary td {
+        padding: 0.7rem 0.5rem;
+    }
+
+    .summary-amounts {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .summary-amount {
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .summary-received {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .summary-pending {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .summary-overdue {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .table-footer {
+        background: linear-gradient(135deg, #1e7e34 0%, #28a745 100%);
+        color: white;
+        font-weight: 700;
+        font-size: 0.9rem;
+    }
+
+    .table-footer td {
+        padding: 1rem 0.5rem;
+        border: none;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: #6c757d;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.3;
+    }
+
+    .btn-success {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        border-radius: 6px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-success:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(40,167,69,0.3);
+    }
+
+    .receipt-badge {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    /* 請求書生成スタイル */
+    .invoice-icon-large {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: rgba(40, 167, 69, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .invoice-icon-large i {
+        font-size: 24px;
+    }
+
+    .stat-mini {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 0.75rem;
+        text-align: center;
+        border: 1px solid #e9ecef;
+    }
+
+    .stat-mini-value {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #000;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-mini-label {
+        font-size: 0.75rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+
+    .invoice-actions .btn {
+        transition: all 0.2s ease;
+    }
+
+    .invoice-actions .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .quick-actions-panel {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1.25rem;
+        height: 100%;
+    }
+
+    .recent-invoice-item {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #e9ecef;
+        font-size: 0.85rem;
+    }
+
+    .recent-invoice-item:last-child {
+        border-bottom: none;
+    }
+
+    .recent-invoice-client {
+        font-weight: 600;
+        color: #000;
+    }
+
+    .recent-invoice-date {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+
+    .recent-invoice-amount {
+        font-weight: 600;
+        color: #495057;
+        font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Droid Sans Mono', 'Source Code Pro', monospace;
+    }
+
+    /* 会社別ボックスレイアウト */
+    .receipt-cards-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .client-box {
+        background: white;
+        border: 2px solid #000;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        transition: all 0.3s ease;
+        margin-bottom: 15px;
+    }
+
+    .client-box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 35px rgba(40, 167, 69, 0.2);
+    }
+
+    /* 会社ヘッダー */
+    .client-box-header {
+        background: #000;
+        color: white;
+        padding: 8px 15px;
+        border-bottom: 1px solid #333;
+    }
+
+    .client-name {
+        font-size: 1.0rem;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+
+    .client-stats {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        font-size: 0.8rem;
+    }
+
+    .stat-item {
+        background: rgba(255,255,255,0.25);
+        padding: 8px 12px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.3);
+    }
+
+    /* 案件コンテンツ */
+    .client-box-content {
+        padding: 0;
+        background: #fafafa;
+    }
+
+    .projects-table-wrapper {
+        overflow-x: auto;
+    }
+
+    .projects-table {
+        margin: 0;
+        background: white;
+    }
+
+    .projects-table thead th {
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        font-weight: 600;
+        color: #000;
+        padding: 8px 6px;
+        font-size: 0.75rem;
+    }
+
+    .projects-table tbody td {
+        padding: 6px 6px;
+        vertical-align: middle;
+        border-bottom: 1px solid #e9ecef;
+        font-size: 0.8rem;
+    }
+
+    .projects-table .project-row:hover {
+        background: rgba(40, 167, 69, 0.05);
+    }
+
+    /* 会社フッター */
+    .client-box-footer {
+        background: #f8f9fa;
+        padding: 10px 15px;
+        border-top: 1px solid #dee2e6;
+    }
+
+    .total-info {
+        font-size: 0.95rem;
+        color: #000;
+    }
+
+    .summary-amounts {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .summary-amount {
+        padding: 6px 10px;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    /* 総合計ボックス */
+    .total-summary-box {
+        background: linear-gradient(135deg, #343a40 0%, #495057 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 12px;
+        border: 4px solid #6c757d;
+        box-shadow: 0 8px 25px rgba(52, 58, 64, 0.2);
+        margin-top: 30px;
+    }
+
+    .total-amount {
+        font-size: 1.8rem;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .total-breakdown {
+        text-align: right;
+        opacity: 0.9;
+    }
+
+    /* 請求書プレビューモーダル */
+    .modal-xl .modal-dialog {
+        max-width: 1200px;
+    }
+
+    .invoice-action-bar {
+        background: #f8f9fa;
+        padding: 15px 20px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .invoice-client-name {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #000;
+        margin-right: 15px;
+    }
+
+    .invoice-date {
+        background: #e9ecef;
+        padding: 4px 12px;
+        border-radius: 15px;
+        font-size: 0.85rem;
+        color: #495057;
+    }
+
+    .pdf-preview-container {
+        min-height: 600px;
+        background: #f5f5f5;
+    }
+
+    /* 請求書ドキュメントスタイル - A4サイズ */
+    .invoice-document {
+        background: white;
+        padding: 40px;
+        margin: 20px auto;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        font-family: 'Helvetica', 'Arial', sans-serif;
+        width: 210mm;
+        min-height: 297mm;
+        max-width: 95%;
+        font-size: 14px;
+        line-height: 1.6;
+        transform-origin: top center;
+    }
+
+    .invoice-header {
+        border-bottom: 3px solid #000;
+        padding-bottom: 20px;
+        margin-bottom: 30px;
+    }
+
+    .company-name {
+        color: #000;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    .company-address {
+        color: #6c757d;
+        font-size: 0.9rem;
+        line-height: 1.6;
+    }
+
+    .invoice-title {
+        color: #000;
+        font-weight: 700;
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+    }
+
+    .invoice-number, .invoice-date-header {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin-bottom: 5px;
+    }
+
+    .invoice-client-info {
+        margin-bottom: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-left: 4px solid #000;
+    }
+
+    .invoice-client-info h4 {
+        color: #000;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    .client-address {
+        color: #333;
+        font-size: 0.9rem;
+        line-height: 1.6;
+    }
+
+    .invoice-subject {
+        font-size: 1.1rem;
+        color: #333;
+        margin-bottom: 20px;
+    }
+
+    .total-amount-box {
+        background: white;
+        color: #000;
+        padding: 20px;
+        text-align: center;
+    }
+
+    .total-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        margin-bottom: 5px;
+    }
+
+    .total-amount {
+        font-size: 1.8rem;
+        font-weight: 700;
+    }
+
+    .invoice-details {
+        margin: 30px 0;
+    }
+
+    .invoice-details table {
+        font-size: 0.9rem;
+    }
+
+    .invoice-details thead th {
+        background: white !important;
+        color: #000 !important;
+        font-weight: 700;
+        border: 1px solid #000 !important;
+        text-align: center;
+    }
+
+    .invoice-details tbody td {
+        padding: 12px 8px;
+        vertical-align: middle;
+        border: 1px solid #000 !important;
+        text-align: center;
+    }
+
+    .invoice-details tbody td:first-child {
+        text-align: left;
+    }
+
+    .invoice-details tbody td:last-child {
+        text-align: right;
+        font-weight: 600;
+    }
+
+    .invoice-details tfoot th {
+        font-weight: 700;
+        background: white !important;
+        color: #000 !important;
+        border: 1px solid #000 !important;
+        text-align: center;
+    }
+
+    .invoice-details tfoot th:first-child {
+        text-align: left;
+    }
+
+    .invoice-details tfoot th:last-child {
+        text-align: right;
+    }
+
+    .invoice-details .table {
+        border: 2px solid #000;
+    }
+
+    .invoice-footer {
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 2px solid #e9ecef;
+    }
+
+    .invoice-footer h6 {
+        color: #000;
+        font-weight: 700;
+        margin-bottom: 15px;
+    }
+
+    .payment-terms {
+        list-style: none;
+        padding-left: 0;
+    }
+
+    .payment-terms li {
+        padding: 5px 0;
+        border-bottom: 1px solid #f8f9fa;
+        font-size: 0.9rem;
+    }
+
+    .bank-info {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        line-height: 1.6;
+    }
+
+    /* 完了モーダル */
+    .completion-icon {
+        animation: bounceIn 0.6s ease-out;
+    }
+
+    @keyframes bounceIn {
+        0% { transform: scale(0.3); opacity: 0; }
+        50% { transform: scale(1.05); }
+        70% { transform: scale(0.9); }
+        100% { transform: scale(1); opacity: 1; }
+    }
+
+    .completion-details {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+    }
+
+    .completion-details p {
+        margin: 8px 0;
+        font-size: 0.95rem;
+    }
+
+    /* 請求書作成ボタン */
+    .client-invoice-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .client-invoice-actions .btn {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+
+    .client-invoice-actions .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    .client-invoice-actions .btn-success {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+    }
+
+    .client-invoice-actions .btn-success:hover {
+        background: linear-gradient(135deg, #218838 0%, #1c9475 100%);
+    }
+
+    /* プロジェクト行のグループ化 */
+    .project-row {
+        position: relative;
+    }
+
+    .project-row:first-of-type {
+        border-top: 2px solid #e8f5e9;
+    }
+
+    .project-row td {
+        border-left: 3px solid transparent;
+        transition: border-color 0.2s ease;
+    }
+
+    .project-row:hover td {
+        border-left-color: #28a745;
+        background-color: rgba(40, 167, 69, 0.05);
+    }
+
+    /* client-summary の改善 */
+    .client-summary {
+        background: linear-gradient(135deg, #f8fff8 0%, #e8f5e9 100%);
+        border-top: 3px solid #28a745;
+        font-weight: 600;
+    }
+
+    .client-summary td {
+        padding: 1rem 0.75rem !important;
+    }
+
+    /* レスポンシブ対応 */
+    @media (max-width: 1200px) {
+        .table {
+            font-size: 0.8rem;
+        }
+        .table th, .table td {
+            padding: 0.5rem 0.3rem;
+        }
+        .project-link {
+            max-width: 150px;
+        }
+    }
+
+    @media (max-width: 992px) {
+        .header-content {
+            flex-direction: column;
+            text-align: center;
+            gap: 1rem;
+        }
+
+        .filter-controls {
+            justify-content: center;
+        }
+
+        .table {
+            font-size: 0.75rem;
+        }
+
+        .table th, .table td {
+            padding: 0.4rem 0.2rem;
+        }
+
+        .project-link {
+            max-width: 120px;
+        }
+
+        .summary-amounts {
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .stat-card {
+            margin-bottom: 0.5rem;
+            height: 80px;
+            padding: 0.8rem;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+        }
+
+        .table {
+            font-size: 0.7rem;
+        }
+
+        .client-stats {
+            display: none;
+        }
+
+        /* 会社ボックスのモバイル対応 */
+        .client-box {
+            border-width: 3px;
+        }
+
+        .client-box-header {
+            padding: 15px 20px;
+        }
+
+        .client-name {
+            font-size: 1.2rem;
+        }
+
+        .stat-item {
+            font-size: 0.8rem;
+            padding: 6px 10px;
+        }
+
+        .client-box-footer {
+            padding: 15px 20px;
+        }
+
+        .client-invoice-actions {
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        .client-invoice-actions .btn {
+            font-size: 0.75rem;
+            padding: 0.35rem 0.7rem;
+        }
+
+        .total-summary-box {
+            padding: 20px;
+        }
+
+        .total-amount {
+            font-size: 1.4rem;
+        }
+
+        .projects-table thead th {
+            font-size: 0.75rem;
+            padding: 8px 6px;
+        }
+
+        .projects-table tbody td {
+            padding: 8px 6px;
+            font-size: 0.8rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="receipt-dashboard">
+    <!-- ヘッダーセクション -->
+    <div class="header-section">
+        <div class="container-fluid">
+            <div class="header-content">
+                <div class="header-title">
+                    <h1><i class="fas fa-money-bill-wave"></i> 入金管理</h1>
+                    <p>{{ year }}年{{ month }}月 - 今月の入金ベース集計 <span class="receipt-badge">入金ベース</span></p>
+                </div>
+                <div class="header-amount">
+                    <div class="total-amount">¥{{ stats.total_receipt|intcomma }}</div>
+                    <div class="amount-label">今月の総入金予定額</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- コントロールセクション -->
+    <div class="controls-section">
+        <div class="container-fluid">
+            <form method="get" class="filter-controls">
+                <label for="year" class="form-label fw-bold">年:</label>
+                <select name="year" id="year" class="form-select">
+                    <option value="2024" {% if year == 2024 %}selected{% endif %}>2024年</option>
+                    <option value="2025" {% if year == 2025 %}selected{% endif %}>2025年</option>
+                    <option value="2026" {% if year == 2026 %}selected{% endif %}>2026年</option>
+                </select>
+
+                <label for="month" class="form-label fw-bold">月:</label>
+                <select name="month" id="month" class="form-select">
+                    <option value="1" {% if month == 1 %}selected{% endif %}>1月</option>
+                    <option value="2" {% if month == 2 %}selected{% endif %}>2月</option>
+                    <option value="3" {% if month == 3 %}selected{% endif %}>3月</option>
+                    <option value="4" {% if month == 4 %}selected{% endif %}>4月</option>
+                    <option value="5" {% if month == 5 %}selected{% endif %}>5月</option>
+                    <option value="6" {% if month == 6 %}selected{% endif %}>6月</option>
+                    <option value="7" {% if month == 7 %}selected{% endif %}>7月</option>
+                    <option value="8" {% if month == 8 %}selected{% endif %}>8月</option>
+                    <option value="9" {% if month == 9 %}selected{% endif %}>9月</option>
+                    <option value="10" {% if month == 10 %}selected{% endif %}>10月</option>
+                    <option value="11" {% if month == 11 %}selected{% endif %}>11月</option>
+                    <option value="12" {% if month == 12 %}selected{% endif %}>12月</option>
+                </select>
+
+                <label for="status" class="form-label fw-bold">入金状況:</label>
+                <select name="status" id="status" class="form-select">
+                    {% for value, label in receipt_status_choices %}
+                        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+
+                <button type="submit" class="btn btn-success btn-sm">
+                    <i class="fas fa-search"></i> 表示
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 請求書作成セクション -->
+    <div class="invoice-generation-section" style="background: white; padding: 1.5rem 0; border-bottom: 1px solid #e9ecef; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card" style="border: 2px solid #28a745; border-radius: 12px; background: linear-gradient(135deg, #f8fff8 0%, #ffffff 100%);">
+                        <div class="card-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border-radius: 10px 10px 0 0;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-file-invoice-dollar me-2"></i>請求書一括作成
+                                    <span class="badge bg-light text-dark ms-2">{{ year }}年{{ month }}月分</span>
+                                </h5>
+                                <div>
+                                    <button type="button" class="btn btn-light btn-sm me-2" onclick="showInvoicePreview()">
+                                        <i class="fas fa-eye me-1"></i>プレビュー
+                                    </button>
+                                    <button type="button" class="btn btn-warning btn-sm" onclick="showInvoiceSettings()">
+                                        <i class="fas fa-cog me-1"></i>設定
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-4">
+                                <!-- 請求書生成 -->
+                                <div class="col-lg-8">
+                                    <div class="invoice-generator-panel">
+                                        <div class="d-flex align-items-center mb-3">
+                                            <div class="invoice-icon-large me-3">
+                                                <i class="fas fa-file-invoice text-success"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-1 fw-bold">受注先別請求書生成</h6>
+                                                <p class="mb-0 text-muted">外注費用と調査費用から請求書を自動生成します</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="invoice-stats-grid mb-4">
+                                            <div class="row g-3">
+                                                <div class="col-sm-3">
+                                                    <div class="stat-mini">
+                                                        <div class="stat-mini-value">{{ stats.total_clients }}</div>
+                                                        <div class="stat-mini-label">請求先数</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-sm-3">
+                                                    <div class="stat-mini">
+                                                        <div class="stat-mini-value">{{ stats.total_projects }}</div>
+                                                        <div class="stat-mini-label">案件数</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-sm-3">
+                                                    <div class="stat-mini">
+                                                        <div class="stat-mini-value">¥{{ stats.total_receipt|intcomma }}</div>
+                                                        <div class="stat-mini-label">請求予定額</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-sm-3">
+                                                    <div class="stat-mini">
+                                                        <div class="stat-mini-value">{{ stats.invoiced_count|default:0 }}</div>
+                                                        <div class="stat-mini-label">作成済み</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="invoice-actions">
+                                            <div class="row g-2">
+                                                <div class="col-sm-6">
+                                                    <button class="btn btn-outline-success w-100" onclick="generateInvoicesByClientFromReceipt()">
+                                                        <i class="fas fa-magic me-1"></i>受注先別生成
+                                                    </button>
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <button class="btn btn-success w-100" onclick="generateMonthlyInvoiceFromReceipt()">
+                                                        <i class="fas fa-file-pdf me-1"></i>PDF一括作成
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- クイック操作 -->
+                                <div class="col-lg-4">
+                                    <div class="quick-actions-panel">
+                                        <h6 class="fw-bold mb-3">
+                                            <i class="fas fa-bolt me-2 text-warning"></i>クイック操作
+                                        </h6>
+
+                                        <div class="d-grid gap-2">
+                                            <button class="btn btn-outline-primary btn-sm" onclick="generateSingleInvoice()">
+                                                <i class="fas fa-plus me-1"></i>個別請求書作成
+                                            </button>
+                                            <button class="btn btn-outline-info btn-sm" onclick="downloadInvoiceTemplate()">
+                                                <i class="fas fa-download me-1"></i>請求書テンプレート
+                                            </button>
+                                            <button class="btn btn-outline-warning btn-sm" onclick="showInvoiceHistory()">
+                                                <i class="fas fa-history me-1"></i>作成履歴
+                                            </button>
+                                            <button class="btn btn-outline-secondary btn-sm" onclick="exportInvoiceData()">
+                                                <i class="fas fa-file-export me-1"></i>データ出力
+                                            </button>
+                                        </div>
+
+                                        <!-- 最近の請求書 -->
+                                        <div class="recent-invoices mt-4">
+                                            <h6 class="fw-bold mb-2">最近作成された請求書</h6>
+                                            <div class="recent-invoice-list">
+                                                <div class="recent-invoice-item">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <div>
+                                                            <div class="recent-invoice-client">株式会社サンプル</div>
+                                                            <div class="recent-invoice-date">2024-01-15</div>
+                                                        </div>
+                                                        <div class="recent-invoice-amount">¥500,000</div>
+                                                    </div>
+                                                </div>
+                                                <div class="recent-invoice-item">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <div>
+                                                            <div class="recent-invoice-client">建設会社ABC</div>
+                                                            <div class="recent-invoice-date">2024-01-14</div>
+                                                        </div>
+                                                        <div class="recent-invoice-amount">¥750,000</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 統計セクション -->
+    <div class="stats-section">
+        <div class="container-fluid">
+            <div class="row g-3">
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+                    <div class="stat-card">
+                        <div class="stat-value">{{ stats.total_clients }}</div>
+                        <div class="stat-label">発注元数</div>
+                    </div>
+                </div>
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+                    <div class="stat-card">
+                        <div class="stat-value">{{ stats.total_projects }}</div>
+                        <div class="stat-label">案件数</div>
+                    </div>
+                </div>
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+                    <div class="stat-card stat-received">
+                        <div class="stat-value">¥{{ stats.received_amount|intcomma }}</div>
+                        <div class="stat-label">入金済み</div>
+                    </div>
+                </div>
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+                    <div class="stat-card stat-pending">
+                        <div class="stat-value">¥{{ stats.pending_amount|intcomma }}</div>
+                        <div class="stat-label">入金待ち</div>
+                    </div>
+                </div>
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+                    <div class="stat-card stat-overdue">
+                        <div class="stat-value">¥{{ stats.overdue_amount|intcomma }}</div>
+                        <div class="stat-label">遅延</div>
+                    </div>
+                </div>
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+                    <div class="stat-card stat-total">
+                        <div class="stat-value">¥{{ stats.total_receipt|intcomma }}</div>
+                        <div class="stat-label">総入金額</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- コンテンツセクション -->
+    <div class="content-section">
+        <div class="container-fluid">
+            {% if client_summary %}
+            <div class="receipt-cards-wrapper">
+                <!-- 会社別カードボックス -->
+                {% for client_name, data in client_summary.items %}
+                <div class="client-box">
+                    <!-- 会社ヘッダー -->
+                    <div class="client-box-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="client-name">
+                                <i class="fas fa-building me-2"></i>{{ data.client_name }}
+                            </div>
+                            <div class="client-stats">
+                                <span class="stat-item">
+                                    <i class="fas fa-tasks me-1"></i>{{ data.project_count }}案件
+                                </span>
+                                <span class="stat-item">
+                                    <i class="fas fa-yen-sign me-1"></i>¥{{ data.total_amount|intcomma }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 案件リスト -->
+                    <div class="client-box-content">
+                        <div class="projects-table-wrapper">
+                            <table class="table projects-table mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 35%; text-align: left;">案件名</th>
+                                        <th style="width: 15%; text-align: left;">工期</th>
+                                        <th style="width: 15%; text-align: right;">見積額（税抜）</th>
+                                        <th style="width: 15%; text-align: right;">請求額（税込）</th>
+                                        <th style="width: 15%; text-align: left;">入金予定日</th>
+                                        <th style="width: 15%; text-align: center;">入金状況</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for transaction in data.transactions %}
+                                    <tr class="project-row">
+                                        <td>
+                                            {% if transaction.project %}
+                                            <a href="{% url 'order_management:project_detail' transaction.project.pk %}" class="project-link" title="{{ transaction.project.site_name }}">
+                                                <i class="fas fa-external-link-alt me-1"></i>{{ transaction.project.site_name }}
+                                            </a>
+                                            {% else %}
+                                                <span class="text-muted">{{ transaction.description }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="date-cell">
+                                            {% if transaction.project and transaction.project.work_start_date %}{{ transaction.project.work_start_date|date:"m/d" }}{% else %}-{% endif %}
+                                            {% if transaction.project and transaction.project.work_end_date %}<br>{{ transaction.project.work_end_date|date:"m/d" }}{% endif %}
+                                        </td>
+                                        <td class="amount-cell">
+                                            {% if transaction.project and transaction.project.order_amount %}¥{{ transaction.project.order_amount|floatformat:0|intcomma }}{% else %}-{% endif %}
+                                        </td>
+                                        <td class="amount-cell">
+                                            ¥{{ transaction.amount|floatformat:0|intcomma }}
+                                        </td>
+                                        <td class="date-cell">
+                                            {% if transaction.transaction_date %}{{ transaction.transaction_date|date:"m/d" }}{% else %}<span class="text-muted">未設定</span>{% endif %}
+                                        </td>
+                                        <td>
+                                            {% if not transaction.is_planned %}
+                                                <span class="status-badge status-received">入金済み</span>
+                                            {% elif transaction.transaction_date < today %}
+                                                <span class="status-badge status-overdue">遅延</span>
+                                            {% else %}
+                                                <span class="status-badge status-pending">入金待ち</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 会社合計・アクション -->
+                    <div class="client-box-footer">
+                        <div class="row align-items-center">
+                            <div class="col-md-4">
+                                <div class="total-info">
+                                    <strong><i class="fas fa-calculator me-1"></i>合計: ¥{{ data.total_amount|intcomma }}</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="summary-amounts">
+                                    {% if data.received_amount > 0 %}
+                                    <span class="summary-amount summary-received">
+                                        <i class="fas fa-check-circle me-1"></i>¥{{ data.received_amount|intcomma }}
+                                    </span>
+                                    {% endif %}
+                                    {% if data.pending_amount > 0 %}
+                                    <span class="summary-amount summary-pending">
+                                        <i class="fas fa-clock me-1"></i>¥{{ data.pending_amount|intcomma }}
+                                    </span>
+                                    {% endif %}
+                                    {% if data.overdue_amount > 0 %}
+                                    <span class="summary-amount summary-overdue">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>¥{{ data.overdue_amount|intcomma }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="client-invoice-actions">
+                                    <button class="btn btn-success btn-sm" onclick="generateClientInvoice('{{ data.client_name }}', {{ data.total_amount }}, [{% for transaction in data.transactions %}{% if transaction.project %}{{ transaction.project.pk }}{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}])" title="この受注先の請求書を作成">
+                                        <i class="fas fa-file-invoice me-1"></i>請求書作成
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- 総合計ボックス -->
+                <div class="total-summary-box">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <h5 class="mb-0">
+                                <i class="fas fa-chart-line me-2"></i>総合計 - {{ year }}年{{ month }}月（入金ベース）
+                            </h5>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="total-amount">¥{{ stats.total_receipt|intcomma }}</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="total-breakdown">
+                                <small>入金済み: ¥{{ stats.received_amount|intcomma }}</small><br>
+                                <small>待ち: ¥{{ stats.pending_amount|intcomma }} | 遅延: ¥{{ stats.overdue_amount|intcomma }}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <h3>入金対象案件なし</h3>
+                <p class="text-muted">{{ year }}年{{ month }}月の入金対象案件はありません。</p>
+                {% if status_filter != 'all' %}
+                <p class="text-info">フィルター条件:
+                    {% for value, label in receipt_status_choices %}
+                        {% if value == status_filter %}{{ label }}{% endif %}
+                    {% endfor %}
+                </p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 請求書プレビューモーダル -->
+    <div class="modal fade" id="invoicePreviewModal" tabindex="-1" aria-labelledby="invoicePreviewModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="invoicePreviewModalLabel">
+                        <i class="fas fa-file-invoice me-2"></i>請求書プレビュー
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <!-- 請求書アクションバー -->
+                    <div class="invoice-action-bar">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="invoice-info">
+                                <span class="invoice-client-name" id="modalClientName">株式会社サンプル</span>
+                                <span class="invoice-period" id="modalInvoiceDate">2024年1月分</span>
+                            </div>
+                            <div class="invoice-actions">
+                                <button class="btn btn-outline-primary btn-sm me-2" onclick="showFullPreview()">
+                                    <i class="fas fa-expand me-1"></i>拡大表示
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm me-2" onclick="regenerateInvoice()">
+                                    <i class="fas fa-redo me-1"></i>再生成
+                                </button>
+                                <button class="btn btn-success btn-sm me-2" onclick="downloadInvoicePDF()">
+                                    <i class="fas fa-download me-1"></i>PDFダウンロード
+                                </button>
+                                <button class="btn btn-primary btn-sm" onclick="completeInvoiceGeneration()">
+                                    <i class="fas fa-check me-1"></i>発行完了
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PDF表示エリア -->
+                    <div class="pdf-preview-container">
+                        <div class="pdf-loading" id="pdfLoading">
+                            <div class="d-flex flex-column align-items-center justify-content-center" style="height: 400px;">
+                                <div class="spinner-border text-success mb-3" role="status">
+                                    <span class="visually-hidden">読み込み中...</span>
+                                </div>
+                                <p class="text-muted">請求書を生成中...</p>
+                            </div>
+                        </div>
+
+                        <div class="pdf-content" id="pdfContent" style="display: none;">
+                            <!-- ダミー請求書コンテンツ -->
+                            <div class="invoice-document">
+                                <div class="invoice-header">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h3 class="company-name">建築派遣管理システム株式会社</h3>
+                                            <p class="company-address">
+                                                〒100-0001<br>
+                                                東京都千代田区千代田1-1-1<br>
+                                                TEL: 03-1234-5678
+                                            </p>
+                                        </div>
+                                        <div class="col-md-6 text-end">
+                                            <h2 class="invoice-title">請求書</h2>
+                                            <p class="invoice-number">請求書番号: INV-2024-001</p>
+                                            <p class="invoice-date-header">発行日: 2024年1月31日</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="invoice-client-info">
+                                    <h4 class="invoice-client-name" id="invoiceClientName">株式会社サンプル 御中</h4>
+                                    <p class="client-address">
+                                        〒150-0001<br>
+                                        東京都渋谷区神宮前1-1-1
+                                    </p>
+                                </div>
+
+                                <div class="invoice-summary">
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <p class="invoice-subject">下記の通りご請求申し上げます。</p>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="total-amount-box">
+                                                <div class="total-label">請求金額</div>
+                                                <div class="total-amount invoice-amount-value" id="invoiceTotalAmount">¥1,500,000</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="invoice-details">
+                                    <table class="table table-bordered">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 40%">案件名</th>
+                                                <th style="width: 15%">作業期間</th>
+                                                <th style="width: 15%">単価（税抜）</th>
+                                                <th style="width: 10%">数量</th>
+                                                <th style="width: 20%">金額（税抜）</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="invoiceItemsTable">
+                                            <tr>
+                                                <td>渋谷区マンション内装調査</td>
+                                                <td>2024/01/10-15</td>
+                                                <td>¥300,000</td>
+                                                <td>1式</td>
+                                                <td>¥300,000</td>
+                                            </tr>
+                                            <tr>
+                                                <td>新宿区オフィス壁面調査</td>
+                                                <td>2024/01/20-25</td>
+                                                <td>¥450,000</td>
+                                                <td>1式</td>
+                                                <td>¥450,000</td>
+                                            </tr>
+                                            <tr>
+                                                <td>港区住宅改修前調査</td>
+                                                <td>2024/01/25-30</td>
+                                                <td>¥750,000</td>
+                                                <td>1式</td>
+                                                <td>¥750,000</td>
+                                            </tr>
+                                        </tbody>
+                                        <tfoot>
+                                            <tr>
+                                                <th colspan="4" class="text-end">小計</th>
+                                                <th>¥1,500,000</th>
+                                            </tr>
+                                            <tr>
+                                                <th colspan="4" class="text-end">消費税（10%）</th>
+                                                <th>¥150,000</th>
+                                            </tr>
+                                            <tr class="table-success">
+                                                <th colspan="4" class="text-end">合計</th>
+                                                <th>¥1,650,000</th>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+
+                                <div class="invoice-footer">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>お支払い条件</h6>
+                                            <ul class="payment-terms">
+                                                <li>支払期限: 請求書発行日より30日以内</li>
+                                                <li>振込手数料: お客様負担</li>
+                                                <li>お支払い方法: 銀行振込</li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>振込先</h6>
+                                            <div class="bank-info">
+                                                <p>
+                                                    ○○銀行 ○○支店<br>
+                                                    普通預金 1234567<br>
+                                                    ケンチクハケンカンリシステム(カ
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 請求書発行完了モーダル -->
+    <div class="modal fade" id="invoiceCompletionModal" tabindex="-1" aria-labelledby="invoiceCompletionModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="invoiceCompletionModalLabel">
+                        <i class="fas fa-check-circle me-2"></i>請求書発行完了
+                    </h5>
+                </div>
+                <div class="modal-body text-center">
+                    <div class="completion-icon mb-3">
+                        <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+                    </div>
+                    <h4 class="mb-3">請求書の発行が完了しました</h4>
+                    <div class="completion-details">
+                        <p class="mb-2"><strong>受注先:</strong> <span class="completion-client-name" id="completionClientName">株式会社サンプル</span></p>
+                        <p class="mb-2"><strong>請求金額:</strong> <span id="completionAmount">¥1,650,000</span></p>
+                        <p class="mb-2"><strong>発行日:</strong> <span id="completionDate">2024年1月31日</span></p>
+                        <p class="mb-4"><strong>請求書番号:</strong> <span class="completion-invoice-number" id="completionInvoiceNumber">INV-2024-001</span></p>
+                    </div>
+                    <div class="completion-actions">
+                        <button class="btn btn-success me-2" onclick="downloadInvoicePDF()">
+                            <i class="fas fa-download me-1"></i>PDFダウンロード
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="sendInvoiceEmail()">
+                            <i class="fas fa-envelope me-1"></i>メール送信
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // フォーム要素の自動送信
+    const formElements = ['year', 'month', 'status'];
+
+    formElements.forEach(elementId => {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.addEventListener('change', function() {
+                // スムーズなローディング表示
+                const submitBtn = document.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 読み込み中...';
+                submitBtn.disabled = true;
+
+                setTimeout(() => {
+                    this.form.submit();
+                }, 100);
+            });
+        }
+    });
+
+    // テーブル行のホバー効果
+    const projectRows = document.querySelectorAll('.project-row');
+    projectRows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateX(2px)';
+        });
+
+        row.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateX(0)';
+        });
+    });
+
+    // 統計カードのアニメーション
+    const statCards = document.querySelectorAll('.stat-card');
+    statCards.forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.1}s`;
+        card.style.animation = 'fadeInUp 0.6s ease-out forwards';
+    });
+
+    // テーブルの横スクロール対応
+    const tableWrapper = document.querySelector('.table-responsive');
+    if (tableWrapper) {
+        let isScrolling = false;
+
+        tableWrapper.addEventListener('scroll', function() {
+            if (!isScrolling) {
+                window.requestAnimationFrame(function() {
+                    const scrollLeft = tableWrapper.scrollLeft;
+                    const maxScroll = tableWrapper.scrollWidth - tableWrapper.clientWidth;
+
+                    if (scrollLeft > 0) {
+                        tableWrapper.classList.add('scrolled-left');
+                    } else {
+                        tableWrapper.classList.remove('scrolled-left');
+                    }
+
+                    if (scrollLeft >= maxScroll - 1) {
+                        tableWrapper.classList.add('scrolled-right');
+                    } else {
+                        tableWrapper.classList.remove('scrolled-right');
+                    }
+
+                    isScrolling = false;
+                });
+            }
+            isScrolling = true;
+        });
+    }
+});
+
+// アニメーション定義
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .table-responsive.scrolled-left::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 10px;
+        background: linear-gradient(to right, rgba(0,0,0,0.1), transparent);
+        z-index: 5;
+        pointer-events: none;
+    }
+
+    .table-responsive.scrolled-right::after {
+        content: "";
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 10px;
+        background: linear-gradient(to left, rgba(0,0,0,0.1), transparent);
+        z-index: 5;
+        pointer-events: none;
+    }
+`;
+document.head.appendChild(style);
+
+// 請求書生成機能（受注先別）
+function generateInvoicesByClientFromReceipt() {
+    if (confirm('受注先別に請求書を生成しますか？\n\n※選択された月の外注費用から自動計算されます。')) {
+        const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>生成中...';
+        btn.disabled = true;
+
+        const params = new URLSearchParams(window.location.search);
+        const year = params.get('year') || new Date().getFullYear();
+        const month = params.get('month') || new Date().getMonth() + 1;
+
+        fetch('/orders/api/generate-invoices-by-client/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ year: year, month: month })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`成功：${data.invoice_count}件の請求書を生成しました。\n\n生成された請求書:\n${data.invoices.map(inv => `・${inv.client_name}: ¥${inv.amount.toLocaleString()}`).join('\n')}`);
+                location.reload();
+            } else {
+                alert(`エラー: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('請求書生成中にエラーが発生しました。');
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    }
+}
+
+// 月次請求書PDF生成
+function generateMonthlyInvoiceFromReceipt() {
+    if (confirm('今月分の請求書をPDFで一括生成しますか？')) {
+        const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>PDF生成中...';
+        btn.disabled = true;
+
+        const params = new URLSearchParams(window.location.search);
+        const year = params.get('year') || new Date().getFullYear();
+        const month = params.get('month') || new Date().getMonth() + 1;
+
+        fetch('/orders/api/generate-monthly-invoice/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ year: year, month: month })
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.blob();
+            }
+            throw new Error('PDF生成に失敗しました');
+        })
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `請求書_${year}年${month}月.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+
+            alert('PDF請求書が生成され、ダウンロードが開始されました。');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('PDF生成中にエラーが発生しました。');
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    }
+}
+
+// クイック操作機能
+function showInvoicePreview() {
+    alert('請求書プレビュー機能は開発中です。\n今後、PDF生成前にプレビュー表示ができるようになります。');
+}
+
+function showInvoiceSettings() {
+    alert('請求書設定機能は開発中です。\n今後、請求書のテンプレートや項目をカスタマイズできるようになります。');
+}
+
+function generateSingleInvoice() {
+    const clientName = prompt('請求書を作成する受注先名を入力してください:');
+    if (clientName && clientName.trim()) {
+        alert(`${clientName}向けの個別請求書作成機能は開発中です。\n今後、特定の受注先だけの請求書を作成できるようになります。`);
+    }
+}
+
+function downloadInvoiceTemplate() {
+    alert('請求書テンプレートダウンロード機能は開発中です。\n今後、Excel形式の請求書テンプレートをダウンロードできるようになります。');
+}
+
+function showInvoiceHistory() {
+    alert('請求書作成履歴機能は開発中です。\n今後、過去に作成した請求書の履歴を確認できるようになります。');
+}
+
+function exportInvoiceData() {
+    alert('請求書データ出力機能は開発中です。\n今後、請求書データをExcel形式で出力できるようになります。');
+}
+
+function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+           document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '';
+}
+
+// 個別受注先請求書生成 - モーダル表示
+function generateClientInvoice(clientName, totalAmount, projectIds) {
+    // Use the first project ID for invoice generation (multiple projects support can be added later)
+    const projectId = projectIds && projectIds.length > 0 ? projectIds[0] : null;
+
+    if (!projectId) {
+        alert('請求書を生成するプロジェクトが見つかりません。');
+        return;
+    }
+
+    // Store data for later use
+    window.currentInvoiceClient = clientName;
+    window.currentInvoiceAmount = totalAmount;
+    window.currentProjectId = projectId;
+    window.currentProjectIds = projectIds;
+
+    // First load preview data from API
+    previewClientInvoice(clientName, projectIds);
+}
+
+// 請求書を再生成
+function regenerateInvoice() {
+    const clientName = window.currentInvoiceClient;
+    const projectId = window.currentProjectId;
+
+    if (!clientName || !projectId) {
+        alert('再生成するプロジェクトが見つかりません。');
+        return;
+    }
+
+    const regenerateBtn = document.querySelector('.btn-warning');
+    const originalText = regenerateBtn.textContent;
+    regenerateBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>再生成中...';
+    regenerateBtn.disabled = true;
+
+    // Fetch fresh preview data from API
+    fetch(`/orders/api/invoice/preview/${projectId}/`, {
+        method: 'GET',
+        headers: {
+            'X-CSRFToken': getCsrfToken(),
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const previewData = data.preview_data;
+
+            // Update invoice number with new one
+            document.querySelector('.invoice-number').textContent = previewData.invoice_number;
+
+            // Show success message
+            const toast = document.createElement('div');
+            toast.className = 'alert alert-success alert-dismissible fade show position-fixed';
+            toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            toast.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>請求書を再生成しました。
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        } else {
+            alert(`エラー: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('請求書再生成中にエラーが発生しました。');
+    })
+    .finally(() => {
+        regenerateBtn.textContent = originalText;
+        regenerateBtn.disabled = false;
+    });
+}
+
+// 請求書PDFダウンロード (実際の請求書発行)
+function downloadInvoicePDF() {
+    const clientName = window.currentInvoiceClient;
+    const projectId = window.currentProjectId;
+
+    if (!clientName || !projectId) {
+        alert('請求書を生成するプロジェクトが見つかりません。');
+        return;
+    }
+
+    if (!confirm(`${clientName}向けの請求書を正式に発行しますか？\n\n※発行後は請求書がデータベースに保存されます。`)) {
+        return;
+    }
+
+    const downloadBtn = document.querySelector('.btn-primary');
+    const originalText = downloadBtn.textContent;
+    downloadBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>発行中...';
+    downloadBtn.disabled = true;
+
+    // Actual API call for invoice generation
+    fetch('/orders/api/invoice/generate/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCsrfToken(),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            project_id: projectId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`請求書を正式に発行しました！\n\n請求書番号: ${data.invoice_number}\n請求金額: ¥${data.total_amount}`);
+
+            // Hide the modal
+            bootstrap.Modal.getInstance(document.getElementById('invoicePreviewModal')).hide();
+
+            // Refresh the page to show updated data
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            alert(`エラー: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('請求書発行中にエラーが発生しました。');
+    })
+    .finally(() => {
+        downloadBtn.textContent = originalText;
+        downloadBtn.disabled = false;
+    });
+}
+
+// 請求書発行完了
+function completeInvoiceGeneration() {
+    const clientName = window.currentInvoiceClient;
+    const invoiceNumber = document.querySelector('.invoice-number').textContent;
+    if (!clientName) return;
+
+    // Hide preview modal
+    bootstrap.Modal.getInstance(document.getElementById('invoicePreviewModal')).hide();
+
+    // Update completion modal with client name and invoice number
+    document.querySelector('#invoiceCompletionModal .completion-client-name').textContent = clientName;
+    document.querySelector('#invoiceCompletionModal .completion-invoice-number').textContent = invoiceNumber;
+
+    // Show completion modal
+    const completionModal = new bootstrap.Modal(document.getElementById('invoiceCompletionModal'));
+    completionModal.show();
+}
+
+// 請求書メール送信
+function sendInvoiceEmail() {
+    const clientName = window.currentInvoiceClient;
+    if (!clientName) return;
+
+    const sendBtn = document.querySelector('#invoiceCompletionModal .btn-info');
+    const originalText = sendBtn.textContent;
+    sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>送信中...';
+    sendBtn.disabled = true;
+
+    // Simulate email sending
+    setTimeout(() => {
+        sendBtn.textContent = originalText;
+        sendBtn.disabled = false;
+
+        // Show success message
+        const toast = document.createElement('div');
+        toast.className = 'alert alert-success alert-dismissible fade show position-fixed';
+        toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 350px;';
+        toast.innerHTML = `
+            <i class="fas fa-envelope-check me-2"></i>${clientName} に請求書をメール送信しました。
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+
+        // Close completion modal
+        bootstrap.Modal.getInstance(document.getElementById('invoiceCompletionModal')).hide();
+    }, 2000);
+}
+
+// 請求書拡大表示
+function showFullPreview() {
+    const invoiceDoc = document.querySelector('.invoice-document');
+    if (!invoiceDoc) return;
+
+    // Create fullscreen modal
+    const fullscreenModal = document.createElement('div');
+    fullscreenModal.className = 'modal fade';
+    fullscreenModal.id = 'fullscreenPreviewModal';
+    fullscreenModal.innerHTML = `
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">請求書 - 拡大表示</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="d-flex justify-content-center">
+                        ${invoiceDoc.outerHTML}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(fullscreenModal);
+
+    // Show modal
+    const modal = new bootstrap.Modal(fullscreenModal);
+    modal.show();
+
+    // Clean up when modal is hidden
+    fullscreenModal.addEventListener('hidden.bs.modal', () => {
+        fullscreenModal.remove();
+    });
+}
+
+// 請求書プレビュー
+function previewClientInvoice(clientName, projectIds) {
+    // 複数プロジェクトに対応
+    if (!projectIds || projectIds.length === 0) {
+        alert('プレビューするプロジェクトが見つかりません。');
+        return;
+    }
+
+    // Update modal title with client name
+    document.querySelector('#invoicePreviewModal .modal-title').textContent = `${clientName} - 請求書プレビュー`;
+
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('invoicePreviewModal'));
+    modal.show();
+
+    // Show loading state
+    document.getElementById('pdfLoading').style.display = 'block';
+    document.getElementById('pdfContent').style.display = 'none';
+
+    // Fetch real invoice preview data from API for multiple projects
+    fetch(`/orders/api/invoice/preview/client/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCsrfToken(),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            client_name: clientName,
+            project_ids: projectIds
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const previewData = data.preview_data;
+
+            // Update invoice document with real data
+            document.querySelector('.invoice-client-name').textContent = `${previewData.client_name} 様`;
+            document.querySelector('.invoice-amount-value').textContent = `¥${previewData.total_amount}`;
+            document.querySelector('.invoice-number').textContent = previewData.invoice_number;
+            document.querySelector('.invoice-period').textContent = previewData.billing_period;
+
+            // Update issue date and due date
+            const issueDateElement = document.querySelector('.invoice-date');
+            if (issueDateElement) {
+                issueDateElement.textContent = `発行日：${previewData.issue_date}`;
+            }
+
+            const dueDateElement = document.querySelector('.invoice-due-date');
+            if (dueDateElement) {
+                dueDateElement.textContent = `支払期限：${previewData.due_date}`;
+            }
+
+            // Update client address
+            const addressElement = document.querySelector('.client-address');
+            if (addressElement) {
+                addressElement.textContent = previewData.client_address;
+            }
+
+            // Update invoice items table
+            const tbody = document.querySelector('.invoice-details tbody');
+            if (tbody) {
+                tbody.innerHTML = '';
+                previewData.items.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td style="text-align: left;">${item.description}</td>
+                        <td style="text-align: center;">${item.quantity}</td>
+                        <td style="text-align: center;">${item.unit}</td>
+                        <td style="text-align: right;">¥${item.unit_price}</td>
+                        <td style="text-align: right;">¥${item.amount}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+
+            // Update table footer amounts
+            const tableFooter = document.querySelector('.invoice-details tfoot');
+            if (tableFooter) {
+                const rows = tableFooter.querySelectorAll('tr');
+                if (rows[0]) rows[0].querySelector('th:last-child').textContent = `¥${previewData.subtotal}`;
+                if (rows[1]) rows[1].querySelector('th:last-child').textContent = `¥${previewData.tax_amount}`;
+                if (rows[2]) rows[2].querySelector('th:last-child').textContent = `¥${previewData.total_amount}`;
+            }
+
+            // Hide loading and show content
+            document.getElementById('pdfLoading').style.display = 'none';
+            document.getElementById('pdfContent').style.display = 'block';
+        } else {
+            alert(`エラー: ${data.error}`);
+            modal.hide();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('請求書プレビューの読み込み中にエラーが発生しました。');
+        modal.hide();
+    });
+}
+</script>
+{% endblock %}

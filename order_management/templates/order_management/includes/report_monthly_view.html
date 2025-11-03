@@ -1,0 +1,61 @@
+{% load humanize %}
+
+<h6 class="mb-3">売上・利益サマリー</h6>
+<table class="table table-bordered">
+    <tr>
+        <th>売上高</th>
+        <td class="text-end">¥{{ data.revenue_summary.total_revenue|floatformat:0|intcomma }}</td>
+    </tr>
+    <tr>
+        <th>原価</th>
+        <td class="text-end">¥{{ data.revenue_summary.total_cost|floatformat:0|intcomma }}</td>
+    </tr>
+    <tr>
+        <th>営業利益</th>
+        <td class="text-end"><strong>¥{{ data.revenue_summary.total_profit|floatformat:0|intcomma }}</strong></td>
+    </tr>
+    <tr>
+        <th>利益率</th>
+        <td class="text-end">{{ data.revenue_summary.profit_margin|floatformat:1 }}%</td>
+    </tr>
+    <tr>
+        <th>完工案件数</th>
+        <td class="text-end">{{ data.revenue_summary.project_count }}件</td>
+    </tr>
+</table>
+
+<h6 class="mb-3 mt-4">プロジェクト進捗状況</h6>
+<table class="table table-bordered">
+    <tr>
+        <th>完工</th>
+        <td>{{ data.progress_summary.完工 }}件</td>
+    </tr>
+    <tr>
+        <th>進行中</th>
+        <td>{{ data.progress_summary.進行中 }}件</td>
+    </tr>
+    <tr>
+        <th>施工日待ち</th>
+        <td>{{ data.progress_summary.施工日待ち }}件</td>
+    </tr>
+    <tr>
+        <th>ネタ</th>
+        <td>{{ data.progress_summary.ネタ }}件</td>
+    </tr>
+</table>
+
+<h6 class="mb-3 mt-4">キャッシュフロー状況</h6>
+<table class="table table-bordered">
+    <tr>
+        <th>入金</th>
+        <td class="text-end text-success">¥{{ data.cashflow_summary.total_cash_in|floatformat:0|intcomma }}</td>
+    </tr>
+    <tr>
+        <th>出金</th>
+        <td class="text-end text-danger">¥{{ data.cashflow_summary.total_cash_out|floatformat:0|intcomma }}</td>
+    </tr>
+    <tr>
+        <th>純キャッシュフロー</th>
+        <td class="text-end"><strong>¥{{ data.cashflow_summary.net_cash_flow|floatformat:0|intcomma }}</strong></td>
+    </tr>
+</table>

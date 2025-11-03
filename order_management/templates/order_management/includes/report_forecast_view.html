@@ -1,0 +1,176 @@
+{% load humanize %}
+
+<h6 class="mb-3">シナリオ情報</h6>
+<table class="table table-bordered">
+    <tr>
+        <th>シナリオ名</th>
+        <td>{{ data.scenario_info.name }}</td>
+    </tr>
+    <tr>
+        <th>予測期間</th>
+        <td>{{ data.scenario_info.forecast_months }}ヶ月</td>
+    </tr>
+    <tr>
+        <th>基準日</th>
+        <td>{{ data.scenario_info.base_date|date:"Y/m/d" }}</td>
+    </tr>
+    <tr>
+        <th>作成日</th>
+        <td>{{ data.scenario_info.created_at|date:"Y/m/d H:i" }}</td>
+    </tr>
+</table>
+
+<h6 class="mb-3 mt-4">予測サマリー</h6>
+<table class="table table-bordered">
+    <tr>
+        <th>予測売上高</th>
+        <td class="text-end">¥{{ data.forecast_summary.total_revenue|floatformat:0|intcomma }}</td>
+    </tr>
+    <tr>
+        <th>予測原価</th>
+        <td class="text-end">¥{{ data.forecast_summary.total_cost|floatformat:0|intcomma }}</td>
+    </tr>
+    <tr>
+        <th>予測利益</th>
+        <td class="text-end"><strong>¥{{ data.forecast_summary.total_profit|floatformat:0|intcomma }}</strong></td>
+    </tr>
+    <tr>
+        <th>利益率</th>
+        <td class="text-end">{{ data.forecast_summary.profit_margin|floatformat:1 }}%</td>
+    </tr>
+    <tr>
+        <th>月平均売上</th>
+        <td class="text-end">¥{{ data.forecast_summary.avg_monthly_revenue|floatformat:0|intcomma }}</td>
+    </tr>
+    <tr>
+        <th>月平均利益</th>
+        <td class="text-end">¥{{ data.forecast_summary.avg_monthly_profit|floatformat:0|intcomma }}</td>
+    </tr>
+</table>
+
+<h6 class="mb-3 mt-4">前提条件</h6>
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header bg-light">
+                <strong>成長率</strong>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <th>売上成長率</th>
+                        <td class="text-end">{{ data.assumptions.revenue_growth_rate|floatformat:1 }}%</td>
+                    </tr>
+                    <tr>
+                        <th>原価成長率</th>
+                        <td class="text-end">{{ data.assumptions.cost_growth_rate|floatformat:1 }}%</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header bg-light">
+                <strong>季節性指数</strong>
+            </div>
+            <div class="card-body">
+                <small class="text-muted">
+                    {% if data.assumptions.use_seasonality %}
+                    <i class="fas fa-check-circle text-success me-1"></i>季節性パターンを適用
+                    {% else %}
+                    <i class="fas fa-times-circle text-muted me-1"></i>フラット（季節性なし）
+                    {% endif %}
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if data.monthly_breakdown %}
+<h6 class="mb-3 mt-4">月次予測内訳</h6>
+<div class="table-responsive">
+    <table class="table table-bordered table-sm">
+        <thead>
+            <tr>
+                <th>年月</th>
+                <th class="text-end">売上</th>
+                <th class="text-end">原価</th>
+                <th class="text-end">利益</th>
+                <th class="text-end">利益率</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for month in data.monthly_breakdown %}
+            <tr>
+                <td>{{ month.year }}/{{ month.month|stringformat:"02d" }}</td>
+                <td class="text-end">¥{{ month.revenue|floatformat:0|intcomma }}</td>
+                <td class="text-end">¥{{ month.cost|floatformat:0|intcomma }}</td>
+                <td class="text-end">¥{{ month.profit|floatformat:0|intcomma }}</td>
+                <td class="text-end">{{ month.profit_margin|floatformat:1 }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <th>合計</th>
+                <th class="text-end">¥{{ data.forecast_summary.total_revenue|floatformat:0|intcomma }}</th>
+                <th class="text-end">¥{{ data.forecast_summary.total_cost|floatformat:0|intcomma }}</th>
+                <th class="text-end">¥{{ data.forecast_summary.total_profit|floatformat:0|intcomma }}</th>
+                <th class="text-end">{{ data.forecast_summary.profit_margin|floatformat:1 }}%</th>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% endif %}
+
+{% if data.assumptions.seasonal_factors %}
+<h6 class="mb-3 mt-4">季節性指数詳細</h6>
+<div class="table-responsive">
+    <table class="table table-bordered table-sm">
+        <thead>
+            <tr>
+                <th>月</th>
+                {% for month_data in data.assumptions.seasonal_factors %}
+                <th class="text-center">{{ month_data.month }}月</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <th>指数</th>
+                {% for month_data in data.assumptions.seasonal_factors %}
+                <td class="text-center">
+                    {{ month_data.index|floatformat:2 }}
+                    {% if month_data.index >= 1.15 %}
+                    <br><span class="badge bg-warning text-dark" style="font-size: 0.7rem;">繁忙</span>
+                    {% elif month_data.index <= 0.85 %}
+                    <br><span class="badge bg-info" style="font-size: 0.7rem;">閑散</span>
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<h6 class="mb-3 mt-4">リスク分析</h6>
+<div class="card">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <strong>楽観シナリオ (+10%)</strong>
+                <p class="mb-0 text-success h5">¥{{ data.risk_analysis.optimistic_profit|floatformat:0|intcomma }}</p>
+            </div>
+            <div class="col-md-4">
+                <strong>基本シナリオ</strong>
+                <p class="mb-0 h5">¥{{ data.forecast_summary.total_profit|floatformat:0|intcomma }}</p>
+            </div>
+            <div class="col-md-4">
+                <strong>悲観シナリオ (-10%)</strong>
+                <p class="mb-0 text-danger h5">¥{{ data.risk_analysis.pessimistic_profit|floatformat:0|intcomma }}</p>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,141 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}{{ contractor.name }} - スキル詳細{% endblock %}
+
+{% block extra_css %}
+<style>
+    .detail-container {
+        background: #f8f9fa;
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .detail-header {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .info-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        margin-bottom: 2rem;
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #374151;
+        border-bottom: 2px solid #f59e0b;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="detail-container">
+    <div class="detail-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="mb-2">
+                        <i class="fas fa-user-cog me-3"></i>{{ contractor.name }}
+                    </h1>
+                    <p class="mb-0 opacity-75">信頼度: {{ contractor.trust_level }} | {{ contractor.get_skill_level_display }}</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="{% url 'subcontract_management:contractor_skills_dashboard' %}" class="btn btn-light">
+                        <i class="fas fa-arrow-left me-2"></i>一覧に戻る
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 基本情報 -->
+        <div class="info-card">
+            <div class="section-title">
+                <i class="fas fa-info-circle me-2"></i>基本情報
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>名前:</strong> {{ contractor.name }}</p>
+                    <p><strong>スキルレベル:</strong> {{ contractor.get_skill_level_display }}</p>
+                    <p><strong>信頼度:</strong> {{ contractor.trust_level }} / 5</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>平均評価:</strong> {{ contractor.average_rating|floatformat:2 }}</p>
+                    <p><strong>総案件数:</strong> {{ contractor.total_projects }}</p>
+                    <p><strong>成功率:</strong> {{ contractor.success_rate|floatformat:1 }}%</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- スキル・対応地域 -->
+        <div class="info-card">
+            <div class="section-title">
+                <i class="fas fa-tools me-2"></i>スキル・対応地域
+            </div>
+
+            {% if contractor.skill_categories %}
+            <p><strong>スキルカテゴリ:</strong> {{ contractor.skill_categories|join:", " }}</p>
+            {% endif %}
+
+            {% if contractor.service_areas %}
+            <p><strong>対応可能地域:</strong> {{ contractor.service_areas|join:", " }}</p>
+            {% endif %}
+
+            {% if contractor.certifications %}
+            <p><strong>保有資格:</strong></p>
+            <pre>{{ contractor.certifications }}</pre>
+            {% endif %}
+        </div>
+
+        <!-- 評価履歴 -->
+        {% if reviews %}
+        <div class="info-card">
+            <div class="section-title">
+                <i class="fas fa-star me-2"></i>評価履歴（最新10件）
+            </div>
+
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>案件</th>
+                            <th>総合評価</th>
+                            <th>品質</th>
+                            <th>スピード</th>
+                            <th>コミュニケーション</th>
+                            <th>評価日</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for review in reviews %}
+                        <tr>
+                            <td>{{ review.project.site_name }}</td>
+                            <td>{{ review.overall_rating }} / 5</td>
+                            <td>{{ review.quality_score }} / 5</td>
+                            <td>{{ review.speed_score }} / 5</td>
+                            <td>{{ review.communication_score }} / 5</td>
+                            <td>{{ review.reviewed_at|date:"Y/m/d" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
