@@ -314,7 +314,25 @@ def project_create(request):
                     )
 
             messages.success(request, f'案件「{project.site_name}」を登録しました。')
+
+            # AJAX リクエストの場合
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                from django.urls import reverse
+                return JsonResponse({
+                    'success': True,
+                    'redirect_url': reverse('order_management:project_detail', kwargs={'pk': project.pk}),
+                    'message': f'案件「{project.site_name}」を登録しました。'
+                })
+
             return redirect('order_management:project_detail', pk=project.pk)
+        else:
+            # フォームバリデーションエラー - AJAX の場合
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors,
+                    'message': 'フォームの入力内容に誤りがあります。'
+                }, status=400)
     else:
         form = ProjectForm()
 
