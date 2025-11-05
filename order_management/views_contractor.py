@@ -82,10 +82,8 @@ class ContractorDashboardView(LoginRequiredMixin, TemplateView):
                 total=Coalesce(Sum('order_amount'), Decimal('0'))
             )['total']
 
-            # 原価計算（仮: 売上の60-80%をランダムに設定）
-            import random
-            cost_ratio = Decimal(str(random.uniform(0.6, 0.8)))
-            total_cost = total_revenue * cost_ratio if total_revenue else Decimal('0')
+            # 原価計算（実際の原価データがない場合は0とする）
+            total_cost = Decimal('0')
 
             # 利益計算
             profit = total_revenue - total_cost if total_revenue else Decimal('0')
@@ -115,80 +113,6 @@ class ContractorDashboardView(LoginRequiredMixin, TemplateView):
                 'contractor_tags': contractor_tags,
                 'monthly_trends': self.get_contractor_monthly_trends(contractor)
             })
-
-        # ダミーデータを追加（デモ用）
-        if len(contractors_data) < 5:
-            dummy_contractors = [
-                {
-                    'id': 'dummy_1',
-                    'name': '山田建設',
-                    'project_count': 45,
-                    'total_revenue': Decimal('125000000'),
-                    'total_cost': Decimal('95000000'),
-                    'profit': Decimal('30000000'),
-                    'profit_rate': Decimal('24.0'),
-                    'specialties': '建築一般',
-                    'status': 'active',
-                    'contractor_tags': ['受注業者'],
-                    'monthly_trends': self.get_dummy_monthly_trends()
-                },
-                {
-                    'id': 'dummy_2',
-                    'name': '鈴木電気工事',
-                    'project_count': 32,
-                    'total_revenue': Decimal('68000000'),
-                    'total_cost': Decimal('51000000'),
-                    'profit': Decimal('17000000'),
-                    'profit_rate': Decimal('25.0'),
-                    'specialties': '電気工事',
-                    'status': 'active',
-                    'contractor_tags': ['受注業者', '資材屋'],
-                    'monthly_trends': self.get_dummy_monthly_trends()
-                },
-                {
-                    'id': 'dummy_3',
-                    'name': '佐藤設備',
-                    'project_count': 28,
-                    'total_revenue': Decimal('52000000'),
-                    'total_cost': Decimal('40560000'),
-                    'profit': Decimal('11440000'),
-                    'profit_rate': Decimal('22.0'),
-                    'specialties': '給排水設備',
-                    'status': 'active',
-                    'contractor_tags': ['受注業者'],
-                    'monthly_trends': self.get_dummy_monthly_trends()
-                },
-                {
-                    'id': 'dummy_4',
-                    'name': '高橋塗装',
-                    'project_count': 18,
-                    'total_revenue': Decimal('35000000'),
-                    'total_cost': Decimal('28000000'),
-                    'profit': Decimal('7000000'),
-                    'profit_rate': Decimal('20.0'),
-                    'specialties': '塗装工事',
-                    'status': 'active',
-                    'contractor_tags': ['発注業者', '受注業者'],
-                    'monthly_trends': self.get_dummy_monthly_trends()
-                },
-                {
-                    'id': 'dummy_5',
-                    'name': '中村内装',
-                    'project_count': 15,
-                    'total_revenue': Decimal('28000000'),
-                    'total_cost': Decimal('21840000'),
-                    'profit': Decimal('6160000'),
-                    'profit_rate': Decimal('22.0'),
-                    'specialties': '内装工事',
-                    'status': 'active',
-                    'contractor_tags': ['その他'],
-                    'monthly_trends': self.get_dummy_monthly_trends()
-                }
-            ]
-
-            # 既存のデータが少ない場合はダミーデータを追加
-            for dummy in dummy_contractors[len(contractors_data):]:
-                contractors_data.append(dummy)
 
         # 売上高順でソート
         contractors_data.sort(key=lambda x: x['total_revenue'] or 0, reverse=True)
@@ -227,29 +151,6 @@ class ContractorDashboardView(LoginRequiredMixin, TemplateView):
                 'revenue': float(revenue),
                 'profit': float(profit),
                 'profit_rate': float(profit_rate)
-            })
-
-        return monthly_data
-
-    def get_dummy_monthly_trends(self):
-        """ダミーの月別推移データ"""
-        import random
-        now = timezone.now()
-        monthly_data = []
-
-        for i in range(12):
-            month_date = now - timedelta(days=30 * (11 - i))
-
-            # ランダムな値を生成
-            revenue = random.uniform(5000000, 15000000)
-            profit_rate = random.uniform(18, 28)
-            profit = revenue * profit_rate / 100
-
-            monthly_data.append({
-                'month': f'{month_date.year}/{month_date.month:02d}',
-                'revenue': revenue,
-                'profit': profit,
-                'profit_rate': profit_rate
             })
 
         return monthly_data
