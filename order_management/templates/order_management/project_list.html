@@ -764,6 +764,18 @@ $(document).ready(function() {
     console.log('DEBUG: thead th count:', $('#projectTable thead th').length);
     console.log('DEBUG: tbody first row td count:', $('#projectTable tbody tr:first td').length);
 
+    // データ行があるかチェック（colspan属性を持つ行は除外）
+    var hasData = $('#projectTable tbody tr').filter(function() {
+        return !$(this).find('td[colspan]').length;
+    }).length > 0;
+
+    console.log('DEBUG: Has data rows:', hasData);
+
+    if (!hasData) {
+        console.log('DEBUG: No data rows found, skipping DataTables initialization');
+        return;
+    }
+
     var table = $('#projectTable').DataTable({
         responsive: false,  // responsive modeを無効化してカラム数エラーを回避
         language: {
