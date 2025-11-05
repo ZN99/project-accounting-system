@@ -60,7 +60,7 @@ def calendar_events_api(request):
         Q(work_start_date__gte=first_day, work_start_date__lte=last_day) |
         Q(work_end_date__gte=first_day, work_end_date__lte=last_day) |
         Q(work_start_date__lte=first_day, work_end_date__gte=last_day)
-    ).select_related('project_manager')
+    )
 
     events = []
     for project in projects:
@@ -153,7 +153,7 @@ def performance_monthly_api(request):
         work_end_date__gte=first_day,
         work_end_date__lte=last_day,
         project_status__in=['完工', '進行中', '施工日待ち']
-    ).select_related('project_manager')
+    )
 
     # 担当者別の集計
     performance_by_manager = {}
@@ -234,7 +234,7 @@ def gantt_data_api(request):
         Q(work_start_date__isnull=False, work_end_date__isnull=True, work_start_date__lte=end_date)
     ).exclude(
         project_status='NG'
-    ).select_related('project_manager').order_by('work_start_date')
+    ).order_by('work_start_date')
 
     # ガントチャート用のデータ形式に変換
     tasks = []
