@@ -759,6 +759,11 @@ function switchSummaryView(view) {
 
 $(document).ready(function() {
     // DataTableの初期化（レスポンシブ対応強化）
+    // DataTablesエラーのデバッグ情報を出力
+    console.log('DEBUG: Initializing projectTable');
+    console.log('DEBUG: thead th count:', $('#projectTable thead th').length);
+    console.log('DEBUG: tbody first row td count:', $('#projectTable tbody tr:first td').length);
+
     var table = $('#projectTable').DataTable({
         responsive: false,  // responsive modeを無効化してカラム数エラーを回避
         language: {
@@ -771,7 +776,11 @@ $(document).ready(function() {
         ],
         scrollX: true, // 横スクロールを有効化
         paging: false, // ページネーションはサーバーサイドで処理
-        info: false
+        info: false,
+        initComplete: function(settings, json) {
+            console.log('DEBUG: DataTables initialized successfully');
+            console.log('DEBUG: Columns count:', settings.aoColumns.length);
+        }
     });
 
     // 保存されたモードの復元（デフォルトをサマリーのリストモードに）
