@@ -473,7 +473,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="26" class="text-center text-muted">案件データがありません</td>
+                        <td colspan="25" class="text-center text-muted">案件データがありません</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -760,28 +760,16 @@ function switchSummaryView(view) {
 $(document).ready(function() {
     // DataTableの初期化（レスポンシブ対応強化）
     var table = $('#projectTable').DataTable({
-        responsive: {
-            details: {
-                type: 'column',
-                target: 'tr'
-            }
-        },
+        responsive: false,  // responsive modeを無効化してカラム数エラーを回避
         language: {
             url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/ja.json"
         },
         pageLength: 25,
         order: [[0, 'desc']],
         columnDefs: [
-            { targets: -1, orderable: false, searchable: false },
-            // モバイル向けの列優先順位設定
-            { responsivePriority: 1, targets: 0 }, // 管理No
-            { responsivePriority: 2, targets: 1 }, // 現場名
-            { responsivePriority: 3, targets: 4 }, // 案件進捗
-            { responsivePriority: 4, targets: 5 }, // 進捗状況
-            { responsivePriority: 5, targets: -1 }, // 操作
-            { responsivePriority: 10000, targets: '_all' } // その他の列
+            { targets: -1, orderable: false, searchable: false }
         ],
-        scrollX: false, // レスポンシブモードと競合するため無効化
+        scrollX: true, // 横スクロールを有効化
         paging: false, // ページネーションはサーバーサイドで処理
         info: false
     });
