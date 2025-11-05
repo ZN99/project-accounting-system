@@ -96,6 +96,10 @@ from .views_file import (
     project_file_download,
     project_file_delete
 )
+from .views_backup import (
+    export_data,
+    import_data_view
+)
 
 app_name = 'order_management'
 
@@ -252,4 +256,8 @@ urlpatterns = [
     path('projects/<int:project_pk>/files/upload/', project_file_upload, name='project_file_upload'),
     path('projects/<int:project_pk>/files/<int:file_pk>/download/', project_file_download, name='project_file_download'),
     path('projects/<int:project_pk>/files/<int:file_pk>/delete/', project_file_delete, name='project_file_delete'),
+
+    # データバックアップ・復元
+    path('backup/export/', export_data, name='export_data'),
+    path('backup/import/', import_data_view, name='import_data'),
 ]

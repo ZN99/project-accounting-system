@@ -1,0 +1,182 @@
+{% extends "order_management/base.html" %}
+{% load static %}
+
+{% block title %}データインポート{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-file-import"></i> データインポート
+                    </h6>
+                    <a href="{% url 'order_management:dashboard' %}" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-arrow-left"></i> ダッシュボードに戻る
+                    </a>
+                </div>
+                <div class="card-body">
+                    <!-- 説明セクション -->
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-info-circle"></i> データインポートについて</h5>
+                        <ul class="mb-0">
+                            <li>エクスポートしたJSONファイルからデータを復元できます</li>
+                            <li><strong>追加モード</strong>: 既存データはスキップし、新規データのみ追加します</li>
+                            <li><strong>上書きモード</strong>: 既存データを更新し、新規データを追加します</li>
+                            <li>インポート対象: 案件、職人、内部作業員、下請契約</li>
+                        </ul>
+                    </div>
+
+                    <!-- 警告セクション -->
+                    <div class="alert alert-warning">
+                        <h5><i class="fas fa-exclamation-triangle"></i> 注意事項</h5>
+                        <ul class="mb-0">
+                            <li><strong>上書きモード</strong>を選択すると既存データが変更されます</li>
+                            <li>インポート前に必ず現在のデータをエクスポートしてバックアップを取ってください</li>
+                            <li>大量のデータをインポートする場合、時間がかかることがあります</li>
+                            <li>インポート中は他の操作を行わないでください</li>
+                        </ul>
+                    </div>
+
+                    <!-- インポートフォーム -->
+                    <form method="post" enctype="multipart/form-data" id="importForm">
+                        {% csrf_token %}
+
+                        <div class="form-group">
+                            <label for="backup_file" class="font-weight-bold">
+                                <i class="fas fa-file"></i> バックアップファイル
+                            </label>
+                            <div class="custom-file">
+                                <input type="file"
+                                       class="custom-file-input"
+                                       id="backup_file"
+                                       name="backup_file"
+                                       accept=".json"
+                                       required>
+                                <label class="custom-file-label" for="backup_file">ファイルを選択...</label>
+                            </div>
+                            <small class="form-text text-muted">
+                                JSON形式のバックアップファイルを選択してください
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="font-weight-bold">
+                                <i class="fas fa-cog"></i> インポートモード
+                            </label>
+                            <div class="form-check">
+                                <input class="form-check-input"
+                                       type="radio"
+                                       name="import_mode"
+                                       id="mode_add"
+                                       value="add"
+                                       checked>
+                                <label class="form-check-label" for="mode_add">
+                                    <strong>追加モード</strong> - 既存データはそのまま、新規データのみ追加
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input"
+                                       type="radio"
+                                       name="import_mode"
+                                       id="mode_overwrite"
+                                       value="overwrite">
+                                <label class="form-check-label" for="mode_overwrite">
+                                    <strong class="text-danger">上書きモード</strong> - 既存データを更新、新規データを追加
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox"
+                                       class="custom-control-input"
+                                       id="confirm_checkbox"
+                                       required>
+                                <label class="custom-control-label" for="confirm_checkbox">
+                                    上記の注意事項を理解し、データをインポートすることを確認しました
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <button type="submit"
+                                    class="btn btn-primary"
+                                    id="submitBtn">
+                                <i class="fas fa-upload"></i> インポート実行
+                            </button>
+                            <a href="{% url 'order_management:export_data' %}"
+                               class="btn btn-success">
+                                <i class="fas fa-download"></i> データをエクスポート
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.alert h5 {
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.alert ul {
+    padding-left: 20px;
+}
+
+.form-check {
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: #f8f9fa;
+}
+
+.form-check:hover {
+    background-color: #e9ecef;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ファイル選択時にファイル名を表示
+    document.getElementById('backup_file').addEventListener('change', function(e) {
+        var fileName = e.target.files[0]?.name || 'ファイルを選択...';
+        var label = document.querySelector('.custom-file-label');
+        label.textContent = fileName;
+    });
+
+    // 上書きモード選択時に確認メッセージ
+    document.getElementById('mode_overwrite').addEventListener('change', function(e) {
+        if (e.target.checked) {
+            if (!confirm('上書きモードを選択すると、既存のデータが変更されます。\n本当によろしいですか？')) {
+                document.getElementById('mode_add').checked = true;
+            }
+        }
+    });
+
+    // フォーム送信時の確認
+    document.getElementById('importForm').addEventListener('submit', function(e) {
+        var mode = document.querySelector('input[name="import_mode"]:checked').value;
+        var fileName = document.getElementById('backup_file').files[0]?.name;
+
+        var message = mode === 'overwrite'
+            ? `【上書きモード】\nファイル: ${fileName}\n\n既存データが更新されます。実行してよろしいですか？`
+            : `【追加モード】\nファイル: ${fileName}\n\n新規データを追加します。実行してよろしいですか？`;
+
+        if (!confirm(message)) {
+            e.preventDefault();
+            return false;
+        }
+
+        // ボタンを無効化してローディング表示
+        var submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> インポート中...';
+    });
+});
+</script>
+{% endblock %}

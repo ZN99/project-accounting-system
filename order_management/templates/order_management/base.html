@@ -178,7 +178,24 @@
                         </ul>
                     </li>
 
-                    <!-- 7. システム管理 -->
+                    <!-- 7. データ管理 -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="dataDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-database"></i> データ管理
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="dataDropdown">
+                            <li><a class="dropdown-item" href="{% url 'order_management:export_data' %}">
+                                <i class="fas fa-download text-success"></i> データエクスポート
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'order_management:import_data' %}">
+                                <i class="fas fa-upload text-primary"></i> データインポート
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><small class="dropdown-header text-muted">バックアップ・復元</small></li>
+                        </ul>
+                    </li>
+
+                    <!-- 8. システム管理 -->
                     <li class="nav-item">
                         <a class="nav-link" href="/admin/">
                             <i class="fas fa-cog"></i> システム管理
