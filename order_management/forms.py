@@ -11,7 +11,10 @@ class ProjectForm(forms.ModelForm):
             'created_at', 'updated_at',
             # Phase 8: 自動計算・システム管理フィールド
             'priority_score', 'requires_approval', 'approval_status',
-            'approved_by', 'approved_at'
+            'approved_by', 'approved_at',
+            # Phase 11: デフォルト値があるフィールド（フォームから除外）
+            'witness_status', 'witness_assignee_type', 'estimate_status',
+            'construction_status', 'payment_status',
         ]
         widgets = {
             'site_address': forms.Textarea(attrs={'rows': 2}),
