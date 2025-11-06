@@ -1722,9 +1722,9 @@ function toggleEditMode() {
 
         console.log('Saving dynamic fields:', dynamicFields);
 
-        // サーバーに保存（AJAX）
+        // サーバーに保存（AJAX - 統一エンドポイント）
         $.ajax({
-            url: '{% url "order_management:project_update" project.pk %}',
+            url: '{% url "order_management:update_progress" project.pk %}',
             method: 'POST',
             data: $.extend({
                 csrfmiddlewaretoken: '{{ csrf_token }}',
