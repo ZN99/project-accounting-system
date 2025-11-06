@@ -98,9 +98,10 @@ def project_list(request):
     )
 
     # フィルタリング
-    project_status = request.GET.get('project_status')
-    if project_status:
-        projects = projects.filter(project_status=project_status)
+    # 受注ヨミフィルター（営業見込み）
+    order_forecast = request.GET.get('order_forecast')
+    if order_forecast:
+        projects = projects.filter(project_status=order_forecast)
 
     work_type = request.GET.get('work_type')
     if work_type:
@@ -146,16 +147,47 @@ def project_list(request):
             Q(project_manager__icontains=search_query)
         )
 
-    # 統計情報を計算（フィルター適用後の全体から）
-    total_count = projects.count()
-    received_count = projects.filter(project_status='完工').count()
-    in_progress_count = projects.filter(work_start_completed=True, work_end_completed=False).count()
-    completed_count = projects.filter(work_end_completed=True).count()
+    # プロジェクトステータス（自動計算）フィルター
+    stage_filter = request.GET.get('stage_filter')
+    if stage_filter:
+        # クエリセットを評価してリストに変換
+        projects_list = list(projects)
+        # 各プロジェクトのステージを計算してフィルタリング
+        projects_list = [p for p in projects_list if p.get_current_project_stage()['stage'] == stage_filter]
+        # リストをページネーション可能な形式に変換
+        from django.core.paginator import Paginator as ListPaginator
+        total_count = len(projects_list)
+        received_count = sum(1 for p in projects_list if p.project_status == '完工')
+        in_progress_count = sum(1 for p in projects_list if p.work_start_completed and not p.work_end_completed)
+        completed_count = sum(1 for p in projects_list if p.work_end_completed)
 
-    # ページネーション（50件ずつ表示に変更してパフォーマンス向上）
-    paginator = Paginator(projects, 50)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+        paginator = ListPaginator(projects_list, 50)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+    else:
+        # 統計情報を計算（フィルター適用後の全体から）
+        total_count = projects.count()
+        received_count = projects.filter(project_status='完工').count()
+        in_progress_count = projects.filter(work_start_completed=True, work_end_completed=False).count()
+        completed_count = projects.filter(work_end_completed=True).count()
+
+        # ページネーション（50件ずつ表示に変更してパフォーマンス向上）
+        paginator = Paginator(projects, 50)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+
+    # プロジェクトステージの選択肢（自動計算）
+    stage_choices = [
+        '未開始',
+        '立ち会い待ち',
+        '立ち会い済み',
+        '現調待ち',
+        '現調済み',
+        '見積もり審査中',
+        '着工日待ち',
+        '工事中',
+        '完工',
+    ]
 
     # Phase 11: スケジュールステータス選択肢をコンテキストに追加
     witness_status_choices = [
@@ -187,8 +219,12 @@ def project_list(request):
     context = {
         'page_obj': page_obj,
         'projects': page_obj,
-        'project_status_choices': Project.PROJECT_STATUS_CHOICES,
-        'project_status': project_status,
+        # 新：プロジェクトステータス（自動計算）
+        'stage_choices': stage_choices,
+        'stage_filter': stage_filter,
+        # 旧：受注ヨミ（営業見込み）
+        'order_forecast_choices': Project.PROJECT_STATUS_CHOICES,
+        'order_forecast': order_forecast,
         'work_type': work_type,
         'project_manager': project_manager,
         'search_query': search_query,
