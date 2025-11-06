@@ -1834,8 +1834,45 @@ $(document).ready(function() {
         console.log('Contractor selected:', contractorName, contractorAddress);
     });
 
-    // フォームフィールドの変更を監視
-    $('form').on('input change', 'input, select, textarea', function() {
+    // 受注ヨミの変更を特別に処理
+    $('select[name="project_status"]').on('change', function(e) {
+        e.stopPropagation(); // 通常の変更イベントを防ぐ
+
+        const projectId = {{ project.pk|default:"null" }};
+        if (!projectId) return; // 新規作成の場合はスキップ
+
+        const newValue = $(this).val();
+        const csrfToken = $('[name=csrfmiddlewaretoken]').val();
+
+        console.log('受注ヨミ変更:', newValue);
+
+        // update_forecastエンドポイントを使用
+        $.ajax({
+            url: '/orders/' + projectId + '/update-forecast/',
+            method: 'POST',
+            data: {
+                project_status: newValue,
+                csrfmiddlewaretoken: csrfToken
+            },
+            success: function(response) {
+                if (response.success) {
+                    console.log('受注ヨミを更新しました:', newValue);
+                    // 初期値を更新（保存済みとしてマーク）
+                    originalFormData['project_status'] = newValue;
+                    updateButtonText();
+                } else {
+                    alert('保存に失敗しました: ' + (response.error || '不明なエラー'));
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('保存エラー:', error);
+                alert('保存に失敗しました');
+            }
+        });
+    });
+
+    // フォームフィールドの変更を監視（project_status以外）
+    $('form').on('input change', 'input, select:not([name="project_status"]), textarea', function() {
         console.log('Form field changed:', $(this).attr('name'), $(this).val());
         updateButtonText();
     });
