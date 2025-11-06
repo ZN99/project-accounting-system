@@ -361,7 +361,7 @@
                 </thead>
                 <tbody>
                     {% for project in projects %}
-                    <tr class="clickable-row" style="background-color: {{ project.get_status_color_hex }}20;" onclick="window.location='{% url 'order_management:project_detail' project.pk %}';" data-href="{% url 'order_management:project_detail' project.pk %}">
+                    <tr class="clickable-row" style="background-color: {{ project.get_status_color_hex }}20;" data-href="{% url 'order_management:project_detail' project.pk %}">
                         <td>{{ project.management_no }}</td>
                         <td>
                             <a href="{% url 'order_management:project_detail' project.pk %}">
@@ -834,6 +834,11 @@ $(document).ready(function() {
                 window.location = href;
             }
         }
+    });
+
+    // 受注ヨミのselectをクリックしたときに行クリックを防ぐ
+    $(document).on('click', '.order-forecast-select', function(e) {
+        e.stopPropagation();  // 行クリックイベントを防ぐ
     });
 
     // 受注ヨミの変更を自動保存
