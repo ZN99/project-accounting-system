@@ -39,16 +39,21 @@ class ProjectForm(forms.ModelForm):
             if not isinstance(field.widget, (forms.CheckboxInput, forms.Select)):
                 field.widget.attrs['class'] = 'form-control'
 
-        # 必須項目の設定
+        # 必須項目の設定（基本情報のみ）
         required_fields = [
-            'site_name', 'work_type',
-            'client_name',  # 旧: contractor_name
-            'project_manager',
-            'payment_due_date'  # Phase 5: 必須化
+            'site_name',  # 現場名
+            'work_type',  # 施工種別
+            'client_name',  # 元請会社名
         ]
         for field_name in required_fields:
             if field_name in self.fields:
                 self.fields[field_name].required = True
+
+        # 以下は必須ではない
+        if 'project_manager' in self.fields:
+            self.fields['project_manager'].required = False
+        if 'payment_due_date' in self.fields:
+            self.fields['payment_due_date'].required = False
 
         # Phase 8: 元請会社選択肢
         if 'client_company' in self.fields:
