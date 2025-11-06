@@ -364,8 +364,10 @@ def project_detail(request, pk):
     internal_workers = InternalWorker.objects.filter(is_active=True)
 
     # 現地調査情報を取得
+    # TODO: surveysアプリを実装したら有効化
     #from surveys.models import Survey
-    surveys = Survey.objects.filter(project=project).select_related('surveyor').order_by('-scheduled_date')
+    #surveys = Survey.objects.filter(project=project).select_related('surveyor').order_by('-scheduled_date')
+    surveys = []  # surveysアプリ未実装のため空リストを返す
 
     # 外注統計計算
     total_subcontract_cost = sum(s.billed_amount for s in subcontracts)
