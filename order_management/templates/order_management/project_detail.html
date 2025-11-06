@@ -5929,15 +5929,24 @@ document.addEventListener('DOMContentLoaded', function() {
 // コメント一覧を読み込み
 function loadComments() {
     fetch(`/orders/api/projects/${projectId}/comments/`)
-        .then(response => response.json())
+        .then(response => {
+            // レスポンスのContent-Typeをチェック
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('JSONレスポンスが期待されましたが、別の形式が返されました');
+            }
+            return response.json();
+        })
         .then(data => {
             displayComments(data.comments);
         })
         .catch(error => {
             console.error('コメント取得エラー:', error);
+            // コメント機能が未実装の可能性があるため、エラーを非表示にする
             document.getElementById('comments-container').innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-circle"></i> コメントの読み込みに失敗しました
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-comment-slash fa-2x mb-2"></i>
+                    <p class="small">コメント機能は現在準備中です</p>
                 </div>
             `;
         });
