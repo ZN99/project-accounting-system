@@ -4780,10 +4780,17 @@ $(document).ready(function() {
         const stepKey = $(this).data('step');
 
         if (confirm('このステップを削除しますか？')) {
+            console.log(`Removing step: ${stepKey}`);
             $(this).closest('.progress-step').remove();
+
+            // ステップ順序を更新（重要！これがないと削除が保存されない）
+            saveStepOrder();
+
             loadAvailableSteps(); // インベントリを再読み込み
             initializeSortable(); // Sortableを再初期化
             updateSurveyAreaVisibility(); // 現地調査エリアの表示制御を更新
+
+            console.log(`Step ${stepKey} removed and order updated`);
         }
     });
 
