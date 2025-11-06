@@ -423,9 +423,15 @@
                             {% endwith %}
                         </td>
                         <td class="text-center">
-                            <span class="badge {% if project.project_status == '完工' %}bg-success{% elif project.project_status == 'NG' %}bg-secondary{% elif project.project_status == '施工日待ち' %}bg-warning{% elif project.project_status == '進行中' %}bg-info{% else %}bg-light text-dark{% endif %}">
-                                {{ project.get_project_status_display }}
-                            </span>
+                            <select class="form-select form-select-sm order-forecast-select"
+                                    data-project-id="{{ project.pk }}"
+                                    style="width: auto; display: inline-block;">
+                                {% for value, label in order_forecast_choices %}
+                                <option value="{{ value }}" {% if value == project.project_status %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
                         </td>
                         <td class="text-center">
                             {% with subcontract_status=project.get_subcontract_status %}
@@ -821,13 +827,55 @@ $(document).ready(function() {
 
     // 行クリック時の処理（DataTablesイベントを使用）
     $('#projectTable tbody').on('click', 'tr.clickable-row', function(e) {
-        // ボタン要素のクリックは除外
-        if (!$(e.target).closest('.btn').length && !$(e.target).hasClass('btn')) {
+        // ボタン要素のクリックは除外、そしてselectも除外
+        if (!$(e.target).closest('.btn').length && !$(e.target).hasClass('btn') && !$(e.target).is('select') && !$(e.target).closest('select').length) {
             var href = $(this).data('href');
             if (href) {
                 window.location = href;
             }
         }
+    });
+
+    // 受注ヨミの変更を自動保存
+    $(document).on('change', '.order-forecast-select', function(e) {
+        e.stopPropagation();  // 行クリックイベントを防ぐ
+
+        var select = $(this);
+        var projectId = select.data('project-id');
+        var newValue = select.val();
+        var csrfToken = $('[name=csrfmiddlewaretoken]').val() || '{{ csrf_token }}';
+
+        // 保存中の表示
+        select.prop('disabled', true).css('opacity', '0.5');
+
+        $.ajax({
+            url: '/orders/' + projectId + '/update-forecast/',
+            method: 'POST',
+            data: {
+                project_status: newValue,
+                csrfmiddlewaretoken: csrfToken
+            },
+            success: function(response) {
+                if (response.success) {
+                    // 保存成功時の視覚フィードバック
+                    select.css('border-color', '#28a745');
+                    setTimeout(function() {
+                        select.css('border-color', '');
+                    }, 1000);
+                } else {
+                    alert('保存に失敗しました: ' + (response.error || '不明なエラー'));
+                    location.reload();
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('保存エラー:', error);
+                alert('保存に失敗しました');
+                location.reload();
+            },
+            complete: function() {
+                select.prop('disabled', false).css('opacity', '1');
+            }
+        });
     });
 });
 </script>

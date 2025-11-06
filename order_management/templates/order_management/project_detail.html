@@ -337,8 +337,9 @@
     <div class="col-md-8">
         <div class="d-flex align-items-center">
             <h2><i class="fas fa-building"></i> {{ project.site_name }}</h2>
-            <span class="badge {% if project.project_status == '完工' %}bg-success{% elif project.project_status == 'NG' %}bg-secondary{% elif project.project_status == '施工日待ち' %}bg-danger{% else %}bg-warning text-dark{% endif %} fs-6 ms-3">
-                {{ project.project_status }}
+            <span class="badge {% if project.project_status == '受注確定' %}bg-primary{% elif project.project_status == 'A' %}bg-success{% elif project.project_status == 'B' %}bg-info{% elif project.project_status == 'NG' %}bg-secondary{% else %}bg-warning text-dark{% endif %} fs-6 ms-3"
+                  title="受注ヨミ（営業見込み度）">
+                受注ヨミ: {{ project.get_project_status_display }}
             </span>
         </div>
         <p class="text-muted mb-0">{{ project.management_no }} | {{ project.work_type }}</p>
@@ -1463,6 +1464,18 @@
                                             {{ stage.stage }}
                                         </span>
                                         {% endwith %}
+                                    </dd>
+                                    <dt class="col-sm-5">受注ヨミ:</dt>
+                                    <dd class="col-sm-7">
+                                        <select class="form-select form-select-sm order-forecast-select-detail"
+                                                data-project-id="{{ project.pk }}"
+                                                style="width: auto; display: inline-block; max-width: 150px;">
+                                            {% for value, label in project.PROJECT_STATUS_CHOICES %}
+                                            <option value="{{ value }}" {% if value == project.project_status %}selected{% endif %}>
+                                                {{ label }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
                                     </dd>
                                     <dt class="col-sm-5">見積書発行日:</dt>
                                     <dd class="col-sm-7">{{ project.estimate_issued_date|date:"Y年m月d日"|default:"-" }}</dd>
@@ -6185,6 +6198,67 @@ function confirmFileDelete(fileId, fileName) {
         form.submit();
     }
 }
+
+// 受注ヨミの変更を自動保存（案件詳細画面）
+$(document).on('change', '.order-forecast-select-detail', function(e) {
+    var select = $(this);
+    var projectId = select.data('project-id');
+    var newValue = select.val();
+    var csrfToken = $('[name=csrfmiddlewaretoken]').val() || '{{ csrf_token }}';
+
+    // 保存中の表示
+    select.prop('disabled', true).css('opacity', '0.5');
+
+    $.ajax({
+        url: '/orders/' + projectId + '/update-forecast/',
+        method: 'POST',
+        data: {
+            project_status: newValue,
+            csrfmiddlewaretoken: csrfToken
+        },
+        success: function(response) {
+            if (response.success) {
+                // 保存成功時の視覚フィードバック
+                select.css('border-color', '#28a745');
+
+                // ヘッダーバッジも更新
+                var badge = $('.badge[title="受注ヨミ（営業見込み度）"]');
+                if (badge.length) {
+                    // バッジの色を変更
+                    badge.removeClass('bg-primary bg-success bg-info bg-warning bg-secondary text-dark');
+                    if (newValue === '受注確定') {
+                        badge.addClass('bg-primary');
+                    } else if (newValue === 'A') {
+                        badge.addClass('bg-success');
+                    } else if (newValue === 'B') {
+                        badge.addClass('bg-info');
+                    } else if (newValue === 'NG') {
+                        badge.addClass('bg-secondary');
+                    } else {
+                        badge.addClass('bg-warning text-dark');
+                    }
+                    badge.text('受注ヨミ: ' + newValue);
+                }
+
+                // 1秒後に緑の枠線を消す
+                setTimeout(function() {
+                    select.css('border-color', '');
+                }, 1000);
+            } else {
+                alert('保存に失敗しました: ' + (response.error || '不明なエラー'));
+                location.reload();
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('保存エラー:', error);
+            alert('保存に失敗しました');
+            location.reload();
+        },
+        complete: function() {
+            select.prop('disabled', false).css('opacity', '1');
+        }
+    });
+});
 </script>
 
 {% endblock %}

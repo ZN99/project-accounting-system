@@ -654,9 +654,34 @@ def update_progress(request, pk):
         if complex_step_fields:
             project.additional_items['complex_step_fields'] = complex_step_fields
 
-        # ステップ順序を保存
+        # ステップ順序を保存し、削除されたステップのデータをクリーンアップ
         if step_order:
             project.additional_items['step_order'] = step_order
+
+            # step_orderに含まれているステップのキーを取得
+            active_step_keys = [step['step'] for step in step_order]
+
+            # dynamic_stepsから削除されたステップのデータを削除
+            if 'dynamic_steps' in project.additional_items:
+                steps_to_remove = [key for key in project.additional_items['dynamic_steps'].keys()
+                                   if key not in active_step_keys]
+                for key in steps_to_remove:
+                    del project.additional_items['dynamic_steps'][key]
+                    print(f"Removed dynamic_step data for deleted step: {key}")
+
+            # complex_step_fieldsから削除されたステップに関連するフィールドを削除
+            if 'complex_step_fields' in project.additional_items:
+                fields_to_remove = []
+                for field_name in project.additional_items['complex_step_fields'].keys():
+                    # フィールド名からステップキーを推定（例: "field_survey_type" -> "field_survey"）
+                    # 各active_step_keyで始まるかチェック
+                    is_active = any(field_name.startswith(step_key) for step_key in active_step_keys)
+                    if not is_active:
+                        fields_to_remove.append(field_name)
+
+                for field_name in fields_to_remove:
+                    del project.additional_items['complex_step_fields'][field_name]
+                    print(f"Removed complex_step_field for deleted step: {field_name}")
 
         project.save()
 
@@ -952,6 +977,30 @@ def project_delete(request, pk):
     return render(request, 'order_management/project_confirm_delete.html', {
         'project': project
     })
+
+
+def update_forecast(request, pk):
+    """受注ヨミを更新（AJAX）"""
+    if request.method == 'POST':
+        from django.http import JsonResponse
+
+        project = get_object_or_404(Project, pk=pk)
+        new_status = request.POST.get('project_status')
+
+        # 有効な選択肢かチェック
+        valid_choices = [choice[0] for choice in Project.PROJECT_STATUS_CHOICES]
+        if new_status not in valid_choices:
+            return JsonResponse({'success': False, 'error': '無効な選択肢です'})
+
+        project.project_status = new_status
+        project.save()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'受注ヨミを「{new_status}」に更新しました'
+        })
+
+    return JsonResponse({'success': False, 'error': 'POSTメソッドのみ許可されています'})
 
 
 @csrf_exempt

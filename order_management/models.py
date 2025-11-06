@@ -7,13 +7,13 @@ from decimal import Decimal
 
 
 class Project(models.Model):
-    # 案件進捗ステータスの選択肢（旧: 受注ヨミ）
+    # 受注ヨミの選択肢（営業見込み度合い）
     PROJECT_STATUS_CHOICES = [
-        ('ネタ', 'ネタ'),  # 旧: 検討中
-        ('施工日待ち', '施工日待ち'),  # 旧: A
-        ('進行中', '進行中'),  # 新規追加
-        ('完工', '完工'),  # 旧: 受注
-        ('NG', 'NG'),  # 変更なし
+        ('ネタ', 'ネタ'),  # 見込み案件
+        ('A', 'A'),  # 受注確度高
+        ('B', 'B'),  # 受注確度中
+        ('受注確定', '受注確定'),  # 受注決定
+        ('NG', 'NG'),  # 受注できず
     ]
 
     # 基本情報
@@ -691,7 +691,7 @@ class Project(models.Model):
         # 完工日をチェック（基本フィールドと複合フィールドの両方）
         if self.work_end_completed or complex_fields.get('completion_completed'):
             return {'stage': '完工', 'color': 'verified'}  # 完了チェックON → 濃い緑
-        elif self.work_end_date or complex_fields.get('completion_actual_date'):
+        elif complex_fields.get('completion_actual_date'):
             return {'stage': '完工', 'color': 'success'}  # 実施日入力 → 緑
 
         # 着工日をチェック（基本フィールドと複合フィールドの両方）
@@ -700,7 +700,11 @@ class Project(models.Model):
         elif complex_fields.get('construction_start_actual_date'):
             return {'stage': '工事中', 'color': 'success'}  # 実施日入力 → 緑
         elif self.work_start_date or complex_fields.get('construction_start_scheduled_date'):
-            return {'stage': '着工日待ち', 'color': 'warning'}  # 予定日のみ → 黄色
+            # 着工予定日が設定されている場合、完工予定日もチェックして工事中か着工日待ちか判定
+            if self.work_end_date or complex_fields.get('completion_scheduled_date'):
+                return {'stage': '工事中', 'color': 'warning'}  # 着工予定あり & 完工予定あり → 工事中（黄色）
+            else:
+                return {'stage': '着工日待ち', 'color': 'warning'}  # 着工予定のみ → 着工日待ち（黄色）
 
         # 見積もり発行日をチェック（基本フィールドと複合フィールドの両方）
         if self.estimate_issued_date or complex_fields.get('estimate_issued_date'):
