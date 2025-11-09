@@ -693,8 +693,8 @@ class Project(models.Model):
         # 完工日をチェック（基本フィールドと複合フィールドの両方）
         if self.work_end_completed or complex_fields.get('completion_completed'):
             return {'stage': '完工', 'color': 'verified'}  # 完了チェックON → 濃い緑
-        elif complex_fields.get('completion_actual_date') or self.work_end_date or complex_fields.get('completion_scheduled_date'):
-            return {'stage': '完工', 'color': 'success'}  # 実施日 OR 予定日入力 → 緑
+        elif complex_fields.get('completion_actual_date') or self.work_end_date:
+            return {'stage': '完工', 'color': 'success'}  # 実施日入力 → 緑
 
         # 着工日をチェック（基本フィールドと複合フィールドの両方）
         if self.work_start_completed:
