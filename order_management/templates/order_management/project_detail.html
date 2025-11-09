@@ -3361,7 +3361,7 @@ $(document).ready(function() {
     }
 
     // 進捗状況をサーバーに保存（デバウンス付き）
-    let saveStageTimeout;
+    var saveStageTimeout;
     function saveProjectStage(stage, color) {
         // デバウンス：連続した呼び出しを500ms遅延
         clearTimeout(saveStageTimeout);
