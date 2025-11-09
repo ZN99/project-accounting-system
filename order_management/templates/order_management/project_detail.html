@@ -2813,9 +2813,6 @@ $(document).ready(function() {
 
     // フォーム値の変更を監視して進捗状況を自動更新
     $(document).on('change', 'input[name="work_start_date"], input[name="work_start_completed"], input[name="work_end_date"], input[name="work_end_completed"], select[name="invoice_issued"]', function() {
-        updateProgressTimeline();
-        updateProgressStatus();
-
         // データベースに保存（汎用）
         var fieldName = $(this).attr('name');
         var fieldValue;
@@ -2838,6 +2835,13 @@ $(document).ready(function() {
             data: data,
             success: function(response) {
                 console.log(fieldName + 'を保存しました:', fieldValue);
+
+                // projectDataを更新
+                projectData[fieldName] = fieldValue;
+
+                // UI全体を更新
+                updateProgressTimeline();
+                updateProgressStatus();
             },
             error: function(xhr, status, error) {
                 console.error(fieldName + 'の保存に失敗:', error);
@@ -2911,30 +2915,6 @@ $(document).ready(function() {
         var step = $('.progress-step[data-step="estimate"]');
         var dateInput = $('input[name="estimate_issued_date"]');
 
-        if (isChecked) {
-            // 見積書不要にチェックした場合
-            step.addClass('completed');
-            step.find('.progress-step-date').html('<i class="fas fa-times-circle me-1"></i>見積不要');
-            dateInput.prop('disabled', true).val('');
-        } else {
-            // 見積書不要のチェックを外した場合
-            dateInput.prop('disabled', false);
-            if (!dateInput.val()) {
-                step.removeClass('completed');
-                step.find('.progress-step-date').html('未設定');
-            } else {
-                step.addClass('completed');
-                step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>' + dateInput.val());
-            }
-        }
-
-        // アクティブステップを更新（最初の未完了ステップのみをアクティブにする）
-        updateActiveStep();
-
-        // タイムラインと進捗状況を更新
-        updateProgressTimeline();
-        updateProgressStatus();
-
         // データベースに保存
         $.ajax({
             url: '{% url "order_management:update_progress" project.pk %}',
@@ -2947,11 +2927,37 @@ $(document).ready(function() {
             },
             success: function(response) {
                 console.log('見積書不要フラグを保存しました:', isChecked);
+
                 // projectDataを更新
                 projectData.estimate_not_required = isChecked;
                 if (isChecked) {
                     projectData.estimate_issued_date = null;
                 }
+
+                // UIを更新
+                if (isChecked) {
+                    // 見積書不要にチェックした場合
+                    step.addClass('completed');
+                    step.removeClass('active');
+                    step.find('.progress-step-date').html('<i class="fas fa-times-circle me-1"></i>見積不要');
+                    dateInput.prop('disabled', true).val('');
+                } else {
+                    // 見積書不要のチェックを外した場合
+                    dateInput.prop('disabled', false);
+                    if (!dateInput.val()) {
+                        step.removeClass('completed');
+                        step.find('.progress-step-date').html('<span class="badge bg-secondary">未完了</span>');
+                    } else {
+                        step.addClass('completed');
+                        step.removeClass('active');
+                        step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>' + formatDate(dateInput.val()));
+                    }
+                }
+
+                // 進捗状況全体を更新
+                updateActiveStep();
+                updateProgressTimeline();
+                updateProgressStatus();
             },
             error: function(xhr, status, error) {
                 console.error('見積書不要フラグの保存に失敗:', error);
@@ -2976,20 +2982,6 @@ $(document).ready(function() {
         var step = $('.progress-step[data-step="contract"]');
         var dateValue = $(this).val();
 
-        if (dateValue) {
-            step.addClass('completed');
-            step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了: ' + formatDate(dateValue));
-
-            // 次のステップ（工事開始）をアクティブにする
-            var nextStep = $('.progress-step[data-step="work_start"]');
-            if (!nextStep.hasClass('completed')) {
-                nextStep.addClass('active');
-            }
-        } else {
-            step.removeClass('completed');
-            step.find('.progress-step-date').html('未完了');
-        }
-
         // データベースに保存
         $.ajax({
             url: '{% url "order_management:update_progress" project.pk %}',
@@ -3001,8 +2993,30 @@ $(document).ready(function() {
             },
             success: function(response) {
                 console.log('契約日を保存しました:', dateValue);
+
                 // projectDataを更新
                 projectData.contract_date = dateValue;
+
+                // UIを更新
+                if (dateValue) {
+                    step.addClass('completed');
+                    step.removeClass('active');
+                    step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了: ' + formatDate(dateValue));
+
+                    // 次のステップ（工事開始）をアクティブにする
+                    var nextStep = $('.progress-step[data-step="work_start"]');
+                    if (!nextStep.hasClass('completed')) {
+                        nextStep.addClass('active');
+                    }
+                } else {
+                    step.removeClass('completed');
+                    step.find('.progress-step-date').html('<span class="badge bg-secondary">未完了</span>');
+                }
+
+                // 進捗状況全体を更新
+                updateProgressTimeline();
+                updateProgressStatus();
+                updateActiveStep();
             },
             error: function(xhr, status, error) {
                 console.error('契約日の保存に失敗:', error);
