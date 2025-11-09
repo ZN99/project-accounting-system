@@ -1,0 +1,420 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}職人リソース管理カレンダー - 建築派遣管理システム{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-header-calendar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .filter-panel, .controls-panel, .calendar-container, .stats-panel {
+        background-color: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .filter-group {
+        margin-bottom: 1rem;
+    }
+
+    .filter-label {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+
+    .resource-calendar {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 1200px;
+    }
+
+    .calendar-header-row {
+        background-color: #34495e;
+        color: white;
+    }
+
+    .calendar-header-row th {
+        padding: 1rem 0.5rem;
+        text-align: center;
+        font-weight: 600;
+        border-right: 1px solid #2c3e50;
+    }
+
+    .calendar-header-row th:first-child {
+        min-width: 220px;
+        text-align: left;
+        padding-left: 1rem;
+        position: sticky;
+        left: 0;
+        background-color: #34495e;
+        z-index: 10;
+    }
+
+    .worker-row {
+        border-bottom: 2px solid #ecf0f1;
+        transition: background-color 0.3s;
+    }
+
+    .worker-row:hover {
+        background-color: #f8f9fa;
+    }
+
+    .worker-info-cell {
+        padding: 1rem;
+        border-right: 2px solid #ecf0f1;
+        position: sticky;
+        left: 0;
+        background-color: white;
+        z-index: 5;
+    }
+
+    .worker-row:hover .worker-info-cell {
+        background-color: #f8f9fa;
+    }
+
+    .worker-name {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 0.25rem;
+    }
+
+    .worker-specialty {
+        font-size: 0.875rem;
+        color: #7f8c8d;
+    }
+
+    .utilization-bar {
+        width: 100%;
+        height: 4px;
+        background-color: #ecf0f1;
+        border-radius: 2px;
+        margin-top: 0.5rem;
+        overflow: hidden;
+    }
+
+    .utilization-fill {
+        height: 100%;
+        border-radius: 2px;
+        transition: width 0.3s;
+    }
+
+    .utilization-fill.high {
+        background-color: #e74c3c;
+    }
+
+    .utilization-fill.medium {
+        background-color: #f39c12;
+    }
+
+    .utilization-fill.low {
+        background-color: #27ae60;
+    }
+
+    .day-cell {
+        padding: 0.5rem;
+        border-right: 1px solid #ecf0f1;
+        height: 80px;
+        vertical-align: middle;
+        text-align: center;
+        position: relative;
+    }
+
+    .day-cell.weekend {
+        background-color: #f8f9fa;
+    }
+
+    .project-indicator {
+        background-color: #3498db;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        display: inline-block;
+        margin: 0.1rem;
+        cursor: pointer;
+    }
+
+    .project-indicator:hover {
+        background-color: #2980b9;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .legend {
+        display: flex;
+        gap: 2rem;
+        flex-wrap: wrap;
+        align-items: center;
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border-radius: 6px;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .legend-color {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+    }
+
+    .stat-card {
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border-radius: 6px;
+        border-left: 4px solid #3498db;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: #7f8c8d;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #2c3e50;
+    }
+
+    .btn-filter {
+        background-color: #667eea;
+        color: white;
+        border: none;
+        padding: 0.5rem 1.5rem;
+        border-radius: 6px;
+        transition: all 0.3s;
+    }
+
+    .btn-filter:hover {
+        background-color: #5568d3;
+        transform: translateY(-1px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- ヘッダー -->
+    <div class="page-header-calendar">
+        <h2><i class="fas fa-users me-2"></i>職人リソース管理カレンダー</h2>
+        <p class="mb-0 opacity-75">職人の稼働状況とスケジュールを一目で確認</p>
+    </div>
+
+    <!-- フィルターパネル -->
+    <div class="filter-panel">
+        <h5 class="mb-3"><i class="fas fa-filter me-2"></i>フィルター</h5>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="filter-group">
+                    <div class="filter-label">専門分野</div>
+                    <select class="form-select" id="specialtyFilter">
+                        <option value="">すべて</option>
+                        <option value="原状回復">原状回復</option>
+                        <option value="リフォーム">リフォーム</option>
+                        <option value="クリーニング">クリーニング</option>
+                        <option value="その他">その他</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="filter-group">
+                    <div class="filter-label">稼働状況</div>
+                    <select class="form-select" id="utilizationFilter">
+                        <option value="">すべて</option>
+                        <option value="low">空き（50%以下）</option>
+                        <option value="medium">やや忙しい（51-80%）</option>
+                        <option value="high">多忙（81%以上）</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button class="btn btn-filter w-100" onclick="applyFilters()">
+                    <i class="fas fa-check me-2"></i>フィルター適用
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 統計パネル -->
+    <div class="stats-panel">
+        <h5 class="mb-3"><i class="fas fa-chart-bar me-2"></i>職人稼働状況サマリー</h5>
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">総職人数</div>
+                    <div class="stat-value" id="totalWorkers">{{ contractors|length }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card" style="border-color: #27ae60;">
+                    <div class="stat-label">空き職人</div>
+                    <div class="stat-value text-success" id="availableWorkers">-</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card" style="border-color: #f39c12;">
+                    <div class="stat-label">やや忙しい</div>
+                    <div class="stat-value text-warning" id="partialWorkers">-</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card" style="border-color: #e74c3c;">
+                    <div class="stat-label">多忙</div>
+                    <div class="stat-value text-danger" id="busyWorkers">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- カレンダーテーブル -->
+    <div class="calendar-container">
+        <div class="table-responsive">
+            <table class="resource-calendar">
+                <thead>
+                    <tr class="calendar-header-row">
+                        <th>職人情報</th>
+                        {% for day in range(1, 31) %}
+                        <th>{{ day }}<br><small>日</small></th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contractor in contractors %}
+                    <tr class="worker-row" data-specialty="{{ contractor.specialty }}" data-utilization="{{ contractor.utilization }}">
+                        <td class="worker-info-cell">
+                            <div class="worker-name">{{ contractor.name }}</div>
+                            <div class="worker-specialty">{{ contractor.specialty }}</div>
+                            <div class="utilization-bar">
+                                <div class="utilization-fill {% if contractor.utilization > 80 %}high{% elif contractor.utilization > 50 %}medium{% else %}low{% endif %}"
+                                     style="width: {{ contractor.utilization }}%;"></div>
+                            </div>
+                            <small class="text-muted">稼働率: {{ contractor.utilization }}%</small>
+                        </td>
+                        {% for day in range(1, 31) %}
+                        <td class="day-cell {% if day == 6 or day == 7 or day == 13 or day == 14 or day == 20 or day == 21 or day == 27 or day == 28 %}weekend{% endif %}">
+                            <!-- プロジェクト表示エリア -->
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="31" class="text-center py-5">
+                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">登録されている職人がいません</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 凡例 -->
+        <div class="legend mt-3">
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #27ae60;"></div>
+                <span>空き（稼働率50%以下）</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #f39c12;"></div>
+                <span>やや忙しい（51-80%）</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #e74c3c;"></div>
+                <span>多忙（81%以上）</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #f8f9fa; border: 2px solid #dee2e6;"></div>
+                <span>週末</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // フィルター適用
+    function applyFilters() {
+        const specialtyFilter = document.getElementById('specialtyFilter').value;
+        const utilizationFilter = document.getElementById('utilizationFilter').value;
+
+        const rows = document.querySelectorAll('.worker-row');
+        let counts = {available: 0, partial: 0, busy: 0};
+
+        rows.forEach(row => {
+            const specialty = row.dataset.specialty;
+            const utilization = parseInt(row.dataset.utilization);
+
+            let showRow = true;
+
+            // 専門分野フィルター
+            if (specialtyFilter && !specialty.includes(specialtyFilter)) {
+                showRow = false;
+            }
+
+            // 稼働率フィルター
+            if (utilizationFilter) {
+                if (utilizationFilter === 'low' && utilization > 50) showRow = false;
+                if (utilizationFilter === 'medium' && (utilization <= 50 || utilization > 80)) showRow = false;
+                if (utilizationFilter === 'high' && utilization <= 80) showRow = false;
+            }
+
+            row.style.display = showRow ? '' : 'none';
+
+            // 統計集計
+            if (showRow) {
+                if (utilization <= 50) counts.available++;
+                else if (utilization <= 80) counts.partial++;
+                else counts.busy++;
+            }
+        });
+
+        // 統計更新
+        document.getElementById('availableWorkers').textContent = counts.available;
+        document.getElementById('partialWorkers').textContent = counts.partial;
+        document.getElementById('busyWorkers').textContent = counts.busy;
+    }
+
+    // 初期統計計算
+    document.addEventListener('DOMContentLoaded', function() {
+        applyFilters();
+    });
+
+    // 職人リソースデータを取得してカレンダーに表示
+    function loadWorkerSchedules() {
+        const startDate = '{{ start_date|date:"Y-m-d" }}';
+        const endDate = '{{ end_date|date:"Y-m-d" }}';
+
+        fetch(`{% url 'order_management:worker_resource_data_api' %}?start=${startDate}&end=${endDate}`)
+            .then(response => response.json())
+            .then(data => {
+                // データをカレンダーに反映
+                data.forEach(worker => {
+                    worker.projects.forEach(project => {
+                        // プロジェクトをカレンダーに表示するロジック
+                        console.log(`職人: ${worker.worker_name}, 案件: ${project.project_name}`);
+                    });
+                });
+            })
+            .catch(error => console.error('データ取得エラー:', error));
+    }
+
+    // ページ読み込み時にデータ取得
+    //document.addEventListener('DOMContentLoaded', loadWorkerSchedules);
+</script>
+{% endblock %}

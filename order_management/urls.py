@@ -62,9 +62,11 @@ from .views_calendar import (
     ConstructionCalendarView,
     PerformanceMonthlyView,
     GanttChartView,
+    WorkerResourceCalendarView,
     calendar_events_api,
     performance_monthly_api,
-    gantt_data_api
+    gantt_data_api,
+    worker_resource_data_api
 )
 from .views_client_company import (
     ClientCompanyListView,
@@ -219,7 +221,9 @@ urlpatterns = [
 
     # カレンダー・業績管理 - Phase 7
     path('calendar/', ConstructionCalendarView.as_view(), name='construction_calendar'),
+    path('calendar/worker-resources/', WorkerResourceCalendarView.as_view(), name='worker_resource_calendar'),
     path('api/calendar/events/', calendar_events_api, name='calendar_events_api'),
+    path('api/calendar/worker-resources/', worker_resource_data_api, name='worker_resource_data_api'),
     path('performance/monthly/', PerformanceMonthlyView.as_view(), name='performance_monthly'),
     path('api/performance/monthly/', performance_monthly_api, name='performance_monthly_api'),
     path('gantt/', GanttChartView.as_view(), name='gantt_chart'),

@@ -1,0 +1,446 @@
+{% load static %}
+{% load role_tags %}
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}建築派遣管理システム{% endblock %}</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --nav-bg: #2c3e50;
+            --nav-hover: #34495e;
+        }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        /* ナビゲーションバー */
+        .navbar-custom {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 0.75rem 0;
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.25rem;
+            color: white !important;
+            padding-left: 1rem;
+        }
+
+        .navbar-nav {
+            margin-left: auto;
+        }
+
+        .nav-item.dropdown {
+            position: relative;
+        }
+
+        /* 1階層目のナビゲーション */
+        .navbar-nav > .nav-item > .nav-link {
+            color: rgba(255, 255, 255, 0.95) !important;
+            font-weight: 600;
+            padding: 0.75rem 1.25rem;
+            transition: all 0.3s ease;
+            border-radius: 6px;
+            margin: 0 0.25rem;
+        }
+
+        .navbar-nav > .nav-item > .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white !important;
+        }
+
+        /* ドロップダウンメニュー（2階層目） */
+        .dropdown-menu {
+            border: none;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            border-radius: 8px;
+            padding: 0.5rem 0;
+            min-width: 220px;
+        }
+
+        .dropdown-item {
+            padding: 0.75rem 1.25rem;
+            font-weight: 500;
+            color: #2c3e50;
+            transition: all 0.2s ease;
+        }
+
+        .dropdown-item:hover {
+            background-color: rgba(102, 126, 234, 0.1);
+            color: var(--primary-color);
+            transform: translateX(4px);
+        }
+
+        .dropdown-divider {
+            margin: 0.5rem 0;
+        }
+
+        /* 3階層目のサブメニュー */
+        .dropdown-submenu {
+            position: relative;
+        }
+
+        .dropdown-submenu .dropdown-menu {
+            top: 0;
+            left: 100%;
+            margin-top: -1px;
+            margin-left: -1px;
+            display: none;
+        }
+
+        .dropdown-submenu:hover > .dropdown-menu {
+            display: block;
+        }
+
+        .dropdown-submenu > .dropdown-item::after {
+            content: "\f054";
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            float: right;
+            margin-left: 10px;
+            font-size: 0.75rem;
+            opacity: 0.5;
+        }
+
+        /* ユーザー情報エリア */
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0 1rem;
+        }
+
+        .notification-icon {
+            position: relative;
+            color: white;
+            font-size: 1.25rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .notification-icon:hover {
+            transform: scale(1.1);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background-color: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            padding: 0.15rem 0.4rem;
+            font-size: 0.65rem;
+            font-weight: 700;
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background-color: white;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .user-name {
+            color: white;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        /* メインコンテンツエリア */
+        .main-content {
+            padding: 2rem 0;
+            min-height: calc(100vh - 70px);
+        }
+
+        /* フッター */
+        .footer {
+            background-color: var(--nav-bg);
+            color: rgba(255, 255, 255, 0.7);
+            padding: 1.5rem 0;
+            margin-top: 3rem;
+            text-align: center;
+            font-size: 0.875rem;
+        }
+
+        /* モバイル対応 */
+        @media (max-width: 992px) {
+            .dropdown-submenu .dropdown-menu {
+                position: static;
+                display: none;
+                margin-left: 1rem;
+            }
+
+            .dropdown-submenu:hover > .dropdown-menu {
+                display: block;
+            }
+
+            .user-info {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 1rem;
+            }
+        }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- ナビゲーションバー -->
+    <nav class="navbar navbar-expand-lg navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'order_management:ultimate_dashboard' %}">
+                <i class="fas fa-building me-2"></i>建築派遣管理システム
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <!-- 案件管理 -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-tasks me-1"></i>案件管理
+                        </a>
+                        <ul class="dropdown-menu">
+                            <!-- 案件 -->
+                            <li class="dropdown-submenu">
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-project-diagram me-2"></i>案件
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'order_management:project_list' %}">案件一覧</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'order_management:project_create' %}">案件作成</a></li>
+                                </ul>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+
+                            <!-- 業者管理 -->
+                            <li class="dropdown-submenu">
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-users me-2"></i>業者管理
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'order_management:contractor_dashboard' %}">業者一覧</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'order_management:external_contractor_management' %}">外部協力社</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'order_management:supplier_management' %}">資材サプライヤー</a></li>
+                                </ul>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+
+                            <!-- カレンダー管理 -->
+                            <li class="dropdown-submenu">
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-calendar-alt me-2"></i>カレンダー管理
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'order_management:worker_resource_calendar' %}">職人カレンダー</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'order_management:gantt_chart' %}">ガントチャート</a></li>
+                                </ul>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+
+                            <!-- 元請会社 -->
+                            <li class="dropdown-submenu">
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-building me-2"></i>元請会社
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'order_management:client_company_list' %}">会社一覧</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'order_management:client_company_create' %}">会社作成</a></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <!-- 経理 -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-yen-sign me-1"></i>経理
+                        </a>
+                        <ul class="dropdown-menu">
+                            <!-- ダッシュボード -->
+                            <li class="dropdown-submenu">
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-chart-line me-2"></i>ダッシュボード
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'order_management:accounting_dashboard' %}">会計</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'order_management:payment_dashboard' %}">支払い</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'order_management:receipt_dashboard' %}">入金</a></li>
+                                </ul>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+
+                            <!-- キャッシュフロー -->
+                            <li class="dropdown-submenu">
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-money-bill-wave me-2"></i>キャッシュフロー
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'order_management:cashflow_dashboard' %}">CF管理</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'order_management:receivables_detail' %}">売掛金</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'order_management:payables_detail' %}">買掛金</a></li>
+                                </ul>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+
+                            <!-- 予測・分析 -->
+                            <li class="dropdown-submenu">
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-chart-bar me-2"></i>予測・分析
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'order_management:forecast_dashboard' %}">売上予測</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'order_management:scenario_list' %}">シナリオ分析</a></li>
+                                </ul>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+
+                            <!-- コスト管理 -->
+                            <li class="dropdown-submenu">
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-calculator me-2"></i>コスト管理
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'order_management:fixed_cost_list' %}">固定費</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'order_management:variable_cost_list' %}">変動費</a></li>
+                                </ul>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+
+                            <!-- レポート -->
+                            <li class="dropdown-submenu">
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-file-alt me-2"></i>レポート
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'order_management:report_list' %}">レポート一覧</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'order_management:report_generate' %}">レポート生成</a></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <!-- システム -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-cog me-1"></i>システム
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'order_management:user_management' %}">
+                                <i class="fas fa-user-cog me-2"></i>ユーザー管理
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'order_management:approval_list' %}">
+                                <i class="fas fa-check-circle me-2"></i>承認フロー
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li class="dropdown-submenu">
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-database me-2"></i>データ管理
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'order_management:export_data' %}">エクスポート</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'order_management:import_data' %}">インポート</a></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+
+                <!-- ユーザー情報エリア -->
+                <div class="user-info">
+                    <!-- 通知アイコン -->
+                    <div class="notification-icon" onclick="window.location.href='#'">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge" id="notificationCount">0</span>
+                    </div>
+
+                    <!-- ユーザードロップダウン -->
+                    <div class="dropdown">
+                        <a class="d-flex align-items-center text-decoration-none dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <div class="user-avatar">
+                                {% if user.first_name %}{{ user.first_name|slice:":1" }}{% else %}U{% endif %}
+                            </div>
+                            <span class="user-name ms-2">
+                                {% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}
+                            </span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>プロフィール</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>設定</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'order_management:logout' %}"><i class="fas fa-sign-out-alt me-2"></i>ログアウト</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- メインコンテンツ -->
+    <div class="main-content">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- フッター -->
+    <footer class="footer">
+        <div class="container">
+            <p class="mb-0">&copy; 2025 建築派遣管理システム. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+
+    <script>
+        // 通知カウント更新（APIから取得）
+        function updateNotificationCount() {
+            fetch('{% url "order_management:api_get_notifications" %}')
+                .then(response => response.json())
+                .then(data => {
+                    const unreadCount = data.filter(n => !n.is_read).length;
+                    const badge = document.getElementById('notificationCount');
+                    if (badge) {
+                        badge.textContent = unreadCount;
+                        badge.style.display = unreadCount > 0 ? 'block' : 'none';
+                    }
+                })
+                .catch(error => console.error('通知取得エラー:', error));
+        }
+
+        // ページ読み込み時と5分ごとに通知を更新
+        document.addEventListener('DOMContentLoaded', function() {
+            updateNotificationCount();
+            setInterval(updateNotificationCount, 300000); // 5分ごと
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
