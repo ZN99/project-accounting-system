@@ -690,18 +690,18 @@ class Project(models.Model):
         """
         complex_fields = self.additional_items.get('complex_step_fields', {}) if self.additional_items else {}
 
-        # 完工日をチェック（複合フィールドのみ - カスタムステップシステムを優先）
+        # 完工日をチェック（複合フィールド OR 基本フィールド - JavaScriptと完全一致）
         if self.work_end_completed or complex_fields.get('completion_completed'):
             return {'stage': '完工', 'color': 'verified'}  # 完了チェックON → 濃い緑
-        elif complex_fields.get('completion_actual_date'):
+        elif complex_fields.get('completion_actual_date') or self.work_end_date:
             return {'stage': '完工', 'color': 'success'}  # 実施日入力 → 緑
 
-        # 着工日をチェック（複合フィールドのみ - カスタムステップシステムを優先）
+        # 着工日をチェック（複合フィールド OR 基本フィールド - JavaScriptと完全一致）
         if self.work_start_completed:
             return {'stage': '工事中', 'color': 'verified'}  # 完了チェックON → 濃い緑
         elif complex_fields.get('construction_start_actual_date'):
             return {'stage': '工事中', 'color': 'success'}  # 実施日入力 → 緑
-        elif complex_fields.get('construction_start_scheduled_date'):
+        elif complex_fields.get('construction_start_scheduled_date') or self.work_start_date:
             return {'stage': '着工日待ち', 'color': 'warning'}  # 着工予定のみ → 着工日待ち（黄色）
 
         # 見積もり発行日をチェック（基本フィールドと複合フィールドの両方）
