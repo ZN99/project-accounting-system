@@ -247,6 +247,20 @@ class Project(models.Model):
         verbose_name='完工日',
         help_text='工事が完工した日（発生主義売上の基準日）'
     )
+
+    # プロジェクト進捗状況（キャッシュ）- 自動計算結果を保存
+    current_stage = models.CharField(
+        max_length=20,
+        default='未開始',
+        verbose_name='現在の進捗状況',
+        help_text='JavaScriptで計算された進捗状況を保存（完工、工事中、着工日待ちなど）'
+    )
+    current_stage_color = models.CharField(
+        max_length=20,
+        default='secondary',
+        verbose_name='進捗状況の色',
+        help_text='verified, success, warning, secondary'
+    )
     invoice_issue_datetime = models.DateTimeField(
         null=True, blank=True,
         verbose_name='請求書発行日時',
@@ -678,9 +692,10 @@ class Project(models.Model):
         }
 
     def get_current_project_stage(self):
-        """5つのステップに基づいた現在のプロジェクト段階を返す
+        """現在のプロジェクト段階を返す
 
-        このロジックは案件詳細画面のJavaScriptと完全に一致させています。
+        NOTE: 進捗状況はJavaScriptで計算され、データベースに保存されます。
+        このメソッドは保存された値を返すだけです。
 
         カラーコード統一ルール:
         - verified (濃い緑): 完了チェックボックスON
@@ -688,41 +703,10 @@ class Project(models.Model):
         - warning (黄色): 予定日のみ入力されている（着工日待ちの場合）
         - secondary (グレー): 何も入力されていない
         """
-        complex_fields = self.additional_items.get('complex_step_fields', {}) if self.additional_items else {}
-
-        # 完工日をチェック（複合フィールド OR 基本フィールド - JavaScriptと完全一致）
-        if self.work_end_completed or complex_fields.get('completion_completed'):
-            return {'stage': '完工', 'color': 'verified'}  # 完了チェックON → 濃い緑
-        elif complex_fields.get('completion_actual_date') or self.work_end_date:
-            return {'stage': '完工', 'color': 'success'}  # 実施日入力 → 緑
-
-        # 着工日をチェック（複合フィールド OR 基本フィールド - JavaScriptと完全一致）
-        if self.work_start_completed:
-            return {'stage': '工事中', 'color': 'verified'}  # 完了チェックON → 濃い緑
-        elif complex_fields.get('construction_start_actual_date'):
-            return {'stage': '工事中', 'color': 'success'}  # 実施日入力 → 緑
-        elif complex_fields.get('construction_start_scheduled_date') or self.work_start_date:
-            return {'stage': '着工日待ち', 'color': 'warning'}  # 着工予定のみ → 着工日待ち（黄色）
-
-        # 見積もり発行日をチェック（基本フィールドと複合フィールドの両方）
-        if self.estimate_issued_date or complex_fields.get('estimate_issued_date'):
-            return {'stage': '見積もり審査中', 'color': 'warning'}  # 発行済み → 黄色
-        # 見積もり不要の場合は、次のステップの状態を表示するため、ここでは何もしない
-
-        # 現調日をチェック
-        if complex_fields.get('survey_actual_date'):
-            return {'stage': '現調済み', 'color': 'success'}  # 実施日入力 → 緑
-        elif complex_fields.get('survey_scheduled_date'):
-            return {'stage': '現調待ち', 'color': 'warning'}  # 予定日のみ → 黄色
-
-        # 立ち会い日をチェック
-        if complex_fields.get('attendance_actual_date'):
-            return {'stage': '立ち会い済み', 'color': 'success'}  # 実施日入力 → 緑
-        elif complex_fields.get('attendance_scheduled_date'):
-            return {'stage': '立ち会い待ち', 'color': 'warning'}  # 予定日のみ → 黄色
-
-        # デフォルト
-        return {'stage': '未開始', 'color': 'secondary'}  # 何も入力なし → グレー
+        return {
+            'stage': self.current_stage,
+            'color': self.current_stage_color
+        }
 
     def get_days_until_deadline(self):
         """締切までの日数を返す"""

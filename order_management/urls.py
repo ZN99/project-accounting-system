@@ -135,6 +135,7 @@ urlpatterns = [
     path('<int:pk>/update/', views.project_update, name='project_update'),
     path('<int:pk>/update-progress/', views.update_progress, name='update_progress'),
     path('<int:pk>/update-forecast/', views.update_forecast, name='update_forecast'),
+    path('<int:pk>/update-stage/', views.update_project_stage, name='update_project_stage'),
     path('<int:pk>/add-subcontract/', views.add_subcontract, name='add_subcontract'),
     path('<int:pk>/delete/', views.project_delete, name='project_delete'),
     path('api/list/', views.project_api_list, name='project_api_list'),

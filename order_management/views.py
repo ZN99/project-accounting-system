@@ -1005,6 +1005,30 @@ def update_forecast(request, pk):
     return JsonResponse({'success': False, 'error': 'POSTメソッドのみ許可されています'})
 
 
+def update_project_stage(request, pk):
+    """プロジェクト進捗状況を更新（AJAX）"""
+    if request.method == 'POST':
+        from django.http import JsonResponse
+
+        project = get_object_or_404(Project, pk=pk)
+        stage = request.POST.get('stage')
+        color = request.POST.get('color')
+
+        if not stage or not color:
+            return JsonResponse({'success': False, 'error': 'stageとcolorが必要です'})
+
+        project.current_stage = stage
+        project.current_stage_color = color
+        project.save(update_fields=['current_stage', 'current_stage_color'])
+
+        return JsonResponse({
+            'success': True,
+            'message': f'進捗状況を「{stage}」に更新しました'
+        })
+
+    return JsonResponse({'success': False, 'error': 'POSTメソッドのみ許可されています'})
+
+
 @csrf_exempt
 def project_api_list(request):
     """DataTables用API"""

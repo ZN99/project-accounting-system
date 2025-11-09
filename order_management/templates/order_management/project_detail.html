@@ -3355,6 +3355,33 @@ $(document).ready(function() {
         $('#progressPercentage').text(`${completedSteps}/${totalSteps}`);
         $('#progressStatusCard').removeClass().addClass(`card progress-status-card border-${color}`);
         $('#progressStatusHeader').removeClass().addClass(`card-header bg-${color} text-white`);
+
+        // データベースに進捗状況を保存
+        saveProjectStage(phase, color);
+    }
+
+    // 進捗状況をサーバーに保存（デバウンス付き）
+    let saveStageTimeout;
+    function saveProjectStage(stage, color) {
+        // デバウンス：連続した呼び出しを500ms遅延
+        clearTimeout(saveStageTimeout);
+        saveStageTimeout = setTimeout(function() {
+            $.ajax({
+                url: '{% url "order_management:update_project_stage" project.pk %}',
+                method: 'POST',
+                data: {
+                    stage: stage,
+                    color: color,
+                    csrfmiddlewaretoken: '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    console.log('進捗状況を保存しました:', stage);
+                },
+                error: function(xhr, status, error) {
+                    console.error('進捗状況の保存に失敗:', error);
+                }
+            });
+        }, 500);
     }
 
     // フォームフィールドと ステップ状態を同期
