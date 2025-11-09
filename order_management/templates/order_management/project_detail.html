@@ -4605,7 +4605,8 @@ $(document).ready(function() {
         $('#activeSteps .progress-step').each(function(index) {
             steps.push({
                 step: $(this).data('step'),
-                order: index
+                order: index,
+                completed: $(this).hasClass('completed')  // 完了フラグも保存
             });
         });
         console.log('新しい順序:', steps);

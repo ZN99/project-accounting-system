@@ -486,6 +486,7 @@ def project_detail(request, pk):
             step_data = {
                 'key': step_key,
                 'order': step_item['order'],
+                'completed': step_item.get('completed', False),  # 完了フラグを保持
                 'is_dynamic': step_key in dynamic_steps,
                 'data': dynamic_steps.get(step_key, {})
             }
@@ -501,6 +502,7 @@ def project_detail(request, pk):
             step_data = {
                 'key': step_key,
                 'order': step_item['order'],
+                'completed': step_item.get('completed', False),  # 完了フラグを保持
                 'is_dynamic': False,
                 'data': {}
             }
