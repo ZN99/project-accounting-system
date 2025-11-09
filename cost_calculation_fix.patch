@@ -1,0 +1,62 @@
+From: Claude <noreply@anthropic.com>
+Date: Sat, 9 Nov 2025 13:00:00 +0000
+Subject: [PATCH] Fix: Calculate actual costs in project list (subcontract + material costs)
+
+Problem: Project list showed dummy cost calculation (70% of order amount)
+Root Cause: get_revenue_breakdown() used placeholder formula instead of actual costs
+Fix: Updated method to calculate real costs from Subcontract data (billed_amount + material costs)
+
+This ensures cost calculation matches between project list and detail screens.
+
+Files modified:
+- order_management/models.py (get_revenue_breakdown method, lines 846-878)
+
+---
+ order_management/models.py | 34 ++++++++++++++++++++++++++--------
+ 1 file changed, 26 insertions(+), 8 deletions(-)
+
+diff --git a/order_management/models.py b/order_management/models.py
+index ORIGINAL..NEW 100644
+--- a/order_management/models.py
++++ b/order_management/models.py
+@@ -846,10 +846,12 @@ class Project(models.Model):
+     def get_revenue_breakdown(self):
+-        """売上・原価・利益の内訳を返す"""
+-        # 売上 = 請求額実請求
++        """売上・原価・利益の内訳を返す
++
++        案件詳細画面のfinancial_info計算ロジックと完全に一致させています。
++        """
++        # Subcontractモデルをインポート（循環インポート回避のため、メソッド内でインポート）
++        try:
++            from subcontract_management.models import Subcontract
++            subcontracts = Subcontract.objects.filter(project=self)
++
++            # 実際の原価を計算（外注費 + 材料費）
++            total_subcontract_cost = sum(s.billed_amount for s in subcontracts)
++            total_material_cost = sum(s.total_material_cost for s in subcontracts)
++            cost_of_sales = total_subcontract_cost + total_material_cost
++        except ImportError:
++            # subcontract_managementアプリが利用できない場合はフォールバック
++            cost_of_sales = Decimal('0')
++
++        # 売上 = 請求額
+         revenue = self.billing_amount or Decimal('0')
+
+-        # 売上原価の計算（例：受注金額の70%と仮定、実際の業務に合わせて調整）
+-        cost_of_sales = (self.order_amount or Decimal('0')) * Decimal('0.7')
+-
+         # 売上総利益 = 売上 - 売上原価
+         gross_profit = revenue - cost_of_sales
+
+@@ -858,7 +860,7 @@ class Project(models.Model):
+
+         return {
+             'revenue': revenue,           # 売上
+-            'cost_of_sales': cost_of_sales,  # 売上原価
++            'cost_of_sales': cost_of_sales,  # 売上原価（外注費＋材料費）
+             'gross_profit': gross_profit,    # 売上総利益
+             'profit_margin': profit_margin   # 利益率
+         }
+--
+2.39.2

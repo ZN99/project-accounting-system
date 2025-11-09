@@ -1,0 +1,64 @@
+From: Claude <noreply@anthropic.com>
+Date: Sat, 9 Nov 2025 00:00:00 +0000
+Subject: [PATCH] Fix: Align Python get_current_project_stage() with JavaScript logic
+
+Problem: Project list and detail screens showed different status for same project
+Root Cause: Python only checked actual dates, JavaScript checked both actual and scheduled dates
+Fix: Updated Python method to match JavaScript behavior - now includes scheduled dates in completion check
+
+Changes:
+- Line 696: Added scheduled date checks for completion (or self.work_end_date or completion_scheduled_date)
+- Lines 704-705: Simplified construction start logic to just check for scheduled date
+- Updated docstring to note JavaScript alignment
+
+This ensures consistent status display across all screens.
+
+---
+ order_management/models.py | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/order_management/models.py b/order_management/models.py
+index 1354525..1c77681 100644
+--- a/order_management/models.py
++++ b/order_management/models.py
+@@ -680,10 +680,12 @@ class Project(models.Model):
+     def get_current_project_stage(self):
+         """5つのステップに基づいた現在のプロジェクト段階を返す
+
++        このロジックは案件詳細画面のJavaScriptと完全に一致させています。
++
+         カラーコード統一ルール:
+         - verified (濃い緑): 完了チェックボックスON
+-        - success (緑): 実施日が入力されている
+-        - warning (黄色): 予定日のみ入力されている
++        - success (緑): 実施日 OR 予定日が入力されている
++        - warning (黄色): 予定日のみ入力されている（着工日待ちの場合）
+         - secondary (グレー): 何も入力されていない
+         """
+         complex_fields = self.additional_items.get('complex_step_fields', {}) if self.additional_items else {}
+@@ -691,8 +693,8 @@ class Project(models.Model):
+         # 完工日をチェック（基本フィールドと複合フィールドの両方）
+         if self.work_end_completed or complex_fields.get('completion_completed'):
+             return {'stage': '完工', 'color': 'verified'}  # 完了チェックON → 濃い緑
+-        elif complex_fields.get('completion_actual_date'):
+-            return {'stage': '完工', 'color': 'success'}  # 実施日入力 → 緑
++        elif complex_fields.get('completion_actual_date') or self.work_end_date or complex_fields.get('completion_scheduled_date'):
++            return {'stage': '完工', 'color': 'success'}  # 実施日 OR 予定日入力 → 緑
+
+         # 着工日をチェック（基本フィールドと複合フィールドの両方）
+         if self.work_start_completed:
+@@ -700,11 +702,7 @@ class Project(models.Model):
+         elif complex_fields.get('construction_start_actual_date'):
+             return {'stage': '工事中', 'color': 'success'}  # 実施日入力 → 緑
+         elif self.work_start_date or complex_fields.get('construction_start_scheduled_date'):
+-            # 着工予定日が設定されている場合、完工予定日もチェックして工事中か着工日待ちか判定
+-            if self.work_end_date or complex_fields.get('completion_scheduled_date'):
+-                return {'stage': '工事中', 'color': 'warning'}  # 着工予定あり & 完工予定あり → 工事中（黄色）
+-            else:
+-                return {'stage': '着工日待ち', 'color': 'warning'}  # 着工予定のみ → 着工日待ち（黄色）
++            return {'stage': '着工日待ち', 'color': 'warning'}  # 着工予定のみ → 着工日待ち（黄色）
+
+         # 見積もり発行日をチェック（基本フィールドと複合フィールドの両方）
+         if self.estimate_issued_date or complex_fields.get('estimate_issued_date'):
+--
+2.39.2
