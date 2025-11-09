@@ -15,6 +15,8 @@ class ProjectForm(forms.ModelForm):
             # Phase 11: デフォルト値があるフィールド（フォームから除外）
             'witness_status', 'witness_assignee_type', 'estimate_status',
             'construction_status', 'payment_status',
+            # 進捗状況キャッシュフィールド（JavaScriptで自動更新）
+            'current_stage', 'current_stage_color',
         ]
         widgets = {
             'site_address': forms.Textarea(attrs={'rows': 2}),
