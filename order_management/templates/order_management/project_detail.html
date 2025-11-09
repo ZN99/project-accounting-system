@@ -2856,20 +2856,6 @@ $(document).ready(function() {
         console.log('見積書不要チェック:', notRequiredChecked);
         console.log('入力された日付:', dateValue);
 
-        if (dateValue && !notRequiredChecked) {
-            console.log('ステップを完了状態にします');
-            step.addClass('completed');
-            step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了: ' + formatDate(dateValue));
-        } else if (!notRequiredChecked) {
-            console.log('ステップを未完了状態にします');
-            step.removeClass('completed');
-            step.find('.progress-step-date').html('未完了');
-        }
-
-        // アクティブステップを更新（最初の未完了ステップのみをアクティブにする）
-        console.log('アクティブステップを更新します');
-        updateActiveStep();
-
         // データベースに保存
         console.log('AJAX保存を開始します - URL:', '{% url "order_management:update_progress" project.pk %}');
         $.ajax({
@@ -2884,9 +2870,28 @@ $(document).ready(function() {
                 console.log('✓ 見積書発行日の保存に成功しました');
                 console.log('レスポンス:', response);
                 console.log('保存された日付:', dateValue);
+
                 // projectDataを更新
                 projectData.estimate_issued_date = dateValue;
                 console.log('projectDataを更新しました:', projectData.estimate_issued_date);
+
+                // UIを更新
+                if (dateValue && !notRequiredChecked) {
+                    console.log('ステップを完了状態にします');
+                    step.addClass('completed');
+                    step.removeClass('active');
+                    step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了: ' + formatDate(dateValue));
+                } else if (!notRequiredChecked) {
+                    console.log('ステップを未完了状態にします');
+                    step.removeClass('completed');
+                    step.find('.progress-step-date').html('<span class="badge bg-secondary">未完了</span>');
+                }
+
+                // 進捗状況全体を更新
+                console.log('進捗状況を更新します');
+                updateProgressTimeline();
+                updateProgressStatus();
+                updateActiveStep();
             },
             error: function(xhr, status, error) {
                 console.error('✗ 見積書発行日の保存に失敗しました');
