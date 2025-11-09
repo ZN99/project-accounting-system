@@ -2812,9 +2812,36 @@ $(document).ready(function() {
     });
 
     // フォーム値の変更を監視して進捗状況を自動更新
-    $(document).on('change', 'input[name="estimate_issued_date"], input[name="estimate_not_required"], input[name="contract_date"], input[name="work_start_date"], input[name="work_start_completed"], input[name="work_end_date"], input[name="work_end_completed"], select[name="invoice_issued"]', function() {
+    $(document).on('change', 'input[name="work_start_date"], input[name="work_start_completed"], input[name="work_end_date"], input[name="work_end_completed"], select[name="invoice_issued"]', function() {
         updateProgressTimeline();
         updateProgressStatus();
+
+        // データベースに保存（汎用）
+        var fieldName = $(this).attr('name');
+        var fieldValue;
+
+        if ($(this).is(':checkbox')) {
+            fieldValue = $(this).is(':checked');
+        } else {
+            fieldValue = $(this).val();
+        }
+
+        var data = {
+            csrfmiddlewaretoken: '{{ csrf_token }}'
+        };
+        data[fieldName] = fieldValue;
+
+        $.ajax({
+            url: '{% url "order_management:project_update" project.pk %}',
+            method: 'POST',
+            data: data,
+            success: function(response) {
+                console.log(fieldName + 'を保存しました:', fieldValue);
+            },
+            error: function(xhr, status, error) {
+                console.error(fieldName + 'の保存に失敗:', error);
+            }
+        });
     });
 
     // 見積書発行日の変更を監視
@@ -2916,9 +2943,11 @@ $(document).ready(function() {
     // 契約日の変更を監視
     $(document).on('change', 'input[name="contract_date"]', function() {
         var step = $('.progress-step[data-step="contract"]');
-        if ($(this).val()) {
+        var dateValue = $(this).val();
+
+        if (dateValue) {
             step.addClass('completed');
-            step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了: ' + formatDate($(this).val()));
+            step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了: ' + formatDate(dateValue));
 
             // 次のステップ（工事開始）をアクティブにする
             var nextStep = $('.progress-step[data-step="work_start"]');
@@ -2929,6 +2958,23 @@ $(document).ready(function() {
             step.removeClass('completed');
             step.find('.progress-step-date').html('未完了');
         }
+
+        // データベースに保存
+        $.ajax({
+            url: '{% url "order_management:project_update" project.pk %}',
+            method: 'POST',
+            data: {
+                contract_date: dateValue,
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            success: function(response) {
+                console.log('契約日を保存しました:', dateValue);
+            },
+            error: function(xhr, status, error) {
+                console.error('契約日の保存に失敗:', error);
+                alert('保存に失敗しました。もう一度お試しください。');
+            }
+        });
     });
 
     // 請求書発行の変更を監視
