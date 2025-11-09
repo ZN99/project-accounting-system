@@ -2812,7 +2812,9 @@ $(document).ready(function() {
     });
 
     // フォーム値の変更を監視して進捗状況を自動更新
-    $(document).on('change', 'input[name="work_start_date"], input[name="work_start_completed"], input[name="work_end_date"], input[name="work_end_completed"], select[name="invoice_issued"]', function() {
+    // 汎用フィールドの変更を監視（動的に追加されるステップも含む）
+    // _dateで終わるフィールド（estimate_issued_date, contract_date, dynamic_field_*は除外）
+    $(document).on('change', 'input[name$="_date"]:not([name="estimate_issued_date"]):not([name="contract_date"]):not([name^="dynamic_field_"]), input[name$="_completed"]:not([name^="dynamic_field_"]), select[name="invoice_issued"]', function() {
         // データベースに保存（汎用）
         var fieldName = $(this).attr('name');
         var fieldValue;
