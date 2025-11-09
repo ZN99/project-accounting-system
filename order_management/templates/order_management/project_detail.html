@@ -3154,6 +3154,26 @@ $(document).ready(function() {
                 console.log(`Updated complex step ${stepKey}:`, status);
             }
         }
+
+        // データベースに保存（複合ステップフィールド）
+        const fieldValue = $(this).is(':checkbox') ? $(this).is(':checked') : $(this).val();
+        const data = {
+            csrfmiddlewaretoken: '{{ csrf_token }}',
+            ajax_save: 'true'
+        };
+        data[fieldName] = fieldValue;
+
+        $.ajax({
+            url: '{% url "order_management:update_progress" project.pk %}',
+            method: 'POST',
+            data: data,
+            success: function(response) {
+                console.log('複合ステップフィールドを保存しました:', fieldName, fieldValue);
+            },
+            error: function(xhr, status, error) {
+                console.error('複合ステップフィールドの保存に失敗:', fieldName, error);
+            }
+        });
     });
 
     // ステップ状態の更新
