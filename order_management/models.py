@@ -680,10 +680,12 @@ class Project(models.Model):
     def get_current_project_stage(self):
         """5つのステップに基づいた現在のプロジェクト段階を返す
 
+        このロジックは案件詳細画面のJavaScriptと完全に一致させています。
+
         カラーコード統一ルール:
         - verified (濃い緑): 完了チェックボックスON
-        - success (緑): 実施日が入力されている
-        - warning (黄色): 予定日のみ入力されている
+        - success (緑): 実施日 OR 予定日が入力されている
+        - warning (黄色): 予定日のみ入力されている（着工日待ちの場合）
         - secondary (グレー): 何も入力されていない
         """
         complex_fields = self.additional_items.get('complex_step_fields', {}) if self.additional_items else {}
@@ -691,8 +693,8 @@ class Project(models.Model):
         # 完工日をチェック（基本フィールドと複合フィールドの両方）
         if self.work_end_completed or complex_fields.get('completion_completed'):
             return {'stage': '完工', 'color': 'verified'}  # 完了チェックON → 濃い緑
-        elif complex_fields.get('completion_actual_date'):
-            return {'stage': '完工', 'color': 'success'}  # 実施日入力 → 緑
+        elif complex_fields.get('completion_actual_date') or self.work_end_date or complex_fields.get('completion_scheduled_date'):
+            return {'stage': '完工', 'color': 'success'}  # 実施日 OR 予定日入力 → 緑
 
         # 着工日をチェック（基本フィールドと複合フィールドの両方）
         if self.work_start_completed:
@@ -700,11 +702,7 @@ class Project(models.Model):
         elif complex_fields.get('construction_start_actual_date'):
             return {'stage': '工事中', 'color': 'success'}  # 実施日入力 → 緑
         elif self.work_start_date or complex_fields.get('construction_start_scheduled_date'):
-            # 着工予定日が設定されている場合、完工予定日もチェックして工事中か着工日待ちか判定
-            if self.work_end_date or complex_fields.get('completion_scheduled_date'):
-                return {'stage': '工事中', 'color': 'warning'}  # 着工予定あり & 完工予定あり → 工事中（黄色）
-            else:
-                return {'stage': '着工日待ち', 'color': 'warning'}  # 着工予定のみ → 着工日待ち（黄色）
+            return {'stage': '着工日待ち', 'color': 'warning'}  # 着工予定のみ → 着工日待ち（黄色）
 
         # 見積もり発行日をチェック（基本フィールドと複合フィールドの両方）
         if self.estimate_issued_date or complex_fields.get('estimate_issued_date'):
@@ -846,12 +844,25 @@ class Project(models.Model):
         }
 
     def get_revenue_breakdown(self):
-        """売上・原価・利益の内訳を返す"""
-        # 売上 = 請求額実請求
-        revenue = self.billing_amount or Decimal('0')
+        """売上・原価・利益の内訳を返す
 
-        # 売上原価の計算（例：受注金額の70%と仮定、実際の業務に合わせて調整）
-        cost_of_sales = (self.order_amount or Decimal('0')) * Decimal('0.7')
+        案件詳細画面のfinancial_info計算ロジックと完全に一致させています。
+        """
+        # Subcontractモデルをインポート（循環インポート回避のため、メソッド内でインポート）
+        try:
+            from subcontract_management.models import Subcontract
+            subcontracts = Subcontract.objects.filter(project=self)
+
+            # 実際の原価を計算（外注費 + 材料費）
+            total_subcontract_cost = sum(s.billed_amount for s in subcontracts)
+            total_material_cost = sum(s.total_material_cost for s in subcontracts)
+            cost_of_sales = total_subcontract_cost + total_material_cost
+        except ImportError:
+            # subcontract_managementアプリが利用できない場合はフォールバック
+            cost_of_sales = Decimal('0')
+
+        # 売上 = 請求額
+        revenue = self.billing_amount or Decimal('0')
 
         # 売上総利益 = 売上 - 売上原価
         gross_profit = revenue - cost_of_sales
@@ -861,7 +872,7 @@ class Project(models.Model):
 
         return {
             'revenue': revenue,           # 売上
-            'cost_of_sales': cost_of_sales,  # 売上原価
+            'cost_of_sales': cost_of_sales,  # 売上原価（外注費＋材料費）
             'gross_profit': gross_profit,    # 売上総利益
             'profit_margin': profit_margin   # 利益率
         }
