@@ -2825,16 +2825,13 @@ $(document).ready(function() {
         if ($(this).val() && !notRequiredChecked) {
             step.addClass('completed');
             step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了: ' + formatDate($(this).val()));
-
-            // 次のステップ（契約）をアクティブにする
-            var nextStep = $('.progress-step[data-step="contract"]');
-            if (!nextStep.hasClass('completed')) {
-                nextStep.addClass('active');
-            }
         } else if (!notRequiredChecked) {
             step.removeClass('completed');
             step.find('.progress-step-date').html('未完了');
         }
+
+        // アクティブステップを更新（最初の未完了ステップのみをアクティブにする）
+        updateActiveStep();
     });
 
     // 見積書不要チェックボックスの処理をグローバル関数として定義
@@ -2849,12 +2846,6 @@ $(document).ready(function() {
             step.addClass('completed');
             step.find('.progress-step-date').html('<i class="fas fa-times-circle me-1"></i>見積不要');
             dateInput.prop('disabled', true).val('');
-
-            // 次のステップ（契約）をアクティブにする
-            var nextStep = $('.progress-step[data-step="contract"]');
-            if (!nextStep.hasClass('completed')) {
-                nextStep.addClass('active');
-            }
         } else {
             // 見積書不要のチェックを外した場合
             dateInput.prop('disabled', false);
@@ -2866,6 +2857,9 @@ $(document).ready(function() {
                 step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>' + dateInput.val());
             }
         }
+
+        // アクティブステップを更新（最初の未完了ステップのみをアクティブにする）
+        updateActiveStep();
 
         // タイムラインと進捗状況を更新
         updateProgressTimeline();
@@ -3239,6 +3233,22 @@ $(document).ready(function() {
                 previousCompleted = true;
             } else {
                 previousCompleted = false;
+            }
+        });
+    }
+
+    // アクティブステップを更新する関数（最初の未完了ステップのみをアクティブにする）
+    function updateActiveStep() {
+        // すべてのステップからactiveクラスを削除
+        $('#activeSteps .progress-step').removeClass('active');
+
+        // 最初の未完了ステップを見つけてactiveクラスを付与
+        let foundFirstIncomplete = false;
+        $('#activeSteps .progress-step').each(function() {
+            const $step = $(this);
+            if (!foundFirstIncomplete && !$step.hasClass('completed')) {
+                $step.addClass('active');
+                foundFirstIncomplete = true;
             }
         });
     }
@@ -3635,6 +3645,9 @@ $(document).ready(function() {
                 container.append(generateWorkEndStepHtml());
                 container.append(generateInvoiceStepHtml());
             }
+
+            // アクティブステップを正しく設定（最初の未完了ステップのみ）
+            updateActiveStep();
 
             // 進捗タイムラインも更新（DOM要素が準備されてから）
             setTimeout(() => {
