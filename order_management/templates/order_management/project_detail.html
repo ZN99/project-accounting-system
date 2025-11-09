@@ -3177,32 +3177,6 @@ $(document).ready(function() {
         const stepKey = fieldName.replace(/^dynamic_field_/, '').split('_')[0];
         const $step = $(`.progress-step[data-step="${stepKey}"]`);
 
-        if ($step.length > 0) {
-            // availableStepsから該当するステップ定義を取得
-            const stepData = availableSteps.find(s => s.key === stepKey);
-
-            if (stepData && stepData.type === 'complex') {
-                // 複合ステップのステータスを再計算
-                const status = getComplexStepStatus(stepData, $step);
-
-                // ステータスに応じてクラスを追加/削除
-                if (status.completed) {
-                    $step.addClass('completed');
-                } else {
-                    $step.removeClass('completed');
-                }
-
-                // ステータステキストを更新
-                $step.find('.progress-step-date').html(status.statusText);
-
-                // 進捗タイムラインと状況バーを更新
-                updateProgressTimeline();
-                updateProgressStatus();
-
-                console.log(`Updated complex step ${stepKey}:`, status);
-            }
-        }
-
         // データベースに保存（複合ステップフィールド）
         const fieldValue = $(this).is(':checkbox') ? $(this).is(':checked') : $(this).val();
         const data = {
@@ -3217,6 +3191,34 @@ $(document).ready(function() {
             data: data,
             success: function(response) {
                 console.log('複合ステップフィールドを保存しました:', fieldName, fieldValue);
+
+                // 保存成功後にUIを更新
+                if ($step.length > 0) {
+                    // availableStepsから該当するステップ定義を取得
+                    const stepData = availableSteps.find(s => s.key === stepKey);
+
+                    if (stepData && stepData.type === 'complex') {
+                        // 複合ステップのステータスを再計算
+                        const status = getComplexStepStatus(stepData, $step);
+
+                        // ステータスに応じてクラスを追加/削除
+                        if (status.completed) {
+                            $step.addClass('completed');
+                            $step.removeClass('active');
+                        } else {
+                            $step.removeClass('completed');
+                        }
+
+                        // ステータステキストを更新
+                        $step.find('.progress-step-date').html(status.statusText);
+
+                        // 進捗タイムラインと状況バーを更新
+                        updateProgressTimeline();
+                        updateProgressStatus();
+
+                        console.log(`Updated complex step ${stepKey}:`, status);
+                    }
+                }
             },
             error: function(xhr, status, error) {
                 console.error('複合ステップフィールドの保存に失敗:', fieldName, error);
