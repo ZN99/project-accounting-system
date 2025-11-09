@@ -650,45 +650,71 @@ class Project(models.Model):
         return {'phase': phase, 'color': color, 'percentage': percentage}
 
     def get_progress_details(self):
-        """進捗の詳細情報を返す（動的ステップを含む）"""
-        active_steps = self.progress_steps.filter(is_active=True).order_by('order', 'template__order')
-        completed_steps = active_steps.filter(is_completed=True)
-
-        # 実際のステップ数を使用する
-        # additional_itemsのstep_orderはUIの表示順序を定義しているが、
-        # 実際のステップがすべて作成されているとは限らない
-        total_steps = active_steps.count()
-
-        # step_orderに現場調査があるが、実際のステップが作成されていない場合の対応
+        """進捗の詳細情報を返す（新しいフィールドベースシステムを使用）"""
+        # additional_itemsのstep_orderから動的ステップを取得
+        step_order = []
         if self.additional_items and 'step_order' in self.additional_items:
             step_order = self.additional_items.get('step_order', [])
 
-            # step_orderに現場調査が含まれているか確認
-            has_site_survey_in_order = any(s.get('step') == 'site_survey' for s in step_order)
+        total_steps = len(step_order)
+        completed_steps_count = 0
+        steps = []
 
-            # 実際のステップに現場調査が含まれているか確認
-            has_site_survey_step = active_steps.filter(template__name='現場調査').exists()
+        for step_item in step_order:
+            step_key = step_item.get('step', '')
+            is_completed = False
+            completed_date = None
 
-            # step_orderに現場調査があるが、実際のステップにない場合
-            if has_site_survey_in_order and not has_site_survey_step:
-                # UIの整合性のため、仮想的に1ステップ追加
-                total_steps += 1
+            # 各ステップタイプごとに完了判定
+            if step_key == 'estimate':
+                # 見積書発行: estimate_issued_date OR estimate_not_required
+                is_completed = bool(self.estimate_issued_date or self.estimate_not_required)
+                completed_date = self.estimate_issued_date
+            elif step_key == 'contract':
+                # 契約: contract_date
+                is_completed = bool(self.contract_date)
+                completed_date = self.contract_date
+            elif step_key == 'work_start':
+                # 着工: work_start_date OR work_start_completed
+                is_completed = bool(self.work_start_date or self.work_start_completed)
+                completed_date = self.work_start_date
+            elif step_key == 'work_end':
+                # 完工: work_end_date OR work_end_completed
+                is_completed = bool(self.work_end_date or self.work_end_completed)
+                completed_date = self.work_end_date
+            elif step_key == 'invoice':
+                # 請求書発行: invoice_issued
+                is_completed = bool(self.invoice_issued)
+            elif step_key in ['attendance', 'survey', 'construction_start', 'completion']:
+                # 複合ステップ: complex_step_fieldsを確認
+                complex_fields = self.additional_items.get('complex_step_fields', {}) if self.additional_items else {}
+                # いずれかのフィールドに値があれば完了とみなす
+                is_completed = any(
+                    key.startswith(f'{step_key}_') and value
+                    for key, value in complex_fields.items()
+                )
+            else:
+                # その他の動的ステップ: ${step_key}_date or ${step_key}_completed
+                date_field = f'{step_key}_date'
+                completed_field = f'{step_key}_completed'
+                is_completed = bool(getattr(self, date_field, None) or getattr(self, completed_field, None))
+                completed_date = getattr(self, date_field, None)
 
-        completed_steps_count = completed_steps.count()
+            if is_completed:
+                completed_steps_count += 1
+
+            steps.append({
+                'name': step_item.get('name', step_key),
+                'completed': is_completed,
+                'completed_date': completed_date,
+                'icon': 'fa-check'  # デフォルトアイコン
+            })
 
         return {
             'total_steps': total_steps,
             'completed_steps': completed_steps_count,
             'remaining_steps': total_steps - completed_steps_count,
-            'steps': [
-                {
-                    'name': step.template.name,
-                    'completed': step.is_completed,
-                    'completed_date': step.completed_date,
-                    'icon': step.template.icon
-                }
-                for step in active_steps
-            ]
+            'steps': steps
         }
 
     def get_current_project_stage(self):
