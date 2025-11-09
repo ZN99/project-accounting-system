@@ -2821,10 +2821,11 @@ $(document).ready(function() {
     $(document).on('change', 'input[name="estimate_issued_date"]', function() {
         var step = $('.progress-step[data-step="estimate"]');
         var notRequiredChecked = $('#estimateNotRequired').is(':checked');
+        var dateValue = $(this).val();
 
-        if ($(this).val() && !notRequiredChecked) {
+        if (dateValue && !notRequiredChecked) {
             step.addClass('completed');
-            step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了: ' + formatDate($(this).val()));
+            step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了: ' + formatDate(dateValue));
         } else if (!notRequiredChecked) {
             step.removeClass('completed');
             step.find('.progress-step-date').html('未完了');
@@ -2832,6 +2833,23 @@ $(document).ready(function() {
 
         // アクティブステップを更新（最初の未完了ステップのみをアクティブにする）
         updateActiveStep();
+
+        // データベースに保存
+        $.ajax({
+            url: '{% url "order_management:project_update" project.pk %}',
+            method: 'POST',
+            data: {
+                estimate_issued_date: dateValue,
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            success: function(response) {
+                console.log('見積書発行日を保存しました:', dateValue);
+            },
+            error: function(xhr, status, error) {
+                console.error('見積書発行日の保存に失敗:', error);
+                alert('保存に失敗しました。もう一度お試しください。');
+            }
+        });
     });
 
     // 見積書不要チェックボックスの処理をグローバル関数として定義
@@ -2864,6 +2882,24 @@ $(document).ready(function() {
         // タイムラインと進捗状況を更新
         updateProgressTimeline();
         updateProgressStatus();
+
+        // データベースに保存
+        $.ajax({
+            url: '{% url "order_management:project_update" project.pk %}',
+            method: 'POST',
+            data: {
+                estimate_not_required: isChecked,
+                estimate_issued_date: isChecked ? '' : dateInput.val(),
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            success: function(response) {
+                console.log('見積書不要フラグを保存しました:', isChecked);
+            },
+            error: function(xhr, status, error) {
+                console.error('見積書不要フラグの保存に失敗:', error);
+                alert('保存に失敗しました。もう一度お試しください。');
+            }
+        });
     };
 
     // チェックボックスにイベントリスナーを設定
@@ -3312,16 +3348,12 @@ $(document).ready(function() {
                 if (estimateIssuedDate) {
                     phase = '見積もり審査中';
                     color = 'warning';
-                } else if (!estimateNotRequired) {
-                    // 見積もり不要でない場合は、ここで処理を続ける
-                }
-
-                // 現調をチェック（見積もり不要の場合はここから始まる）
-                const surveyElement = $('.progress-step[data-step="survey"]');
-                const surveyActualDate = surveyElement.find('input[name*="actual_date"]').val();
-                const surveyScheduledDate = surveyElement.find('input[name*="scheduled_date"]').val();
-
-                if (!estimateIssuedDate || estimateNotRequired) {
+                } else {
+                    // 見積書発行日がない場合のみ、前の工程をチェック
+                    // 現調をチェック
+                    const surveyElement = $('.progress-step[data-step="survey"]');
+                    const surveyActualDate = surveyElement.find('input[name*="actual_date"]').val();
+                    const surveyScheduledDate = surveyElement.find('input[name*="scheduled_date"]').val();
                     if (surveyActualDate) {
                         phase = '現調済み';
                         color = 'success';
