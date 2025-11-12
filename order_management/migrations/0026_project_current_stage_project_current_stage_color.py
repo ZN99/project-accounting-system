@@ -46,7 +46,7 @@ def populate_current_stage(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("order_management", "0025_alter_project_project_status"),
+        ("order_management", "0024_alter_project_project_status"),
     ]
 
     operations = [
