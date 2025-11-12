@@ -1,0 +1,104 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+
+{% block title %}データインポート - 建築派遣管理システム{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-upload me-2"></i>データインポート</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        バックアップファイル（JSON形式）をアップロードしてデータをインポートします。
+                    </div>
+
+                    <form id="importForm" method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="backup_file" class="form-label">バックアップファイル</label>
+                            <input type="file" class="form-control" id="backup_file" name="backup_file" accept=".json" required>
+                            <small class="form-text text-muted">
+                                JSON形式のバックアップファイルを選択してください
+                            </small>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'order_management:dashboard' %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>キャンセル
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-upload me-2"></i>インポート開始
+                            </button>
+                        </div>
+                    </form>
+
+                    <div id="importResult" class="mt-4" style="display: none;">
+                        <div class="alert" role="alert">
+                            <span id="resultMessage"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>注意事項</h5>
+                </div>
+                <div class="card-body">
+                    <ul>
+                        <li>インポート前に現在のデータのバックアップを取ることを推奨します</li>
+                        <li>同じIDのデータが存在する場合、上書きされる可能性があります</li>
+                        <li>大量のデータのインポートには時間がかかる場合があります</li>
+                        <li>インポート中はブラウザを閉じないでください</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('importForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const resultDiv = document.getElementById('importResult');
+    const resultMessage = document.getElementById('resultMessage');
+
+    // ローディング表示
+    resultDiv.style.display = 'block';
+    resultDiv.querySelector('.alert').className = 'alert alert-info';
+    resultMessage.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>インポート中...';
+
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            resultDiv.querySelector('.alert').className = 'alert alert-success';
+            resultMessage.innerHTML = '<i class="fas fa-check-circle me-2"></i>' + data.message;
+            document.getElementById('importForm').reset();
+        } else {
+            resultDiv.querySelector('.alert').className = 'alert alert-danger';
+            resultMessage.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + data.message;
+        }
+    })
+    .catch(error => {
+        resultDiv.querySelector('.alert').className = 'alert alert-danger';
+        resultMessage.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>エラーが発生しました: ' + error;
+    });
+});
+</script>
+{% endblock %}
