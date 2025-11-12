@@ -5,7 +5,7 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
 import json
 from datetime import datetime
-from .models import Project, Contractor, Staff
+from .models import Project, Contractor, UserProfile
 
 
 @login_required
@@ -18,7 +18,7 @@ def export_data(request):
             'export_date': datetime.now().isoformat(),
             'projects': list(Project.objects.all().values()),
             'contractors': list(Contractor.objects.all().values()),
-            'staff': list(Staff.objects.all().values()),
+            'user_profiles': list(UserProfile.objects.all().values()),
         }
 
         # JSON形式でレスポンスを返す
@@ -63,7 +63,7 @@ def import_data_view(request):
             imported_count = {
                 'projects': 0,
                 'contractors': 0,
-                'staff': 0
+                'user_profiles': 0
             }
 
             # ここに実際のインポート処理を実装
