@@ -4,7 +4,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from datetime import datetime, timedelta
-from .models import Project, Contractor, SubContract
+from .models import Project, Contractor
+from subcontract_management.models import Subcontract
 from django.db.models import Q, Count
 
 
@@ -54,7 +55,7 @@ class WorkerResourceCalendarView(LoginRequiredMixin, TemplateView):
         contractor_data = []
         for contractor in contractors:
             # この職人が担当している案件数（期間内）
-            active_projects = SubContract.objects.filter(
+            active_projects = Subcontract.objects.filter(
                 contractor=contractor,
                 project__work_start_date__lte=end_date,
                 project__work_end_date__gte=start_date
@@ -179,7 +180,7 @@ def worker_resource_data_api(request):
     end = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
 
     # 職人と案件のマッピングを取得
-    subcontracts = SubContract.objects.filter(
+    subcontracts = Subcontract.objects.filter(
         project__work_start_date__lte=end,
         project__work_end_date__gte=start
     ).select_related('contractor', 'project')
