@@ -991,23 +991,13 @@ class Project(models.Model):
             }
         """
         additional_items = self.additional_items or {}
-        step_order = additional_items.get('step_order', [])
+        complex_step_fields = additional_items.get('complex_step_fields', {})
 
-        # 着工日と完工日を取得
-        construction_start_scheduled = None
-        construction_start_actual = None
-        completion_scheduled = None
-        completion_actual = None
-
-        for step_item in step_order:
-            step_key = step_item.get('key')
-
-            if step_key == 'construction_start':
-                construction_start_scheduled = step_item.get('scheduled_date')
-                construction_start_actual = step_item.get('actual_date')
-            elif step_key == 'completion':
-                completion_scheduled = step_item.get('scheduled_date')
-                completion_actual = step_item.get('actual_date')
+        # complex_step_fieldsから着工日と完工日を取得
+        construction_start_scheduled = complex_step_fields.get('construction_start_scheduled_date')
+        construction_start_actual = complex_step_fields.get('construction_start_actual_date')
+        completion_scheduled = complex_step_fields.get('completion_scheduled_date')
+        completion_actual = complex_step_fields.get('completion_actual_date')
 
         # 日付の解析（文字列をdateオブジェクトに変換）
         def parse_date(date_str):

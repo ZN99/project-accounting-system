@@ -149,21 +149,30 @@ def performance_monthly_api(request):
 @login_required
 def gantt_data_api(request):
     """ガントチャートデータをJSON形式で返す"""
-    projects = Project.objects.filter(
-        work_start_date__isnull=False
-    ).order_by('work_start_date')
+    projects = Project.objects.all().order_by('id')
 
     # Ganttデータを生成
     tasks = []
     for project in projects:
-        if project.work_start_date and project.work_end_date:
+        # get_construction_period()を使用して工期を取得
+        period = project.get_construction_period()
+
+        if period['start_date'] and period['end_date']:
+            # 進捗率を取得
+            progress_details = project.get_progress_details()
+            progress_percentage = 0
+            if progress_details['total_steps'] > 0:
+                progress_percentage = int((progress_details['completed_steps'] / progress_details['total_steps']) * 100)
+
             task = {
                 'id': f'project-{project.id}',
                 'name': project.site_name,
-                'start': project.work_start_date.isoformat(),
-                'end': project.work_end_date.isoformat(),
-                'progress': project.progress or 0,
-                'dependencies': ''
+                'start': period['start_date'].isoformat(),
+                'end': period['end_date'].isoformat(),
+                'progress': progress_percentage,
+                'dependencies': '',
+                'construction_period_type': period['type'],  # actual, mixed, planned
+                'construction_period_days': period['days']
             }
             tasks.append(task)
 

@@ -5474,11 +5474,28 @@ $(document).ready(function() {
                         statusText: `<span class="badge bg-success">完工</span> ${compActual ? formatDate(compActual) : ''}`
                     };
                 } else if (compScheduled) {
-                    return {
-                        completed: false,
-                        status: 'in_progress',
-                        statusText: `<span class="badge bg-info">施工中</span> 予定: ${formatDate(compScheduled)}`
-                    };
+                    // 着工日の状態を確認
+                    const constructionStartStep = $('#activeSteps .progress-step[data-step-key="construction_start"]');
+                    let isConstructionStarted = false;
+
+                    if (constructionStartStep.length > 0) {
+                        const csActualInput = constructionStartStep.find('input[name*="actual_date"]');
+                        isConstructionStarted = csActualInput.length > 0 && csActualInput.val() && csActualInput.val().trim() !== '';
+                    }
+
+                    if (isConstructionStarted) {
+                        return {
+                            completed: false,
+                            status: 'in_progress',
+                            statusText: `<span class="badge bg-info">施工中</span> 予定: ${formatDate(compScheduled)}`
+                        };
+                    } else {
+                        return {
+                            completed: false,
+                            status: 'waiting',
+                            statusText: `<span class="badge bg-warning">着工待ち</span> 予定: ${formatDate(compScheduled)}`
+                        };
+                    }
                 } else {
                     return {
                         completed: false,
