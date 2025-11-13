@@ -239,14 +239,37 @@ let currentViewMode = 'Week';
 
 // ガントチャートデータの読み込み
 function loadGanttData() {
-    fetch(`{% url 'order_management:gantt_data_api' %}?year=${currentYear}&month=${currentMonth}`)
+    fetch(`{% url 'order_management:gantt_data_api' %}?year=${currentYear}&month=${currentMonth}`, {
+        credentials: 'same-origin',
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
         .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+
+            // リダイレクトチェック
+            if (response.redirected) {
+                console.error('Request was redirected to:', response.url);
+                throw new Error('認証が必要です。ログインしてください。');
             }
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            // Content-Typeチェック
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('JSONレスポンスではありません');
+            }
+
             return response.json();
         })
         .then(data => {
+            console.log('Gantt data received:', data);
             tasksData = data.tasks || [];
             displayStatistics(tasksData);
             renderGanttChart(tasksData);
@@ -257,7 +280,7 @@ function loadGanttData() {
             document.getElementById('loading').innerHTML = `
                 <div class="alert alert-danger">
                     <i class="fas fa-exclamation-circle me-2"></i>
-                    データの読み込みに失敗しました
+                    データの読み込みに失敗しました: ${error.message}
                 </div>
             `;
         });
