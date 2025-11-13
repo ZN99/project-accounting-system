@@ -237,13 +237,33 @@ let ganttChart = null;
 let tasksData = [];
 let currentViewMode = 'Week';
 
+// CSRFトークンを取得
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
 // ガントチャートデータの読み込み
 function loadGanttData() {
+    const csrftoken = getCookie('csrftoken');
+
     fetch(`{% url 'order_management:gantt_data_api' %}?year=${currentYear}&month=${currentMonth}`, {
+        method: 'GET',
         credentials: 'same-origin',
         headers: {
             'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrftoken
         }
     })
         .then(response => {
