@@ -675,12 +675,12 @@ class Project(models.Model):
                 is_completed = bool(self.contract_date)
                 completed_date = self.contract_date
             elif step_key == 'work_start':
-                # 着工: work_start_date OR work_start_completed
-                is_completed = bool(self.work_start_date or self.work_start_completed)
+                # 着工: work_start_completed のみ（詳細画面のJavaScriptと同じ）
+                is_completed = bool(self.work_start_completed)
                 completed_date = self.work_start_date
             elif step_key == 'work_end':
-                # 完工: work_end_date OR work_end_completed
-                is_completed = bool(self.work_end_date or self.work_end_completed)
+                # 完工: work_end_completed のみ（詳細画面のJavaScriptと同じ）
+                is_completed = bool(self.work_end_completed)
                 completed_date = self.work_end_date
             elif step_key == 'invoice':
                 # 請求書発行: invoice_issued
