@@ -6,7 +6,7 @@
 
 {% block extra_css %}
 <!-- Frappe Gantt CSS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.1/dist/frappe-gantt.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt/dist/frappe-gantt.min.css">
 <style>
     .gantt-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -228,7 +228,7 @@
 
 {% block extra_js %}
 <!-- Frappe Gantt JS -->
-<script src="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.1/dist/frappe-gantt.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/frappe-gantt/dist/frappe-gantt.min.js"></script>
 
 <script>
 const currentYear = {{ year }};
@@ -342,7 +342,7 @@ function renderGanttChart(tasks) {
         custom_class: task.status,
     }));
 
-    ganttChart = new Gantt("#gantt", frappeT asks, {
+    ganttChart = new Gantt("#gantt", frappeTasks, {
         view_mode: currentViewMode,
         language: 'ja',
         bar_height: 30,
