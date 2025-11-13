@@ -2909,6 +2909,7 @@ $(document).ready(function() {
                 updateProgressTimeline();
                 updateProgressStatus();
                 updateActiveStep();
+                updateAllStepStatuses();
             },
             error: function(xhr, status, error) {
                 console.error('✗ 見積書発行日の保存に失敗しました');
@@ -3414,6 +3415,32 @@ $(document).ready(function() {
             if (!foundFirstIncomplete && !$step.hasClass('completed')) {
                 $step.addClass('active');
                 foundFirstIncomplete = true;
+            }
+        });
+    }
+
+    // すべてのステップのステータスを更新
+    function updateAllStepStatuses() {
+        $('.progress-step[data-step]').each(function() {
+            const $step = $(this);
+            const stepKey = $step.data('step');
+
+            // availableStepsから該当するステップ定義を取得
+            const stepData = availableSteps.find(s => s.key === stepKey);
+
+            if (stepData && stepData.type === 'complex') {
+                // 複合ステップのステータスを計算
+                const status = getComplexStepStatus(stepData, $step);
+
+                // ステータスに応じてクラスを追加
+                if (status.completed) {
+                    $step.addClass('completed');
+                } else {
+                    $step.removeClass('completed');
+                }
+
+                // ステータステキストを更新
+                $step.find('.progress-step-date').html(status.statusText);
             }
         });
     }
