@@ -1724,18 +1724,16 @@ function toggleEditMode() {
                     fieldValue = fieldElement.val();
                 }
 
-                // 基本フィールド（estimate, contract, work_start, work_end, invoice）は常にPOST
+                // 基本フィールド（estimate, contract, work_start, work_end, invoice）
                 const isBasicField = ['estimate_issued_date', 'estimate_not_required', 'contract_date',
                                      'work_start_date', 'work_start_completed', 'work_end_date',
                                      'work_end_completed', 'invoice_issued'].includes(fieldName);
 
-                // 基本フィールドは空でもPOST、その他は値がある場合のみ
-                if (isBasicField || (fieldValue !== undefined && fieldValue !== '')) {
-                    // dynamic_field_ プレフィックスは基本フィールド以外に追加
-                    const finalFieldName = isBasicField ? fieldName :
-                                          (fieldName.startsWith('dynamic_field_') ? fieldName : `dynamic_field_${fieldName}`);
-                    dynamicFields[finalFieldName] = fieldValue;
-                }
+                // すべてのフィールドを空でもPOST（削除・クリア操作を可能にするため）
+                // dynamic_field_ プレフィックスは基本フィールド以外に追加
+                const finalFieldName = isBasicField ? fieldName :
+                                      (fieldName.startsWith('dynamic_field_') ? fieldName : `dynamic_field_${fieldName}`);
+                dynamicFields[finalFieldName] = fieldValue;
             });
         });
 
