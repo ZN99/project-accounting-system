@@ -1715,7 +1715,7 @@ function toggleEditMode() {
 
                 // チェックボックスとラジオボタンの場合
                 if (fieldElement.is(':checkbox')) {
-                    fieldValue = fieldElement.is(':checked') ? 'true' : 'false';
+                    fieldValue = fieldElement.is(':checked') ? 'on' : '';
                 } else if (fieldElement.is(':radio')) {
                     // ラジオボタンは選択されている場合のみ処理
                     if (!fieldElement.is(':checked')) return;
@@ -1724,10 +1724,16 @@ function toggleEditMode() {
                     fieldValue = fieldElement.val();
                 }
 
-                // 値が存在する場合のみ追加
-                if (fieldValue !== undefined && fieldValue !== '') {
-                    // dynamic_field_ プレフィックスを追加（まだない場合）
-                    const finalFieldName = fieldName.startsWith('dynamic_field_') ? fieldName : `dynamic_field_${fieldName}`;
+                // 基本フィールド（estimate, contract, work_start, work_end, invoice）は常にPOST
+                const isBasicField = ['estimate_issued_date', 'estimate_not_required', 'contract_date',
+                                     'work_start_date', 'work_start_completed', 'work_end_date',
+                                     'work_end_completed', 'invoice_issued'].includes(fieldName);
+
+                // 基本フィールドは空でもPOST、その他は値がある場合のみ
+                if (isBasicField || (fieldValue !== undefined && fieldValue !== '')) {
+                    // dynamic_field_ プレフィックスは基本フィールド以外に追加
+                    const finalFieldName = isBasicField ? fieldName :
+                                          (fieldName.startsWith('dynamic_field_') ? fieldName : `dynamic_field_${fieldName}`);
                     dynamicFields[finalFieldName] = fieldValue;
                 }
             });
