@@ -181,9 +181,9 @@
         <div class="controls">
             <div class="view-mode-buttons">
                 <div class="btn-group" role="group">
-                    <button type="button" class="btn btn-outline-primary" onclick="changeViewMode('Day')">日</button>
-                    <button type="button" class="btn btn-outline-primary active" onclick="changeViewMode('Week')">週</button>
-                    <button type="button" class="btn btn-outline-primary" onclick="changeViewMode('Month')">月</button>
+                    <button type="button" class="btn btn-outline-primary" onclick="changeViewMode('Day', this)">日</button>
+                    <button type="button" class="btn btn-outline-primary active" onclick="changeViewMode('Week', this)">週</button>
+                    <button type="button" class="btn btn-outline-primary" onclick="changeViewMode('Month', this)">月</button>
                 </div>
             </div>
             <div class="ms-auto">
@@ -266,9 +266,10 @@ function loadGanttData() {
 // 統計情報の表示
 function displayStatistics(tasks) {
     const totalProjects = tasks.length;
-    const inProgress = tasks.filter(t => t.status === '進行中').length;
-    const waiting = tasks.filter(t => t.status === '施工日待ち').length;
-    const completed = tasks.filter(t => t.status === '完工').length;
+    // progressに基づいてステータスを判定
+    const completed = tasks.filter(t => t.progress === 100).length;
+    const inProgress = tasks.filter(t => t.progress > 0 && t.progress < 100).length;
+    const waiting = tasks.filter(t => t.progress === 0).length;
 
     document.getElementById('totalProjects').textContent = totalProjects;
     document.getElementById('inProgressProjects').textContent = inProgress;
@@ -289,7 +290,7 @@ function renderGanttChart(tasks) {
     }
 
     // Frappe Ganttの形式に変換
-    const frappeT asks = tasks.map(task => ({
+    const frappeTasks = tasks.map(task => ({
         id: task.id,
         name: task.name,
         start: task.start,
@@ -348,18 +349,26 @@ function renderGanttChart(tasks) {
         }
     });
 
-    // ステータスごとにバーの色を設定
+    // 進捗に基づいてバーの色を設定
     tasks.forEach(task => {
         const barElement = document.querySelector(`.bar[data-id="${task.id}"]`);
         if (barElement) {
-            barElement.setAttribute('data-status', task.status);
-            barElement.style.fill = task.color;
+            // 進捗率に基づいて色を設定
+            let color = '#6c757d'; // デフォルト（未開始）
+            if (task.progress === 100) {
+                color = '#007bff'; // 完了
+            } else if (task.progress > 0) {
+                color = '#28a745'; // 進行中
+            } else {
+                color = '#ffc107'; // 未開始/待機中
+            }
+            barElement.style.fill = color;
         }
     });
 }
 
 // 表示モード変更
-function changeViewMode(mode) {
+function changeViewMode(mode, buttonElement) {
     currentViewMode = mode;
     if (ganttChart) {
         ganttChart.change_view_mode(mode);
@@ -369,7 +378,9 @@ function changeViewMode(mode) {
     document.querySelectorAll('.view-mode-buttons .btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    event.target.classList.add('active');
+    if (buttonElement) {
+        buttonElement.classList.add('active');
+    }
 }
 
 // CSV出力
@@ -379,16 +390,14 @@ function exportToCSV() {
         return;
     }
 
-    const headers = ['案件名', 'ステータス', '元請', '担当', '受注金額', '開始日', '終了日', '進捗率'];
+    const headers = ['案件名', '開始日', '終了日', '工期（日）', '進捗率', '工期種別'];
     const rows = tasksData.map(task => [
         task.name,
-        task.status,
-        task.client,
-        task.manager,
-        task.amount,
         task.start,
         task.end,
-        task.progress + '%'
+        task.construction_period_days || '-',
+        task.progress + '%',
+        task.construction_period_type || '-'
     ]);
 
     let csvContent = '\ufeff' + headers.join(',') + '\n';
