@@ -3453,14 +3453,19 @@ $(document).ready(function() {
         // activeSteps内の全ステップをスキャン
         $('#activeSteps .progress-step').each(function() {
             const $step = $(this);
+            const stepKey = $step.data('step');
             const isCompleted = $step.hasClass('completed');
-            allSteps.push({ completed: isCompleted });
+            console.log(`🔍 Progress check - ${stepKey}: completed=${isCompleted}, has class=${$step.hasClass('completed')}`);
+            allSteps.push({ key: stepKey, completed: isCompleted });
         });
 
         // 完了率計算
         const completedSteps = allSteps.filter(step => step.completed).length;
         const totalSteps = allSteps.length;
         const percentage = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+
+        console.log(`📊 Progress calculation: ${completedSteps}/${totalSteps} = ${percentage}%`);
+        console.log('All steps:', allSteps);
 
         // フェーズ判定（get_current_project_stage()と同じロジック）
         let phase = '未開始';
