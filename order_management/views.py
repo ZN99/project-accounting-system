@@ -543,6 +543,15 @@ def update_progress(request, pk):
         # AJAXリクエストかどうかをチェック（編集完了ボタン用）
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.POST.get('ajax_save')
 
+        # デバッグ: POSTデータの確認
+        print(f"\n{'='*80}")
+        print(f"DEBUG update_progress for project {pk}")
+        print(f"POST data keys: {list(request.POST.keys())}")
+        print(f"estimate_not_required in POST? {'estimate_not_required' in request.POST}")
+        print(f"estimate_not_required raw value: {repr(request.POST.get('estimate_not_required'))}")
+        print(f"estimate_issued_date raw value: {repr(request.POST.get('estimate_issued_date'))}")
+        print(f"{'='*80}\n")
+
         estimate_issued_date = request.POST.get('estimate_issued_date')
         contract_date = request.POST.get('contract_date')
         work_start_date = request.POST.get('work_start_date')
@@ -686,6 +695,12 @@ def update_progress(request, pk):
                     print(f"Removed complex_step_field for deleted step: {field_name}")
 
         project.save()
+
+        # デバッグ: 保存後の確認
+        project.refresh_from_db()
+        print(f"After save and refresh:")
+        print(f"  project.estimate_not_required = {project.estimate_not_required}")
+        print(f"  project.estimate_issued_date = {project.estimate_issued_date}\n")
 
         # AJAX リクエストの場合はJSONレスポンスを返す
         if is_ajax:

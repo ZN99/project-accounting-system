@@ -1734,10 +1734,17 @@ function toggleEditMode() {
                 const finalFieldName = isBasicField ? fieldName :
                                       (fieldName.startsWith('dynamic_field_') ? fieldName : `dynamic_field_${fieldName}`);
                 dynamicFields[finalFieldName] = fieldValue;
+
+                // デバッグ: estimate関連フィールドをログ出力
+                if (fieldName.includes('estimate')) {
+                    console.log(`DEBUG: ${fieldName} = "${fieldValue}" (type: ${typeof fieldValue}, is checkbox: ${fieldElement.is(':checkbox')}, checked: ${fieldElement.is(':checked')})`);
+                }
             });
         });
 
         console.log('Saving dynamic fields:', dynamicFields);
+        console.log('DEBUG: estimate_not_required in POST?', 'estimate_not_required' in dynamicFields);
+        console.log('DEBUG: estimate_not_required value:', dynamicFields.estimate_not_required);
 
         // サーバーに保存（AJAX - 統一エンドポイント）
         $.ajax({
