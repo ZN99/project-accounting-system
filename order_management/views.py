@@ -552,18 +552,18 @@ def update_progress(request, pk):
         work_end_completed = request.POST.get('work_end_completed')
         estimate_not_required = request.POST.get('estimate_not_required')
 
-        # 日付フィールドの更新
-        if estimate_issued_date:
-            project.estimate_issued_date = estimate_issued_date
-        if contract_date:
-            project.contract_date = contract_date
-        if work_start_date:
-            project.work_start_date = work_start_date
-        if work_end_date:
-            project.work_end_date = work_end_date
-        if invoice_issued:
+        # 日付フィールドの更新（空文字列も処理）
+        if estimate_issued_date is not None:
+            project.estimate_issued_date = estimate_issued_date if estimate_issued_date else None
+        if contract_date is not None:
+            project.contract_date = contract_date if contract_date else None
+        if work_start_date is not None:
+            project.work_start_date = work_start_date if work_start_date else None
+        if work_end_date is not None:
+            project.work_end_date = work_end_date if work_end_date else None
+        if invoice_issued is not None:
             # Boolean値に変換
-            project.invoice_issued = invoice_issued.lower() == 'true'
+            project.invoice_issued = invoice_issued.lower() == 'true' if invoice_issued else False
 
         # 完了チェックボックスの更新
         project.work_start_completed = work_start_completed == 'on'
