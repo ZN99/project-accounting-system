@@ -50,9 +50,11 @@ class FixedCostListView(LoginRequiredMixin, ListView):
         # 統計情報
         queryset = self.get_queryset()
         context['total_active_costs'] = queryset.filter(is_active=True).count()
-        context['total_monthly_amount'] = sum(
+        total_monthly = sum(
             fc.monthly_amount for fc in queryset.filter(is_active=True)
         )
+        context['total_monthly_amount'] = total_monthly
+        context['total_yearly_amount'] = total_monthly * 12
 
         return context
 
@@ -116,6 +118,12 @@ class FixedCostDeleteView(LoginRequiredMixin, DeleteView):
         if not has_role(request.user, UserRole.EXECUTIVE):
             raise PermissionDenied("固定費情報へのアクセス権限がありません。")
         return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # 年額を計算してコンテキストに追加
+        context['yearly_amount'] = self.object.monthly_amount * 12
+        return context
 
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()

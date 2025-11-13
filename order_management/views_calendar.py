@@ -78,6 +78,9 @@ class WorkerResourceCalendarView(LoginRequiredMixin, TemplateView):
         context['start_date'] = start_date
         context['end_date'] = end_date
 
+        # カレンダーの日数リストを生成（1から31まで）
+        context['calendar_days'] = list(range(1, 32))
+
         return context
 
 

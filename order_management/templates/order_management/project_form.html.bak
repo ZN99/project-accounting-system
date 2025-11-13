@@ -273,76 +273,6 @@
     .contractor-table tbody tr.inactive-row:hover {
         background-color: #f8f9fa !important;
     }
-
-    /* タブUIのスタイル */
-    #projectFormTabs .nav-link {
-        color: #6c757d;
-        font-weight: 500;
-        border: none;
-        border-bottom: 3px solid transparent;
-        padding: 1rem 1.5rem;
-        transition: all 0.3s ease;
-    }
-
-    #projectFormTabs .nav-link:hover {
-        color: #0d6efd;
-        background: #f8f9fa;
-        border-bottom-color: #dee2e6;
-    }
-
-    #projectFormTabs .nav-link.active {
-        color: #0d6efd;
-        background: white;
-        border-bottom-color: #0d6efd;
-        font-weight: 600;
-    }
-
-    /* 表示切り替えボタンのスタイル */
-    .btn-group .btn-light.active {
-        background-color: #0d6efd;
-        color: white;
-        border-color: #0d6efd;
-    }
-
-    .btn-group .btn-light {
-        transition: all 0.3s ease;
-    }
-
-    .btn-group .btn-light:hover:not(.active) {
-        background-color: #e9ecef;
-    }
-
-    /* 全体表示モードでのタブパネルのスタイル */
-    #projectFormTabsContent .tab-pane {
-        transition: all 0.3s ease;
-    }
-
-    #projectFormTabsContent.full-view-mode .tab-pane {
-        margin-bottom: 2rem;
-        padding: 1.5rem;
-        background: white;
-        border-radius: 8px;
-        border: 1px solid #e2e8f0;
-    }
-
-    #projectFormTabsContent.full-view-mode .tab-pane:last-child {
-        margin-bottom: 0;
-    }
-
-    #projectFormTabsContent.full-view-mode .tab-pane::before {
-        content: attr(data-section-title);
-        display: block;
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: #0d6efd;
-        margin-bottom: 1rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 2px solid #0d6efd;
-    }
-
-    .bg-gradient-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    }
 </style>
 {% endblock %}
 
@@ -350,56 +280,15 @@
 <div class="row">
     <div class="col-lg-10 mx-auto">
         <div class="card">
-            <div class="card-header bg-gradient-primary text-white d-flex justify-content-between align-items-center">
-                <h3 class="mb-0"><i class="fas fa-edit me-2"></i>{{ title }}</h3>
-                <!-- 表示切り替えボタン -->
-                <div class="btn-group btn-group-sm" role="group">
-                    <button type="button" class="btn btn-light active" id="tabViewBtn" onclick="switchFormViewMode('tab')">
-                        <i class="fas fa-th-large me-1"></i>タブ表示
-                    </button>
-                    <button type="button" class="btn btn-light" id="fullViewBtn" onclick="switchFormViewMode('full')">
-                        <i class="fas fa-list me-1"></i>全体表示
-                    </button>
-                </div>
+            <div class="card-header">
+                <h3><i class="fas fa-edit"></i> {{ title }}</h3>
             </div>
-            <div class="card-body p-0">
+            <div class="card-body">
                 <form method="post">
                     {% csrf_token %}
 
-                    <!-- タブナビゲーション -->
-                    <ul class="nav nav-tabs" id="projectFormTabs" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab">
-                                <i class="fas fa-info-circle me-1"></i>基本情報
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="order-tab" data-bs-toggle="tab" data-bs-target="#order" type="button" role="tab">
-                                <i class="fas fa-file-invoice-dollar me-1"></i>受注・見積・請求
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="schedule-tab" data-bs-toggle="tab" data-bs-target="#schedule" type="button" role="tab">
-                                <i class="fas fa-calendar-alt me-1"></i>スケジュール
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="staff-tab" data-bs-toggle="tab" data-bs-target="#staff" type="button" role="tab">
-                                <i class="fas fa-users me-1"></i>業者・担当
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button" role="tab">
-                                <i class="fas fa-sticky-note me-1"></i>備考
-                            </button>
-                        </li>
-                    </ul>
-
-                    <!-- タブコンテンツ -->
-                    <div class="tab-content p-4" id="projectFormTabsContent">
-                        <!-- 基本情報タブ -->
-                        <div class="tab-pane fade show active" id="basic" role="tabpanel" data-section-title="📋 基本情報">
-                            <div class="form-section mb-4">
+                    <!-- 基本情報 -->
+                    <div class="form-section mb-4">
                         <div class="section-header">
                             <h5><i class="fas fa-info-circle me-2"></i>基本情報</h5>
                         </div>
@@ -471,14 +360,12 @@
                             </div>
                         </div>
                     </div>
-                        </div>
-                        <!-- 基本情報タブ終了 -->
 
-                        <!-- 受注・見積・請求タブ -->
-                        <div class="tab-pane fade" id="order" role="tabpanel" data-section-title="💰 受注・見積・請求">
-                            <div class="form-section mb-4">
+
+                    <!-- 受注・見積・スケジュール・請求管理 -->
+                    <div class="form-section mb-4">
                         <div class="section-header">
-                            <h5><i class="fas fa-file-invoice-dollar me-2"></i>受注・見積・請求</h5>
+                            <h5><i class="fas fa-file-invoice-dollar me-2"></i>受注・見積・スケジュール・請求管理</h5>
                         </div>
                         <div class="card-body">
                             <!-- 受注状況 -->
@@ -602,22 +489,12 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                        </div>
-                        <!-- 受注・見積・請求タブ終了 -->
 
-                        <!-- スケジュールタブ -->
-                        <div class="tab-pane fade" id="schedule" role="tabpanel" data-section-title="📅 スケジュール">
-                            <div class="form-section mb-4">
-                        <div class="section-header">
-                            <h5><i class="fas fa-calendar-alt me-2"></i>スケジュール</h5>
-                        </div>
-                        <div class="card-body">
+                            <!-- スケジュール -->
                             <div class="row mb-4">
                                 <div class="col-md-12">
                                     <h6 class="text-info border-bottom pb-2 mb-3">
-                                        <i class="fas fa-calendar-check me-2"></i>工事スケジュール
+                                        <i class="fas fa-calendar-alt me-2"></i>スケジュール
                                     </h6>
                                 </div>
                                 <div class="col-md-3 mb-3">
@@ -679,12 +556,22 @@
 
                         </div>
                     </div>
-                        </div>
-                        <!-- スケジュールタブ終了 -->
 
-                        <!-- 業者・担当タブ -->
-                        <div class="tab-pane fade" id="staff" role="tabpanel" data-section-title="👥 業者・担当">
-                            <div class="form-section mb-4">
+                    <!-- 備考 -->
+                    <div class="form-section mb-4">
+                        <div class="section-header">
+                            <h5><i class="fas fa-sticky-note me-2"></i>備考</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="{{ form.notes.id_for_label }}" class="form-label">備考</label>
+                                {{ form.notes }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 業者・担当情報 -->
+                    <div class="form-section mb-4">
                         <div class="section-header">
                             <h5><i class="fas fa-users me-2"></i>実施体制・業者情報</h5>
                         </div>
@@ -712,26 +599,49 @@
                             </div>
                         </div>
                     </div>
-                        </div>
-                        <!-- 業者・担当タブ終了 -->
 
-                        <!-- 備考タブ -->
-                        <div class="tab-pane fade" id="notes" role="tabpanel" data-section-title="📝 備考">
-                            <div class="form-section mb-4">
-                        <div class="section-header">
-                            <h5><i class="fas fa-sticky-note me-2"></i>備考</h5>
+                    <!-- 案件作成後の機能案内 -->
+                    {% if not project %}
+                    <div class="form-section mt-4">
+                        <div class="section-header bg-warning text-white">
+                            <h5><i class="fas fa-info-circle"></i> 案件作成後に利用可能な機能</h5>
                         </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <label for="{{ form.notes.id_for_label }}" class="form-label">備考</label>
-                                {{ form.notes }}
+                        <div class="p-4">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="card border-warning h-100">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-boxes fa-2x text-warning mb-3"></i>
+                                            <h6 class="card-title">📦 資材管理</h6>
+                                            <p class="card-text small">複数業者への資材発注、納期管理、ステータス追跡</p>
+                                            <div class="badge bg-warning text-dark">作成後利用可能</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card border-success h-100">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-search-location fa-2x text-success mb-3"></i>
+                                            <h6 class="card-title">🔍 現地調査</h6>
+                                            <p class="card-text small">調査スケジュール管理、写真記録、報告書作成</p>
+                                            <div class="badge bg-success">作成後利用可能</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card border-info h-100">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-file-contract fa-2x text-info mb-3"></i>
+                                            <h6 class="card-title">📋 発注管理</h6>
+                                            <p class="card-text small">外注先・社内リソース管理、進捗追跡</p>
+                                            <div class="badge bg-info">作成後利用可能</div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                        </div>
-                        <!-- 備考タブ終了 -->
-                    </div>
-                    <!-- すべてのタブコンテンツ終了 -->
+                    {% endif %}
 
                     <!-- フォーム送信ボタン -->
                     <div class="row mt-4">
@@ -3382,73 +3292,6 @@ console.log('✅ All functions loaded:', {
     fn5: typeof window.clearImplementationModalForms,
     fn6: typeof window.addToImplementationList,
     fn7: typeof window.removeImplementationItem
-});
-
-// 表示モード切り替え機能
-function switchFormViewMode(mode) {
-    const tabViewBtn = document.getElementById('tabViewBtn');
-    const fullViewBtn = document.getElementById('fullViewBtn');
-    const tabNav = document.getElementById('projectFormTabs');
-    const tabContent = document.getElementById('projectFormTabsContent');
-    const tabPanes = document.querySelectorAll('#projectFormTabsContent .tab-pane');
-
-    if (mode === 'tab') {
-        // タブ表示モード
-        tabViewBtn.classList.add('active');
-        fullViewBtn.classList.remove('active');
-
-        // タブナビゲーションを表示
-        tabNav.style.display = 'flex';
-
-        // full-view-modeクラスを削除
-        tabContent.classList.remove('full-view-mode');
-
-        // すべてのタブパネルを非表示にする
-        tabPanes.forEach(pane => {
-            pane.classList.remove('show', 'active');
-        });
-
-        // 最初のタブを表示
-        const firstPane = document.getElementById('basic');
-        if (firstPane) {
-            firstPane.classList.add('show', 'active');
-        }
-
-        // 最初のタブボタンをアクティブにする
-        const tabButtons = document.querySelectorAll('#projectFormTabs .nav-link');
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        const firstButton = document.getElementById('basic-tab');
-        if (firstButton) {
-            firstButton.classList.add('active');
-        }
-
-    } else if (mode === 'full') {
-        // 全体表示モード
-        fullViewBtn.classList.add('active');
-        tabViewBtn.classList.remove('active');
-
-        // タブナビゲーションを非表示
-        tabNav.style.display = 'none';
-
-        // full-view-modeクラスを追加
-        tabContent.classList.add('full-view-mode');
-
-        // すべてのタブパネルを表示
-        tabPanes.forEach(pane => {
-            pane.classList.add('show', 'active');
-        });
-    }
-
-    // 選択状態をローカルストレージに保存
-    localStorage.setItem('projectFormViewMode', mode);
-}
-
-// ページ読み込み時に前回の表示モードを復元
-document.addEventListener('DOMContentLoaded', function() {
-    const savedMode = localStorage.getItem('projectFormViewMode');
-    if (savedMode === 'full') {
-        switchFormViewMode('full');
-    }
 });
 </script>
 {% endblock %}

@@ -288,7 +288,7 @@
                 <thead>
                     <tr class="calendar-header-row">
                         <th>職人情報</th>
-                        {% for day in range(1, 31) %}
+                        {% for day in calendar_days %}
                         <th>{{ day }}<br><small>日</small></th>
                         {% endfor %}
                     </tr>
@@ -305,7 +305,7 @@
                             </div>
                             <small class="text-muted">稼働率: {{ contractor.utilization }}%</small>
                         </td>
-                        {% for day in range(1, 31) %}
+                        {% for day in calendar_days %}
                         <td class="day-cell {% if day == 6 or day == 7 or day == 13 or day == 14 or day == 20 or day == 21 or day == 27 or day == 28 %}weekend{% endif %}">
                             <!-- プロジェクト表示エリア -->
                         </td>

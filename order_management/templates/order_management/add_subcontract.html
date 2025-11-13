@@ -1,0 +1,1002 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}作業者追加 - {{ project.project_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-section {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .form-section-header {
+        border-bottom: 2px solid #3b82f6;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .worker-type-selector {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .worker-type-card {
+        flex: 1;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1.5rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .worker-type-card:hover {
+        border-color: #3b82f6;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+    }
+
+    .worker-type-card.active {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+
+    .conditional-section {
+        display: none;
+    }
+
+    .conditional-section.active {
+        display: block;
+    }
+
+    .pricing-type-card {
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid #e5e7eb !important;
+    }
+
+    .pricing-type-card:hover {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+    }
+
+    .pricing-type-card.active {
+        border-color: #3b82f6 !important;
+        background: #eff6ff;
+    }
+
+    .dynamic-item {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .remove-item-btn {
+        cursor: pointer;
+        color: #dc3545;
+        transition: all 0.2s ease;
+    }
+
+    .remove-item-btn:hover {
+        color: #a71d2a;
+        transform: scale(1.1);
+    }
+
+    .cost-breakdown {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+    }
+
+    .profit-preview-card {
+        position: sticky;
+        top: 20px;
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid my-4">
+    <!-- ヘッダー -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-user-plus text-primary"></i> 作業者追加</h2>
+            <p class="text-muted mb-0">案件：{{ project.project_name }}</p>
+            <p class="text-muted mb-0 small">受注額：¥{{ project.billing_amount|floatformat:0|intcomma }}</p>
+        </div>
+        <a href="{% url 'order_management:project_detail' project.pk %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> 案件詳細に戻る
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <form method="post" id="addWorkerForm">
+                {% csrf_token %}
+
+                <!-- 作業者タイプ選択 -->
+                <div class="form-section">
+                    <div class="form-section-header">
+                        <h4><i class="fas fa-users"></i> 作業者タイプを選択</h4>
+                    </div>
+
+                    <div class="worker-type-selector">
+                        <div class="worker-type-card active" data-type="external">
+                            <div class="text-center">
+                                <i class="fas fa-building fa-3x text-primary mb-3"></i>
+                                <h5>外注先</h5>
+                                <p class="text-muted small mb-0">外部の業者に発注</p>
+                            </div>
+                            <input type="radio" name="worker_type" value="external" checked style="display: none;">
+                        </div>
+
+                        <div class="worker-type-card" data-type="internal">
+                            <div class="text-center">
+                                <i class="fas fa-user-tie fa-3x text-success mb-3"></i>
+                                <h5>社内リソース</h5>
+                                <p class="text-muted small mb-0">自社スタッフを割り当て</p>
+                            </div>
+                            <input type="radio" name="worker_type" value="internal" style="display: none;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 外注先フォーム -->
+                <div id="external-form" class="conditional-section active">
+                    <div class="form-section">
+                        <div class="form-section-header">
+                            <h4><i class="fas fa-building"></i> 外注先情報</h4>
+                        </div>
+
+                        <!-- 既存/新規選択 -->
+                        <div class="mb-4">
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="contractor_input_type" id="existing_contractor" value="existing" checked>
+                                <label class="btn btn-outline-primary" for="existing_contractor">
+                                    <i class="fas fa-list"></i> 既存の外注先
+                                </label>
+
+                                <input type="radio" class="btn-check" name="contractor_input_type" id="new_contractor" value="new">
+                                <label class="btn btn-outline-primary" for="new_contractor">
+                                    <i class="fas fa-plus"></i> 新規外注先
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 既存外注先選択 -->
+                        <div id="existing-contractor-section">
+                            <div class="mb-3">
+                                <label class="form-label">外注先を選択</label>
+                                <select class="form-select" name="existing_contractor_id" id="contractorSelect">
+                                    <option value="">選択してください</option>
+                                    {% for contractor in contractors %}
+                                    <option value="{{ contractor.id }}"
+                                            data-name="{{ contractor.name }}"
+                                            data-address="{{ contractor.address|default:'' }}">
+                                        {{ contractor.name }}{% if contractor.address %} ({{ contractor.address }}){% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 新規外注先入力 -->
+                        <div id="new-contractor-section" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">外注先名 <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="contractor_name" id="contractorName" placeholder="例：○○建設">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">住所</label>
+                                    <input type="text" class="form-control" name="contractor_address" id="contractorAddress" placeholder="例：東京都...">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 契約情報（外注） -->
+                    <div class="form-section">
+                        <div class="form-section-header">
+                            <h4><i class="fas fa-file-contract"></i> 契約情報</h4>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">依頼金額 <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">¥</span>
+                                    <input type="number" class="form-control" name="contract_amount" id="externalContractAmountInput" placeholder="0" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">被請求額</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">¥</span>
+                                    <input type="number" class="form-control" name="billed_amount" id="externalBilledAmountInput" placeholder="0" value="0">
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">出金予定日</label>
+                                <input type="date" class="form-control" name="payment_due_date">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">出金日</label>
+                                <input type="date" class="form-control" name="payment_date">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">出金状況</label>
+                                <select class="form-select" name="payment_status">
+                                    <option value="pending">未払い</option>
+                                    <option value="paid">支払済み</option>
+                                    <option value="partial">一部払い</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="purchase_order_issued" id="purchase_order_issued">
+                            <label class="form-check-label" for="purchase_order_issued">
+                                発注書発行済み
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 部材費（外注） -->
+                    <div class="form-section">
+                        <div class="form-section-header">
+                            <h4><i class="fas fa-box"></i> 部材費情報</h4>
+                        </div>
+
+                        <div id="externalMaterialCostSection"></div>
+
+                        <button type="button" class="btn btn-outline-success btn-sm" id="addExternalMaterialBtn">
+                            <i class="fas fa-plus"></i> 部材費項目を追加
+                        </button>
+
+                        <div class="mt-3">
+                            <strong>部材費合計: ¥<span id="externalMaterialTotal">0</span></strong>
+                        </div>
+                    </div>
+
+                    <!-- 追加費用（外注） -->
+                    <div class="form-section">
+                        <div class="form-section-header">
+                            <h4><i class="fas fa-plus-circle"></i> 追加費用情報</h4>
+                        </div>
+
+                        <div id="externalAdditionalCostSection"></div>
+
+                        <button type="button" class="btn btn-outline-warning btn-sm" id="addExternalAdditionalCostBtn">
+                            <i class="fas fa-plus"></i> 追加費用項目を追加
+                        </button>
+
+                        <div class="mt-3">
+                            <strong>追加費用合計: ¥<span id="externalAdditionalCostTotal">0</span></strong>
+                        </div>
+                    </div>
+
+                    <!-- 費用内訳（外注） -->
+                    <div class="form-section">
+                        <div class="cost-breakdown">
+                            <h5 class="mb-3"><i class="fas fa-calculator"></i> 費用内訳（外注）</h5>
+                            <div class="row mb-2">
+                                <div class="col-8">依頼金額:</div>
+                                <div class="col-4 text-end fw-bold">¥<span id="externalContractDisplay">0</span></div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-8">被請求額:</div>
+                                <div class="col-4 text-end">¥<span id="externalBilledDisplay">0</span></div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-8">部材費:</div>
+                                <div class="col-4 text-end">¥<span id="externalMaterialDisplay">0</span></div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-8">追加費用:</div>
+                                <div class="col-4 text-end">¥<span id="externalAdditionalDisplay">0</span></div>
+                            </div>
+                            <hr>
+                            <div class="row fw-bold text-primary fs-5">
+                                <div class="col-8">総合計:</div>
+                                <div class="col-4 text-end">¥<span id="externalGrandTotal">0</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 社内リソースフォーム -->
+                <div id="internal-form" class="conditional-section">
+                    <div class="form-section">
+                        <div class="form-section-header">
+                            <h4><i class="fas fa-user-tie"></i> 社内リソース情報</h4>
+                        </div>
+
+                        <!-- 既存/新規選択 -->
+                        <div class="mb-4">
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="internal_input_type" id="existing_internal" value="existing" checked>
+                                <label class="btn btn-outline-success" for="existing_internal">
+                                    <i class="fas fa-list"></i> 既存スタッフ
+                                </label>
+
+                                <input type="radio" class="btn-check" name="internal_input_type" id="new_internal" value="new">
+                                <label class="btn btn-outline-success" for="new_internal">
+                                    <i class="fas fa-plus"></i> 新規スタッフ
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 既存スタッフ選択 -->
+                        <div id="existing-internal-section">
+                            <div class="mb-3">
+                                <label class="form-label">スタッフを選択</label>
+                                <select class="form-select" name="existing_internal_id" id="internalSelect">
+                                    <option value="">選択してください</option>
+                                    {% for worker in internal_workers %}
+                                    <option value="{{ worker.id }}"
+                                            data-name="{{ worker.name }}"
+                                            data-department="{{ worker.get_department_display }}"
+                                            data-hourly-rate="{{ worker.hourly_rate }}"
+                                            data-specialties="{{ worker.specialties }}">
+                                        {{ worker.name }} ({{ worker.get_department_display }}) - ¥{{ worker.hourly_rate|intcomma }}/時間
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 新規スタッフ入力 -->
+                        <div id="new-internal-section" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">スタッフ名 <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="internal_worker_name" id="internalWorkerName" placeholder="例：山田太郎">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">部署</label>
+                                    <input type="text" class="form-control" name="internal_department" id="internalDepartment" placeholder="例：工事部">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 料金体系選択 -->
+                        <div class="mb-3">
+                            <label class="form-label">料金体系 <span class="text-danger">*</span></label>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <div class="card pricing-type-card active" id="hourlyCard">
+                                        <div class="card-body text-center">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="internal_pricing_type" id="hourlyPricing" value="hourly" checked>
+                                                <label class="form-check-label fw-bold" for="hourlyPricing">
+                                                    <i class="fas fa-clock me-1"></i>時給ベース
+                                                </label>
+                                            </div>
+                                            <small class="text-muted">時給 × 工数で計算</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card pricing-type-card" id="projectCard">
+                                        <div class="card-body text-center">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="internal_pricing_type" id="projectPricing" value="project">
+                                                <label class="form-check-label fw-bold" for="projectPricing">
+                                                    <i class="fas fa-file-invoice me-1"></i>案件単位
+                                                </label>
+                                            </div>
+                                            <small class="text-muted">固定金額で計算</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 時給ベースのフィールド -->
+                        <div id="hourlyPricingFields">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">時給単価 <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">¥</span>
+                                        <input type="number" class="form-control" name="internal_hourly_rate" id="internalHourlyRate" placeholder="3000">
+                                        <span class="input-group-text">/時間</span>
+                                    </div>
+                                    <small class="text-muted">データベースから自動入力可能</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">見積工数 <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" name="estimated_hours" id="estimatedHours" step="0.5" placeholder="8.0">
+                                        <span class="input-group-text">時間</span>
+                                    </div>
+                                    <small class="text-muted">予想される作業時間</small>
+                                </div>
+                            </div>
+                            <div class="alert alert-info">
+                                <small><i class="fas fa-calculator me-1"></i>基本料金: <strong>時給 × 工数</strong> で自動計算されます</small>
+                            </div>
+                        </div>
+
+                        <!-- 案件単位のフィールド -->
+                        <div id="projectPricingFields" style="display: none;">
+                            <div class="mb-3">
+                                <label class="form-label">契約金額 <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">¥</span>
+                                    <input type="number" class="form-control" name="project_contract_amount" id="projectContractAmount" placeholder="100000">
+                                </div>
+                                <small class="text-muted">案件全体の固定金額を入力</small>
+                            </div>
+                            <div class="alert alert-success">
+                                <small><i class="fas fa-handshake me-1"></i>案件単位では<strong>固定金額</strong>で契約します</small>
+                            </div>
+                        </div>
+
+                        <!-- 税込/税抜選択 -->
+                        <div class="mb-3">
+                            <label class="form-label">税込/税抜 <span class="text-danger">*</span></label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="tax_type" id="taxInclude" value="include" checked>
+                                <label class="btn btn-outline-secondary" for="taxInclude">税込</label>
+
+                                <input type="radio" class="btn-check" name="tax_type" id="taxExclude" value="exclude">
+                                <label class="btn btn-outline-secondary" for="taxExclude">税抜</label>
+                            </div>
+                        </div>
+
+                        <!-- 動的費用項目（社内） -->
+                        <div class="mb-3">
+                            <label class="form-label" id="costItemsLabel">追加費用項目</label>
+                            <div id="costItemsSection"></div>
+                            <button type="button" class="btn btn-outline-info btn-sm" id="addCostItemBtn">
+                                <i class="fas fa-plus"></i> <span id="addCostItemText">追加費用項目を追加</span>
+                            </button>
+                            <div class="mt-2">
+                                <strong id="costItemsLabel2">追加費用合計: ¥<span id="costItemsTotal">0</span></strong>
+                            </div>
+                        </div>
+
+                        <!-- 作業費用 -->
+                        <div class="mb-3">
+                            <label class="form-label" id="contractAmountLabel">作業費用 <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">¥</span>
+                                <input type="number" class="form-control" name="contract_amount" id="internalContractAmount" required>
+                            </div>
+                            <small class="text-muted" id="contractAmountHint">時給ベースの場合は時給 × 工数 + 追加費用で自動計算されます</small>
+                        </div>
+
+                        <!-- 出金情報（社内） -->
+                        <hr>
+                        <h6><i class="fas fa-credit-card"></i> 出金情報</h6>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">出金予定日</label>
+                                <input type="date" class="form-control" name="payment_due_date">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">出金日</label>
+                                <input type="date" class="form-control" name="payment_date">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">出金状況</label>
+                                <select class="form-select" name="payment_status">
+                                    <option value="pending">未払い</option>
+                                    <option value="processing">処理中</option>
+                                    <option value="paid">支払済み</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 部材費（社内） -->
+                        <hr>
+                        <h6><i class="fas fa-box"></i> 部材費情報</h6>
+                        <div id="materialCostSection"></div>
+                        <button type="button" class="btn btn-outline-success btn-sm" id="addMaterialBtn">
+                            <i class="fas fa-plus"></i> 部材費項目を追加
+                        </button>
+                        <div class="mt-2">
+                            <strong>部材費合計: ¥<span id="materialTotal">0</span></strong>
+                        </div>
+                    </div>
+
+                    <!-- 費用内訳（社内） -->
+                    <div class="form-section">
+                        <div class="cost-breakdown" id="costBreakdown">
+                            <h5 class="mb-3"><i class="fas fa-calculator"></i> 費用内訳</h5>
+
+                            <!-- 時給ベースの場合 -->
+                            <div id="hourlyBreakdown">
+                                <div class="row mb-2">
+                                    <div class="col-8">基本料金（時給 × 工数）:</div>
+                                    <div class="col-4 text-end">¥<span id="baseAmount">0</span></div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-8">追加費用:</div>
+                                    <div class="col-4 text-end">¥<span id="additionalAmount">0</span></div>
+                                </div>
+                                <hr>
+                                <div class="row mb-2 fw-bold">
+                                    <div class="col-8">作業費用小計:</div>
+                                    <div class="col-4 text-end">¥<span id="workSubtotal">0</span></div>
+                                </div>
+                            </div>
+
+                            <!-- 案件単位の場合 -->
+                            <div id="projectBreakdown" style="display: none;">
+                                <div class="row mb-2 fw-bold">
+                                    <div class="col-8">作業費用小計:</div>
+                                    <div class="col-4 text-end">¥<span id="projectSubtotal">0</span></div>
+                                </div>
+                            </div>
+
+                            <!-- 部材費 -->
+                            <div class="row mb-2">
+                                <div class="col-8">部材費:</div>
+                                <div class="col-4 text-end">¥<span id="materialSubtotal">0</span></div>
+                            </div>
+
+                            <hr>
+                            <div class="row fw-bold text-primary fs-5">
+                                <div class="col-8">総合計:</div>
+                                <div class="col-4 text-end">¥<span id="grandTotal">0</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 送信ボタン -->
+                <div class="form-section">
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'order_management:project_detail' project.pk %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> キャンセル
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-save"></i> <span id="submitButtonText">作業者を追加</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- 右側：利益率プレビュー -->
+        <div class="col-lg-4">
+            <div class="card border-primary shadow-sm profit-preview-card" id="profitPreview">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> 暫定利益率分析（リアルタイム）</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr class="table-success">
+                                    <td><strong>売上（受注額）</strong></td>
+                                    <td class="text-end"><strong>¥<span id="previewRevenue">{{ project.billing_amount|floatformat:0|intcomma }}</span></strong></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2"><strong>支出内訳</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="ps-3">既存作業費用</td>
+                                    <td class="text-end">¥<span id="previewExistingCost">{{ existing_total_cost|floatformat:0|intcomma }}</span></td>
+                                </tr>
+                                <tr id="newCostRow">
+                                    <td class="ps-3">追加作業費用</td>
+                                    <td class="text-end">¥<span id="previewNewWorkCost">0</span></td>
+                                </tr>
+                                <tr id="newMaterialRow">
+                                    <td class="ps-3">追加部材費</td>
+                                    <td class="text-end">¥<span id="previewNewMaterialCost">0</span></td>
+                                </tr>
+                                <tr class="table-warning">
+                                    <td><strong>総支出</strong></td>
+                                    <td class="text-end"><strong>¥<span id="previewTotalCost">{{ existing_total_cost|floatformat:0|intcomma }}</span></strong></td>
+                                </tr>
+                                <tr class="table-primary">
+                                    <td><strong>粗利益</strong></td>
+                                    <td class="text-end"><strong>¥<span id="previewGrossProfit">0</span></strong></td>
+                                </tr>
+                                <tr class="table-info">
+                                    <td><strong>利益率</strong></td>
+                                    <td class="text-end">
+                                        <strong class="fs-4" id="previewProfitRate">0%</strong>
+                                        <div class="progress mt-1" style="height: 10px;">
+                                            <div class="progress-bar" id="profitRateBar" role="progressbar" style="width: 0%" aria-valuemin="0" aria-valuemax="100"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="alert alert-info mt-3 mb-0">
+                        <small><i class="fas fa-info-circle"></i> 入力値をリアルタイムで反映します</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// グローバル変数
+let materialItemCounter = 0;
+let additionalCostCounter = 0;
+let costItemCounter = 0;
+const revenue = parseFloat("{{ project.billing_amount|default:0 }}") || 0;
+const existingCost = parseFloat("{{ existing_total_cost|default:0 }}") || 0;
+
+$(document).ready(function() {
+    // 作業者タイプ切り替え
+    $('.worker-type-card').on('click', function() {
+        $('.worker-type-card').removeClass('active');
+        $(this).addClass('active');
+        $(this).find('input[type="radio"]').prop('checked', true);
+
+        const type = $(this).data('type');
+        $('.conditional-section').removeClass('active');
+        $(`#${type}-form`).addClass('active');
+
+        // 利益率を再計算
+        updateProfitPreview();
+    });
+
+    // 外注先：既存/新規切り替え
+    $('input[name="contractor_input_type"]').on('change', function() {
+        if ($(this).val() === 'existing') {
+            $('#existing-contractor-section').show();
+            $('#new-contractor-section').hide();
+        } else {
+            $('#existing-contractor-section').hide();
+            $('#new-contractor-section').show();
+        }
+    });
+
+    // 既存外注先選択時に住所を自動入力
+    $('#contractorSelect').on('change', function() {
+        const selected = $(this).find('option:selected');
+        const address = selected.data('address') || '';
+        const name = selected.data('name') || '';
+        $('#contractorAddress').val(address);
+        $('#contractorName').val(name);
+    });
+
+    // 社内リソース：既存/新規切り替え
+    $('input[name="internal_input_type"]').on('change', function() {
+        if ($(this).val() === 'existing') {
+            $('#existing-internal-section').show();
+            $('#new-internal-section').hide();
+        } else {
+            $('#existing-internal-section').hide();
+            $('#new-internal-section').show();
+        }
+    });
+
+    // 既存社内スタッフ選択時に情報を自動入力
+    $('#internalSelect').on('change', function() {
+        const selected = $(this).find('option:selected');
+        const name = selected.data('name') || '';
+        const department = selected.data('department') || '';
+        const hourlyRate = selected.data('hourly-rate') || '';
+
+        $('#internalWorkerName').val(name);
+        $('#internalDepartment').val(department);
+        $('#internalHourlyRate').val(hourlyRate);
+
+        // 時給が変更されたので計算を更新
+        calculateInternalCosts();
+    });
+
+    // 料金体系の切り替え（カードクリック）
+    $('.pricing-type-card').on('click', function() {
+        $('.pricing-type-card').removeClass('active');
+        $(this).addClass('active');
+        $(this).find('input[type="radio"]').prop('checked', true).trigger('change');
+    });
+
+    // 料金体系の切り替え（ラジオボタン）
+    $('input[name="internal_pricing_type"]').on('change', function() {
+        const pricingType = $(this).val();
+
+        if (pricingType === 'hourly') {
+            $('#hourlyPricingFields').show();
+            $('#projectPricingFields').hide();
+            $('#hourlyBreakdown').show();
+            $('#projectBreakdown').hide();
+            $('#costItemsLabel').text('追加費用項目');
+            $('#addCostItemText').text('追加費用項目を追加');
+            $('#costItemsLabel2').text('追加費用合計: ¥');
+            $('#contractAmountHint').text('時給ベースの場合は時給 × 工数 + 追加費用で自動計算されます');
+        } else {
+            $('#hourlyPricingFields').hide();
+            $('#projectPricingFields').show();
+            $('#hourlyBreakdown').hide();
+            $('#projectBreakdown').show();
+            $('#costItemsLabel').text('費用項目');
+            $('#addCostItemText').text('費用項目を追加');
+            $('#costItemsLabel2').text('費用項目合計: ¥');
+            $('#contractAmountHint').text('案件単位の場合は費用項目の合計が契約金額になります');
+        }
+
+        calculateInternalCosts();
+    });
+
+    // 時給・工数の入力で自動計算
+    $('#internalHourlyRate, #estimatedHours').on('input', function() {
+        calculateInternalCosts();
+    });
+
+    // 案件単位の契約金額入力
+    $('#projectContractAmount').on('input', function() {
+        calculateInternalCosts();
+    });
+
+    // 外注先の金額入力
+    $('#externalContractAmountInput, #externalBilledAmountInput').on('input', function() {
+        calculateExternalCosts();
+    });
+
+    // 外注先：部材費追加
+    $('#addExternalMaterialBtn').on('click', function() {
+        materialItemCounter++;
+        const html = `
+            <div class="dynamic-item" data-id="${materialItemCounter}">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" name="material_items[]" placeholder="品目名（例：養生テープ）">
+                    </div>
+                    <div class="col-md-5">
+                        <div class="input-group">
+                            <span class="input-group-text">¥</span>
+                            <input type="number" class="form-control external-material-cost-input" name="material_costs[]" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="col-md-1">
+                        <i class="fas fa-trash remove-item-btn" data-id="${materialItemCounter}"></i>
+                    </div>
+                </div>
+            </div>
+        `;
+        $('#externalMaterialCostSection').append(html);
+    });
+
+    // 外注先：追加費用追加
+    $('#addExternalAdditionalCostBtn').on('click', function() {
+        additionalCostCounter++;
+        const html = `
+            <div class="dynamic-item" data-id="${additionalCostCounter}">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" name="additional_cost_items[]" placeholder="費用名（例：交通費）">
+                    </div>
+                    <div class="col-md-5">
+                        <div class="input-group">
+                            <span class="input-group-text">¥</span>
+                            <input type="number" class="form-control external-additional-cost-input" name="additional_cost_amounts[]" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="col-md-1">
+                        <i class="fas fa-trash remove-item-btn" data-id="${additionalCostCounter}"></i>
+                    </div>
+                </div>
+            </div>
+        `;
+        $('#externalAdditionalCostSection').append(html);
+    });
+
+    // 社内：費用項目追加
+    $('#addCostItemBtn').on('click', function() {
+        costItemCounter++;
+        const html = `
+            <div class="dynamic-item" data-id="${costItemCounter}">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" name="cost_items[]" placeholder="項目名">
+                    </div>
+                    <div class="col-md-5">
+                        <div class="input-group">
+                            <span class="input-group-text">¥</span>
+                            <input type="number" class="form-control cost-item-input" name="cost_amounts[]" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="col-md-1">
+                        <i class="fas fa-trash remove-item-btn" data-id="${costItemCounter}"></i>
+                    </div>
+                </div>
+            </div>
+        `;
+        $('#costItemsSection').append(html);
+    });
+
+    // 社内：部材費追加
+    $('#addMaterialBtn').on('click', function() {
+        const id = Date.now();
+        const html = `
+            <div class="dynamic-item" data-id="${id}">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" name="internal_material_items[]" placeholder="品目名">
+                    </div>
+                    <div class="col-md-5">
+                        <div class="input-group">
+                            <span class="input-group-text">¥</span>
+                            <input type="number" class="form-control internal-material-cost-input" name="internal_material_costs[]" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="col-md-1">
+                        <i class="fas fa-trash remove-item-btn" data-id="${id}"></i>
+                    </div>
+                </div>
+            </div>
+        `;
+        $('#materialCostSection').append(html);
+    });
+
+    // 動的項目削除
+    $(document).on('click', '.remove-item-btn', function() {
+        const id = $(this).data('id');
+        $(`.dynamic-item[data-id="${id}"]`).remove();
+        calculateExternalCosts();
+        calculateInternalCosts();
+        updateProfitPreview();
+    });
+
+    // 動的入力の変更を監視
+    $(document).on('input', '.external-material-cost-input, .external-additional-cost-input', function() {
+        calculateExternalCosts();
+    });
+
+    $(document).on('input', '.cost-item-input, .internal-material-cost-input', function() {
+        calculateInternalCosts();
+    });
+
+    // 外注先費用計算
+    function calculateExternalCosts() {
+        const contractAmount = parseFloat($('#externalContractAmountInput').val()) || 0;
+        const billedAmount = parseFloat($('#externalBilledAmountInput').val()) || 0;
+
+        let materialTotal = 0;
+        $('.external-material-cost-input').each(function() {
+            materialTotal += parseFloat($(this).val()) || 0;
+        });
+
+        let additionalTotal = 0;
+        $('.external-additional-cost-input').each(function() {
+            additionalTotal += parseFloat($(this).val()) || 0;
+        });
+
+        const grandTotal = Math.max(contractAmount, billedAmount) + materialTotal + additionalTotal;
+
+        $('#externalMaterialTotal').text(materialTotal.toLocaleString());
+        $('#externalAdditionalCostTotal').text(additionalTotal.toLocaleString());
+        $('#externalContractDisplay').text(contractAmount.toLocaleString());
+        $('#externalBilledDisplay').text(billedAmount.toLocaleString());
+        $('#externalMaterialDisplay').text(materialTotal.toLocaleString());
+        $('#externalAdditionalDisplay').text(additionalTotal.toLocaleString());
+        $('#externalGrandTotal').text(grandTotal.toLocaleString());
+
+        updateProfitPreview();
+    }
+
+    // 社内リソース費用計算
+    function calculateInternalCosts() {
+        const pricingType = $('input[name="internal_pricing_type"]:checked').val();
+        let workCost = 0;
+        let costItemsTotal = 0;
+        let materialTotal = 0;
+
+        // 費用項目の合計
+        $('.cost-item-input').each(function() {
+            costItemsTotal += parseFloat($(this).val()) || 0;
+        });
+
+        // 部材費の合計
+        $('.internal-material-cost-input').each(function() {
+            materialTotal += parseFloat($(this).val()) || 0;
+        });
+
+        if (pricingType === 'hourly') {
+            const hourlyRate = parseFloat($('#internalHourlyRate').val()) || 0;
+            const hours = parseFloat($('#estimatedHours').val()) || 0;
+            const baseAmount = hourlyRate * hours;
+
+            workCost = baseAmount + costItemsTotal;
+
+            $('#baseAmount').text(baseAmount.toLocaleString());
+            $('#additionalAmount').text(costItemsTotal.toLocaleString());
+            $('#workSubtotal').text(workCost.toLocaleString());
+        } else {
+            workCost = parseFloat($('#projectContractAmount').val()) || costItemsTotal;
+            $('#projectSubtotal').text(workCost.toLocaleString());
+        }
+
+        const grandTotal = workCost + materialTotal;
+
+        $('#costItemsTotal').text(costItemsTotal.toLocaleString());
+        $('#materialTotal').text(materialTotal.toLocaleString());
+        $('#materialSubtotal').text(materialTotal.toLocaleString());
+        $('#grandTotal').text(grandTotal.toLocaleString());
+        $('#internalContractAmount').val(workCost);
+
+        updateProfitPreview();
+    }
+
+    // 利益率プレビュー更新
+    function updateProfitPreview() {
+        let newWorkCost = 0;
+        let newMaterialCost = 0;
+
+        const workerType = $('input[name="worker_type"]:checked').val();
+
+        if (workerType === 'external') {
+            const contractAmount = parseFloat($('#externalContractAmountInput').val()) || 0;
+            const billedAmount = parseFloat($('#externalBilledAmountInput').val()) || 0;
+            newWorkCost = Math.max(contractAmount, billedAmount);
+
+            $('.external-material-cost-input').each(function() {
+                newMaterialCost += parseFloat($(this).val()) || 0;
+            });
+
+            $('.external-additional-cost-input').each(function() {
+                newWorkCost += parseFloat($(this).val()) || 0;
+            });
+        } else {
+            newWorkCost = parseFloat($('#internalContractAmount').val()) || 0;
+
+            $('.internal-material-cost-input').each(function() {
+                newMaterialCost += parseFloat($(this).val()) || 0;
+            });
+        }
+
+        const totalCost = existingCost + newWorkCost + newMaterialCost;
+        const grossProfit = revenue - totalCost;
+        const profitRate = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
+
+        // 表示を更新
+        $('#previewNewWorkCost').text(newWorkCost.toLocaleString());
+        $('#previewNewMaterialCost').text(newMaterialCost.toLocaleString());
+        $('#previewTotalCost').text(totalCost.toLocaleString());
+        $('#previewGrossProfit').text(grossProfit.toLocaleString());
+        $('#previewProfitRate').text(profitRate.toFixed(1) + '%');
+
+        // プログレスバーの更新
+        const displayRate = Math.min(Math.abs(profitRate), 100);
+        $('#profitRateBar').css('width', displayRate + '%');
+
+        // 色の変更
+        const rateElement = $('#previewProfitRate');
+        const progressBar = $('#profitRateBar');
+
+        rateElement.removeClass('text-success text-warning text-danger');
+        progressBar.removeClass('bg-success bg-warning bg-danger');
+
+        if (profitRate >= 20) {
+            rateElement.addClass('text-success');
+            progressBar.addClass('bg-success');
+        } else if (profitRate >= 10) {
+            rateElement.addClass('text-warning');
+            progressBar.addClass('bg-warning');
+        } else {
+            rateElement.addClass('text-danger');
+            progressBar.addClass('bg-danger');
+        }
+    }
+
+    // 初期計算
+    updateProfitPreview();
+});
+</script>
+{% endblock %}

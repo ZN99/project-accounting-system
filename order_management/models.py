@@ -604,48 +604,58 @@ class Project(models.Model):
             return '未定'
 
     def get_progress_status(self):
-        """進捗状況の総合判定を返す - 新5ステップシステムと同期"""
+        """進捗状況の総合判定を返す - 動的ステップシステムと同期"""
+        # NGの場合のみ特別扱い（進捗表示不要）
         if self.project_status == 'NG':
             return {'phase': 'NG', 'color': 'secondary', 'percentage': 0}
-        elif self.project_status == 'ネタ':  # 旧: 検討中
-            return {'phase': 'ネタ', 'color': 'warning', 'percentage': 0}
 
         # 新5ステップシステムから現在の段階を取得
         stage_info = self.get_current_project_stage()
         phase = stage_info['stage']
         color = stage_info['color']
 
-        # パーセンテージを計算（5つのステップから）
-        if not self.additional_items:
-            percentage = 0
-        else:
-            complex_fields = self.additional_items.get('complex_step_fields', {})
+        # 実際に有効になっているステップを取得
+        step_order = []
+        if self.additional_items and 'step_order' in self.additional_items:
+            step_order = self.additional_items.get('step_order', [])
 
-            # 5つのステップの完了状況をチェック
-            completed_count = 0
-            total_steps = 5
+        # step_orderが空の場合は、デフォルト4ステップを使用（survey除く）
+        if not step_order:
+            step_order = [
+                {'step': 'attendance'},
+                {'step': 'estimate'},
+                {'step': 'construction_start'},
+                {'step': 'completion'}
+            ]
 
-            # 1. 立ち会い日
-            if complex_fields.get('attendance_actual_date'):
-                completed_count += 1
+        total_steps = len(step_order)
+        complex_fields = self.additional_items.get('complex_step_fields', {}) if self.additional_items else {}
 
-            # 2. 現調日
-            if complex_fields.get('survey_actual_date'):
-                completed_count += 1
+        # 有効なステップの完了状況をチェック
+        completed_count = 0
 
-            # 3. 見積もり発行日
-            if complex_fields.get('estimate_issued_date') or complex_fields.get('estimate_not_required'):
-                completed_count += 1
+        for step_info in step_order:
+            step_key = step_info.get('step')
 
-            # 4. 着工日
-            if complex_fields.get('construction_start_actual_date'):
-                completed_count += 1
+            if step_key == 'attendance':
+                if complex_fields.get('attendance_actual_date'):
+                    completed_count += 1
+            elif step_key == 'survey':
+                if complex_fields.get('survey_actual_date'):
+                    completed_count += 1
+            elif step_key == 'estimate':
+                if self.estimate_issued_date or self.estimate_not_required:
+                    completed_count += 1
+            elif step_key == 'construction_start':
+                if complex_fields.get('construction_start_actual_date'):
+                    completed_count += 1
+            elif step_key == 'completion':
+                completion_completed_str = complex_fields.get('completion_completed')
+                completion_completed = completion_completed_str == 'true' or completion_completed_str == True
+                if complex_fields.get('completion_actual_date') or completion_completed:
+                    completed_count += 1
 
-            # 5. 完工日
-            if complex_fields.get('completion_actual_date') or complex_fields.get('completion_completed'):
-                completed_count += 1
-
-            percentage = int((completed_count / total_steps) * 100) if total_steps > 0 else 0
+        percentage = int((completed_count / total_steps) * 100) if total_steps > 0 else 0
 
         return {'phase': phase, 'color': color, 'percentage': percentage}
 
@@ -664,39 +674,79 @@ class Project(models.Model):
             step_key = step_item.get('step', '')
             is_completed = False
             completed_date = None
+            scheduled_date = None
+            actual_date = None
+            completed_checkbox = False
+            has_not_required = False
+            step_type = None
 
-            # 各ステップタイプごとに完了判定
+            # 各ステップタイプごとに完了判定と詳細情報を取得
             if step_key == 'estimate':
                 # 見積書発行: estimate_issued_date OR estimate_not_required
+                scheduled_date = None  # 見積は予定日なし
+                actual_date = self.estimate_issued_date
+                has_not_required = self.estimate_not_required
                 is_completed = bool(self.estimate_issued_date or self.estimate_not_required)
                 completed_date = self.estimate_issued_date
+                step_type = 'estimate'
             elif step_key == 'contract':
                 # 契約: contract_date
+                scheduled_date = None  # 契約は予定日なし
+                actual_date = self.contract_date
                 is_completed = bool(self.contract_date)
                 completed_date = self.contract_date
+                step_type = 'contract'
             elif step_key == 'work_start':
                 # 着工: work_start_completed のみ（詳細画面のJavaScriptと同じ）
+                scheduled_date = None  # work_startは予定日なし
+                actual_date = self.work_start_date
+                completed_checkbox = self.work_start_completed
                 is_completed = bool(self.work_start_completed)
                 completed_date = self.work_start_date
+                step_type = 'work_start'
             elif step_key == 'work_end':
                 # 完工: work_end_completed のみ（詳細画面のJavaScriptと同じ）
+                scheduled_date = None  # work_endは予定日なし
+                actual_date = self.work_end_date
+                completed_checkbox = self.work_end_completed
                 is_completed = bool(self.work_end_completed)
                 completed_date = self.work_end_date
+                step_type = 'work_end'
             elif step_key == 'invoice':
                 # 請求書発行: invoice_issued
+                scheduled_date = None  # invoiceは予定日なし
+                actual_date = None
+                completed_checkbox = self.invoice_issued
                 is_completed = bool(self.invoice_issued)
+                step_type = 'invoice'
             elif step_key in ['attendance', 'survey', 'construction_start', 'completion']:
-                # 複合ステップ: complex_step_fieldsを確認
+                # 複合ステップ: complex_step_fieldsを確認（get_progress_statusと同じロジック）
                 complex_fields = self.additional_items.get('complex_step_fields', {}) if self.additional_items else {}
-                # いずれかのフィールドに値があれば完了とみなす (None と空文字列以外)
-                is_completed = any(
-                    key.startswith(f'{step_key}_') and value is not None and value != ''
-                    for key, value in complex_fields.items()
-                )
+                scheduled_date = complex_fields.get(f'{step_key}_scheduled_date')
+                actual_date = complex_fields.get(f'{step_key}_actual_date')
+
+                # completedチェックボックスの値を取得
+                completed_str = complex_fields.get(f'{step_key}_completed')
+                completed_checkbox = completed_str == 'true' or completed_str == True
+
+                # actual_dateのみで完了判定（completionはcompleted=trueも可）
+                if step_key == 'completion':
+                    is_completed = bool(actual_date or completed_checkbox)
+                else:
+                    # attendance, survey, construction_start: actual_dateのみ
+                    is_completed = bool(actual_date)
+
+                completed_date = actual_date
+                step_type = 'complex'
             else:
                 # その他の動的ステップ: dynamic_stepsから取得
                 dynamic_steps = self.additional_items.get('dynamic_steps', {}) if self.additional_items else {}
                 step_data = dynamic_steps.get(step_key, {})
+
+                scheduled_date = None  # 動的ステップは予定日なし
+                actual_date = step_data.get('date')
+                completed_checkbox = step_data.get('completed')
+
                 # completed OR date OR value のいずれかがあれば完了（詳細画面と同じロジック）
                 is_completed = bool(
                     step_data.get('completed') or
@@ -704,14 +754,39 @@ class Project(models.Model):
                     step_data.get('value')
                 )
                 completed_date = step_data.get('date')
+                step_type = 'dynamic'
 
             if is_completed:
                 completed_steps_count += 1
 
+            # ステップキーから日本語名へのマッピング
+            step_name_mapping = {
+                'estimate': '見積書発行',
+                'contract': '契約',
+                'attendance': '着手',
+                'survey': '現調',
+                'construction_start': '着工',
+                'work_start': '工事開始',
+                'completion': '完工',
+                'work_end': '工事終了',
+                'invoice': '請求書発行'
+            }
+
+            # step_itemのnameを優先、なければマッピングから取得、それもなければstep_key
+            japanese_name = step_item.get('name')
+            if not japanese_name or japanese_name == step_key:
+                japanese_name = step_name_mapping.get(step_key, step_key)
+
             steps.append({
-                'name': step_item.get('name', step_key),
+                'key': step_key,
+                'name': japanese_name,
                 'completed': is_completed,
                 'completed_date': completed_date,
+                'scheduled_date': scheduled_date,
+                'actual_date': actual_date,
+                'completed_checkbox': completed_checkbox,
+                'has_not_required': has_not_required,
+                'step_type': step_type,
                 'icon': 'fa-check'  # デフォルトアイコン
             })
 
@@ -720,6 +795,152 @@ class Project(models.Model):
             'completed_steps': completed_steps_count,
             'remaining_steps': total_steps - completed_steps_count,
             'steps': steps
+        }
+
+    def get_next_action_and_step(self):
+        """次のアクションとNEXTステップを返す（動的ステップ管理対応）"""
+        # 進捗詳細を取得
+        details = self.get_progress_details()
+        steps_list = details.get('steps', [])
+
+        if not steps_list:
+            return {
+                'next_action': '',
+                'next_step': '-'
+            }
+
+        # 未完了の最初のステップを見つける
+        current_incomplete_step = None
+        next_incomplete_step = None
+
+        for i, step in enumerate(steps_list):
+            if not step['completed']:
+                if current_incomplete_step is None:
+                    current_incomplete_step = step
+                    # 次の未完了ステップを探す
+                    if i + 1 < len(steps_list):
+                        for next_step in steps_list[i + 1:]:
+                            if not next_step['completed']:
+                                next_incomplete_step = next_step
+                                break
+                    break
+
+        # すべて完了している場合
+        if current_incomplete_step is None:
+            return {
+                'next_action': '完了',
+                'next_step': '-'
+            }
+
+        # 次のアクションを詳細に判定（JavaScript版と同じロジック）
+        step_name = current_incomplete_step.get('name', '')
+        step_type = current_incomplete_step.get('step_type')
+        step_key = current_incomplete_step.get('key')
+        scheduled_date = current_incomplete_step.get('scheduled_date')
+        actual_date = current_incomplete_step.get('actual_date')
+        completed_checkbox = current_incomplete_step.get('completed_checkbox')
+        has_not_required = current_incomplete_step.get('has_not_required')
+
+        # ステップタイプごとに適切なアクションを決定
+        if step_type == 'estimate':
+            # 見積書：「見積不要」か「発行日」
+            if has_not_required:
+                next_action = f"{step_name}：完了"
+            else:
+                next_action = f"{step_name}：発行日を入力してください"
+        elif step_type == 'contract':
+            # 契約：契約日を入力
+            next_action = f"{step_name}：契約日を入力してください"
+        elif step_type == 'work_start' or step_type == 'work_end':
+            # 着工・完工：日付＋完了チェックボックス
+            if actual_date and not completed_checkbox:
+                next_action = f"{step_name}：完了チェックボックスをチェックしてください"
+            else:
+                next_action = f"{step_name}：日付を入力してください"
+        elif step_type == 'invoice':
+            # 請求書：完了チェックボックスのみ
+            next_action = f"{step_name}：完了チェックボックスをチェックしてください"
+        elif step_type == 'complex':
+            # 複合ステップ（着手、現調、着工、完工）：予定日→実施日→完了チェック
+            # completionの場合はcompletedチェックボックスがあればそれでOK
+            if step_key == 'completion':
+                if actual_date and not completed_checkbox:
+                    next_action = f"{step_name}：完了チェックボックスをチェックしてください"
+                elif scheduled_date and not actual_date:
+                    next_action = f"{step_name}：実施日を入力してください"
+                else:
+                    next_action = f"{step_name}：予定日を入力してください"
+            else:
+                # attendance, survey, construction_start
+                if scheduled_date and not actual_date:
+                    next_action = f"{step_name}：実施日を入力してください"
+                else:
+                    next_action = f"{step_name}：予定日を入力してください"
+        elif step_type == 'dynamic':
+            # 動的ステップ：completedチェックボックスまたは日付
+            if completed_checkbox:
+                next_action = f"{step_name}：完了"
+            elif actual_date:
+                next_action = f"{step_name}：完了チェックボックスをチェックしてください"
+            else:
+                next_action = f"{step_name}：日付を入力してください"
+        else:
+            # その他
+            next_action = f"{step_name}：入力してください"
+
+        # NEXTステップを設定（next_incomplete_stepについても同じロジックでアクションを判定）
+        if next_incomplete_step:
+            next_step_name = next_incomplete_step.get('name', '')
+            next_step_type = next_incomplete_step.get('step_type')
+            next_step_key = next_incomplete_step.get('key')
+            next_scheduled_date = next_incomplete_step.get('scheduled_date')
+            next_actual_date = next_incomplete_step.get('actual_date')
+            next_completed_checkbox = next_incomplete_step.get('completed_checkbox')
+            next_has_not_required = next_incomplete_step.get('has_not_required')
+
+            # Next Stepのアクションを詳細に判定
+            if next_step_type == 'estimate':
+                if next_has_not_required:
+                    next_step = f"{next_step_name}：完了"
+                else:
+                    next_step = f"{next_step_name}：発行日を入力してください"
+            elif next_step_type == 'contract':
+                next_step = f"{next_step_name}：契約日を入力してください"
+            elif next_step_type == 'work_start' or next_step_type == 'work_end':
+                if next_actual_date and not next_completed_checkbox:
+                    next_step = f"{next_step_name}：完了チェックボックスをチェックしてください"
+                else:
+                    next_step = f"{next_step_name}：日付を入力してください"
+            elif next_step_type == 'invoice':
+                next_step = f"{next_step_name}：完了チェックボックスをチェックしてください"
+            elif next_step_type == 'complex':
+                if next_step_key == 'completion':
+                    if next_actual_date and not next_completed_checkbox:
+                        next_step = f"{next_step_name}：完了チェックボックスをチェックしてください"
+                    elif next_scheduled_date and not next_actual_date:
+                        next_step = f"{next_step_name}：実施日を入力してください"
+                    else:
+                        next_step = f"{next_step_name}：予定日を入力してください"
+                else:
+                    if next_scheduled_date and not next_actual_date:
+                        next_step = f"{next_step_name}：実施日を入力してください"
+                    else:
+                        next_step = f"{next_step_name}：予定日を入力してください"
+            elif next_step_type == 'dynamic':
+                if next_completed_checkbox:
+                    next_step = f"{next_step_name}：完了"
+                elif next_actual_date:
+                    next_step = f"{next_step_name}：完了チェックボックスをチェックしてください"
+                else:
+                    next_step = f"{next_step_name}：日付を入力してください"
+            else:
+                next_step = f"{next_step_name}：入力してください"
+        else:
+            next_step = '完了'
+
+        return {
+            'next_action': next_action,
+            'next_step': next_step
         }
 
     def get_current_project_stage(self):
@@ -752,6 +973,97 @@ class Project(models.Model):
         """締切が迫っているかどうか"""
         days = self.get_days_until_deadline()
         return days is not None and 0 <= days <= 7  # 1週間以内
+
+    def get_construction_period(self):
+        """工期を計算して返す
+
+        優先順位：
+        1. 着工実施日と完工日が両方ある場合
+        2. 着工実施日と完工予定日が両方ある場合
+        3. 着工予定日と完工予定日が両方ある場合
+
+        Returns:
+            dict: {
+                'days': 日数（整数）,
+                'start_date': 開始日,
+                'end_date': 終了日,
+                'type': 'actual' | 'mixed' | 'planned'
+            }
+        """
+        additional_items = self.additional_items or {}
+        step_order = additional_items.get('step_order', [])
+
+        # 着工日と完工日を取得
+        construction_start_scheduled = None
+        construction_start_actual = None
+        completion_scheduled = None
+        completion_actual = None
+
+        for step_item in step_order:
+            step_key = step_item.get('key')
+
+            if step_key == 'construction_start':
+                construction_start_scheduled = step_item.get('scheduled_date')
+                construction_start_actual = step_item.get('actual_date')
+            elif step_key == 'completion':
+                completion_scheduled = step_item.get('scheduled_date')
+                completion_actual = step_item.get('actual_date')
+
+        # 日付の解析（文字列をdateオブジェクトに変換）
+        def parse_date(date_str):
+            if not date_str:
+                return None
+            if isinstance(date_str, str):
+                from datetime import datetime
+                try:
+                    return datetime.strptime(date_str, '%Y-%m-%d').date()
+                except:
+                    return None
+            return date_str
+
+        construction_start_scheduled = parse_date(construction_start_scheduled)
+        construction_start_actual = parse_date(construction_start_actual)
+        completion_scheduled = parse_date(completion_scheduled)
+        completion_actual = parse_date(completion_actual)
+
+        # 優先順位に従って工期を計算
+        # パターン1: 着工実施日と完工日
+        if construction_start_actual and completion_actual:
+            delta = completion_actual - construction_start_actual
+            return {
+                'days': delta.days,
+                'start_date': construction_start_actual,
+                'end_date': completion_actual,
+                'type': 'actual'
+            }
+
+        # パターン2: 着工実施日と完工予定日
+        if construction_start_actual and completion_scheduled:
+            delta = completion_scheduled - construction_start_actual
+            return {
+                'days': delta.days,
+                'start_date': construction_start_actual,
+                'end_date': completion_scheduled,
+                'type': 'mixed'
+            }
+
+        # パターン3: 着工予定日と完工予定日
+        if construction_start_scheduled and completion_scheduled:
+            delta = completion_scheduled - construction_start_scheduled
+            return {
+                'days': delta.days,
+                'start_date': construction_start_scheduled,
+                'end_date': completion_scheduled,
+                'type': 'planned'
+            }
+
+        # どのパターンにも該当しない場合
+        return {
+            'days': None,
+            'start_date': None,
+            'end_date': None,
+            'type': None
+        }
 
     def get_subcontract_status(self):
         """発注連携状況を返す"""

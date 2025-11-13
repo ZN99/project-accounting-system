@@ -204,7 +204,7 @@
                     <h6><i class="fas fa-calculator"></i> 削除による影響</h6>
                     <ul class="mb-0">
                         <li>月額固定費から <strong>¥{{ object.monthly_amount|intcomma }}</strong> が減額されます</li>
-                        <li>年額では <strong>¥{{ object.monthly_amount|mul:12|intcomma }}</strong> の影響があります</li>
+                        <li>年額では <strong>¥{{ yearly_amount|intcomma }}</strong> の影響があります</li>
                         <li>今後の損益計算書から除外されます</li>
                     </ul>
                 </div>

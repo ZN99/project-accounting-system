@@ -210,7 +210,7 @@
     <!-- ナビゲーションバー -->
     <nav class="navbar navbar-expand-lg navbar-custom">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{% url 'order_management:ultimate_dashboard' %}">
+            <a class="navbar-brand" href="{% url 'order_management:project_list' %}">
                 <i class="fas fa-building me-2"></i>建築派遣管理システム
             </a>
 
@@ -247,6 +247,9 @@
                                     <li><a class="dropdown-item" href="{% url 'order_management:contractor_dashboard' %}">業者一覧</a></li>
                                     <li><a class="dropdown-item" href="{% url 'order_management:external_contractor_management' %}">外部協力社</a></li>
                                     <li><a class="dropdown-item" href="{% url 'order_management:supplier_management' %}">資材サプライヤー</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{% url 'order_management:client_company_list' %}"><i class="fas fa-building me-2"></i>元請会社一覧</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'order_management:client_company_create' %}"><i class="fas fa-plus me-2"></i>元請会社作成</a></li>
                                 </ul>
                             </li>
                             <li><hr class="dropdown-divider"></li>
@@ -259,18 +262,6 @@
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" href="{% url 'order_management:worker_resource_calendar' %}">職人カレンダー</a></li>
                                     <li><a class="dropdown-item" href="{% url 'order_management:gantt_chart' %}">ガントチャート</a></li>
-                                </ul>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
-
-                            <!-- 元請会社 -->
-                            <li class="dropdown-submenu">
-                                <a class="dropdown-item" href="#">
-                                    <i class="fas fa-building me-2"></i>元請会社
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{% url 'order_management:client_company_list' %}">会社一覧</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'order_management:client_company_create' %}">会社作成</a></li>
                                 </ul>
                             </li>
                         </ul>

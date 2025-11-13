@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.contrib.auth.models import User
 from django.db.models import Q, Count, Sum, Avg
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -157,9 +158,12 @@ def project_list(request):
         # リストをページネーション可能な形式に変換
         from django.core.paginator import Paginator as ListPaginator
         total_count = len(projects_list)
-        received_count = sum(1 for p in projects_list if p.project_status == '完工')
-        in_progress_count = sum(1 for p in projects_list if p.work_start_completed and not p.work_end_completed)
-        completed_count = sum(1 for p in projects_list if p.work_end_completed)
+        # 受注済み: 受注確定の案件のみ（A/Bはまだ受注が決まっていない）
+        received_count = sum(1 for p in projects_list if p.project_status == '受注確定')
+        # 進行中: 受注確定したが、まだ完工していない案件
+        in_progress_count = sum(1 for p in projects_list if p.project_status == '受注確定' and p.get_current_project_stage()['stage'] != '完工')
+        # 完了済み: 動的ステップシステムで「完工」段階の案件
+        completed_count = sum(1 for p in projects_list if p.get_current_project_stage()['stage'] == '完工')
 
         paginator = ListPaginator(projects_list, 50)
         page_number = request.GET.get('page')
@@ -167,9 +171,13 @@ def project_list(request):
     else:
         # 統計情報を計算（フィルター適用後の全体から）
         total_count = projects.count()
-        received_count = projects.filter(project_status='完工').count()
-        in_progress_count = projects.filter(work_start_completed=True, work_end_completed=False).count()
-        completed_count = projects.filter(work_end_completed=True).count()
+        # 受注済み: 受注確定の案件のみ（A/Bはまだ受注が決まっていない）
+        received_count = projects.filter(project_status='受注確定').count()
+        # 進行中・完了済みはget_current_project_stage()を使用するため全件評価が必要
+        projects_list = list(projects)
+        # 進行中: 受注確定したが、まだ完工していない案件
+        in_progress_count = sum(1 for p in projects_list if p.project_status == '受注確定' and p.get_current_project_stage()['stage'] != '完工')
+        completed_count = sum(1 for p in projects_list if p.get_current_project_stage()['stage'] == '完工')
 
         # ページネーション（50件ずつ表示に変更してパフォーマンス向上）
         paginator = Paginator(projects, 50)
@@ -457,13 +465,12 @@ def project_detail(request, pk):
     ordered_steps = []
     complex_step_fields = {}
 
-    # デフォルトプリセット（基本5ステップ）
+    # デフォルトプリセット（基本4ステップ - surveyは後から追加可能）
     DEFAULT_STEPS = [
         {'step': 'attendance', 'order': 1},
-        {'step': 'survey', 'order': 2},
-        {'step': 'estimate', 'order': 3},
-        {'step': 'construction_start', 'order': 4},
-        {'step': 'completion', 'order': 5},
+        {'step': 'estimate', 'order': 2},
+        {'step': 'construction_start', 'order': 3},
+        {'step': 'completion', 'order': 4},
     ]
 
     if project.additional_items:
@@ -919,7 +926,33 @@ def add_subcontract(request, pk):
         except Exception as e:
             messages.error(request, f'作業者の追加中にエラーが発生しました: {str(e)}')
 
-    return redirect('order_management:project_detail', pk=pk)
+        return redirect('order_management:project_detail', pk=pk)
+
+    # GETリクエストの場合、フォームを表示
+    from subcontract_management.models import Contractor, Subcontract
+    contractors = Contractor.objects.all().order_by('name')
+    staff_members = User.objects.filter(is_staff=True).order_by('username')
+
+    # 既存の作業費用を計算（利益率計算用）
+    existing_subcontracts = Subcontract.objects.filter(project=project)
+    existing_total_cost = sum(sc.contract_amount or 0 for sc in existing_subcontracts)
+
+    # 社内作業者リスト
+    internal_workers = []
+    try:
+        from subcontract_management.models import InternalWorker as IW
+        internal_workers = IW.objects.all().order_by('name')
+    except ImportError:
+        pass
+
+    context = {
+        'project': project,
+        'contractors': contractors,
+        'staff_members': staff_members,
+        'internal_workers': internal_workers,
+        'existing_total_cost': existing_total_cost,
+    }
+    return render(request, 'order_management/add_subcontract.html', context)
 
 
 def project_update(request, pk):

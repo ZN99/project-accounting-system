@@ -1,0 +1,262 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}売掛金詳細 - 建築派遣管理システム{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-header-receivables {
+        background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .metric-card {
+        border-left: 4px solid;
+        transition: transform 0.2s;
+    }
+
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .metric-card.receivable {
+        border-color: #ffc107;
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    .metric-label {
+        color: #6c757d;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+    }
+
+    .table-card {
+        background-color: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .overdue-badge {
+        font-weight: 600;
+    }
+
+    .row-critical {
+        background-color: #fee;
+    }
+
+    .row-warning {
+        background-color: #fff4e5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- ヘッダー -->
+    <div class="page-header-receivables">
+        <h2><i class="fas fa-file-invoice-dollar me-2"></i>売掛金詳細</h2>
+        <p class="mb-0 opacity-75">回収待ちの案件を管理</p>
+    </div>
+
+    <!-- サマリーカード -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card metric-card receivable">
+                <div class="card-body">
+                    <div class="metric-label">総売掛金</div>
+                    <div class="metric-value text-warning">¥{{ receivables.total_receivable|floatformat:0|intcomma|default:"0" }}</div>
+                    <small class="text-muted">未回収の総額</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card metric-card" style="border-color: #e74c3c;">
+                <div class="card-body">
+                    <div class="metric-label">案件数</div>
+                    <div class="metric-value text-danger">{{ receivables.count }}</div>
+                    <small class="text-muted">回収待ちの案件</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card metric-card" style="border-color: #3498db;">
+                <div class="card-body">
+                    <div class="metric-label">平均経過日数</div>
+                    <div class="metric-value text-info">
+                        {% if receivables.projects %}
+                            {{ receivables.projects|length|add:"0" }}
+                            {% widthratio receivables.projects|length 1 receivables.projects|length as avg_days %}
+                            {% for item in receivables.projects %}
+                                {% if forloop.first %}
+                                    {% widthratio item.days_overdue receivables.count 1 as avg %}
+                                {% endif %}
+                            {% endfor %}
+                            --
+                        {% else %}
+                            0
+                        {% endif %}
+                    日</div>
+                    <small class="text-muted">完工からの経過</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 売掛金詳細テーブル -->
+    <div class="table-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>売掛金一覧</h5>
+            <div>
+                <button class="btn btn-sm btn-outline-primary" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel me-1"></i>Excelエクスポート
+                </button>
+            </div>
+        </div>
+
+        {% if receivables.projects %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="receivablesTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>管理No</th>
+                        <th>現場名</th>
+                        <th>元請会社</th>
+                        <th>完工日</th>
+                        <th class="text-end">売上（発生）</th>
+                        <th class="text-end">入金済み</th>
+                        <th class="text-end">売掛金</th>
+                        <th>経過日数</th>
+                        <th>アクション</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in receivables.projects %}
+                    <tr class="{% if item.days_overdue > 60 %}row-critical{% elif item.days_overdue > 30 %}row-warning{% endif %}">
+                        <td>
+                            <a href="{% url 'order_management:project_detail' item.project.pk %}" class="text-decoration-none">
+                                <strong>{{ item.project.management_no }}</strong>
+                            </a>
+                        </td>
+                        <td>{{ item.project.site_name }}</td>
+                        <td>
+                            {% if item.project.client_company %}
+                                {{ item.project.client_company.name }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.project.completion_date %}
+                                {{ item.project.completion_date|date:"Y/m/d" }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">¥{{ item.accrual|floatformat:0|intcomma }}</td>
+                        <td class="text-end">¥{{ item.cash|floatformat:0|intcomma }}</td>
+                        <td class="text-end">
+                            <strong class="text-warning">¥{{ item.receivable|floatformat:0|intcomma }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge overdue-badge {% if item.days_overdue > 60 %}bg-danger{% elif item.days_overdue > 30 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                {{ item.days_overdue }}日経過
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'order_management:project_detail' item.project.pk %}"
+                                   class="btn btn-outline-primary"
+                                   title="案件詳細">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <button class="btn btn-outline-success"
+                                        onclick="recordPayment({{ item.project.pk }})"
+                                        title="入金記録">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th colspan="6" class="text-end">合計</th>
+                        <th class="text-end">
+                            <strong class="text-warning">¥{{ receivables.total_receivable|floatformat:0|intcomma }}</strong>
+                        </th>
+                        <th colspan="2"></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- 注意事項 -->
+        <div class="alert alert-info mt-3">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>表示ルール:</strong>
+            <ul class="mb-0 mt-2">
+                <li>完工日から30日以上経過している案件は <span class="badge bg-warning text-dark">警告</span> 表示</li>
+                <li>完工日から60日以上経過している案件は <span class="badge bg-danger">危険</span> 表示</li>
+                <li>入金記録ボタンから直接入金情報を登録できます</li>
+            </ul>
+        </div>
+
+        {% else %}
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong>素晴らしい！</strong> 現在、売掛金はありません。すべての案件で入金が完了しています。
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- DataTables for sorting and filtering -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    {% if receivables.projects %}
+    // DataTablesの初期化
+    $('#receivablesTable').DataTable({
+        order: [[7, 'desc']], // 経過日数でソート（降順）
+        pageLength: 25,
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/ja.json'
+        },
+        columnDefs: [
+            { orderable: false, targets: [8] } // アクション列はソート不可
+        ]
+    });
+    {% endif %}
+});
+
+// 入金記録機能
+function recordPayment(projectId) {
+    if (confirm('入金記録画面を開きますか？')) {
+        window.location.href = `/orders/${projectId}/?scroll_to=payment`;
+    }
+}
+
+// Excelエクスポート機能
+function exportToExcel() {
+    alert('Excelエクスポート機能は近日実装予定です');
+    // TODO: 実装
+}
+</script>
+{% endblock %}

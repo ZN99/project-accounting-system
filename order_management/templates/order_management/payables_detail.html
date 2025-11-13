@@ -1,0 +1,280 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}買掛金詳細 - 建築派遣管理システム{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-header-payables {
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .metric-card {
+        border-left: 4px solid;
+        transition: transform 0.2s;
+    }
+
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .metric-card.payable {
+        border-color: #e74c3c;
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    .metric-label {
+        color: #6c757d;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+    }
+
+    .table-card {
+        background-color: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .overdue-badge {
+        font-weight: 600;
+    }
+
+    .row-critical {
+        background-color: #fee;
+    }
+
+    .row-warning {
+        background-color: #fff4e5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- ヘッダー -->
+    <div class="page-header-payables">
+        <h2><i class="fas fa-money-bill-wave me-2"></i>買掛金詳細</h2>
+        <p class="mb-0 opacity-75">支払待ちの外注費を管理</p>
+    </div>
+
+    <!-- サマリーカード -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card metric-card payable">
+                <div class="card-body">
+                    <div class="metric-label">総買掛金</div>
+                    <div class="metric-value text-danger">¥{{ payables.total_payable|floatformat:0|intcomma|default:"0" }}</div>
+                    <small class="text-muted">未払いの総額</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card metric-card" style="border-color: #fd7e14;">
+                <div class="card-body">
+                    <div class="metric-label">外注件数</div>
+                    <div class="metric-value" style="color: #fd7e14;">{{ payables.count }}</div>
+                    <small class="text-muted">支払待ちの外注</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card metric-card" style="border-color: #3498db;">
+                <div class="card-body">
+                    <div class="metric-label">平均経過日数</div>
+                    <div class="metric-value text-info">
+                        {% if payables.subcontracts %}
+                            {% widthratio payables.subcontracts|length 1 1 as total %}
+                            {% for item in payables.subcontracts %}
+                                {% if forloop.first %}
+                                    {{ item.days_since_created }}
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            0
+                        {% endif %}
+                    日</div>
+                    <small class="text-muted">発注からの経過</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 買掛金詳細テーブル -->
+    <div class="table-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>買掛金一覧</h5>
+            <div>
+                <button class="btn btn-sm btn-outline-primary" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel me-1"></i>Excelエクスポート
+                </button>
+            </div>
+        </div>
+
+        {% if payables.subcontracts %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="payablesTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>外注管理No</th>
+                        <th>案件管理No</th>
+                        <th>現場名</th>
+                        <th>協力業者</th>
+                        <th>工事種別</th>
+                        <th>発注日</th>
+                        <th class="text-end">契約金額</th>
+                        <th>経過日数</th>
+                        <th>アクション</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in payables.subcontracts %}
+                    <tr class="{% if item.days_since_created > 60 %}row-critical{% elif item.days_since_created > 30 %}row-warning{% endif %}">
+                        <td>
+                            <strong>{{ item.subcontract.management_no }}</strong>
+                        </td>
+                        <td>
+                            <a href="{% url 'order_management:project_detail' item.project.pk %}" class="text-decoration-none">
+                                {{ item.project.management_no }}
+                            </a>
+                        </td>
+                        <td>{{ item.project.site_name }}</td>
+                        <td>
+                            {% if item.subcontract.contractor %}
+                                {{ item.subcontract.contractor.name }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.subcontract.work_type %}
+                                <span class="badge bg-secondary">{{ item.subcontract.work_type }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.subcontract.created_at %}
+                                {{ item.subcontract.created_at|date:"Y/m/d" }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <strong class="text-danger">¥{{ item.amount|floatformat:0|intcomma }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge overdue-badge {% if item.days_since_created > 60 %}bg-danger{% elif item.days_since_created > 30 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                {{ item.days_since_created }}日経過
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'order_management:project_detail' item.project.pk %}"
+                                   class="btn btn-outline-primary"
+                                   title="案件詳細">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <button class="btn btn-outline-success"
+                                        onclick="recordPayment({{ item.subcontract.id }})"
+                                        title="支払記録">
+                                    <i class="fas fa-check-circle"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th colspan="6" class="text-end">合計</th>
+                        <th class="text-end">
+                            <strong class="text-danger">¥{{ payables.total_payable|floatformat:0|intcomma }}</strong>
+                        </th>
+                        <th colspan="2"></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- 注意事項 -->
+        <div class="alert alert-info mt-3">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>表示ルール:</strong>
+            <ul class="mb-0 mt-2">
+                <li>発注日から30日以上経過している外注は <span class="badge bg-warning text-dark">警告</span> 表示</li>
+                <li>発注日から60日以上経過している外注は <span class="badge bg-danger">危険</span> 表示</li>
+                <li>支払記録ボタンから直接支払情報を登録できます</li>
+            </ul>
+        </div>
+
+        {% else %}
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong>素晴らしい！</strong> 現在、買掛金はありません。すべての外注費の支払いが完了しています。
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 支払予定カレンダー（将来的に実装） -->
+    {% if payables.subcontracts %}
+    <div class="table-card mt-4">
+        <h5 class="mb-3"><i class="fas fa-calendar-alt me-2"></i>支払予定カレンダー</h5>
+        <div class="alert alert-secondary">
+            <i class="fas fa-info-circle me-2"></i>
+            支払予定カレンダー機能は近日実装予定です。各外注の支払期日を視覚的に管理できるようになります。
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- DataTables for sorting and filtering -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    {% if payables.subcontracts %}
+    // DataTablesの初期化
+    $('#payablesTable').DataTable({
+        order: [[7, 'desc']], // 経過日数でソート（降順）
+        pageLength: 25,
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/ja.json'
+        },
+        columnDefs: [
+            { orderable: false, targets: [8] } // アクション列はソート不可
+        ]
+    });
+    {% endif %}
+});
+
+// 支払記録機能
+function recordPayment(subcontractId) {
+    if (confirm('この外注費の支払記録を登録しますか？')) {
+        // TODO: 支払記録モーダルまたはページへ遷移
+        alert(`外注ID: ${subcontractId} の支払記録機能は近日実装予定です`);
+    }
+}
+
+// Excelエクスポート機能
+function exportToExcel() {
+    alert('Excelエクスポート機能は近日実装予定です');
+    // TODO: 実装
+}
+</script>
+{% endblock %}

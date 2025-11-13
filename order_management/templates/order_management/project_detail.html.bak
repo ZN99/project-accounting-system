@@ -1,7 +1,6 @@
 {% extends "order_management/base.html" %}
 {% load humanize %}
 {% load role_tags %}
-{% load custom_filters %}
 
 {% block title %}{{ project.site_name }} - 建築派遣管理システム{% endblock %}
 
@@ -373,14 +372,6 @@
                         {% with stage=project.get_current_project_stage %}
                         <h3 class="text-{{ stage.color }}" id="progressPhase">{{ stage.stage }}</h3>
                         {% endwith %}
-                        <!-- 次のアクション -->
-                        <p class="text-muted mb-1" style="font-size: 0.9rem;" id="nextAction">
-                            <i class="fas fa-arrow-right me-1"></i><strong>Next Action:</strong><br><span id="nextActionText">読み込み中...</span>
-                        </p>
-                        <!-- NEXTステップ -->
-                        <p class="text-secondary mb-2" style="font-size: 0.8rem; margin-top: 0.5rem;" id="nextStep">
-                            <i class="fas fa-forward me-1"></i><strong>Next Step:</strong><br><span id="nextStepText">-</span>
-                        </p>
                         <div class="progress" style="height: 25px;">
                             <div class="progress-bar bg-primary" id="progressBar"
                                  role="progressbar"
@@ -676,13 +667,494 @@
     </div>
 </div>
 
-<!-- 資材発注セクション -->
-<div class="row mt-4">
+>
+                    {% csrf_token %}
+
+                    <!-- 作業者タイプ選択 -->
+                    <div class="mb-3">
+                        <label class="form-label">作業者タイプ <span class="text-danger">*</span></label>
+                        <div class="mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="worker_type" id="externalWorker" value="external" checked>
+                                <label class="form-check-label" for="externalWorker">
+                                    <i class="fas fa-file-contract me-1"></i>発注
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="worker_type" id="internalWorker" value="internal">
+                                <label class="form-check-label" for="internalWorker">
+                                    <i class="fas fa-users me-1"></i>社内リソース
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 外注先情報（外注の場合のみ表示） -->
+                    <div id="externalWorkerSection">
+                        <!-- 工事業者情報 -->
+                    <div class="mb-3">
+                        <label class="form-label">工事元請名 <span class="text-danger">*</span></label>
+                        <div class="mb-2">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="contractor_input_type" id="existingContractor" value="existing" checked>
+                                <label class="form-check-label" for="existingContractor">
+                                    既存から選択
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="contractor_input_type" id="newContractor" value="new">
+                                <label class="form-check-label" for="newContractor">
+                                    新規入力
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 既存業者選択 -->
+                        <div id="existingContractorDiv">
+                            <select name="existing_contractor_id" class="form-select" id="contractorSelect">
+                                <option value="">-- 業者を選択してください --</option>
+                                {% for contractor in contractors %}
+                                <option value="{{ contractor.id }}" data-name="{{ contractor.name }}" data-address="{{ contractor.address }}">
+                                    {{ contractor.name }} {% if contractor.address %}({{ contractor.address }}){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- 新規業者入力 -->
+                        <div id="newContractorDiv" style="display: none;">
+                            <input type="text" name="client_name" class="form-control" placeholder="例: 田中工務店">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">工事元請住所</label>
+                        <input type="text" name="client_address" class="form-control" id="contractorAddress" placeholder="例: 東京都渋谷区1-2-3">
+                    </div>
+
+                    <!-- 金額情報 -->
+                    <div class="mb-3">
+                        <label class="form-label">依頼金額 <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">¥</span>
+                            <input type="number" name="contract_amount" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">被請求額</label>
+                        <div class="input-group">
+                            <span class="input-group-text">¥</span>
+                            <input type="number" name="billed_amount" class="form-control">
+                        </div>
+                    </div>
+
+                    <!-- 出金情報 -->
+                    <div class="mb-3">
+                        <label class="form-label">出金予定日</label>
+                        <input type="date" name="payment_due_date" class="form-control">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">出金日</label>
+                        <input type="date" name="payment_date" class="form-control">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">出金状況</label>
+                        <select name="payment_status" class="form-select">
+                            <option value="pending">未払い</option>
+                            <option value="paid">支払済み</option>
+                            <option value="partial">一部払い</option>
+                        </select>
+                    </div>
+
+                    <!-- 部材費情報 -->
+                    <hr>
+                    <h6><i class="fas fa-box"></i> 部材費情報</h6>
+                    <div id="externalMaterialCostSection">
+                        <!-- 動的に部材費項目が追加される -->
+                    </div>
+                    <button type="button" class="btn btn-outline-success btn-sm" id="addExternalMaterialBtn">
+                        <i class="fas fa-plus"></i> 部材費項目を追加
+                    </button>
+                    <div class="mt-2">
+                        <strong>部材費合計: ¥<span id="externalMaterialTotal">0</span></strong>
+                    </div>
+
+                    <!-- 追加費用情報 -->
+                    <hr>
+                    <h6><i class="fas fa-plus-circle"></i> 追加費用情報</h6>
+                    <div id="externalAdditionalCostSection">
+                        <!-- 動的に追加費用項目が追加される -->
+                    </div>
+                    <button type="button" class="btn btn-outline-warning btn-sm" id="addExternalAdditionalCostBtn">
+                        <i class="fas fa-plus"></i> 追加費用項目を追加
+                    </button>
+                    <div class="mt-2">
+                        <strong>追加費用合計: ¥<span id="externalAdditionalCostTotal">0</span></strong>
+                    </div>
+
+                    <!-- 外注先費用内訳 -->
+                    <div class="mt-3 p-3 bg-light rounded" id="externalCostBreakdown">
+                        <h6 class="mb-2"><i class="fas fa-calculator"></i> 費用内訳（外注）</h6>
+                        <div class="row mb-1">
+                            <div class="col-8">依頼金額:</div>
+                            <div class="col-4 text-end">¥<span id="externalContractAmount">0</span></div>
+                        </div>
+                        <div class="row mb-1">
+                            <div class="col-8">被請求額:</div>
+                            <div class="col-4 text-end">¥<span id="externalBilledAmount">0</span></div>
+                        </div>
+                        <div class="row mb-1">
+                            <div class="col-8">部材費:</div>
+                            <div class="col-4 text-end">¥<span id="externalMaterialSubtotal">0</span></div>
+                        </div>
+                        <div class="row mb-1">
+                            <div class="col-8">追加費用:</div>
+                            <div class="col-4 text-end">¥<span id="externalAdditionalCostSubtotal">0</span></div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="row fw-bold text-primary">
+                            <div class="col-8 fs-5">総合計:</div>
+                            <div class="col-4 text-end fs-5">¥<span id="externalGrandTotal">0</span></div>
+                        </div>
+                    </div>
+
+                    <!-- 発注書 -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="purchase_order_issued" id="purchaseOrder">
+                            <label class="form-check-label" for="purchaseOrder">
+                                発注書発行済み
+                            </label>
+                        </div>
+                    </div>
+
+                    </div>
+
+                    <!-- 社内リソース情報（社内の場合のみ表示） -->
+                    <div id="internalWorkerSection" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">担当者選択方法 <span class="text-danger">*</span></label>
+                            <div class="mb-2">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="internal_input_type" id="existingInternal" value="existing" checked>
+                                    <label class="form-check-label" for="existingInternal">
+                                        既存から選択
+                                    </label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="internal_input_type" id="newInternal" value="new">
+                                    <label class="form-check-label" for="newInternal">
+                                        新規入力
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 既存担当者選択 -->
+                            <div id="existingInternalDiv">
+                                <select name="existing_internal_id" class="form-select" id="internalSelect">
+                                    <option value="">-- 担当者を選択してください --</option>
+                                    {% for worker in internal_workers %}
+                                    <option value="{{ worker.id }}"
+                                            data-name="{{ worker.name }}"
+                                            data-department="{{ worker.get_department_display }}"
+                                            data-hourly-rate="{{ worker.hourly_rate }}"
+                                            data-specialties="{{ worker.specialties }}">
+                                        {{ worker.name }} ({{ worker.get_department_display }}) - ¥{{ worker.hourly_rate }}/時間
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="openStaffManagementPanel()">
+                                    <i class="fas fa-users-cog"></i> 担当者管理
+                                </button>
+                            </div>
+
+                            <!-- 新規担当者入力 -->
+                            <div id="newInternalDiv" style="display: none;">
+                                <input type="text" name="internal_worker_name" class="form-control" placeholder="例: 田中太郎">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">所属部署</label>
+                            <input type="text" name="internal_department" class="form-control" id="internalDepartment" placeholder="例: 施工部">
+                        </div>
+
+                        <!-- 料金体系選択 -->
+                        <div class="mb-3">
+                            <label class="form-label">料金体系 <span class="text-danger">*</span></label>
+                            <div class="mb-3">
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <div class="card pricing-type-card" id="hourlyCard">
+                                            <div class="card-body text-center">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="internal_pricing_type" id="hourlyPricing" value="hourly" checked>
+                                                    <label class="form-check-label fw-bold" for="hourlyPricing">
+                                                        <i class="fas fa-clock me-1"></i>時給ベース
+                                                    </label>
+                                                </div>
+                                                <small class="text-muted">時給 × 工数で計算</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card pricing-type-card" id="projectCard">
+                                            <div class="card-body text-center">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="internal_pricing_type" id="projectPricing" value="project">
+                                                    <label class="form-check-label fw-bold" for="projectPricing">
+                                                        <i class="fas fa-file-invoice me-1"></i>案件単位
+                                                    </label>
+                                                </div>
+                                                <small class="text-muted">固定金額で計算</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 時給ベースの場合のフィールド -->
+                        <div id="hourlyPricingFields">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">時給単価 <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">¥</span>
+                                            <input type="number" name="internal_hourly_rate" class="form-control" id="internalHourlyRate" placeholder="3000">
+                                            <span class="input-group-text">/時間</span>
+                                        </div>
+                                        <small class="text-muted">データベースから自動入力可能</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">見積工数 <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <input type="number" name="estimated_hours" class="form-control" id="estimatedHours" step="0.5" placeholder="8.0">
+                                            <span class="input-group-text">時間</span>
+                                        </div>
+                                        <small class="text-muted">予想される作業時間</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="alert alert-info">
+                                <small><i class="fas fa-calculator me-1"></i>基本料金: <strong>時給 × 工数</strong> で自動計算されます</small>
+                            </div>
+                        </div>
+
+                        <!-- 案件単位の場合のフィールド -->
+                        <div id="projectPricingFields" style="display: none;">
+                            <div class="mb-3">
+                                <label class="form-label">契約金額 <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">¥</span>
+                                    <input type="number" name="project_contract_amount" class="form-control" id="projectContractAmount" placeholder="100000">
+                                </div>
+                                <small class="text-muted">案件全体の固定金額を入力</small>
+                            </div>
+                            <div class="alert alert-success">
+                                <small><i class="fas fa-handshake me-1"></i>案件単位では<strong>固定金額</strong>で契約します</small>
+                            </div>
+                        </div>
+
+                        <!-- 税込/税抜選択 -->
+                        <div class="mb-3">
+                            <label class="form-label">税込/税抜 <span class="text-danger">*</span></label>
+                            <div class="mb-2">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="tax_type" id="taxInclude" value="include" checked>
+                                    <label class="form-check-label" for="taxInclude">
+                                        税込
+                                    </label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="tax_type" id="taxExclude" value="exclude">
+                                    <label class="form-check-label" for="taxExclude">
+                                        税抜
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 動的費用項目（時給ベースの追加費用 / 案件単位の費用項目） -->
+                        <div class="mb-3">
+                            <label class="form-label" id="costItemsLabel">追加費用項目</label>
+                            <div id="costItemsSection">
+                                <!-- 動的に費用項目が追加される -->
+                            </div>
+                            <button type="button" class="btn btn-outline-info btn-sm" id="addCostItemBtn">
+                                <i class="fas fa-plus"></i> <span id="addCostItemText">追加費用項目を追加</span>
+                            </button>
+                            <div class="mt-2">
+                                <strong id="costItemsLabel2">追加費用合計: ¥<span id="costItemsTotal">0</span></strong>
+                            </div>
+
+                            <!-- 詳細費用内訳 -->
+                            <div class="mt-3 p-3 bg-light rounded" id="costBreakdown">
+                                <h6 class="mb-2"><i class="fas fa-calculator"></i> 費用内訳</h6>
+
+                                <!-- 時給ベースの場合 -->
+                                <div id="hourlyBreakdown" style="display: none;">
+                                    <div class="row mb-1">
+                                        <div class="col-8">基本料金（時給 × 工数）:</div>
+                                        <div class="col-4 text-end">¥<span id="baseAmount">0</span></div>
+                                    </div>
+                                    <div class="row mb-1">
+                                        <div class="col-8">追加費用:</div>
+                                        <div class="col-4 text-end">¥<span id="additionalAmount">0</span></div>
+                                    </div>
+                                    <hr class="my-2">
+                                    <div class="row mb-2 fw-bold">
+                                        <div class="col-8">作業費用小計:</div>
+                                        <div class="col-4 text-end">¥<span id="workSubtotal">0</span></div>
+                                    </div>
+                                </div>
+
+                                <!-- 案件単位の場合 -->
+                                <div id="projectBreakdown" style="display: none;">
+                                    <div class="row mb-2 fw-bold">
+                                        <div class="col-8">作業費用小計:</div>
+                                        <div class="col-4 text-end">¥<span id="projectSubtotal">0</span></div>
+                                    </div>
+                                </div>
+
+                                <!-- 部材費 -->
+                                <div class="row mb-1">
+                                    <div class="col-8">部材費:</div>
+                                    <div class="col-4 text-end">¥<span id="materialSubtotal">0</span></div>
+                                </div>
+
+                                <hr class="my-2">
+                                <div class="row fw-bold text-primary">
+                                    <div class="col-8 fs-5">総合計:</div>
+                                    <div class="col-4 text-end fs-5">¥<span id="grandTotal">0</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 金額情報（社内） -->
+                        <div class="mb-3">
+                            <label class="form-label" id="contractAmountLabel">作業費用 <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">¥</span>
+                                <input type="number" name="contract_amount" class="form-control" required id="internalContractAmount">
+                            </div>
+                            <small class="text-muted" id="contractAmountHint">時給ベースの場合は時給 × 工数 + 追加費用で自動計算されます</small>
+                        </div>
+
+                        <!-- 出金情報（社内リソース） -->
+                        <hr>
+                        <h6><i class="fas fa-credit-card"></i> 出金情報</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">出金予定日</label>
+                                    <input type="date" name="payment_due_date" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">出金日</label>
+                                    <input type="date" name="payment_date" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">出金状況</label>
+                            <select name="payment_status" class="form-select">
+                                <option value="pending">未払い</option>
+                                <option value="processing">処理中</option>
+                                <option value="paid">支払済み</option>
+                            </select>
+                        </div>
+
+                        <!-- 部材費情報（社内リソースでも利用可能） -->
+                        <hr>
+                        <h6><i class="fas fa-box"></i> 部材費情報</h6>
+                        <div id="materialCostSection">
+                            <!-- 動的に部材費項目が追加される -->
+                        </div>
+                        <button type="button" class="btn btn-outline-success btn-sm" id="addMaterialBtn">
+                            <i class="fas fa-plus"></i> 部材費項目を追加
+                        </button>
+                        <div class="mt-2">
+                            <strong>部材費合計: ¥<span id="materialTotal">0</span></strong>
+                        </div>
+                    </div>
+
+                    <!-- 暫定利益率表示（詳細版） -->
+                    <div class="card mt-3 border-primary shadow-sm" id="profitPreview">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0"><i class="fas fa-chart-line"></i> 暫定利益率分析（リアルタイム）</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <tbody>
+                                        <tr class="table-success">
+                                            <td><strong>売上（受注額）</strong></td>
+                                            <td class="text-end"><strong>¥<span id="previewRevenue">{{ project.billing_amount|floatformat:0|intcomma }}</span></strong></td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="2"><strong>支出内訳</strong></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="ps-3">既存作業費用</td>
+                                            <td class="text-end">¥<span id="previewExistingCost">{{ existing_total_cost|default:0 }}</span></td>
+                                        </tr>
+                                        <tr id="newCostRow">
+                                            <td class="ps-3">追加作業費用</td>
+                                            <td class="text-end">¥<span id="previewNewWorkCost">0</span></td>
+                                        </tr>
+                                        <tr id="newMaterialRow">
+                                            <td class="ps-3">追加部材費</td>
+                                            <td class="text-end">¥<span id="previewNewMaterialCost">0</span></td>
+                                        </tr>
+                                        <tr class="table-warning">
+                                            <td><strong>総支出</strong></td>
+                                            <td class="text-end"><strong>¥<span id="previewTotalCost">{{ existing_total_cost|default:0 }}</span></strong></td>
+                                        </tr>
+                                        <tr class="table-primary">
+                                            <td><strong>粗利益</strong></td>
+                                            <td class="text-end"><strong>¥<span id="previewGrossProfit">0</span></strong></td>
+                                        </tr>
+                                        <tr class="table-info">
+                                            <td><strong>利益率</strong></td>
+                                            <td class="text-end">
+                                                <strong class="fs-4" id="previewProfitRate">0%</strong>
+                                                <div class="progress mt-1" style="height: 8px;">
+                                                    <div class="progress-bar" id="profitRateBar" role="progressbar" style="width: 0%" aria-valuemin="0" aria-valuemax="100"></div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-plus"></i> <span id="submitButtonText">作業者追加</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+        </div>
+    </div>
+</div>
+
+<!-- 資材管理状況 -->
+<div class="row mb-4">
     <div class="col-md-8">
-        <div class="card">
+        <div class="card border-warning">
             <div class="card-header bg-warning text-white">
-                <h5 class="mb-0">
-                    <i class="fas fa-box-open"></i> 資材発注状況
+                <h5 class="mb-0"><i class="fas fa-boxes"></i> 資材管理状況
                     {% with material_status=project.get_material_status %}
                     <span class="badge bg-light text-dark ms-2">{{ material_status.total_orders }}件発注</span>
                     {% endwith %}
@@ -964,392 +1436,223 @@
     </div>
 </div>
 
-<!-- 詳細情報 (改善版 - タブUI) -->
+<!-- 詳細情報 -->
 <div class="row mb-4">
-    <div class="col-lg-12">
-        <div class="card shadow-sm">
-            <div class="card-header bg-gradient-primary text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>案件詳細情報</h5>
-                <!-- 表示切り替えボタン -->
-                <div class="btn-group btn-group-sm" role="group">
-                    <button type="button" class="btn btn-light active" id="tabViewBtn" onclick="switchViewMode('tab')">
-                        <i class="fas fa-th-large me-1"></i>タブ表示
-                    </button>
-                    <button type="button" class="btn btn-light" id="fullViewBtn" onclick="switchViewMode('full')">
-                        <i class="fas fa-list me-1"></i>全体表示
-                    </button>
-                </div>
+<div class="col-lg-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> 詳細情報</h5>
             </div>
-            <div class="card-body p-0">
-                <!-- タブナビゲーション -->
-                <ul class="nav nav-tabs" id="projectDetailTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
-                            <i class="fas fa-home me-1"></i>概要
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="business-tab" data-bs-toggle="tab" data-bs-target="#business" type="button" role="tab">
-                            <i class="fas fa-briefcase me-1"></i>業者・担当
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="schedule-tab" data-bs-toggle="tab" data-bs-target="#schedule" type="button" role="tab">
-                            <i class="fas fa-calendar-alt me-1"></i>スケジュール
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="finance-tab" data-bs-toggle="tab" data-bs-target="#finance" type="button" role="tab">
-                            <i class="fas fa-yen-sign me-1"></i>請求・経費
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button" role="tab">
-                            <i class="fas fa-sticky-note me-1"></i>備考・その他
-                        </button>
-                    </li>
-                </ul>
-
-                <!-- タブコンテンツ -->
-                <div class="tab-content p-4" id="projectDetailTabsContent">
-                    <!-- 概要タブ -->
-                    <div class="tab-pane fade show active" id="overview" role="tabpanel" data-section-title="📋 概要">
-                        <div class="row g-3">
-                            <!-- 基本情報 -->
-                            <div class="col-md-6">
-                                <div class="info-group">
-                                    <h6 class="text-primary border-bottom pb-2 mb-3">
-                                        <i class="fas fa-file-alt me-2"></i>基本情報
-                                    </h6>
-                                    <dl class="row mb-0">
-                                        <dt class="col-sm-4 text-muted">管理No</dt>
-                                        <dd class="col-sm-8 fw-bold">{{ project.management_no }}</dd>
-                                        <dt class="col-sm-4 text-muted">現場名</dt>
-                                        <dd class="col-sm-8">{{ project.site_name }}</dd>
-                                        <dt class="col-sm-4 text-muted">工事種別</dt>
-                                        <dd class="col-sm-8"><span class="badge bg-secondary">{{ project.work_type }}</span></dd>
-                                        <dt class="col-sm-4 text-muted">現場住所</dt>
-                                        <dd class="col-sm-8">{{ project.site_address|default:"-" }}</dd>
-                                    </dl>
-                                </div>
-                            </div>
-
-                            <!-- ステータス・金額 -->
-                            <div class="col-md-6">
-                                <div class="info-group">
-                                    <h6 class="text-success border-bottom pb-2 mb-3">
-                                        <i class="fas fa-chart-line me-2"></i>ステータス・金額
-                                    </h6>
-                                    <dl class="row mb-0">
-                                        <dt class="col-sm-5 text-muted">案件進捗</dt>
-                                        <dd class="col-sm-7">
-                                            {% with stage=project.get_current_project_stage %}
-                                            <span class="badge bg-{{ stage.color }} fs-6">{{ stage.stage }}</span>
-                                            {% endwith %}
-                                        </dd>
-                                        <dt class="col-sm-5 text-muted">受注ヨミ</dt>
-                                        <dd class="col-sm-7">
-                                            <select class="form-select form-select-sm order-forecast-select-detail"
-                                                    data-project-id="{{ project.pk }}"
-                                                    style="width: auto; display: inline-block; max-width: 150px;">
-                                                {% for value, label in project.PROJECT_STATUS_CHOICES %}
-                                                <option value="{{ value }}" {% if value == project.project_status %}selected{% endif %}>
-                                                    {{ label }}
-                                                </option>
-                                                {% endfor %}
-                                            </select>
-                                        </dd>
-                                        <dt class="col-sm-5 text-muted">受注金額</dt>
-                                        <dd class="col-sm-7 text-primary fw-bold fs-5">¥{{ project.order_amount|floatformat:0|intcomma }}</dd>
-                                        <dt class="col-sm-5 text-muted">実請求額</dt>
-                                        <dd class="col-sm-7 text-success fw-bold fs-5">¥{{ project.billing_amount|floatformat:0|intcomma }}</dd>
-                                    </dl>
-                                </div>
-                            </div>
-
-                            <!-- その他情報 -->
-                            <div class="col-12">
-                                <div class="info-group">
-                                    <h6 class="text-info border-bottom pb-2 mb-3">
-                                        <i class="fas fa-clipboard-list me-2"></i>その他詳細
-                                    </h6>
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <dl class="row mb-0">
-                                                <dt class="col-sm-6 text-muted">見積書発行日</dt>
-                                                <dd class="col-sm-6">{{ project.estimate_issued_date|date:"Y/m/d"|default:"-" }}</dd>
-                                            </dl>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <dl class="row mb-0">
-                                                <dt class="col-sm-6 text-muted">駐車場代</dt>
-                                                <dd class="col-sm-6">¥{{ project.parking_fee|floatformat:0|intcomma }}</dd>
-                                            </dl>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <dl class="row mb-0">
-                                                <dt class="col-sm-6 text-muted">増減額</dt>
-                                                <dd class="col-sm-6 {% if project.amount_difference > 0 %}text-success{% elif project.amount_difference < 0 %}text-danger{% endif %} fw-bold">
-                                                    ¥{{ project.amount_difference|floatformat:0|intcomma }}
-                                                </dd>
-                                            </dl>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+            <div class="card-body">
+                <!-- 基本情報 -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">基本情報</h5>
                     </div>
-
-                    <!-- 業者・担当タブ -->
-                    <div class="tab-pane fade" id="business" role="tabpanel" data-section-title="🏢 業者・担当">
-                        <div class="row g-3">
+                    <div class="card-body">
+                        <div class="row">
                             <div class="col-md-6">
-                                <div class="info-group">
-                                    <h6 class="text-primary border-bottom pb-2 mb-3">
-                                        <i class="fas fa-building me-2"></i>元請情報
-                                    </h6>
-                                    <dl class="row mb-0">
-                                        <dt class="col-sm-4 text-muted">元請名</dt>
-                                        <dd class="col-sm-8 fw-bold">{{ project.client_name|default:"-" }}</dd>
-                                        <dt class="col-sm-4 text-muted">元請住所</dt>
-                                        <dd class="col-sm-8">{{ project.client_address|default:"-" }}</dd>
-                                    </dl>
-                                </div>
+                                <dl class="row">
+                                    <dt class="col-sm-4">管理No:</dt>
+                                    <dd class="col-sm-8">{{ project.management_no }}</dd>
+                                    <dt class="col-sm-4">現場名:</dt>
+                                    <dd class="col-sm-8">{{ project.site_name }}</dd>
+                                    <dt class="col-sm-4">種別:</dt>
+                                    <dd class="col-sm-8">{{ project.work_type }}</dd>
+                                </dl>
                             </div>
                             <div class="col-md-6">
-                                <div class="info-group">
-                                    <h6 class="text-success border-bottom pb-2 mb-3">
-                                        <i class="fas fa-user-tie me-2"></i>担当者情報
-                                    </h6>
-                                    <dl class="row mb-0">
-                                        <dt class="col-sm-4 text-muted">案件担当</dt>
-                                        <dd class="col-sm-8 fw-bold">{{ project.project_manager|default:"-" }}</dd>
-                                    </dl>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- スケジュールタブ -->
-                    <div class="tab-pane fade" id="schedule" role="tabpanel" data-section-title="📅 スケジュール">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <div class="info-group">
-                                    <h6 class="text-primary border-bottom pb-2 mb-3">
-                                        <i class="fas fa-calendar-check me-2"></i>契約・工事日程
-                                    </h6>
-                                    <dl class="row mb-0">
-                                        <dt class="col-sm-5 text-muted">契約日</dt>
-                                        <dd class="col-sm-7">{{ project.contract_date|date:"Y年m月d日"|default:"-" }}</dd>
-                                        <dt class="col-sm-5 text-muted">工事開始日</dt>
-                                        <dd class="col-sm-7">{{ project.work_start_date|date:"Y年m月d日"|default:"-" }}</dd>
-                                        <dt class="col-sm-5 text-muted">工事終了日</dt>
-                                        <dd class="col-sm-7">{{ project.work_end_date|date:"Y年m月d日"|default:"-" }}</dd>
-                                    </dl>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="info-group">
-                                    <h6 class="text-success border-bottom pb-2 mb-3">
-                                        <i class="fas fa-money-bill-wave me-2"></i>入金予定
-                                    </h6>
-                                    <dl class="row mb-0">
-                                        <dt class="col-sm-5 text-muted">入金予定日</dt>
-                                        <dd class="col-sm-7 fw-bold">{{ project.payment_due_date|date:"Y年m月d日"|default:"-" }}</dd>
-                                    </dl>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 請求・経費タブ -->
-                    <div class="tab-pane fade" id="finance" role="tabpanel" data-section-title="💰 請求・経費">
-                        <div class="row g-3">
-                            <div class="col-12">
-                                <div class="info-group">
-                                    <h6 class="text-primary border-bottom pb-2 mb-3">
-                                        <i class="fas fa-file-invoice me-2"></i>請求情報
-                                    </h6>
-                                    <dl class="row mb-0">
-                                        <dt class="col-sm-3 text-muted">請求書発行</dt>
-                                        <dd class="col-sm-3">
-                                            {% if project.invoice_issued %}
-                                            <span class="badge bg-success">発行済み</span>
-                                            {% else %}
-                                            <span class="badge bg-secondary">未発行</span>
-                                            {% endif %}
-                                        </dd>
-                                        <dt class="col-sm-3 text-muted">実請求額</dt>
-                                        <dd class="col-sm-3 text-success fw-bold fs-5">¥{{ project.billing_amount|floatformat:0|intcomma }}</dd>
-                                    </dl>
-                                </div>
-                            </div>
-
-                            <div class="col-md-6">
-                                <div class="info-group">
-                                    <h6 class="text-warning border-bottom pb-2 mb-3">
-                                        <i class="fas fa-receipt me-2"></i>諸経費①
-                                    </h6>
-                                    <dl class="row mb-0">
-                                        <dt class="col-sm-5 text-muted">項目名</dt>
-                                        <dd class="col-sm-7">{{ project.expense_item_1|default:"-" }}</dd>
-                                        <dt class="col-sm-5 text-muted">金額</dt>
-                                        <dd class="col-sm-7 fw-bold">¥{{ project.expense_amount_1|floatformat:0|intcomma }}</dd>
-                                    </dl>
-                                </div>
-                            </div>
-
-                            <div class="col-md-6">
-                                <div class="info-group">
-                                    <h6 class="text-warning border-bottom pb-2 mb-3">
-                                        <i class="fas fa-receipt me-2"></i>諸経費②
-                                    </h6>
-                                    <dl class="row mb-0">
-                                        <dt class="col-sm-5 text-muted">項目名</dt>
-                                        <dd class="col-sm-7">{{ project.expense_item_2|default:"-" }}</dd>
-                                        <dt class="col-sm-5 text-muted">金額</dt>
-                                        <dd class="col-sm-7 fw-bold">¥{{ project.expense_amount_2|floatformat:0|intcomma }}</dd>
-                                    </dl>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 備考・その他タブ -->
-                    <div class="tab-pane fade" id="notes" role="tabpanel" data-section-title="📝 備考・その他">
-                        <div class="row g-3">
-                            <div class="col-12">
-                                <div class="info-group">
-                                    <h6 class="text-primary border-bottom pb-2 mb-3">
-                                        <i class="fas fa-comment-alt me-2"></i>備考
-                                    </h6>
-                                    {% if project.notes %}
-                                        <div class="p-3 bg-light rounded">{{ project.notes|linebreaks }}</div>
-                                    {% else %}
-                                        <p class="text-muted fst-italic">備考はありません</p>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-12">
-                                <div class="info-group">
-                                    <h6 class="text-secondary border-bottom pb-2 mb-3">
-                                        <i class="fas fa-database me-2"></i>システム情報
-                                    </h6>
-                                    <dl class="row mb-0">
-                                        <dt class="col-sm-2 text-muted">作成日時</dt>
-                                        <dd class="col-sm-4">{{ project.created_at|date:"Y年m月d日 H:i" }}</dd>
-                                        <dt class="col-sm-2 text-muted">更新日時</dt>
-                                        <dd class="col-sm-4">{{ project.updated_at|date:"Y年m月d日 H:i" }}</dd>
-                                    </dl>
-                                </div>
+                                <dl class="row">
+                                    <dt class="col-sm-4">現場住所:</dt>
+                                    <dd class="col-sm-8">{{ project.site_address }}</dd>
+                                </dl>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- 受注・見積情報 -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">受注・見積情報</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <dl class="row">
+                                    <dt class="col-sm-5">案件進捗:</dt>
+                                    <dd class="col-sm-7">
+                                        {% with stage=project.get_current_project_stage %}
+                                        <span class="badge bg-{{ stage.color }}">
+                                            {{ stage.stage }}
+                                        </span>
+                                        {% endwith %}
+                                    </dd>
+                                    <dt class="col-sm-5">受注ヨミ:</dt>
+                                    <dd class="col-sm-7">
+                                        <select class="form-select form-select-sm order-forecast-select-detail"
+                                                data-project-id="{{ project.pk }}"
+                                                style="width: auto; display: inline-block; max-width: 150px;">
+                                            {% for value, label in project.PROJECT_STATUS_CHOICES %}
+                                            <option value="{{ value }}" {% if value == project.project_status %}selected{% endif %}>
+                                                {{ label }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </dd>
+                                    <dt class="col-sm-5">見積書発行日:</dt>
+                                    <dd class="col-sm-7">{{ project.estimate_issued_date|date:"Y年m月d日"|default:"-" }}</dd>
+                                </dl>
+                            </div>
+                            <div class="col-md-6">
+                                <dl class="row">
+                                    <dt class="col-sm-5">受注金額(税込):</dt>
+                                    <dd class="col-sm-7 text-primary fw-bold">¥{{ project.order_amount|floatformat:0|intcomma }}</dd>
+                                    <dt class="col-sm-5">駐車場代(税込):</dt>
+                                    <dd class="col-sm-7">¥{{ project.parking_fee|floatformat:0|intcomma }}</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 業者・担当情報 -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">業者・担当情報</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <dl class="row">
+                                    <dt class="col-sm-4">元請名:</dt>
+                                    <dd class="col-sm-8">{{ project.client_name }}</dd>
+                                    <dt class="col-sm-4">案件担当:</dt>
+                                    <dd class="col-sm-8">{{ project.project_manager }}</dd>
+                                </dl>
+                            </div>
+                            <div class="col-md-6">
+                                <dl class="row">
+                                    <dt class="col-sm-4">元請住所:</dt>
+                                    <dd class="col-sm-8">{{ project.client_address }}</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- スケジュール -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">スケジュール</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <dl class="row">
+                                    <dt class="col-sm-5">契約日:</dt>
+                                    <dd class="col-sm-7">{{ project.contract_date|date:"Y年m月d日"|default:"-" }}</dd>
+                                    <dt class="col-sm-5">工事開始日:</dt>
+                                    <dd class="col-sm-7">{{ project.work_start_date|date:"Y年m月d日"|default:"-" }}</dd>
+                                </dl>
+                            </div>
+                            <div class="col-md-6">
+                                <dl class="row">
+                                    <dt class="col-sm-5">工事終了日:</dt>
+                                    <dd class="col-sm-7">{{ project.work_end_date|date:"Y年m月d日"|default:"-" }}</dd>
+                                    <dt class="col-sm-5">入金予定日:</dt>
+                                    <dd class="col-sm-7">{{ project.payment_due_date|date:"Y年m月d日"|default:"-" }}</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 請求・経費管理 -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">請求・経費管理</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <dl class="row">
+                                    <dt class="col-sm-5">請求書発行:</dt>
+                                    <dd class="col-sm-7">
+                                        {% if project.invoice_issued %}
+                                        <span class="badge bg-success">発行済み</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">未発行</span>
+                                        {% endif %}
+                                    </dd>
+                                    <dt class="col-sm-5">諸経費項目①:</dt>
+                                    <dd class="col-sm-7">{{ project.expense_item_1|default:"-" }}</dd>
+                                    <dt class="col-sm-5">諸経費代①:</dt>
+                                    <dd class="col-sm-7">¥{{ project.expense_amount_1|floatformat:0|intcomma }}</dd>
+                                </dl>
+                            </div>
+                            <div class="col-md-6">
+                                <dl class="row">
+                                    <dt class="col-sm-5">諸経費項目②:</dt>
+                                    <dd class="col-sm-7">{{ project.expense_item_2|default:"-" }}</dd>
+                                    <dt class="col-sm-5">諸経費代②:</dt>
+                                    <dd class="col-sm-7">¥{{ project.expense_amount_2|floatformat:0|intcomma }}</dd>
+                                </dl>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <dl class="row">
+                                    <dt class="col-sm-5">請求額実請求:</dt>
+                                    <dd class="col-sm-7 text-success fw-bold fs-5">¥{{ project.billing_amount|floatformat:0|intcomma }}</dd>
+                                </dl>
+                            </div>
+                            <div class="col-md-6">
+                                <dl class="row">
+                                    <dt class="col-sm-5">増減:</dt>
+                                    <dd class="col-sm-7 {% if project.amount_difference > 0 %}text-success{% elif project.amount_difference < 0 %}text-danger{% endif %} fw-bold">
+                                        ¥{{ project.amount_difference|floatformat:0|intcomma }}
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 備考 -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">備考</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if project.notes %}
+                            <p>{{ project.notes|linebreaks }}</p>
+                        {% else %}
+                            <p class="text-muted">備考はありません</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- システム情報 -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">システム情報</h5>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row">
+                            <dt class="col-sm-2">作成日時:</dt>
+                            <dd class="col-sm-4">{{ project.created_at|date:"Y年m月d日 H:i" }}</dd>
+                            <dt class="col-sm-2">更新日時:</dt>
+                            <dd class="col-sm-4">{{ project.updated_at|date:"Y年m月d日 H:i" }}</dd>
+                        </dl>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
 </div>
-
-<style>
-/* 詳細情報タブのスタイル */
-#projectDetailTabs .nav-link {
-    color: #6c757d;
-    font-weight: 500;
-    border: none;
-    border-bottom: 3px solid transparent;
-    padding: 1rem 1.5rem;
-    transition: all 0.3s ease;
-}
-
-#projectDetailTabs .nav-link:hover {
-    color: #0d6efd;
-    background: #f8f9fa;
-    border-bottom-color: #dee2e6;
-}
-
-#projectDetailTabs .nav-link.active {
-    color: #0d6efd;
-    background: white;
-    border-bottom-color: #0d6efd;
-    font-weight: 600;
-}
-
-.info-group {
-    background: #f8f9fa;
-    border-radius: 8px;
-    padding: 1.5rem;
-    height: 100%;
-}
-
-.info-group h6 {
-    font-weight: 600;
-    margin-bottom: 1rem;
-}
-
-.info-group dl {
-    margin-bottom: 0;
-}
-
-.info-group dt {
-    font-size: 0.875rem;
-    padding: 0.5rem 0;
-}
-
-.info-group dd {
-    font-size: 0.9375rem;
-    padding: 0.5rem 0;
-}
-
-.bg-gradient-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-/* 表示切り替えボタンのスタイル */
-.btn-group .btn-light.active {
-    background-color: #0d6efd;
-    color: white;
-    border-color: #0d6efd;
-}
-
-.btn-group .btn-light {
-    transition: all 0.3s ease;
-}
-
-.btn-group .btn-light:hover:not(.active) {
-    background-color: #e9ecef;
-}
-
-/* 全体表示モードでのタブパネルのスタイル */
-#projectDetailTabsContent .tab-pane {
-    transition: all 0.3s ease;
-}
-
-/* 全体表示モードでタブパネル間にマージンを追加 */
-#projectDetailTabsContent.full-view-mode .tab-pane {
-    margin-bottom: 2rem;
-    padding: 1.5rem;
-    background: white;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-}
-
-#projectDetailTabsContent.full-view-mode .tab-pane:last-child {
-    margin-bottom: 0;
-}
-
-/* 全体表示モードでのセクションヘッダー */
-#projectDetailTabsContent.full-view-mode .tab-pane::before {
-    content: attr(data-section-title);
-    display: block;
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #0d6efd;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid #0d6efd;
-}
-</style>
 
 <!-- ページ最下部のアクションボタン -->
 <div class="row mt-5 mb-4">
@@ -3075,9 +3378,11 @@ $(document).ready(function() {
             const stepKey = $step.data('step');
             const isCompleted = $step.hasClass('completed');
 
-            // ステップ名を取得（.progress-step-labelクラスから直接取得）
-            const stepNameElement = $step.find('.progress-step-label');
+            // ステップ名を取得（アイコンを除去）
+            const stepNameElement = $step.find('.progress-step-header span');
             let stepName = stepNameElement.text().trim();
+            // アイコン部分を除去してステップ名のみ取得
+            stepName = stepName.replace(/^\s*.*?\s+/, '').trim();
 
             // ステータステキストを取得
             const statusElement = $step.find('.progress-step-date');
@@ -3214,148 +3519,6 @@ $(document).ready(function() {
     }
 
     // 進捗状況バーとフェーズを更新する関数
-    // 次のアクションとNEXTステップを更新する関数（動的ステップ管理対応）
-    function updateNextActionAndStep(phase, allSteps) {
-        let nextAction = '完了';
-        let nextStep = '-';
-
-        // 全てのステップ要素を取得（表示順序順）
-        const stepElements = $('#activeSteps .progress-step');
-
-        // 未完了の最初のステップを見つける
-        let currentIncompleteStep = null;
-        let nextIncompleteStep = null;
-        let foundCurrent = false;
-
-        stepElements.each(function() {
-            const $step = $(this);
-            const isCompleted = $step.hasClass('completed');
-            const stepName = $step.find('.progress-step-label').text().trim();
-
-            if (!isCompleted) {
-                if (!foundCurrent) {
-                    currentIncompleteStep = {
-                        element: $step,
-                        name: stepName,
-                        key: $step.data('step')
-                    };
-                    foundCurrent = true;
-                } else if (!nextIncompleteStep) {
-                    nextIncompleteStep = {
-                        element: $step,
-                        name: stepName,
-                        key: $step.data('step')
-                    };
-                }
-            }
-        });
-
-        // 現在の未完了ステップがある場合、次のアクションを決定
-        if (currentIncompleteStep) {
-            const $currentStep = currentIncompleteStep.element;
-            const stepName = currentIncompleteStep.name;
-
-            // 予定日フィールドを確認
-            const scheduledDateInput = $currentStep.find('input[name*="scheduled_date"]');
-            const actualDateInput = $currentStep.find('input[name*="actual_date"]');
-            const completedCheckbox = $currentStep.find('input[type="checkbox"][name*="completed"]');
-
-            const hasScheduledDate = scheduledDateInput.length > 0 && scheduledDateInput.val();
-            const hasActualDate = actualDateInput.length > 0 && actualDateInput.val();
-            const isChecked = completedCheckbox.length > 0 && completedCheckbox.is(':checked');
-
-            // 次のアクションを判定
-            if (completedCheckbox.length > 0 && !isChecked) {
-                // チェックボックスがある場合
-                if (hasActualDate) {
-                    nextAction = `${stepName}：完了チェックボックスをチェックしてください`;
-                } else if (hasScheduledDate) {
-                    nextAction = `${stepName}：実施日を入力してください`;
-                } else {
-                    nextAction = `${stepName}：予定日を入力してください`;
-                }
-            } else if (actualDateInput.length > 0 && !hasActualDate) {
-                // 実施日フィールドがある場合
-                if (hasScheduledDate) {
-                    nextAction = `${stepName}：実施日を入力してください`;
-                } else {
-                    nextAction = `${stepName}：予定日を入力してください`;
-                }
-            } else if (scheduledDateInput.length > 0 && !hasScheduledDate) {
-                // 予定日のみの場合
-                nextAction = `${stepName}：予定日を入力してください`;
-            } else {
-                // その他のフィールドタイプ
-                nextAction = `${stepName}：入力してください`;
-            }
-
-            // NEXTステップを設定（nextIncompleteStepについても同じロジックでアクションを判定）
-            if (nextIncompleteStep) {
-                const $nextStep = nextIncompleteStep.element;
-                const nextStepName = nextIncompleteStep.name;
-
-                // Next Stepの予定日フィールドを確認
-                const nextScheduledDateInput = $nextStep.find('input[name*="scheduled_date"]');
-                const nextActualDateInput = $nextStep.find('input[name*="actual_date"]');
-                const nextCompletedCheckbox = $nextStep.find('input[type="checkbox"][name*="completed"]');
-
-                const nextHasScheduledDate = nextScheduledDateInput.length > 0 && nextScheduledDateInput.val();
-                const nextHasActualDate = nextActualDateInput.length > 0 && nextActualDateInput.val();
-                const nextIsChecked = nextCompletedCheckbox.length > 0 && nextCompletedCheckbox.is(':checked');
-
-                // Next Stepのアクションを判定
-                if (nextCompletedCheckbox.length > 0 && !nextIsChecked) {
-                    // チェックボックスがある場合
-                    if (nextHasActualDate) {
-                        nextStep = `${nextStepName}：完了チェックボックスをチェックしてください`;
-                    } else if (nextHasScheduledDate) {
-                        nextStep = `${nextStepName}：実施日を入力してください`;
-                    } else {
-                        nextStep = `${nextStepName}：予定日を入力してください`;
-                    }
-                } else if (nextActualDateInput.length > 0 && !nextHasActualDate) {
-                    // 実施日フィールドがある場合
-                    if (nextHasScheduledDate) {
-                        nextStep = `${nextStepName}：実施日を入力してください`;
-                    } else {
-                        nextStep = `${nextStepName}：予定日を入力してください`;
-                    }
-                } else if (nextScheduledDateInput.length > 0 && !nextHasScheduledDate) {
-                    // 予定日のみの場合
-                    nextStep = `${nextStepName}：予定日を入力してください`;
-                } else {
-                    // その他のフィールドタイプ
-                    nextStep = `${nextStepName}：入力してください`;
-                }
-            } else {
-                nextStep = '完了';
-            }
-        }
-
-        // UIを更新（バッジ形式でフォーマット）
-        $('#nextActionText').html(formatNextActionWithBadge(nextAction));
-        $('#nextStepText').html(formatNextActionWithBadge(nextStep));
-
-        console.log('📌 Next Action updated:', {
-            action: nextAction,
-            step: nextStep,
-            currentStep: currentIncompleteStep ? currentIncompleteStep.name : 'none'
-        });
-    }
-
-    // Next Actionをバッジ形式にフォーマットする関数
-    function formatNextActionWithBadge(value) {
-        if (!value || value === '完了' || value === '-' || !value.includes('：')) {
-            return value;
-        }
-
-        const parts = value.split('：');
-        const stepName = parts[0];
-        const action = parts.slice(1).join('：'); // 複数の「：」がある場合に対応
-
-        return `<span class="badge bg-white border text-dark me-1" style="font-size: 0.75rem;">${stepName}</span>${action}`;
-    }
-
     function updateProgressStatus() {
         // 右側のステップから直接完了状況を取得
         const allSteps = [];
@@ -3458,9 +3621,6 @@ $(document).ready(function() {
         $('#progressPercentage').text(`${completedSteps}/${totalSteps}`);
         $('#progressStatusCard').removeClass().addClass(`card progress-status-card border-${color}`);
         $('#progressStatusHeader').removeClass().addClass(`card-header bg-${color} text-white`);
-
-        // 次のアクションとNEXTステップを更新
-        updateNextActionAndStep(phase, allSteps);
 
         // データベースに進捗状況を保存
         saveProjectStage(phase, color);
@@ -3970,7 +4130,7 @@ $(document).ready(function() {
         return `
             <div class="progress-step ${completedClass}" data-step="${step.key}">
                 <div class="progress-step-header">
-                    <i class="${stepIcon} me-2"></i><span class="progress-step-label">${stepName}</span>
+                    <i class="${stepIcon} me-2"></i>${stepName}
                 </div>
                 <div class="progress-step-date">
                     ${statusHtml}
@@ -4053,7 +4213,7 @@ $(document).ready(function() {
         return `
             <div class="progress-step ${completedClass}" data-step="${stepKey}">
                 <div class="progress-step-header">
-                    <i class="${stepIcon} me-2"></i><span class="progress-step-label">${stepName}</span>
+                    <i class="${stepIcon} me-2"></i>${stepName}
                 </div>
                 <div class="progress-step-date">
                     ${statusHtml}
@@ -4180,7 +4340,7 @@ $(document).ready(function() {
                 <div class="progress-step-header d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
                         <i class="fas fa-grip-vertical drag-handle me-2" title="ドラッグして並び替え"></i>
-                        <span><i class="${stepIcon} me-2"></i><span class="progress-step-label">${stepName}</span></span>
+                        <span><i class="${stepIcon} me-2"></i>${stepName}</span>
                     </div>
                     <button type="button" class="btn btn-outline-danger btn-sm remove-step-btn"
                             data-step="${stepKey}" title="ステップを削除">
@@ -4216,7 +4376,7 @@ $(document).ready(function() {
                 <div class="progress-step-header d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
                         <i class="fas fa-grip-vertical drag-handle me-2" title="ドラッグして並び替え"></i>
-                        <span><i class="fas fa-file-invoice me-2"></i><span class="progress-step-label">見積書発行</span></span>
+                        <span><i class="fas fa-file-invoice me-2"></i>見積書発行</span>
                     </div>
                     <button type="button" class="btn btn-outline-danger btn-sm remove-step-btn"
                             data-step="estimate" title="ステップを削除">
@@ -4273,7 +4433,7 @@ $(document).ready(function() {
                 <div class="progress-step-header d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
                         <i class="fas fa-grip-vertical drag-handle me-2" title="ドラッグして並び替え"></i>
-                        <span><i class="fas fa-clipboard-list me-2"></i><span class="progress-step-label">現地調査</span></span>
+                        <span><i class="fas fa-clipboard-list me-2"></i>現地調査</span>
                     </div>
                     <button type="button" class="btn btn-outline-danger btn-sm remove-step-btn"
                             data-step="survey" title="ステップを削除">
@@ -4334,7 +4494,7 @@ $(document).ready(function() {
                 <div class="progress-step-header d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
                         <i class="fas fa-grip-vertical drag-handle me-2" title="ドラッグして並び替え"></i>
-                        <span><i class="fas fa-handshake me-2"></i><span class="progress-step-label">契約</span></span>
+                        <span><i class="fas fa-handshake me-2"></i>契約</span>
                     </div>
                     <button type="button" class="btn btn-outline-danger btn-sm remove-step-btn"
                             data-step="contract" title="ステップを削除">
@@ -4369,7 +4529,7 @@ $(document).ready(function() {
                 <div class="progress-step-header d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
                         <i class="fas fa-grip-vertical drag-handle me-2" title="ドラッグして並び替え"></i>
-                        <span><i class="fas fa-play-circle me-2"></i><span class="progress-step-label">工事開始</span></span>
+                        <span><i class="fas fa-play-circle me-2"></i>工事開始</span>
                     </div>
                     <button type="button" class="btn btn-outline-danger btn-sm remove-step-btn"
                             data-step="work_start" title="ステップを削除">
@@ -4413,7 +4573,7 @@ $(document).ready(function() {
                 <div class="progress-step-header d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
                         <i class="fas fa-grip-vertical drag-handle me-2" title="ドラッグして並び替え"></i>
-                        <span><i class="fas fa-stop-circle me-2"></i><span class="progress-step-label">工事終了</span></span>
+                        <span><i class="fas fa-stop-circle me-2"></i>工事終了</span>
                     </div>
                     <button type="button" class="btn btn-outline-danger btn-sm remove-step-btn"
                             data-step="work_end" title="ステップを削除">
@@ -4450,7 +4610,7 @@ $(document).ready(function() {
                 <div class="progress-step-header d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
                         <i class="fas fa-grip-vertical drag-handle me-2" title="ドラッグして並び替え"></i>
-                        <span><i class="fas fa-receipt me-2"></i><span class="progress-step-label">請求書発行</span></span>
+                        <span><i class="fas fa-receipt me-2"></i>請求書発行</span>
                     </div>
                     <button type="button" class="btn btn-outline-danger btn-sm remove-step-btn"
                             data-step="invoice" title="ステップを削除">
@@ -5064,7 +5224,7 @@ $(document).ready(function() {
                 <div class="progress-step-header d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
                         <i class="fas fa-grip-vertical drag-handle me-2" title="ドラッグして並び替え"></i>
-                        <span><i class="${stepData.icon} me-2"></i><span class="progress-step-label">${stepData.name}</span></span>
+                        <span><i class="${stepData.icon} me-2"></i>${stepData.name}</span>
                     </div>
                     <button type="button" class="btn btn-outline-danger btn-sm remove-step-btn"
                             data-step="${stepData.key}" title="ステップを削除">
@@ -6529,73 +6689,6 @@ $(document).on('change', '.order-forecast-select-detail', function(e) {
             select.prop('disabled', false).css('opacity', '1');
         }
     });
-});
-
-// 表示モード切り替え機能
-function switchViewMode(mode) {
-    const tabViewBtn = document.getElementById('tabViewBtn');
-    const fullViewBtn = document.getElementById('fullViewBtn');
-    const tabNav = document.getElementById('projectDetailTabs');
-    const tabContent = document.getElementById('projectDetailTabsContent');
-    const tabPanes = document.querySelectorAll('#projectDetailTabsContent .tab-pane');
-
-    if (mode === 'tab') {
-        // タブ表示モード
-        tabViewBtn.classList.add('active');
-        fullViewBtn.classList.remove('active');
-
-        // タブナビゲーションを表示
-        tabNav.style.display = 'flex';
-
-        // full-view-modeクラスを削除
-        tabContent.classList.remove('full-view-mode');
-
-        // すべてのタブパネルを非表示にする
-        tabPanes.forEach(pane => {
-            pane.classList.remove('show', 'active');
-        });
-
-        // 最初のタブを表示
-        const firstPane = document.getElementById('overview');
-        if (firstPane) {
-            firstPane.classList.add('show', 'active');
-        }
-
-        // 最初のタブボタンをアクティブにする
-        const tabButtons = document.querySelectorAll('#projectDetailTabs .nav-link');
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        const firstButton = document.getElementById('overview-tab');
-        if (firstButton) {
-            firstButton.classList.add('active');
-        }
-
-    } else if (mode === 'full') {
-        // 全体表示モード
-        fullViewBtn.classList.add('active');
-        tabViewBtn.classList.remove('active');
-
-        // タブナビゲーションを非表示
-        tabNav.style.display = 'none';
-
-        // full-view-modeクラスを追加
-        tabContent.classList.add('full-view-mode');
-
-        // すべてのタブパネルを表示
-        tabPanes.forEach(pane => {
-            pane.classList.add('show', 'active');
-        });
-    }
-
-    // 選択状態をローカルストレージに保存
-    localStorage.setItem('projectDetailViewMode', mode);
-}
-
-// ページ読み込み時に前回の表示モードを復元
-document.addEventListener('DOMContentLoaded', function() {
-    const savedMode = localStorage.getItem('projectDetailViewMode');
-    if (savedMode === 'full') {
-        switchViewMode('full');
-    }
 });
 </script>
 
