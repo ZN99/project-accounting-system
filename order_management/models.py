@@ -688,17 +688,22 @@ class Project(models.Model):
             elif step_key in ['attendance', 'survey', 'construction_start', 'completion']:
                 # 複合ステップ: complex_step_fieldsを確認
                 complex_fields = self.additional_items.get('complex_step_fields', {}) if self.additional_items else {}
-                # いずれかのフィールドに値があれば完了とみなす
+                # いずれかのフィールドに値があれば完了とみなす (None と空文字列以外)
                 is_completed = any(
-                    key.startswith(f'{step_key}_') and value
+                    key.startswith(f'{step_key}_') and value is not None and value != ''
                     for key, value in complex_fields.items()
                 )
             else:
-                # その他の動的ステップ: ${step_key}_date or ${step_key}_completed
-                date_field = f'{step_key}_date'
-                completed_field = f'{step_key}_completed'
-                is_completed = bool(getattr(self, date_field, None) or getattr(self, completed_field, None))
-                completed_date = getattr(self, date_field, None)
+                # その他の動的ステップ: dynamic_stepsから取得
+                dynamic_steps = self.additional_items.get('dynamic_steps', {}) if self.additional_items else {}
+                step_data = dynamic_steps.get(step_key, {})
+                # completed OR date OR value のいずれかがあれば完了（詳細画面と同じロジック）
+                is_completed = bool(
+                    step_data.get('completed') or
+                    step_data.get('date') or
+                    step_data.get('value')
+                )
+                completed_date = step_data.get('date')
 
             if is_completed:
                 completed_steps_count += 1
