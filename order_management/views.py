@@ -264,6 +264,16 @@ def project_create(request):
         if form.is_valid():
             project = form.save()
 
+            # 営業担当者（sales_manager）をproject_managerに保存
+            sales_manager_id = request.POST.get('sales_manager')
+            if sales_manager_id:
+                try:
+                    sales_worker = InternalWorker.objects.get(id=sales_manager_id)
+                    project.project_manager = sales_worker.name
+                    project.save()
+                except InternalWorker.DoesNotExist:
+                    pass
+
             # 実施体制に応じて作業者情報を処理
             implementation_type = request.POST.get('implementation_type')
 

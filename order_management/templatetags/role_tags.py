@@ -115,6 +115,19 @@ def can_dispatch_workers_filter(user):
     return PermissionHelper.can_dispatch_workers(user)
 
 
+@register.filter(name='get_item')
+def get_item(dictionary, key):
+    """
+    辞書から指定されたキーの値を取得
+
+    使用例:
+    {{ role_counts|get_item:role_code }}
+    """
+    if dictionary is None:
+        return None
+    return dictionary.get(key)
+
+
 @register.simple_tag
 def get_user_roles(user):
     """
