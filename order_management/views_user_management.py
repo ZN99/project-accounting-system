@@ -42,13 +42,16 @@ class UserManagementDashboardView(LoginRequiredMixin, ExecutiveRequiredMixin, Li
                 Q(email__icontains=search)
             )
 
-        # ロールフィルター
+        # ロールフィルター（データベース非依存）
         role_filter = self.request.GET.get('role')
         if role_filter and role_filter != 'all':
             # UserProfileのrolesフィールドに指定されたロールが含まれるユーザーをフィルター
-            queryset = queryset.filter(
-                userprofile__roles__contains=[role_filter]
-            )
+            # Pythonレベルでフィルタリング（SQLiteでも動作）
+            user_ids_with_role = [
+                profile.user.id for profile in UserProfile.objects.select_related('user').all()
+                if profile.roles and role_filter in profile.roles
+            ]
+            queryset = queryset.filter(id__in=user_ids_with_role)
 
         # スタッフフィルター
         staff_filter = self.request.GET.get('staff')
@@ -72,10 +75,12 @@ class UserManagementDashboardView(LoginRequiredMixin, ExecutiveRequiredMixin, Li
             'active_users': User.objects.filter(is_active=True).count(),
         }
 
-        # ロール別カウント
+        # ロール別カウント（データベース非依存）
         role_counts = {}
         for role_code, role_name in UserRole.CHOICES:
-            count = UserProfile.objects.filter(roles__contains=[role_code]).count()
+            # Pythonレベルでフィルタリング（SQLiteでも動作）
+            count = sum(1 for profile in UserProfile.objects.all()
+                       if profile.roles and role_code in profile.roles)
             role_counts[role_code] = count
 
         context['role_counts'] = role_counts
