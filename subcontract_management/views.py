@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import json
 import csv
 
-from .models import Contractor, Subcontract, ProjectProfitAnalysis
+from .models import Contractor, Subcontract, ProjectProfitAnalysis, InternalWorker
 from .forms import ContractorForm, SubcontractForm
 from order_management.models import Project
 
@@ -297,3 +297,52 @@ def export_subcontracts_csv(request):
         ])
 
     return response
+
+
+def add_internal_worker(request):
+    """社内担当者（営業スタッフ等）を追加"""
+    if request.method == 'POST':
+        try:
+            name = request.POST.get('name')
+            department = request.POST.get('department')
+            hourly_rate = request.POST.get('hourly_rate', 0)
+            specialties = request.POST.get('specialties', '')
+            is_active = request.POST.get('is_active', 'true').lower() == 'true'
+
+            if not name:
+                return JsonResponse({
+                    'success': False,
+                    'message': '名前は必須です'
+                }, status=400)
+
+            # InternalWorkerを作成
+            worker = InternalWorker.objects.create(
+                name=name,
+                department=department,
+                hourly_rate=float(hourly_rate) if hourly_rate else 0,
+                specialties=specialties,
+                is_active=is_active
+            )
+
+            return JsonResponse({
+                'success': True,
+                'message': f'{name}を追加しました',
+                'worker': {
+                    'id': worker.id,
+                    'name': worker.name,
+                    'department': worker.department,
+                    'hourly_rate': float(worker.hourly_rate) if worker.hourly_rate else 0,
+                    'specialties': worker.specialties,
+                    'is_active': worker.is_active
+                }
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'エラーが発生しました: {str(e)}'
+            }, status=500)
+    else:
+        return JsonResponse({
+            'success': False,
+            'message': 'POSTメソッドのみサポートされています'
+        }, status=405)

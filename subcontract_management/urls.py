@@ -30,4 +30,7 @@ urlpatterns = [
 
     # エクスポート
     path('export/csv/', views.export_subcontracts_csv, name='export_csv'),
+
+    # 社内担当者管理
+    path('add-internal-worker/', views.add_internal_worker, name='add_internal_worker'),
 ]
