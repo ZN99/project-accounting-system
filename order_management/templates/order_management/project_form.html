@@ -1295,79 +1295,26 @@
             <div class="modal-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="mb-0">営業担当者一覧</h6>
-                    <div class="d-flex gap-2">
-                        <span class="badge bg-warning">※ バックエンド実装予定</span>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="alert('新規追加機能は後日実装予定です')" disabled>
-                            <i class="fas fa-plus"></i> 新規追加
-                        </button>
-                    </div>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="openAddSalesStaffModal()">
+                        <i class="fas fa-plus"></i> 新規追加
+                    </button>
                 </div>
 
-                <!-- 営業実績テーブル -->
-                <div class="table-responsive" style="opacity: 0.6;">
+                <!-- 営業担当者テーブル -->
+                <div class="table-responsive">
                     <table class="table table-hover">
                         <thead class="table-light">
                             <tr>
                                 <th>名前</th>
                                 <th>部署</th>
-                                <th>案件数</th>
-                                <th>リード数</th>
-                                <th>成約率</th>
-                                <th>平均利益率</th>
-                                <th>今月売上</th>
-                                <th>前月比</th>
+                                <th>時給単価</th>
+                                <th>専門分野</th>
                                 <th>状態</th>
-                                <th>操作</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="salesStaffTableBody">
                             <tr>
-                                <td><strong>田中 営業</strong></td>
-                                <td>営業部</td>
-                                <td><span class="badge bg-primary">15</span></td>
-                                <td><span class="badge bg-info">45</span></td>
-                                <td><span class="badge bg-success">33.3%</span></td>
-                                <td><span class="badge bg-warning">18.5%</span></td>
-                                <td><strong>¥2,450,000</strong></td>
-                                <td><span class="text-success"><i class="fas fa-arrow-up"></i> +12%</span></td>
-                                <td><span class="badge bg-success">有効</span></td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-secondary" disabled>
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><strong>佐藤 マーケ</strong></td>
-                                <td>マーケティング部</td>
-                                <td><span class="badge bg-primary">12</span></td>
-                                <td><span class="badge bg-info">38</span></td>
-                                <td><span class="badge bg-success">31.6%</span></td>
-                                <td><span class="badge bg-warning">22.1%</span></td>
-                                <td><strong>¥1,890,000</strong></td>
-                                <td><span class="text-danger"><i class="fas fa-arrow-down"></i> -5%</span></td>
-                                <td><span class="badge bg-success">有効</span></td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-secondary" disabled>
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td><strong>鈴木 セールス</strong></td>
-                                <td>営業部</td>
-                                <td><span class="badge bg-primary">8</span></td>
-                                <td><span class="badge bg-info">25</span></td>
-                                <td><span class="badge bg-success">32.0%</span></td>
-                                <td><span class="badge bg-warning">15.8%</span></td>
-                                <td><strong>¥1,220,000</strong></td>
-                                <td><span class="text-success"><i class="fas fa-arrow-up"></i> +8%</span></td>
-                                <td><span class="badge bg-success">有効</span></td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-secondary" disabled>
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                </td>
+                                <td colspan="5" class="text-center text-muted">読み込み中...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -2183,7 +2130,133 @@ window.closeModal = function(modalId) {
 
 // 追加の必須関数を定義
 window.openSalesStaffManagementPanel = function() {
-    alert('営業スタッフ管理パネル（未実装）');
+    console.log('✅ openSalesStaffManagementPanel called');
+
+    try {
+        // 既存のモーダル背景を削除
+        $('.modal-backdrop').remove();
+
+        // モーダル要素を取得
+        const modal = $('#salesStaffManagementModal');
+        if (modal.length > 0) {
+            // バックグラウンドスクロールを防ぐ
+            $('body').addClass('modal-open').css('overflow', 'hidden');
+
+            modal.css('display', 'block').addClass('show');
+            $('body').append('<div class="modal-backdrop fade show"></div>');
+
+            // 営業スタッフリストを更新
+            refreshSalesStaffList();
+
+            console.log('✅ 営業スタッフ管理モーダルが表示されました');
+        } else {
+            console.error('❌ salesStaffManagementModal が見つかりません');
+            alert('営業スタッフ管理モーダル要素が見つかりません。');
+        }
+    } catch(e) {
+        console.error('Error:', e);
+        alert('エラー: ' + e.message);
+    }
+};
+
+window.refreshSalesStaffList = function() {
+    console.log('✅ refreshSalesStaffList called');
+
+    const tbody = $('#salesStaffTableBody');
+    tbody.html('<tr><td colspan="5" class="text-center text-muted">読み込み中...</td></tr>');
+
+    // 営業担当者（department が sales または marketing）のデータを取得
+    const allInternalWorkers = {{ internal_workers_json|safe }};
+    const salesStaff = allInternalWorkers.filter(worker =>
+        worker.department === 'sales' || worker.department === 'marketing'
+    );
+
+    if (salesStaff.length === 0) {
+        tbody.html('<tr><td colspan="5" class="text-center text-muted">営業担当者が登録されていません</td></tr>');
+        return;
+    }
+
+    let html = '';
+    salesStaff.forEach(function(staff) {
+        const departmentDisplay = staff.department === 'sales' ? '営業部' :
+                                 staff.department === 'marketing' ? 'マーケティング部' : staff.department;
+        const statusBadge = staff.is_active ?
+            '<span class="badge bg-success">有効</span>' :
+            '<span class="badge bg-secondary">無効</span>';
+        const hourlyRate = staff.hourly_rate ? `¥${staff.hourly_rate.toLocaleString()}` : '-';
+        const specialties = staff.specialties || '-';
+
+        html += `
+            <tr>
+                <td><strong>${staff.name}</strong></td>
+                <td>${departmentDisplay}</td>
+                <td>${hourlyRate}</td>
+                <td>${specialties}</td>
+                <td>${statusBadge}</td>
+            </tr>
+        `;
+    });
+
+    tbody.html(html);
+};
+
+window.openAddSalesStaffModal = function() {
+    console.log('✅ openAddSalesStaffModal called');
+
+    // 簡易的な入力フォームを表示
+    const name = prompt('営業担当者の名前を入力してください:');
+    if (!name) return;
+
+    const department = confirm('部署を選択してください\nOK = 営業部\nキャンセル = マーケティング部') ? 'sales' : 'marketing';
+    const hourlyRateStr = prompt('時給単価を入力してください（数字のみ）:', '3000');
+    const hourlyRate = hourlyRateStr ? parseFloat(hourlyRateStr) : 0;
+    const specialties = prompt('専門分野を入力してください（任意）:', '');
+
+    // 新規営業担当者を追加
+    addNewSalesStaff({
+        name: name,
+        department: department,
+        hourly_rate: hourlyRate,
+        specialties: specialties
+    });
+};
+
+window.addNewSalesStaff = function(staffData) {
+    console.log('✅ addNewSalesStaff called', staffData);
+
+    // CSRFトークンを取得
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    // バックエンドに新規営業担当者を追加（AJAX）
+    $.ajax({
+        url: '{% url "subcontract_management:add_internal_worker" %}',
+        method: 'POST',
+        data: {
+            csrfmiddlewaretoken: csrftoken,
+            name: staffData.name,
+            department: staffData.department,
+            hourly_rate: staffData.hourly_rate,
+            specialties: staffData.specialties,
+            is_active: true
+        },
+        success: function(response) {
+            if (response.success) {
+                alert('営業担当者を追加しました！');
+
+                // リストを更新
+                refreshSalesStaffList();
+
+                // ドロップダウンも更新
+                location.reload(); // ページをリロードして最新のデータを反映
+            } else {
+                alert('エラー: ' + (response.message || '追加に失敗しました'));
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error:', error);
+            alert('追加中にエラーが発生しました: ' + error);
+        }
+    });
 };
 
 window.openContractorManagementPanel = function() {

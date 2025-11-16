@@ -394,11 +394,23 @@ def project_create(request):
     contractors = Contractor.objects.filter(is_active=True)
     internal_workers = InternalWorker.objects.filter(is_active=True)
 
+    # internal_workersをJSON形式でシリアライズ
+    import json
+    internal_workers_json = json.dumps([{
+        'id': w.id,
+        'name': w.name,
+        'department': w.department,
+        'hourly_rate': float(w.hourly_rate) if w.hourly_rate else 0,
+        'specialties': w.specialties or '',
+        'is_active': w.is_active
+    } for w in internal_workers])
+
     return render(request, 'order_management/project_form.html', {
         'form': form,
         'title': '案件新規登録',
         'contractors': contractors,
         'internal_workers': internal_workers,
+        'internal_workers_json': internal_workers_json,
     })
 
 
