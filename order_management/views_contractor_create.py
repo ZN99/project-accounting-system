@@ -5,7 +5,8 @@ from django.shortcuts import redirect
 from django.contrib import messages
 from django.urls import reverse_lazy
 
-from .models import Contractor
+# 修正: subcontract_managementのContractorモデルを使用
+from subcontract_management.models import Contractor
 
 
 class ContractorCreateView(LoginRequiredMixin, CreateView):
@@ -14,8 +15,7 @@ class ContractorCreateView(LoginRequiredMixin, CreateView):
     template_name = 'order_management/contractor_create.html'
     fields = [
         'name', 'address', 'phone', 'email', 'contact_person',
-        'specialties', 'is_ordering', 'is_receiving', 'is_supplier',
-        'is_other', 'other_description', 'is_active'
+        'contractor_type', 'specialties', 'hourly_rate', 'is_active'
     ]
     success_url = reverse_lazy('order_management:ordering_dashboard')
 
@@ -26,21 +26,15 @@ class ContractorCreateView(LoginRequiredMixin, CreateView):
         contractor_type = self.request.GET.get('type', '')
 
         # タイプに応じたページタイトルとデフォルト値を設定
-        if contractor_type == 'is_ordering':
-            context['page_title'] = '新規外注業者追加'
-            context['contractor_type'] = 'external'
-            context['default_is_ordering'] = True
-        elif contractor_type == 'is_supplier':
-            context['page_title'] = '新規資材屋追加'
-            context['contractor_type'] = 'supplier'
-            context['default_is_supplier'] = True
-        elif contractor_type == 'is_receiving':
-            context['page_title'] = '新規受注業者追加'
-            context['contractor_type'] = 'receiving'
-            context['default_is_receiving'] = True
+        if contractor_type == 'individual':
+            context['page_title'] = '新規個人職人追加'
+            context['contractor_type'] = 'individual'
+        elif contractor_type == 'company':
+            context['page_title'] = '新規協力会社追加'
+            context['contractor_type'] = 'company'
         else:
             context['page_title'] = '新規業者追加'
-            context['contractor_type'] = 'general'
+            context['contractor_type'] = 'company'  # デフォルトは協力会社
 
         context['back_url'] = self.request.GET.get('back', reverse_lazy('order_management:ordering_dashboard'))
 
@@ -71,25 +65,16 @@ class ContractorCreateView(LoginRequiredMixin, CreateView):
             'class': 'form-control',
             'placeholder': '担当者名を入力してください'
         })
+        form.fields['contractor_type'].widget.attrs.update({
+            'class': 'form-select'
+        })
         form.fields['specialties'].widget.attrs.update({
             'class': 'form-control',
             'placeholder': '専門分野を入力してください（例：建築工事、電気工事）'
         })
-        form.fields['is_ordering'].widget.attrs.update({
-            'class': 'form-check-input'
-        })
-        form.fields['is_receiving'].widget.attrs.update({
-            'class': 'form-check-input'
-        })
-        form.fields['is_supplier'].widget.attrs.update({
-            'class': 'form-check-input'
-        })
-        form.fields['is_other'].widget.attrs.update({
-            'class': 'form-check-input'
-        })
-        form.fields['other_description'].widget.attrs.update({
+        form.fields['hourly_rate'].widget.attrs.update({
             'class': 'form-control',
-            'placeholder': 'その他の内容を入力してください'
+            'placeholder': '時給単価を入力してください'
         })
         form.fields['is_active'].widget.attrs.update({
             'class': 'form-check-input'
@@ -103,12 +88,10 @@ class ContractorCreateView(LoginRequiredMixin, CreateView):
         # URLパラメータから業者タイプを取得してデフォルト値を設定
         contractor_type = self.request.GET.get('type', '')
 
-        if contractor_type == 'is_ordering':
-            initial['is_ordering'] = True
-        elif contractor_type == 'is_supplier':
-            initial['is_supplier'] = True
-        elif contractor_type == 'is_receiving':
-            initial['is_receiving'] = True
+        if contractor_type == 'individual':
+            initial['contractor_type'] = 'individual'
+        else:
+            initial['contractor_type'] = 'company'  # デフォルトは協力会社
 
         # デフォルトでアクティブに設定
         initial['is_active'] = True
@@ -123,16 +106,8 @@ class ContractorCreateView(LoginRequiredMixin, CreateView):
             return self.form_invalid(form)
 
         # 成功メッセージ
-        contractor_type = self.request.GET.get('type', '')
-        type_name = ''
-        if contractor_type == 'is_ordering':
-            type_name = '外注業者'
-        elif contractor_type == 'is_supplier':
-            type_name = '資材屋'
-        elif contractor_type == 'is_receiving':
-            type_name = '受注業者'
-        else:
-            type_name = '業者'
+        contractor_type = form.cleaned_data.get('contractor_type', 'company')
+        type_name = '個人職人' if contractor_type == 'individual' else '協力会社'
 
         messages.success(self.request, f'{type_name}「{name}」を登録しました。')
 

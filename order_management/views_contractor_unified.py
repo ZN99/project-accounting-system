@@ -5,7 +5,8 @@ from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from decimal import Decimal
 
-from .models import Project, Contractor
+from .models import Project
+from subcontract_management.models import Contractor
 
 
 class UnifiedContractorManagementView(LoginRequiredMixin, TemplateView):

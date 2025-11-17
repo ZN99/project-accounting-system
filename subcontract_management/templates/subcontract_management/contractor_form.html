@@ -1,122 +1,239 @@
 {% extends "order_management/base.html" %}
+{% load static %}
 
 {% block title %}{{ title }} - 建築派遣管理システム{% endblock %}
 
+{% block extra_css %}
+<style>
+    .form-container {
+        background: #f8f9fa;
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .form-header {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .form-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #374151;
+        border-bottom: 2px solid #10b981;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+        margin-top: 2rem;
+    }
+
+    .section-title:first-of-type {
+        margin-top: 0;
+    }
+
+    .form-label {
+        font-weight: 500;
+        color: #4b5563;
+        margin-bottom: 0.5rem;
+    }
+
+    .required::after {
+        content: "*";
+        color: #ef4444;
+        margin-left: 0.25rem;
+    }
+
+    .btn-submit {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-cancel {
+        background: #6b7280;
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        font-weight: 500;
+    }
+
+    .help-text {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+
+    .errorlist {
+        list-style: none;
+        padding: 0;
+        margin: 0.5rem 0 0 0;
+    }
+
+    .errorlist li {
+        color: #ef4444;
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row">
-    <div class="col-lg-8 mx-auto">
-        <div class="card">
-            <div class="card-header">
-                <h3><i class="fas fa-users"></i> {{ title }}</h3>
-            </div>
-            <div class="card-body">
+<div class="form-container">
+    <div class="form-header">
+        <div class="container">
+            <h1 class="mb-0">
+                <i class="fas fa-users me-3"></i>{{ title }}
+            </h1>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="form-card">
                 <form method="post">
                     {% csrf_token %}
 
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {{ form.non_field_errors }}
+                    </div>
+                    {% endif %}
+
+                    <!-- 下請け業者とは -->
+                    <div class="alert alert-info mb-4">
+                        <h5><i class="fas fa-info-circle me-2"></i>下請け業者とは</h5>
+                        <p class="mb-2">
+                            この画面では<strong>工事を依頼する業者（下請け・職人）</strong>を登録します。
+                        </p>
+                        <ul class="mb-0">
+                            <li>下請け業者: 工事を実施する職人や協力会社</li>
+                            <li>元請会社: 案件をくれる会社は「元請会社管理」画面で登録してください</li>
+                        </ul>
+                    </div>
+
                     <!-- 基本情報 -->
-                    <div class="card mb-3">
-                        <div class="card-header bg-light">
-                            <h5 class="mb-0">基本情報</h5>
+                    <div class="section-title">
+                        <i class="fas fa-info-circle me-2"></i>基本情報
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="{{ form.name.id_for_label }}" class="form-label required">
+                                業者名
+                            </label>
+                            {{ form.name }}
+                            {{ form.name.errors }}
                         </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.name.id_for_label }}" class="form-label">
-                                        業者名 <span class="text-danger">*</span>
-                                    </label>
-                                    {{ form.name }}
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.contractor_type.id_for_label }}" class="form-label">
-                                        業者種別 <span class="text-danger">*</span>
-                                    </label>
-                                    {{ form.contractor_type }}
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <label for="{{ form.address.id_for_label }}" class="form-label">
-                                    住所 <span class="text-danger">*</span>
-                                </label>
-                                {{ form.address }}
-                            </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.contractor_type.id_for_label }}" class="form-label required">
+                                業者種別
+                            </label>
+                            {{ form.contractor_type }}
+                            {{ form.contractor_type.errors }}
                         </div>
                     </div>
 
+                    <div class="mb-3">
+                        <label for="{{ form.address.id_for_label }}" class="form-label required">
+                            住所
+                        </label>
+                        {{ form.address }}
+                        {{ form.address.errors }}
+                    </div>
+
                     <!-- 連絡先情報 -->
-                    <div class="card mb-3">
-                        <div class="card-header bg-light">
-                            <h5 class="mb-0">連絡先情報</h5>
+                    <div class="section-title">
+                        <i class="fas fa-address-book me-2"></i>連絡先情報
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.contact_person.id_for_label }}" class="form-label">
+                                担当者名
+                            </label>
+                            {{ form.contact_person }}
+                            {{ form.contact_person.errors }}
                         </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.contact_person.id_for_label }}" class="form-label">
-                                        担当者名
-                                    </label>
-                                    {{ form.contact_person }}
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.phone.id_for_label }}" class="form-label">
-                                        電話番号
-                                    </label>
-                                    {{ form.phone }}
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <label for="{{ form.email.id_for_label }}" class="form-label">
-                                    メールアドレス
-                                </label>
-                                {{ form.email }}
-                            </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.phone.id_for_label }}" class="form-label">
+                                電話番号
+                            </label>
+                            {{ form.phone }}
+                            {{ form.phone.errors }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label">
+                                メールアドレス
+                            </label>
+                            {{ form.email }}
+                            {{ form.email.errors }}
                         </div>
                     </div>
 
                     <!-- 業務情報 -->
-                    <div class="card mb-3">
-                        <div class="card-header bg-light">
-                            <h5 class="mb-0">業務情報</h5>
+                    <div class="section-title">
+                        <i class="fas fa-wrench me-2"></i>業務情報
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.specialties.id_for_label }}" class="form-label">
+                            得意分野
+                        </label>
+                        {{ form.specialties }}
+                        <div class="help-text">例: 内装工事、配管工事、電気工事等</div>
+                        {{ form.specialties.errors }}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.hourly_rate.id_for_label }}" class="form-label">
+                                時給単価
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">¥</span>
+                                {{ form.hourly_rate }}
+                                <span class="input-group-text">/時</span>
+                            </div>
+                            {{ form.hourly_rate.errors }}
                         </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <label for="{{ form.specialties.id_for_label }}" class="form-label">
-                                    得意分野
-                                </label>
-                                {{ form.specialties }}
-                                <small class="form-text text-muted">例: 内装工事、配管工事、電気工事等</small>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.hourly_rate.id_for_label }}" class="form-label">
-                                        時給単価
-                                    </label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">¥</span>
-                                        {{ form.hourly_rate }}
-                                        <span class="input-group-text">/時</span>
-                                    </div>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <div class="form-check mt-4">
-                                        {{ form.is_active }}
-                                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
-                                            有効な外注先として登録
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="col-md-6 mb-3 form-check mt-4">
+                            {{ form.is_active }}
+                            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                アクティブ（有効な外注先として登録）
+                            </label>
+                            {{ form.is_active.errors }}
                         </div>
                     </div>
 
                     <!-- ボタン -->
-                    <div class="text-center">
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="fas fa-save"></i> 保存
-                        </button>
-                        <a href="{% url 'subcontract_management:contractor_list' %}" class="btn btn-secondary btn-lg">
-                            <i class="fas fa-times"></i> キャンセル
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'subcontract_management:contractor_list' %}" class="btn btn-cancel">
+                            <i class="fas fa-times me-2"></i>キャンセル
                         </a>
+                        <button type="submit" class="btn btn-submit">
+                            <i class="fas fa-save me-2"></i>保存
+                        </button>
                     </div>
                 </form>
+                </div>
             </div>
         </div>
     </div>

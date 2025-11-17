@@ -69,7 +69,8 @@
     }
     .timeline-item {
         position: relative;
-        margin-bottom: 1rem;
+        margin-bottom: 0.5rem;
+        line-height: 1.3;
     }
     .timeline-item::before {
         content: '';
@@ -116,9 +117,10 @@
 
     .progress-step {
         position: relative;
-        margin-bottom: 30px;
+        margin-bottom: 8px;
         cursor: pointer;
         transition: all 0.3s ease;
+        font-size: 0.75rem;
     }
 
     .progress-step::before {
@@ -146,6 +148,35 @@
         transform: scale(1.2);
     }
 
+    .progress-step.overdue::before {
+        background: #dc3545;
+        box-shadow: 0 0 0 2px #dc3545, 0 0 0 6px rgba(220, 53, 69, 0.2);
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            box-shadow: 0 0 0 2px #dc3545, 0 0 0 6px rgba(220, 53, 69, 0.2);
+        }
+        50% {
+            box-shadow: 0 0 0 2px #dc3545, 0 0 0 10px rgba(220, 53, 69, 0.4);
+        }
+    }
+
+    .progress-step.overdue .progress-step-header {
+        color: #dc3545;
+    }
+
+    .progress-step.overdue .progress-step-date {
+        color: #dc3545;
+        font-weight: 600;
+    }
+
+    .progress-step.overdue {
+        background-color: rgba(220, 53, 69, 0.05);
+        border-color: rgba(220, 53, 69, 0.3);
+    }
+
     .progress-step:hover {
         transform: translateX(5px);
     }
@@ -168,44 +199,107 @@
     .progress-step-content {
         background: #f8f9fa;
         border: 1px solid #e9ecef;
-        border-radius: 8px;
-        padding: 15px;
-        margin-top: 10px;
+        border-radius: 6px;
+        padding: 6px 8px;
+        margin-top: 5px;
         display: none;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
         transition: all 0.3s ease;
+        font-size: 0.75rem;
+        line-height: 1.3;
     }
 
     .progress-step.expanded .progress-step-content {
         display: block;
-        border-color: #007bff;
+        border-color: #dee2e6;
         background: #fff;
     }
 
     .progress-step {
         cursor: pointer;
         transition: all 0.2s ease;
-        border: 1px solid transparent;
-        border-radius: 8px;
-        padding: 0.5rem;
-        margin-bottom: 0.5rem;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 0.25rem 0.4rem;
+        margin-bottom: 0.3rem;
+        background-color: #fff;
     }
 
     .progress-step:hover {
         background-color: #f8f9fa;
         transform: translateY(-1px);
-        border-color: #dee2e6;
+        border-color: #adb5bd;
     }
 
     .progress-step.expanded {
         background-color: #fff;
-        border-color: #007bff;
-        box-shadow: 0 4px 8px rgba(0,123,255,0.1);
+        border-color: #dee2e6;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
 
     .progress-step-date {
-        font-size: 0.875rem;
+        font-size: 0.7rem;
         color: #6c757d;
+        line-height: 1.2;
+    }
+
+    /* プロジェクト段階管理パネル内のフォーム要素を小さくする */
+    #activeSteps .form-label {
+        font-size: 0.7rem;
+        margin-bottom: 0.2rem;
+        line-height: 1.2;
+    }
+
+    #activeSteps .form-control,
+    #activeSteps .form-select {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.4rem;
+        height: auto;
+        min-height: 28px;
+    }
+
+    #activeSteps .form-check {
+        font-size: 0.7rem;
+        margin-bottom: 0.3rem;
+        line-height: 1.2;
+    }
+
+    #activeSteps .form-check-input {
+        width: 14px;
+        height: 14px;
+        margin-top: 0.1rem;
+    }
+
+    #activeSteps .btn {
+        font-size: 0.65rem;
+        padding: 0.2rem 0.4rem;
+        line-height: 1.2;
+    }
+
+    #activeSteps .mb-3 {
+        margin-bottom: 0.5rem !important;
+    }
+
+    #activeSteps .mb-2 {
+        margin-bottom: 0.3rem !important;
+    }
+
+    #activeSteps .input-group {
+        font-size: 0.7rem;
+    }
+
+    #activeSteps .input-group .btn {
+        padding: 0.2rem 0.4rem;
+    }
+
+    /* ステップヘッダーのサイズ調整 */
+    #activeSteps .progress-step-header {
+        font-size: 0.75rem;
+        line-height: 1.2;
+    }
+
+    #activeSteps .progress-step-header i {
+        font-size: 0.7rem;
     }
 
     /* インベントリカード */
@@ -333,55 +427,73 @@
 {% endblock %}
 
 {% block content %}
-<!-- ヘッダー & アクションボタン -->
-<div class="row mb-4">
-    <div class="col-md-8">
-        <div class="d-flex align-items-center">
-            <h2><i class="fas fa-building"></i> {{ project.site_name }}</h2>
-            <span class="badge {% if project.project_status == '受注確定' %}bg-primary{% elif project.project_status == 'A' %}bg-success{% elif project.project_status == 'B' %}bg-info{% elif project.project_status == 'NG' %}bg-secondary{% else %}bg-warning text-dark{% endif %} fs-6 ms-3"
-                  title="受注ヨミ（営業見込み度）">
-                受注ヨミ: {{ project.get_project_status_display }}
-            </span>
-        </div>
-        <p class="text-muted mb-0">{{ project.management_no }} | {{ project.work_type }}</p>
-    </div>
-    <div class="col-md-4">
-        <div class="text-end">
-            <a href="{% url 'subcontract_management:project_subcontract_list' project.pk %}" class="btn btn-success action-button">
-                <i class="fas fa-file-contract"></i> 発注管理
-            </a>
-            <button type="button" class="btn btn-danger action-button" data-bs-toggle="modal" data-bs-target="#deleteModal">
-                <i class="fas fa-trash"></i> 削除
-            </button>
-            <a href="{% url 'order_management:project_list' %}" class="btn btn-secondary action-button">
-                <i class="fas fa-list"></i> 一覧へ
-            </a>
+<!-- 新しい1ブロック目: 案件ヘッダー（横長、100px高さ） -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="card shadow-sm" style="height: 100px;">
+            <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                <!-- 左側: 案件名と管理番号 -->
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center mb-1">
+                        <h3 class="mb-0 me-3"><i class="fas fa-building me-2"></i>{{ project.site_name }}</h3>
+                        <span class="badge {% if project.project_status == '受注確定' %}bg-success{% elif project.project_status == 'A' %}bg-danger{% elif project.project_status == 'B' %}bg-warning text-dark{% elif project.project_status == 'NG' %}bg-secondary{% else %}text-dark{% endif %} fs-6"
+                              style="{% if project.project_status == 'ネタ' %}background-color: #e9d5ff;{% endif %} cursor: help;"
+                              title="{% if project.project_status == '受注確定' %}正式に契約が決定した案件。施工準備・実施段階{% elif project.project_status == 'A' %}受注確度【高】見積提出済みで、契約の意向が強く確認できている案件{% elif project.project_status == 'B' %}受注確度【中】見積提出済みだが、他社との競合や不確定要素がある案件{% elif project.project_status == 'NG' %}失注または取り下げた案件。他社受注や予算不成立など{% else %}初期段階の見込み案件。元請からの問い合わせや引き合いがあった段階{% endif %}">
+                            {{ project.get_project_status_display }}
+                        </span>
+                    </div>
+                    <div class="d-flex flex-wrap align-items-center gap-3" style="font-size: 0.85rem;">
+                        <span class="text-muted"><strong>No:</strong> {{ project.management_no }}</span>
+                        <span class="text-muted">|</span>
+                        <span><strong>元請:</strong> {{ project.client_name|default:"-" }}</span>
+                        <span class="text-muted">|</span>
+                        <span><strong>工事:</strong> <span class="badge bg-secondary">{{ project.work_type }}</span></span>
+                        <span class="text-muted">|</span>
+                        <span class="text-primary"><strong>受注額:</strong> ¥{{ project.order_amount|floatformat:0|intcomma }}</span>
+                        <span class="text-muted">|</span>
+                        {% with stage=project.get_current_project_stage %}
+                        <span><strong>進捗:</strong> <span class="badge bg-{{ stage.color }}">{{ stage.stage }}</span></span>
+                        {% endwith %}
+                        <span class="text-muted">|</span>
+                        <span><strong>開始:</strong> {{ project.work_start_date|date:"Y/m/d"|default:"-" }}</span>
+                        <span class="text-muted">|</span>
+                        <span><strong>終了:</strong> {{ project.work_end_date|date:"Y/m/d"|default:"-" }}</span>
+                    </div>
+                </div>
+                <!-- 右側: アクションボタン -->
+                <div class="d-flex gap-2 ms-3">
+                    <a href="{% url 'subcontract_management:project_subcontract_list' project.pk %}" class="btn btn-success btn-sm">
+                        <i class="fas fa-file-contract"></i> 発注管理
+                    </a>
+                    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <a href="{% url 'order_management:project_list' %}" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-list"></i>
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- 進捗状況カード -->
+<!-- 新しい2ブロック目: 進捗状況とプロジェクト段階（横長） -->
 <div class="row mb-4">
-    <div class="col-md-8">
-        <div class="card progress-status-card border-primary" id="progressStatusCard">
-            <div class="card-header bg-primary text-white" id="progressStatusHeader">
-                <h5 class="mb-0"><i class="fas fa-tasks"></i> 進捗状況</h5>
-            </div>
-            <div class="card-body">
-                <div class="row align-items-center">
-                    <div class="col-md-6">
+    <div class="col-12">
+        <div class="row">
+            <!-- 左側: 進捗状況カード（縮小版） -->
+            <div class="col-md-4">
+                <div class="card progress-status-card border-primary shadow-sm" id="progressStatusCard" style="height: 100%;">
+                    <div class="card-header bg-primary text-white py-1" id="progressStatusHeader">
+                        <h6 class="mb-0" style="font-size: 0.85rem; line-height: 1.4;"><i class="fas fa-tasks"></i> 進捗状況</h6>
+                    </div>
+                    <div class="card-body p-2">
                         {% with stage=project.get_current_project_stage %}
-                        <h3 class="text-{{ stage.color }}" id="progressPhase">{{ stage.stage }}</h3>
+                        <h6 class="text-{{ stage.color }} mb-1" id="progressPhase" style="font-size: 0.95rem; line-height: 1.3;">{{ stage.stage }}</h6>
                         {% endwith %}
-                        <!-- 次のアクション -->
-                        <p class="text-muted mb-1" style="font-size: 0.9rem;" id="nextAction">
-                            <i class="fas fa-arrow-right me-1"></i><strong>Next Action:</strong><br><span id="nextActionText">読み込み中...</span>
-                        </p>
-                        <!-- NEXTステップ -->
-                        <p class="text-secondary mb-2" style="font-size: 0.8rem; margin-top: 0.5rem;" id="nextStep">
-                            <i class="fas fa-forward me-1"></i><strong>Next Step:</strong><br><span id="nextStepText">-</span>
-                        </p>
-                        <div class="progress" style="height: 25px;">
+
+                        <!-- プログレスバー -->
+                        <div class="progress mb-1" style="height: 16px;">
                             <div class="progress-bar bg-primary" id="progressBar"
                                  role="progressbar"
                                  style="width: {{ project.get_progress_status.percentage }}%"
@@ -391,55 +503,89 @@
                                 <span id="progressPercentage">{{ project.get_progress_status.percentage }}%</span>
                             </div>
                         </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="progress-timeline" id="progressTimeline">
+
+                        <!-- 次のアクション -->
+                        <p class="mb-1" style="font-size: 0.75rem; line-height: 1.3;" id="nextAction">
+                            <i class="fas fa-arrow-right me-1"></i><strong>Next Action:</strong><br>
+                            <span id="nextActionText" class="text-muted">読み込み中...</span>
+                        </p>
+
+                        <!-- タイムライン（縮小版） -->
+                        <div class="progress-timeline mt-1" id="progressTimeline" style="font-size: 0.7rem; line-height: 1.3;">
                             <!-- 動的に構築されるタイムライン -->
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card status-selector">
-            <div class="card-header">
-                <h6 class="mb-0"><i class="fas fa-cog"></i> 進捗状況を更新</h6>
-            </div>
-            <div class="card-body">
-                <form method="post" action="{% url 'order_management:update_progress' project.pk %}">
-                    {% csrf_token %}
 
-                    <!-- プロジェクト段階管理 -->
-                    <div class="mb-4">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <label class="form-label">プロジェクト段階</label>
-                            <button type="button" class="btn btn-outline-primary btn-sm" id="editStepsBtn"
-                                    style="position: relative; z-index: 1000; pointer-events: auto;">
-                                <i class="fas fa-edit"></i> ステップ編集
+            <!-- 右側: プロジェクト段階（全て展開） + コメント欄 -->
+            <div class="col-md-8">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-gradient-primary text-white py-1">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0" style="font-size: 0.85rem; line-height: 1.4;"><i class="fas fa-cog"></i> プロジェクト段階管理</h6>
+                            <button type="button" class="btn btn-sm btn-outline-light" id="toggleAllSteps" style="font-size: 0.65rem; padding: 0.15rem 0.35rem; line-height: 1.2;">
+                                <i class="fas fa-compress-alt"></i> <span id="toggleButtonText">全て閉じる</span>
                             </button>
                         </div>
-                        <div class="vertical-progress" id="activeSteps">
-                            <!-- 動的にステップが構築される -->
-                        </div>
                     </div>
+                    <div class="card-body p-2">
+                        <form method="post" action="{% url 'order_management:update_progress' project.pk %}">
+                            {% csrf_token %}
 
-                    <!-- インベントリセクション（進捗更新ボタンの下） -->
-                    <div id="stepInventory" class="mt-4">
-                        <hr>
-                        <h6><i class="fas fa-box"></i> 利用可能なステップ</h6>
-                        <div class="row" id="availableSteps">
-                            <!-- 利用可能なステップをここに動的に表示 -->
-                        </div>
+                            <!-- プロジェクト段階（全て展開） -->
+                            <div class="mb-1">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label fw-bold mb-0" style="font-size: 0.8rem; line-height: 1.2;">プロジェクト段階</label>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="editStepsBtn" style="font-size: 0.7rem; padding: 0.2rem 0.4rem;">
+                                        <i class="fas fa-edit"></i> ステップ編集
+                                    </button>
+                                </div>
+                                <div class="vertical-progress" id="activeSteps" style="font-size: 0.75rem;">
+                                    <!-- 動的にステップが構築される -->
+                                </div>
+
+                                <!-- 利用可能なステップ -->
+                                <div id="stepInventory" class="mt-3" style="display: none;">
+                                    <hr>
+                                    <h6><i class="fas fa-box"></i> 利用可能なステップ</h6>
+                                    <div class="row" id="availableSteps">
+                                        <!-- 利用可能なステップをここに動的に表示 -->
+                                    </div>
+                                </div>
+
+                                <!-- ステップ順序の隠しフィールド -->
+                                <input type="hidden" name="step_order" id="stepOrderInput" value="">
+                            </div>
+
+                            <!-- 詳細コメント欄 -->
+                            <div class="mb-1">
+                                <label class="form-label fw-bold mb-1" style="font-size: 0.75rem; line-height: 1.2;"><i class="fas fa-comment-alt me-1"></i>詳細コメント</label>
+
+                                <!-- コメント一覧 -->
+                                <div id="commentsList" class="mb-2">
+                                    <!-- コメントはJavaScriptで動的に表示 -->
+                                </div>
+
+                                <!-- 新規コメント入力 -->
+                                <div class="mb-1">
+                                    <textarea class="form-control" id="newCommentText" rows="2" style="font-size: 0.7rem; padding: 0.25rem 0.4rem; line-height: 1.3;"
+                                              placeholder="新しいコメントを入力してください..."></textarea>
+                                    <small class="text-muted" style="font-size: 0.65rem; line-height: 1.2;">コメントは日時とユーザー名付きで保存されます</small>
+                                </div>
+
+                                <!-- コメント保存ボタン -->
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="saveCommentBtn" style="font-size: 0.7rem; padding: 0.25rem 0.5rem;">
+                                    <i class="fas fa-plus me-1"></i>コメント追加
+                                </button>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-sm" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">
+                                <i class="fas fa-save"></i> 進捗更新
+                            </button>
+                        </form>
                     </div>
-
-                    <!-- ステップ順序の隠しフィールド -->
-                    <input type="hidden" name="step_order" id="stepOrderInput" value="">
-
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-save"></i> 進捗更新
-                    </button>
-                </form>
+                </div>
             </div>
         </div>
     </div>
@@ -1160,6 +1306,123 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- 完了報告セクション -->
+                        <div class="row g-3 mt-3">
+                            <div class="col-12">
+                                <div class="info-group">
+                                    <h6 class="text-info border-bottom pb-2 mb-3">
+                                        <i class="fas fa-clipboard-check me-2"></i>完了報告
+                                    </h6>
+                                    <div class="alert alert-info small mb-3">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        元請会社のテンプレートが自動入力されています。内容を編集して完了報告を作成できます。
+                                    </div>
+
+                                    <!-- 表示モード -->
+                                    <dl class="row view-mode-only">
+                                        <dt class="col-sm-3 text-muted">完了報告ステータス</dt>
+                                        <dd class="col-sm-9">
+                                            {% if project.completion_report_completed %}
+                                            <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>完了</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary">未完了</span>
+                                            {% endif %}
+                                        </dd>
+                                        <dt class="col-sm-3 text-muted">テンプレート</dt>
+                                        <dd class="col-sm-9">
+                                            {% if project.client_company and project.client_company.completion_report_template %}
+                                            <a href="{{ project.client_company.completion_report_template.url }}" class="btn btn-sm btn-outline-primary" download>
+                                                <i class="fas fa-download me-1"></i>元請テンプレートをダウンロード
+                                            </a>
+                                            {% else %}
+                                            <span class="text-muted">テンプレートなし</span>
+                                            {% endif %}
+                                        </dd>
+                                        <dt class="col-sm-3 text-muted">完了報告ファイル</dt>
+                                        <dd class="col-sm-9">
+                                            {% if project.completion_report_file %}
+                                            <a href="{{ project.completion_report_file.url }}" class="btn btn-sm btn-success" download>
+                                                <i class="fas fa-file-download me-1"></i>ダウンロード
+                                            </a>
+                                            <small class="text-muted ms-2">{{ project.completion_report_file.name|slice:"19:" }}</small>
+                                            {% else %}
+                                            <span class="text-muted">未アップロード</span>
+                                            {% endif %}
+                                        </dd>
+                                        <dt class="col-sm-3 text-muted">完了報告日</dt>
+                                        <dd class="col-sm-9">{{ project.completion_report_date|date:"Y年m月d日"|default:"-" }}</dd>
+                                        <dt class="col-sm-3 text-muted">完了報告内容</dt>
+                                        <dd class="col-sm-9">
+                                            <div style="white-space: pre-wrap;">{{ project.completion_report_content|default:"未作成" }}</div>
+                                        </dd>
+                                        {% if project.completion_report_notes %}
+                                        <dt class="col-sm-3 text-muted">メモ</dt>
+                                        <dd class="col-sm-9">
+                                            <div style="white-space: pre-wrap;">{{ project.completion_report_notes }}</div>
+                                        </dd>
+                                        {% endif %}
+                                    </dl>
+
+                                    <!-- 編集モード -->
+                                    <div class="edit-mode-only" style="display: none;">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">完了チェック</label>
+                                            <div class="form-check">
+                                                <input type="checkbox" class="form-check-input" id="completion_report_completed" name="completion_report_completed" {% if project.completion_report_completed %}checked{% endif %}>
+                                                <label class="form-check-label" for="completion_report_completed">
+                                                    完了報告を完了しました
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">元請テンプレート</label>
+                                            <div>
+                                                {% if project.client_company and project.client_company.completion_report_template %}
+                                                <a href="{{ project.client_company.completion_report_template.url }}" class="btn btn-sm btn-outline-primary" download>
+                                                    <i class="fas fa-download me-1"></i>テンプレートをダウンロード
+                                                </a>
+                                                <div class="form-text">元請会社のテンプレートファイルをダウンロードして使用できます</div>
+                                                {% else %}
+                                                <span class="text-muted">この元請会社にはテンプレートが登録されていません</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">完了報告ファイル</label>
+                                            <input type="file" name="completion_report_file" class="form-control" id="completionReportFileInput" accept=".pdf,.doc,.docx,.xls,.xlsx">
+                                            <div class="form-text">PDF、Word、Excelファイルをアップロードできます</div>
+                                            {% if project.completion_report_file %}
+                                            <div class="mt-2">
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-file me-1"></i>現在のファイル: {{ project.completion_report_file.name|slice:"19:" }}
+                                                </span>
+                                                <a href="{{ project.completion_report_file.url }}" class="btn btn-sm btn-link" download>
+                                                    <i class="fas fa-download me-1"></i>ダウンロード
+                                                </a>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">完了報告日</label>
+                                            <input type="date" name="completion_report_date" class="form-control dynamic-field" value="{{ project.completion_report_date|date:'Y-m-d'|default:'' }}">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">完了報告内容（テキスト）</label>
+                                            <textarea name="completion_report_content" class="form-control dynamic-field" rows="6">{{ project.completion_report_content|default:'' }}</textarea>
+                                            <div class="form-text">元請会社のテンプレート内容から自動入力されます（テキスト形式）</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">完了報告メモ</label>
+                                            <textarea name="completion_report_notes" class="form-control dynamic-field" rows="3">{{ project.completion_report_notes|default:'' }}</textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- 請求・経費タブ -->
@@ -1525,22 +1788,54 @@ function toggleEditMode() {
         $.ajax({
             url: '{% url "order_management:update_progress" project.pk %}',
             method: 'POST',
+            dataType: 'json',  // JSONレスポンスを期待
             data: $.extend({
                 csrfmiddlewaretoken: '{{ csrf_token }}',
                 step_order: $('#stepOrderInput').val(),
                 ajax_save: 'true'  // AJAX保存フラグ
             }, dynamicFields),
             success: function(response) {
-                if (typeof toastr !== 'undefined') {
-                    toastr.success('変更を保存しました');
+                console.log('保存成功:', response);
+
+                // レスポンスの検証
+                if (response && response.success) {
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success(response.message || '変更を保存しました');
+                    }
+                    // ページをリロードして最新の状態を表示
+                    setTimeout(function() {
+                        location.reload();
+                    }, 500);  // 500ms待ってからリロード（toastr表示のため）
+                } else {
+                    console.error('保存失敗:', response);
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(response.message || '保存に失敗しました');
+                    }
                 }
-                // ページをリロードして最新の状態を表示
-                location.reload();
             },
             error: function(xhr, status, error) {
-                console.error('保存エラー:', error);
+                console.error('保存エラー詳細:', {
+                    status: status,
+                    error: error,
+                    responseText: xhr.responseText,
+                    statusCode: xhr.status
+                });
+
+                let errorMessage = '保存中にエラーが発生しました';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                } else if (xhr.status === 0) {
+                    errorMessage = 'ネットワークエラー: サーバーに接続できません';
+                } else if (xhr.status === 403) {
+                    errorMessage = '権限エラー: この操作を実行する権限がありません';
+                } else if (xhr.status === 404) {
+                    errorMessage = 'エラー: 案件が見つかりません';
+                } else if (xhr.status >= 500) {
+                    errorMessage = 'サーバーエラー: しばらくしてから再度お試しください';
+                }
+
                 if (typeof toastr !== 'undefined') {
-                    toastr.error('保存中にエラーが発生しました');
+                    toastr.error(errorMessage);
                 }
             }
         });
@@ -2329,12 +2624,12 @@ $(document).ready(function() {
 
         // 新しいselectボックスを追加
         const newSelect = `
-            <div class="staff-select-item mb-2">
-                <select name="${fieldName}" class="form-select form-select-sm d-inline-block" style="width: calc(100% - 50px);">
+            <div class="staff-select-item mb-1">
+                <select name="${fieldName}" class="form-select d-inline-block" style="width: calc(100% - 35px); font-size: 0.7rem; padding: 0.25rem 0.4rem; min-height: 28px;">
                     ${optionsHtml}
                 </select>
-                <button type="button" class="btn btn-outline-danger btn-sm remove-staff-select-btn">
-                    <i class="fas fa-times"></i>
+                <button type="button" class="btn btn-outline-danger remove-staff-select-btn" style="font-size: 0.65rem; padding: 0.2rem 0.35rem; line-height: 1;">
+                    ×
                 </button>
             </div>
         `;
@@ -2419,26 +2714,58 @@ $(document).ready(function() {
         $.ajax({
             url: '{% url "order_management:update_progress" project.pk %}',
             method: 'POST',
+            dataType: 'json',  // JSONレスポンスを期待
             data: $.extend({
                 csrfmiddlewaretoken: '{{ csrf_token }}',
                 ajax_save: 'true'  // AJAX保存フラグ
             }, dynamicFields),
             success: function(response) {
-                if (typeof toastr !== 'undefined') {
-                    toastr.success(`${stepKey}ステップを保存しました`);
+                console.log('保存成功:', response);
+
+                // レスポンスの検証
+                if (response && response.success) {
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success(response.message || `${stepKey}ステップを保存しました`);
+                    } else {
+                        alert(`${stepKey}ステップを保存しました`);
+                    }
+                    // 進捗状況を更新
+                    updateProgressTimeline();
+                    updateProgressStatus();
                 } else {
-                    alert(`${stepKey}ステップを保存しました`);
+                    console.error('保存失敗:', response);
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(response.message || '保存に失敗しました');
+                    } else {
+                        alert('保存に失敗しました');
+                    }
                 }
-                // 進捗状況を更新
-                updateProgressTimeline();
-                updateProgressStatus();
             },
             error: function(xhr, status, error) {
-                console.error('保存エラー:', error);
+                console.error('保存エラー詳細:', {
+                    status: status,
+                    error: error,
+                    responseText: xhr.responseText,
+                    statusCode: xhr.status
+                });
+
+                let errorMessage = '保存中にエラーが発生しました';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                } else if (xhr.status === 0) {
+                    errorMessage = 'ネットワークエラー: サーバーに接続できません';
+                } else if (xhr.status === 403) {
+                    errorMessage = '権限エラー: この操作を実行する権限がありません';
+                } else if (xhr.status === 404) {
+                    errorMessage = 'エラー: 案件が見つかりません';
+                } else if (xhr.status >= 500) {
+                    errorMessage = 'サーバーエラー: しばらくしてから再度お試しください';
+                }
+
                 if (typeof toastr !== 'undefined') {
-                    toastr.error('保存中にエラーが発生しました');
+                    toastr.error(errorMessage);
                 } else {
-                    alert('保存中にエラーが発生しました');
+                    alert(errorMessage);
                 }
             }
         });
@@ -2514,7 +2841,7 @@ $(document).ready(function() {
     // 初期表示時に利益率を計算・表示
     updateProfitPreview();
 
-    // 縦型プログレスステップのクリック処理（展開/折りたたみ）
+    // 縦型プログレスステップのクリック処理（トグル式 - デフォルトは展開状態）
     $(document).on('click', '.progress-step', function(e) {
         // 削除ボタン、編集ボタン、ドラッグハンドル、フォーム要素のクリックは除外
         if ($(e.target).hasClass('remove-step-btn') || $(e.target).closest('.remove-step-btn').length ||
@@ -2527,14 +2854,13 @@ $(document).ready(function() {
         const $clickedStep = $(this);
         const isCurrentlyExpanded = $clickedStep.hasClass('expanded');
 
-        // 全てのステップを折りたたみ
-        $('.progress-step').removeClass('expanded');
-        $('.progress-step-content').hide();
-
-        // クリックされたステップが折りたたまれていた場合、展開
-        if (!isCurrentlyExpanded) {
+        // クリックされたステップをトグル
+        if (isCurrentlyExpanded) {
+            $clickedStep.removeClass('expanded');
+            $clickedStep.find('.progress-step-content').slideUp(200);
+        } else {
             $clickedStep.addClass('expanded');
-            $clickedStep.find('.progress-step-content').show();
+            $clickedStep.find('.progress-step-content').slideDown(200);
         }
     });
 
@@ -2543,6 +2869,131 @@ $(document).ready(function() {
 
     // Sortable機能を初期化（イベントハンドラー設定後）
     initializeSortable();
+
+    // 初期表示時に全てのステップを展開
+    $('.progress-step').addClass('expanded');
+    $('.progress-step-content').show();
+    // トグルボタンのテキストも更新
+    $('#toggleAllSteps').find('i').removeClass('fa-expand-alt').addClass('fa-compress-alt');
+    $('#toggleButtonText').text('全て閉じる');
+
+    // 一括開閉トグルボタンのイベントハンドラー
+    $('#toggleAllSteps').on('click', function() {
+        // 現在の状態を判定（すべて展開されているかチェック）
+        const allExpanded = $('.progress-step.expanded').length === $('.progress-step').length;
+
+        if (allExpanded) {
+            // 全て閉じる
+            $('.progress-step').removeClass('expanded');
+            $('.progress-step-content').slideUp(200);
+            // ボタンを「全て開く」に変更
+            $(this).find('i').removeClass('fa-compress-alt').addClass('fa-expand-alt');
+            $('#toggleButtonText').text('全て開く');
+        } else {
+            // 全て開く
+            $('.progress-step').addClass('expanded');
+            $('.progress-step-content').slideDown(200);
+            // ボタンを「全て閉じる」に変更
+            $(this).find('i').removeClass('fa-expand-alt').addClass('fa-compress-alt');
+            $('#toggleButtonText').text('全て閉じる');
+        }
+    });
+
+    // 実施日追加ボタンのイベントハンドラー
+    $(document).on('click', '.add-actual-date-btn', function(e) {
+        e.stopPropagation();
+        const $step = $(this).closest('.progress-step');
+        const $actualDateField = $step.find('.actual-date-field');
+
+        // 実施日フィールドを表示
+        $actualDateField.slideDown();
+        $(this).prop('disabled', true).addClass('disabled');
+    });
+
+    // 実施日削除ボタンのイベントハンドラー
+    $(document).on('click', '.remove-actual-date-btn', function(e) {
+        e.stopPropagation();
+        const $step = $(this).closest('.progress-step');
+        const $actualDateField = $step.find('.actual-date-field');
+        const $actualDateInput = $step.find('.actual-date-input');
+        const $addBtn = $step.find('.add-actual-date-btn');
+
+        // 実施日の値をクリア
+        $actualDateInput.val('');
+
+        // 実施日フィールドを非表示
+        $actualDateField.slideUp();
+        $addBtn.prop('disabled', false).removeClass('disabled');
+    });
+
+    // 予定日の変更を監視してステータスを更新
+    $(document).on('change', '.scheduled-date-input', function() {
+        checkOverdueSteps();
+    });
+
+    // 予定日超過チェック関数（予定日超過時に自動完了）
+    function checkOverdueSteps() {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // 時刻をリセット
+
+        $('.progress-step').each(function() {
+            const $step = $(this);
+            const $scheduledInput = $step.find('.scheduled-date-input');
+            const $actualInput = $step.find('.actual-date-input');
+            const $completedCheckbox = $step.find('input[type="checkbox"][name$="_completed"], input[type="checkbox"][id$="Completed"]');
+
+            const scheduledDate = $scheduledInput.val();
+            const actualDate = $actualInput.val();
+            const isManuallyCompleted = $completedCheckbox.length > 0 && $completedCheckbox.is(':checked');
+
+            // 実施日が入力されている場合は、それを優先
+            if (actualDate) {
+                $step.removeClass('overdue auto-completed');
+                $step.addClass('completed');
+                $step.find('.progress-step-date').html(
+                    `<i class="fas fa-check-circle me-1"></i>完了: ${formatDate(actualDate)}`
+                );
+                return;
+            }
+
+            // 手動で完了チェックされている場合
+            if (isManuallyCompleted) {
+                $step.removeClass('overdue auto-completed');
+                $step.addClass('completed');
+                $step.find('.progress-step-date').html(
+                    `<i class="fas fa-check-circle me-1"></i>完了: ${scheduledDate ? formatDate(scheduledDate) : '完了済み'}`
+                );
+                return;
+            }
+
+            // 予定日がある場合のみチェック
+            if (scheduledDate) {
+                const scheduled = new Date(scheduledDate);
+                scheduled.setHours(0, 0, 0, 0);
+
+                // 予定日が過ぎている場合は自動的に完了扱い
+                if (scheduled < today) {
+                    $step.removeClass('overdue');
+                    $step.addClass('completed auto-completed');
+
+                    // ステータスを完了（予定日ベース）に更新
+                    const daysAgo = Math.floor((today - scheduled) / (1000 * 60 * 60 * 24));
+                    $step.find('.progress-step-date').html(
+                        `<i class="fas fa-check-circle me-1"></i>完了: ${formatDate(scheduledDate)} <small class="text-muted">(${daysAgo}日前)</small>`
+                    );
+                } else {
+                    // 予定日が未来の場合
+                    $step.removeClass('overdue completed auto-completed');
+                    $step.find('.progress-step-date').html(
+                        `<i class="fas fa-calendar me-1"></i>予定: ${formatDate(scheduledDate)}`
+                    );
+                }
+            } else {
+                // 予定日がない場合
+                $step.removeClass('overdue completed auto-completed');
+            }
+        });
+    }
 
     // チェックボックスの変更を監視してリアルタイムで進捗バーの色を更新
     $('#workStartCompleted').on('change', function() {
@@ -2620,19 +3071,53 @@ $(document).ready(function() {
         $.ajax({
             url: '{% url "order_management:update_progress" project.pk %}',
             method: 'POST',
+            dataType: 'json',  // JSONレスポンスを期待
             data: data,
             success: function(response) {
-                console.log(fieldName + 'を保存しました:', fieldValue);
+                console.log('保存成功:', response);
 
-                // projectDataを更新
-                projectData[fieldName] = fieldValue;
+                // レスポンスの検証
+                if (response && response.success) {
+                    console.log(fieldName + 'を保存しました:', fieldValue);
 
-                // UI全体を更新
-                updateProgressTimeline();
-                updateProgressStatus();
+                    // projectDataを更新
+                    projectData[fieldName] = fieldValue;
+
+                    // UI全体を更新
+                    updateProgressTimeline();
+                    updateProgressStatus();
+                } else {
+                    console.error('保存失敗:', response);
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(response.message || fieldName + 'の保存に失敗しました');
+                    }
+                }
             },
             error: function(xhr, status, error) {
-                console.error(fieldName + 'の保存に失敗:', error);
+                console.error('保存エラー詳細:', {
+                    field: fieldName,
+                    status: status,
+                    error: error,
+                    responseText: xhr.responseText,
+                    statusCode: xhr.status
+                });
+
+                let errorMessage = fieldName + 'の保存中にエラーが発生しました';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                } else if (xhr.status === 0) {
+                    errorMessage = 'ネットワークエラー: サーバーに接続できません';
+                } else if (xhr.status === 403) {
+                    errorMessage = '権限エラー: この操作を実行する権限がありません';
+                } else if (xhr.status === 404) {
+                    errorMessage = 'エラー: 案件が見つかりません';
+                } else if (xhr.status >= 500) {
+                    errorMessage = 'サーバーエラー: しばらくしてから再度お試しください';
+                }
+
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(errorMessage);
+                }
             }
         });
     });
@@ -2653,46 +3138,77 @@ $(document).ready(function() {
         $.ajax({
             url: '{% url "order_management:update_progress" project.pk %}',
             method: 'POST',
+            dataType: 'json',  // JSONレスポンスを期待
             data: {
                 estimate_issued_date: dateValue,
                 ajax_save: 'true',
                 csrfmiddlewaretoken: '{{ csrf_token }}'
             },
             success: function(response) {
-                console.log('✓ 見積書発行日の保存に成功しました');
-                console.log('レスポンス:', response);
-                console.log('保存された日付:', dateValue);
+                console.log('保存成功:', response);
 
-                // projectDataを更新
-                projectData.estimate_issued_date = dateValue;
-                console.log('projectDataを更新しました:', projectData.estimate_issued_date);
+                // レスポンスの検証
+                if (response && response.success) {
+                    console.log('✓ 見積書発行日の保存に成功しました');
+                    console.log('保存された日付:', dateValue);
 
-                // UIを更新
-                if (dateValue && !notRequiredChecked) {
-                    console.log('ステップを完了状態にします');
-                    step.addClass('completed');
-                    step.removeClass('active');
-                    step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了: ' + formatDate(dateValue));
-                } else if (!notRequiredChecked) {
-                    console.log('ステップを未完了状態にします');
-                    step.removeClass('completed');
-                    step.find('.progress-step-date').html('<span class="badge bg-secondary">未完了</span>');
+                    // projectDataを更新
+                    projectData.estimate_issued_date = dateValue;
+                    console.log('projectDataを更新しました:', projectData.estimate_issued_date);
+
+                    // UIを更新
+                    if (dateValue && !notRequiredChecked) {
+                        console.log('ステップを完了状態にします');
+                        step.addClass('completed');
+                        step.removeClass('active');
+                        step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了: ' + formatDate(dateValue));
+                    } else if (!notRequiredChecked) {
+                        console.log('ステップを未完了状態にします');
+                        step.removeClass('completed');
+                        step.find('.progress-step-date').html('<span class="badge bg-secondary">未完了</span>');
+                    }
+
+                    // 進捗状況全体を更新
+                    console.log('進捗状況を更新します');
+                    updateProgressTimeline();
+                    updateProgressStatus();
+                    updateActiveStep();
+                    updateAllStepStatuses();
+                } else {
+                    console.error('保存失敗:', response);
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(response.message || '見積書発行日の保存に失敗しました');
+                    } else {
+                        alert('見積書発行日の保存に失敗しました');
+                    }
                 }
-
-                // 進捗状況全体を更新
-                console.log('進捗状況を更新します');
-                updateProgressTimeline();
-                updateProgressStatus();
-                updateActiveStep();
-                updateAllStepStatuses();
             },
             error: function(xhr, status, error) {
-                console.error('✗ 見積書発行日の保存に失敗しました');
-                console.error('ステータス:', status);
-                console.error('エラー:', error);
-                console.error('レスポンス:', xhr.responseText);
-                console.error('HTTPステータス:', xhr.status);
-                alert('保存に失敗しました。もう一度お試しください。\nエラー: ' + error);
+                console.error('保存エラー詳細:', {
+                    status: status,
+                    error: error,
+                    responseText: xhr.responseText,
+                    statusCode: xhr.status
+                });
+
+                let errorMessage = '見積書発行日の保存中にエラーが発生しました';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                } else if (xhr.status === 0) {
+                    errorMessage = 'ネットワークエラー: サーバーに接続できません';
+                } else if (xhr.status === 403) {
+                    errorMessage = '権限エラー: この操作を実行する権限がありません';
+                } else if (xhr.status === 404) {
+                    errorMessage = 'エラー: 案件が見つかりません';
+                } else if (xhr.status >= 500) {
+                    errorMessage = 'サーバーエラー: しばらくしてから再度お試しください';
+                }
+
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(errorMessage);
+                } else {
+                    alert(errorMessage);
+                }
             }
         });
     });
@@ -2708,6 +3224,7 @@ $(document).ready(function() {
         $.ajax({
             url: '{% url "order_management:update_progress" project.pk %}',
             method: 'POST',
+            dataType: 'json',  // JSONレスポンスを期待
             data: {
                 estimate_not_required: isChecked ? 'on' : '',
                 estimate_issued_date: isChecked ? '' : dateInput.val(),
@@ -2715,20 +3232,24 @@ $(document).ready(function() {
                 csrfmiddlewaretoken: '{{ csrf_token }}'
             },
             success: function(response) {
-                console.log('見積書不要フラグを保存しました:', isChecked);
+                console.log('保存成功:', response);
 
-                // projectDataを更新
-                projectData.estimate_not_required = isChecked;
-                if (isChecked) {
-                    projectData.estimate_issued_date = null;
-                }
+                // レスポンスの検証
+                if (response && response.success) {
+                    console.log('見積書不要フラグを保存しました:', isChecked);
 
-                // UIを更新
-                if (isChecked) {
-                    // 見積書不要にチェックした場合
-                    step.addClass('completed');
-                    step.removeClass('active');
-                    step.find('.progress-step-date').html('<i class="fas fa-times-circle me-1"></i>見積不要');
+                    // projectDataを更新
+                    projectData.estimate_not_required = isChecked;
+                    if (isChecked) {
+                        projectData.estimate_issued_date = null;
+                    }
+
+                    // UIを更新
+                    if (isChecked) {
+                        // 見積書不要にチェックした場合
+                        step.addClass('completed');
+                        step.removeClass('active');
+                        step.find('.progress-step-date').html('<i class="fas fa-times-circle me-1"></i>見積不要');
                     dateInput.prop('disabled', true).val('');
                 } else {
                     // 見積書不要のチェックを外した場合
@@ -2743,14 +3264,45 @@ $(document).ready(function() {
                     }
                 }
 
-                // 進捗状況全体を更新
-                updateActiveStep();
-                updateProgressTimeline();
-                updateProgressStatus();
+                    // 進捗状況全体を更新
+                    updateActiveStep();
+                    updateProgressTimeline();
+                    updateProgressStatus();
+                } else {
+                    console.error('保存失敗:', response);
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(response.message || '見積書不要フラグの保存に失敗しました');
+                    } else {
+                        alert('見積書不要フラグの保存に失敗しました');
+                    }
+                }
             },
             error: function(xhr, status, error) {
-                console.error('見積書不要フラグの保存に失敗:', error);
-                alert('保存に失敗しました。もう一度お試しください。');
+                console.error('保存エラー詳細:', {
+                    status: status,
+                    error: error,
+                    responseText: xhr.responseText,
+                    statusCode: xhr.status
+                });
+
+                let errorMessage = '見積書不要フラグの保存中にエラーが発生しました';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                } else if (xhr.status === 0) {
+                    errorMessage = 'ネットワークエラー: サーバーに接続できません';
+                } else if (xhr.status === 403) {
+                    errorMessage = '権限エラー: この操作を実行する権限がありません';
+                } else if (xhr.status === 404) {
+                    errorMessage = 'エラー: 案件が見つかりません';
+                } else if (xhr.status >= 500) {
+                    errorMessage = 'サーバーエラー: しばらくしてから再度お試しください';
+                }
+
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(errorMessage);
+                } else {
+                    alert(errorMessage);
+                }
             }
         });
     };
@@ -2770,41 +3322,77 @@ $(document).ready(function() {
         $.ajax({
             url: '{% url "order_management:update_progress" project.pk %}',
             method: 'POST',
+            dataType: 'json',  // JSONレスポンスを期待
             data: {
                 contract_date: dateValue,
                 ajax_save: 'true',
                 csrfmiddlewaretoken: '{{ csrf_token }}'
             },
             success: function(response) {
-                console.log('契約日を保存しました:', dateValue);
+                console.log('保存成功:', response);
 
-                // projectDataを更新
-                projectData.contract_date = dateValue;
+                // レスポンスの検証
+                if (response && response.success) {
+                    console.log('契約日を保存しました:', dateValue);
 
-                // UIを更新
-                if (dateValue) {
-                    step.addClass('completed');
-                    step.removeClass('active');
-                    step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了: ' + formatDate(dateValue));
+                    // projectDataを更新
+                    projectData.contract_date = dateValue;
 
-                    // 次のステップ（工事開始）をアクティブにする
-                    var nextStep = $('.progress-step[data-step="work_start"]');
-                    if (!nextStep.hasClass('completed')) {
-                        nextStep.addClass('active');
+                    // UIを更新
+                    if (dateValue) {
+                        step.addClass('completed');
+                        step.removeClass('active');
+                        step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了: ' + formatDate(dateValue));
+
+                        // 次のステップ（工事開始）をアクティブにする
+                        var nextStep = $('.progress-step[data-step="work_start"]');
+                        if (!nextStep.hasClass('completed')) {
+                            nextStep.addClass('active');
+                        }
+                    } else {
+                        step.removeClass('completed');
+                        step.find('.progress-step-date').html('<span class="badge bg-secondary">未完了</span>');
                     }
-                } else {
-                    step.removeClass('completed');
-                    step.find('.progress-step-date').html('<span class="badge bg-secondary">未完了</span>');
-                }
 
-                // 進捗状況全体を更新
-                updateProgressTimeline();
-                updateProgressStatus();
-                updateActiveStep();
+                    // 進捗状況全体を更新
+                    updateProgressTimeline();
+                    updateProgressStatus();
+                    updateActiveStep();
+                } else {
+                    console.error('保存失敗:', response);
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(response.message || '契約日の保存に失敗しました');
+                    } else {
+                        alert('契約日の保存に失敗しました');
+                    }
+                }
             },
             error: function(xhr, status, error) {
-                console.error('契約日の保存に失敗:', error);
-                alert('保存に失敗しました。もう一度お試しください。');
+                console.error('保存エラー詳細:', {
+                    status: status,
+                    error: error,
+                    responseText: xhr.responseText,
+                    statusCode: xhr.status
+                });
+
+                let errorMessage = '契約日の保存中にエラーが発生しました';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                } else if (xhr.status === 0) {
+                    errorMessage = 'ネットワークエラー: サーバーに接続できません';
+                } else if (xhr.status === 403) {
+                    errorMessage = '権限エラー: この操作を実行する権限がありません';
+                } else if (xhr.status === 404) {
+                    errorMessage = 'エラー: 案件が見つかりません';
+                } else if (xhr.status >= 500) {
+                    errorMessage = 'サーバーエラー: しばらくしてから再度お試しください';
+                }
+
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(errorMessage);
+                } else {
+                    alert(errorMessage);
+                }
             }
         });
     });
@@ -2940,6 +3528,101 @@ $(document).ready(function() {
         updateProgressStatus();
     });
 
+    // 完了報告ファイルのアップロード処理
+    $(document).on('change', '#completionReportFileInput', function() {
+        const fileInput = this;
+        const file = fileInput.files[0];
+
+        if (!file) {
+            console.log('ファイルが選択されていません');
+            return;
+        }
+
+        console.log('完了報告ファイルをアップロード中:', file.name);
+
+        // FormDataを使ってファイルを送信
+        const formData = new FormData();
+        formData.append('completion_report_file', file);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        formData.append('ajax_save', 'true');
+
+        $.ajax({
+            url: '{% url "order_management:update_progress" project.pk %}',
+            method: 'POST',
+            data: formData,
+            processData: false,  // FormDataを使う場合は必須
+            contentType: false,  // FormDataを使う場合は必須
+            success: function(response) {
+                console.log('ファイルアップロード成功:', response);
+                if (response && response.success) {
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success('完了報告ファイルをアップロードしました');
+                    } else {
+                        alert('完了報告ファイルをアップロードしました');
+                    }
+                    // ページをリロードして最新の状態を表示
+                    setTimeout(function() {
+                        location.reload();
+                    }, 500);
+                } else {
+                    console.error('アップロード失敗:', response);
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(response.message || 'ファイルのアップロードに失敗しました');
+                    } else {
+                        alert('ファイルのアップロードに失敗しました');
+                    }
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('アップロードエラー:', error);
+                if (typeof toastr !== 'undefined') {
+                    toastr.error('ファイルのアップロードに失敗しました: ' + error);
+                } else {
+                    alert('ファイルのアップロードに失敗しました: ' + error);
+                }
+            }
+        });
+    });
+
+    // 完了報告完了チェックボックスの処理
+    $(document).on('change', '#completion_report_completed', function() {
+        const isChecked = $(this).is(':checked');
+        console.log('完了報告完了チェックボックスが変更されました:', isChecked);
+
+        $.ajax({
+            url: '{% url "order_management:update_progress" project.pk %}',
+            method: 'POST',
+            dataType: 'json',
+            data: {
+                completion_report_completed: isChecked ? 'on' : '',
+                ajax_save: 'true',
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            success: function(response) {
+                console.log('保存成功:', response);
+                if (response && response.success) {
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success('完了報告ステータスを更新しました');
+                    }
+                    // 進捗状況を更新
+                    updateProgressTimeline();
+                    updateProgressStatus();
+                } else {
+                    console.error('保存失敗:', response);
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(response.message || '保存に失敗しました');
+                    }
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('保存エラー:', error);
+                if (typeof toastr !== 'undefined') {
+                    toastr.error('保存に失敗しました: ' + error);
+                }
+            }
+        });
+    });
+
     // === 動的ステップ管理機能 ===
 
     // 動的ステップの状態変更を監視して即座に保存
@@ -2972,40 +3655,74 @@ $(document).ready(function() {
         $.ajax({
             url: '{% url "order_management:update_progress" project.pk %}',
             method: 'POST',
+            dataType: 'json',  // JSONレスポンスを期待
             data: data,
             success: function(response) {
-                console.log('複合ステップフィールドを保存しました:', fieldName, fieldValue);
+                console.log('保存成功:', response);
 
-                // 保存成功後にUIを更新
-                if ($step.length > 0) {
-                    // availableStepsから該当するステップ定義を取得
-                    const stepData = availableSteps.find(s => s.key === stepKey);
+                // レスポンスの検証
+                if (response && response.success) {
+                    console.log('複合ステップフィールドを保存しました:', fieldName, fieldValue);
 
-                    if (stepData && stepData.type === 'complex') {
-                        // 複合ステップのステータスを再計算
-                        const status = getComplexStepStatus(stepData, $step);
+                    // 保存成功後にUIを更新
+                    if ($step.length > 0) {
+                        // availableStepsから該当するステップ定義を取得
+                        const stepData = availableSteps.find(s => s.key === stepKey);
 
-                        // ステータスに応じてクラスを追加/削除
-                        if (status.completed) {
-                            $step.addClass('completed');
-                            $step.removeClass('active');
-                        } else {
-                            $step.removeClass('completed');
+                        if (stepData && stepData.type === 'complex') {
+                            // 複合ステップのステータスを再計算
+                            const status = getComplexStepStatus(stepData, $step);
+
+                            // ステータスに応じてクラスを追加/削除
+                            if (status.completed) {
+                                $step.addClass('completed');
+                                $step.removeClass('active');
+                            } else {
+                                $step.removeClass('completed');
+                            }
+
+                            // ステータステキストを更新
+                            $step.find('.progress-step-date').html(status.statusText);
+
+                            // 進捗タイムラインと状況バーを更新
+                            updateProgressTimeline();
+                            updateProgressStatus();
+
+                            console.log(`Updated complex step ${stepKey}:`, status);
                         }
-
-                        // ステータステキストを更新
-                        $step.find('.progress-step-date').html(status.statusText);
-
-                        // 進捗タイムラインと状況バーを更新
-                        updateProgressTimeline();
-                        updateProgressStatus();
-
-                        console.log(`Updated complex step ${stepKey}:`, status);
+                    }
+                } else {
+                    console.error('保存失敗:', response);
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(response.message || '複合ステップフィールドの保存に失敗しました');
                     }
                 }
             },
             error: function(xhr, status, error) {
-                console.error('複合ステップフィールドの保存に失敗:', fieldName, error);
+                console.error('保存エラー詳細:', {
+                    field: fieldName,
+                    status: status,
+                    error: error,
+                    responseText: xhr.responseText,
+                    statusCode: xhr.status
+                });
+
+                let errorMessage = '複合ステップフィールドの保存中にエラーが発生しました';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                } else if (xhr.status === 0) {
+                    errorMessage = 'ネットワークエラー: サーバーに接続できません';
+                } else if (xhr.status === 403) {
+                    errorMessage = '権限エラー: この操作を実行する権限がありません';
+                } else if (xhr.status === 404) {
+                    errorMessage = 'エラー: 案件が見つかりません';
+                } else if (xhr.status >= 500) {
+                    errorMessage = 'サーバーエラー: しばらくしてから再度お試しください';
+                }
+
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(errorMessage);
+                }
             }
         });
     });
@@ -3229,22 +3946,37 @@ $(document).ready(function() {
 
         stepElements.each(function() {
             const $step = $(this);
-            const isCompleted = $step.hasClass('completed');
+            let isCompleted = $step.hasClass('completed');
             const stepName = $step.find('.progress-step-label').text().trim();
+            const stepKey = $step.data('step');
+
+            // Special handling for estimate step - check estimate_not_required checkbox
+            if (stepKey === 'estimate' && !isCompleted) {
+                const estimateNotRequired = $step.find('#estimateNotRequired').is(':checked');
+                const estimateIssuedDate = $step.find('input[name="estimate_issued_date"]').val();
+                if (estimateNotRequired || estimateIssuedDate) {
+                    isCompleted = true;
+                    // Make sure the step has the completed class
+                    if (!$step.hasClass('completed')) {
+                        $step.addClass('completed');
+                        $step.removeClass('active');
+                    }
+                }
+            }
 
             if (!isCompleted) {
                 if (!foundCurrent) {
                     currentIncompleteStep = {
                         element: $step,
                         name: stepName,
-                        key: $step.data('step')
+                        key: stepKey
                     };
                     foundCurrent = true;
                 } else if (!nextIncompleteStep) {
                     nextIncompleteStep = {
                         element: $step,
                         name: stepName,
-                        key: $step.data('step')
+                        key: stepKey
                     };
                 }
             }
@@ -3381,16 +4113,19 @@ $(document).ready(function() {
         let phase = '未開始';
         let color = 'secondary';
 
-        // 完工日をチェック
+        // 完工日をチェック（最優先）
         const completionElement = $('.progress-step[data-step="completion"]');
         const completionCompleted = completionElement.find('input[name*="completed"]').is(':checked');
         const completionActualDate = completionElement.find('input[name*="actual_date"]').val();
         const workEndDate = $('input[name="work_end_date"]').val();
 
-        if (completionCompleted || $('#workEndCompleted').is(':checked')) {
+        // Priority 1: Check if completion step has 'completed' class or checkbox is checked
+        if (completionElement.hasClass('completed') || completionCompleted || $('#workEndCompleted').is(':checked')) {
             phase = '完工';
             color = 'verified';
-        } else if (completionActualDate || workEndDate) {
+        }
+        // Priority 2: Check if completion actual date or work end date is filled
+        else if (completionActualDate || workEndDate) {
             phase = '完工';
             color = 'success';
         }
@@ -3408,8 +4143,20 @@ $(document).ready(function() {
                 phase = '工事中';
                 color = 'success';
             } else if (constructionScheduledDate) {
-                phase = '着工日待ち';
-                color = 'warning';
+                // Check if scheduled date is in the past
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // Reset time to midnight for date-only comparison
+                const scheduledDate = new Date(constructionScheduledDate);
+
+                if (scheduledDate < today) {
+                    // Past scheduled date - should be in progress
+                    phase = '工事中の予定';
+                    color = 'success';
+                } else {
+                    // Future scheduled date - waiting
+                    phase = '着工日待ち';
+                    color = 'warning';
+                }
             }
             // 見積もりをチェック
             else {
@@ -3425,7 +4172,18 @@ $(document).ready(function() {
                     const surveyElement = $('.progress-step[data-step="survey"]');
                     const surveyActualDate = surveyElement.find('input[name*="actual_date"]').val();
                     const surveyScheduledDate = surveyElement.find('input[name*="scheduled_date"]').val();
-                    if (surveyActualDate) {
+                    const surveyCompleted = surveyElement.find('input[name*="completed"]').is(':checked');
+
+                    // Check if scheduled date is in the past
+                    let isSurveyScheduledPast = false;
+                    if (surveyScheduledDate) {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const scheduledDate = new Date(surveyScheduledDate);
+                        isSurveyScheduledPast = scheduledDate < today;
+                    }
+
+                    if (surveyActualDate || surveyCompleted || isSurveyScheduledPast) {
                         phase = '現調済み';
                         color = 'success';
                     } else if (surveyScheduledDate) {
@@ -3436,8 +4194,18 @@ $(document).ready(function() {
                         const attendanceElement = $('.progress-step[data-step="attendance"]');
                         const attendanceActualDate = attendanceElement.find('input[name*="actual_date"]').val();
                         const attendanceScheduledDate = attendanceElement.find('input[name*="scheduled_date"]').val();
+                        const attendanceCompleted = attendanceElement.find('input[name*="completed"]').is(':checked');
 
-                        if (attendanceActualDate) {
+                        // Check if scheduled date is in the past
+                        let isScheduledPast = false;
+                        if (attendanceScheduledDate) {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const scheduledDate = new Date(attendanceScheduledDate);
+                            isScheduledPast = scheduledDate < today;
+                        }
+
+                        if (attendanceActualDate || attendanceCompleted || isScheduledPast) {
                             phase = '立ち会い済み';
                             color = 'success';
                         } else if (attendanceScheduledDate) {
@@ -3475,16 +4243,44 @@ $(document).ready(function() {
             $.ajax({
                 url: '{% url "order_management:update_project_stage" project.pk %}',
                 method: 'POST',
+                dataType: 'json',  // JSONレスポンスを期待
                 data: {
                     stage: stage,
                     color: color,
                     csrfmiddlewaretoken: '{{ csrf_token }}'
                 },
                 success: function(response) {
-                    console.log('進捗状況を保存しました:', stage);
+                    console.log('保存成功:', response);
+
+                    // レスポンスの検証
+                    if (response && response.success) {
+                        console.log('進捗状況を保存しました:', stage);
+                    } else {
+                        console.error('保存失敗:', response);
+                    }
                 },
                 error: function(xhr, status, error) {
-                    console.error('進捗状況の保存に失敗:', error);
+                    console.error('保存エラー詳細:', {
+                        status: status,
+                        error: error,
+                        responseText: xhr.responseText,
+                        statusCode: xhr.status
+                    });
+
+                    let errorMessage = '進捗状況の保存中にエラーが発生しました';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    } else if (xhr.status === 0) {
+                        errorMessage = 'ネットワークエラー: サーバーに接続できません';
+                    } else if (xhr.status === 403) {
+                        errorMessage = '権限エラー: この操作を実行する権限がありません';
+                    } else if (xhr.status === 404) {
+                        errorMessage = 'エラー: 案件が見つかりません';
+                    } else if (xhr.status >= 500) {
+                        errorMessage = 'サーバーエラー: しばらくしてから再度お試しください';
+                    }
+
+                    console.error(errorMessage);
                 }
             });
         }, 500);
@@ -3790,7 +4586,15 @@ $(document).ready(function() {
                 // 現地調査エリアの表示制御
                 updateSurveyAreaVisibility();
 
-                // 初期状態では何も展開しない（クリック時のみ展開）
+                // 全てのステップを展開状態で表示
+                $('.progress-step').addClass('expanded');
+                $('.progress-step-content').show();
+
+                // 予定日超過チェックを実行
+                checkOverdueSteps();
+
+                // 詳細コメントを読み込んで表示
+                loadDetailedComments();
 
                 // 見積書不要チェックボックスの初期化（DOM要素が生成された後）
                 console.log('見積書不要チェックボックスの要素数（初期化後）:', $('#estimateNotRequired').length);
@@ -4155,8 +4959,22 @@ $(document).ready(function() {
         let fieldHtml = '';
         if (stepData.type === 'date') {
             fieldHtml = `
-                <label class="form-label">${stepName}日</label>
-                <input type="date" name="${stepKey}_date" class="form-control" value="${dateValue || ''}">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label mb-0">予定日</label>
+                    <button type="button" class="btn btn-sm btn-outline-secondary add-actual-date-btn" data-step="${stepKey}" title="実施日を追加">
+                        <i class="fas fa-plus me-1"></i>実施日
+                    </button>
+                </div>
+                <input type="date" name="${stepKey}_date" class="form-control scheduled-date-input" value="${dateValue || ''}">
+                <div class="actual-date-field mt-2" style="display: none;">
+                    <label class="form-label">実施日</label>
+                    <div class="input-group">
+                        <input type="date" name="${stepKey}_actual_date" class="form-control actual-date-input" value="">
+                        <button type="button" class="btn btn-outline-danger remove-actual-date-btn" title="実施日を削除">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
             `;
         } else if (stepData.type === 'checkbox') {
             fieldHtml = `
@@ -4226,9 +5044,23 @@ $(document).ready(function() {
                 ${statusHtml}
                 <div class="progress-step-content">
                     <div class="mb-3">
-                        <label class="form-label">見積書発行日</label>
-                        <input type="date" name="estimate_issued_date" class="form-control"
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label mb-0">予定日</label>
+                            <button type="button" class="btn btn-sm btn-outline-secondary add-actual-date-btn" data-step="estimate" title="実施日を追加">
+                                <i class="fas fa-plus me-1"></i>実施日
+                            </button>
+                        </div>
+                        <input type="date" name="estimate_issued_date" class="form-control scheduled-date-input"
                                value="${projectData.estimate_issued_date || ''}" ${projectData.estimate_not_required ? 'disabled' : ''}>
+                        <div class="actual-date-field mt-2" style="display: none;">
+                            <label class="form-label">実施日</label>
+                            <div class="input-group">
+                                <input type="date" name="dynamic_field_estimate_actual_date" class="form-control actual-date-input" value="">
+                                <button type="button" class="btn btn-outline-danger remove-actual-date-btn" title="実施日を削除">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="estimate_not_required"
@@ -4343,8 +5175,22 @@ $(document).ready(function() {
                 </div>
                 ${statusHtml}
                 <div class="progress-step-content">
-                    <label class="form-label">契約日</label>
-                    <input type="date" name="contract_date" class="form-control" value="${projectData.contract_date || ''}">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label mb-0">予定日</label>
+                        <button type="button" class="btn btn-sm btn-outline-secondary add-actual-date-btn" data-step="contract" title="実施日を追加">
+                            <i class="fas fa-plus me-1"></i>実施日
+                        </button>
+                    </div>
+                    <input type="date" name="contract_date" class="form-control scheduled-date-input" value="${projectData.contract_date || ''}">
+                    <div class="actual-date-field mt-2" style="display: none;">
+                        <label class="form-label">実施日</label>
+                        <div class="input-group">
+                            <input type="date" name="contract_actual_date" class="form-control actual-date-input" value="">
+                            <button type="button" class="btn btn-outline-danger remove-actual-date-btn" title="実施日を削除">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -4379,8 +5225,22 @@ $(document).ready(function() {
                 ${statusHtml}
                 <div class="progress-step-content">
                     <div class="mb-3">
-                        <label class="form-label">工事開始日</label>
-                        <input type="date" name="work_start_date" class="form-control" value="${projectData.work_start_date || ''}">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label mb-0">予定日</label>
+                            <button type="button" class="btn btn-sm btn-outline-secondary add-actual-date-btn" data-step="work_start" title="実施日を追加">
+                                <i class="fas fa-plus me-1"></i>実施日
+                            </button>
+                        </div>
+                        <input type="date" name="work_start_date" class="form-control scheduled-date-input" value="${projectData.work_start_date || ''}">
+                        <div class="actual-date-field mt-2" style="display: none;">
+                            <label class="form-label">実施日</label>
+                            <div class="input-group">
+                                <input type="date" name="work_start_actual_date" class="form-control actual-date-input" value="">
+                                <button type="button" class="btn btn-outline-danger remove-actual-date-btn" title="実施日を削除">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="work_start_completed"
@@ -4423,8 +5283,22 @@ $(document).ready(function() {
                 ${statusHtml}
                 <div class="progress-step-content">
                     <div class="mb-3">
-                        <label class="form-label">工事終了日</label>
-                        <input type="date" name="work_end_date" class="form-control" value="${projectData.work_end_date || ''}">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label mb-0">予定日</label>
+                            <button type="button" class="btn btn-sm btn-outline-secondary add-actual-date-btn" data-step="work_end" title="実施日を追加">
+                                <i class="fas fa-plus me-1"></i>実施日
+                            </button>
+                        </div>
+                        <input type="date" name="work_end_date" class="form-control scheduled-date-input" value="${projectData.work_end_date || ''}">
+                        <div class="actual-date-field mt-2" style="display: none;">
+                            <label class="form-label">実施日</label>
+                            <div class="input-group">
+                                <input type="date" name="work_end_actual_date" class="form-control actual-date-input" value="">
+                                <button type="button" class="btn btn-outline-danger remove-actual-date-btn" title="実施日を削除">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="work_end_completed"
@@ -4486,36 +5360,16 @@ $(document).ready(function() {
                     required: false
                 },
                 {
-                    name: 'actual_date',
-                    label: '実施日',
-                    type: 'date',
+                    name: 'completed',
+                    label: '立ち会い完了',
+                    type: 'checkbox',
                     required: false
-                },
-                {
-                    name: 'staff_input_type',
-                    label: '担当者入力方法',
-                    type: 'radio',
-                    options: [
-                        { value: 'existing', text: '既存担当者から選択' },
-                        { value: 'new', text: '新規担当者を入力' }
-                    ],
-                    default: 'existing'
                 },
                 {
                     name: 'staff_id',
                     label: '担当者（複数選択可）',
                     type: 'staff_select_list',
-                    required: false,
-                    dependsOn: 'staff_input_type',
-                    showWhen: 'existing'
-                },
-                {
-                    name: 'staff_name',
-                    label: '担当者名',
-                    type: 'text',
-                    required: false,
-                    dependsOn: 'staff_input_type',
-                    showWhen: 'new'
+                    required: false
                 }
             ],
             statuses: [
@@ -4537,36 +5391,16 @@ $(document).ready(function() {
                     required: false
                 },
                 {
-                    name: 'actual_date',
-                    label: '実施日',
-                    type: 'date',
+                    name: 'completed',
+                    label: '現調完了',
+                    type: 'checkbox',
                     required: false
-                },
-                {
-                    name: 'staff_input_type',
-                    label: '担当者入力方法',
-                    type: 'radio',
-                    options: [
-                        { value: 'existing', text: '既存担当者から選択' },
-                        { value: 'new', text: '新規担当者を入力' }
-                    ],
-                    default: 'existing'
                 },
                 {
                     name: 'staff_id',
                     label: '担当者（複数選択可）',
                     type: 'staff_select_list',
-                    required: false,
-                    dependsOn: 'staff_input_type',
-                    showWhen: 'existing'
-                },
-                {
-                    name: 'staff_name',
-                    label: '職人名',
-                    type: 'text',
-                    required: false,
-                    dependsOn: 'staff_input_type',
-                    showWhen: 'new'
+                    required: false
                 }
             ],
             statuses: [
@@ -4612,36 +5446,16 @@ $(document).ready(function() {
                     required: false
                 },
                 {
-                    name: 'actual_date',
-                    label: '実施日',
-                    type: 'date',
+                    name: 'completed',
+                    label: '着工完了',
+                    type: 'checkbox',
                     required: false
-                },
-                {
-                    name: 'staff_input_type',
-                    label: '職人入力方法',
-                    type: 'radio',
-                    options: [
-                        { value: 'existing', text: '既存職人から選択' },
-                        { value: 'new', text: '新規職人を入力' }
-                    ],
-                    default: 'existing'
                 },
                 {
                     name: 'staff_id',
                     label: '担当者（複数選択可）',
                     type: 'staff_select_list',
-                    required: false,
-                    dependsOn: 'staff_input_type',
-                    showWhen: 'existing'
-                },
-                {
-                    name: 'staff_name',
-                    label: '職人名',
-                    type: 'text',
-                    required: false,
-                    dependsOn: 'staff_input_type',
-                    showWhen: 'new'
+                    required: false
                 }
             ],
             statuses: [
@@ -4659,12 +5473,6 @@ $(document).ready(function() {
                 {
                     name: 'scheduled_date',
                     label: '予定日',
-                    type: 'date',
-                    required: false
-                },
-                {
-                    name: 'actual_date',
-                    label: '実施日',
                     type: 'date',
                     required: false
                 },
@@ -4796,10 +5604,10 @@ $(document).ready(function() {
                 // ドラッグ終了時の処理
                 console.log('ステップ順序変更:', evt.oldIndex, '->', evt.newIndex);
 
-                // ドラッグ後は全ての展開状態をリセット（自動展開なし）
+                // ドラッグ後も全て展開状態を維持
                 setTimeout(() => {
-                    $('.progress-step').removeClass('expanded');
-                    $('.progress-step-content').hide();
+                    $('.progress-step').addClass('expanded');
+                    $('.progress-step-content').show();
                 }, 100);
 
                 // ここで順序をサーバーに保存する処理を追加可能
@@ -5122,8 +5930,22 @@ $(document).ready(function() {
                 return generateComplexFieldHtml(stepData);
             case 'date':
                 return `
-                    <label class="form-label">${stepData.name}日</label>
-                    <input type="date" name="${stepData.key}_date" class="form-control">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label mb-0">予定日</label>
+                        <button type="button" class="btn btn-sm btn-outline-secondary add-actual-date-btn" data-step="${stepData.key}" title="実施日を追加">
+                            <i class="fas fa-plus me-1"></i>実施日
+                        </button>
+                    </div>
+                    <input type="date" name="${stepData.key}_date" class="form-control scheduled-date-input">
+                    <div class="actual-date-field mt-2" style="display: none;">
+                        <label class="form-label">実施日</label>
+                        <div class="input-group">
+                            <input type="date" name="${stepData.key}_actual_date" class="form-control actual-date-input" value="">
+                            <button type="button" class="btn btn-outline-danger remove-actual-date-btn" title="実施日を削除">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
                 `;
             case 'checkbox':
                 return `
@@ -5154,7 +5976,7 @@ $(document).ready(function() {
             const fieldId = `${stepData.key}_${field.name}`;
             const fieldName = `dynamic_field_${stepData.key}_${field.name}`;  // dynamic_field_ プレフィックスを追加
 
-            html += `<div class="mb-3">`;
+            html += `<div class="mb-1">`;
 
             // dependency属性を処理（dependsOn と showWhen をサポート）
             const dependsOnField = field.dependsOn ? `dynamic_field_${stepData.key}_${field.dependsOn}` : '';
@@ -5168,32 +5990,64 @@ $(document).ready(function() {
 
             switch (field.type) {
                 case 'radio':
-                    html += `<label class="form-label">${field.label}</label>`;
+                    html += `<label class="form-label" style="font-size: 0.7rem; margin-bottom: 0.2rem;">${field.label}</label>`;
+                    html += `<div class="d-flex gap-2">`;
                     if (field.options && Array.isArray(field.options)) {
                         field.options.forEach((option, index) => {
                             const isDefault = field.default === option.value;
                             html += `
-                                <div class="form-check">
+                                <div class="form-check form-check-inline" style="margin-bottom: 0;">
                                     <input class="form-check-input" type="radio" name="${fieldName}" id="${fieldId}_${index}"
-                                           value="${option.value}" ${isDefault ? 'checked' : ''} ${isRequired ? 'required' : ''}>
-                                    <label class="form-check-label" for="${fieldId}_${index}">
+                                           value="${option.value}" ${isDefault ? 'checked' : ''} ${isRequired ? 'required' : ''} style="width: 14px; height: 14px;">
+                                    <label class="form-check-label" for="${fieldId}_${index}" style="font-size: 0.7rem;">
                                         ${option.text}
                                     </label>
                                 </div>
                             `;
                         });
                     }
+                    html += `</div>`;
                     break;
                 case 'date':
                     // complex_step_fieldsから値を取得
                     const dateFieldKey = `${stepData.key}_${field.name}`;
                     const dateValue = complexStepFields[dateFieldKey] || '';
-                    html += `
-                        <div ${dependencyAttr} ${initialDisplay}>
-                            <label class="form-label" for="${fieldId}">${field.label}</label>
-                            <input type="date" name="${fieldName}" id="${fieldId}" class="form-control" value="${dateValue}" ${isRequired ? 'required' : ''}>
-                        </div>
-                    `;
+
+                    // scheduled_dateの場合は予定日+実施日の構造
+                    if (field.name === 'scheduled_date') {
+                        const actualDateKey = `${stepData.key}_actual_date`;
+                        const actualDateValue = complexStepFields[actualDateKey] || '';
+                        const actualDateFieldName = `dynamic_field_${stepData.key}_actual_date`;
+
+                        html += `
+                            <div ${dependencyAttr} ${initialDisplay}>
+                                <div class="d-flex justify-content-between align-items-center" style="margin-bottom: 0.2rem;">
+                                    <label class="form-label mb-0" style="font-size: 0.7rem;">${field.label}</label>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary add-actual-date-btn" data-step="${stepData.key}" title="実施日を追加" style="font-size: 0.65rem; padding: 0.15rem 0.3rem; line-height: 1;">
+                                        <i class="fas fa-plus" style="font-size: 0.6rem;"></i> 実施日
+                                    </button>
+                                </div>
+                                <input type="date" name="${fieldName}" id="${fieldId}" class="form-control scheduled-date-input" value="${dateValue}" ${isRequired ? 'required' : ''} style="font-size: 0.7rem; padding: 0.25rem 0.4rem; min-height: 28px;">
+                                <div class="actual-date-field mt-1" style="display: ${actualDateValue ? 'block' : 'none'};">
+                                    <label class="form-label" style="font-size: 0.7rem; margin-bottom: 0.2rem;">実施日</label>
+                                    <div class="input-group">
+                                        <input type="date" name="${actualDateFieldName}" class="form-control actual-date-input" value="${actualDateValue}" style="font-size: 0.7rem; padding: 0.25rem 0.4rem; min-height: 28px;">
+                                        <button type="button" class="btn btn-outline-danger remove-actual-date-btn" title="実施日を削除" style="font-size: 0.65rem; padding: 0.2rem 0.35rem; line-height: 1;">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        // 通常の日付フィールド
+                        html += `
+                            <div ${dependencyAttr} ${initialDisplay}>
+                                <label class="form-label" for="${fieldId}" style="font-size: 0.7rem; margin-bottom: 0.2rem;">${field.label}</label>
+                                <input type="date" name="${fieldName}" id="${fieldId}" class="form-control" value="${dateValue}" ${isRequired ? 'required' : ''} style="font-size: 0.7rem; padding: 0.25rem 0.4rem; min-height: 28px;">
+                            </div>
+                        `;
+                    }
                     break;
                 case 'select':
                     // スタッフ選択の場合は動的オプション生成
@@ -5204,8 +6058,8 @@ $(document).ready(function() {
 
                     html += `
                         <div ${dependencyAttr} ${initialDisplay}>
-                            <label class="form-label" for="${fieldId}">${field.label}</label>
-                            <select name="${fieldName}" id="${fieldId}" class="form-select" ${isRequired ? 'required' : ''}>
+                            <label class="form-label" for="${fieldId}" style="font-size: 0.7rem; margin-bottom: 0.2rem;">${field.label}</label>
+                            <select name="${fieldName}" id="${fieldId}" class="form-select" ${isRequired ? 'required' : ''} style="font-size: 0.7rem; padding: 0.25rem 0.4rem; min-height: 28px;">
                     `;
                     if (options && Array.isArray(options)) {
                         options.forEach(option => {
@@ -5217,8 +6071,8 @@ $(document).ready(function() {
                     // スタッフ管理ボタンを追加（すべてのステップで）
                     if (field.name === 'staff_id') {
                         html += `
-                            <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="openStaffManagementPanel()">
-                                <i class="fas fa-users-cog"></i> 担当者管理
+                            <button type="button" class="btn btn-outline-secondary mt-1" onclick="openStaffManagementPanel()" style="font-size: 0.65rem; padding: 0.2rem 0.4rem; line-height: 1.2;">
+                                <i class="fas fa-users-cog" style="font-size: 0.6rem;"></i> 担当者管理
                             </button>
                         `;
                     }
@@ -5233,8 +6087,8 @@ $(document).ready(function() {
 
                     html += `
                         <div ${dependencyAttr} ${initialDisplay}>
-                            <label class="form-label" for="${fieldId}">${field.label}</label>
-                            <select name="${fieldName}" id="${fieldId}" class="form-select" multiple size="5" ${isRequired ? 'required' : ''}>
+                            <label class="form-label" for="${fieldId}" style="font-size: 0.7rem; margin-bottom: 0.2rem;">${field.label}</label>
+                            <select name="${fieldName}" id="${fieldId}" class="form-select" multiple size="5" ${isRequired ? 'required' : ''} style="font-size: 0.7rem; padding: 0.25rem 0.4rem;">
                     `;
                     if (multioptions && Array.isArray(multioptions)) {
                         multioptions.forEach(option => {
@@ -5242,13 +6096,13 @@ $(document).ready(function() {
                         });
                     }
                     html += `</select>`;
-                    html += `<small class="form-text text-muted">Ctrl/Cmdキーを押しながらクリックで複数選択</small>`;
+                    html += `<small class="form-text text-muted" style="font-size: 0.65rem;">Ctrl/Cmdキーを押しながらクリックで複数選択</small>`;
 
                     // スタッフ管理ボタンを追加
                     if (field.name === 'staff_ids') {
                         html += `
-                            <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="openStaffManagementPanel()">
-                                <i class="fas fa-users-cog"></i> 担当者管理
+                            <button type="button" class="btn btn-outline-secondary mt-1" onclick="openStaffManagementPanel()" style="font-size: 0.65rem; padding: 0.2rem 0.4rem; line-height: 1.2;">
+                                <i class="fas fa-users-cog" style="font-size: 0.6rem;"></i> 担当者管理
                             </button>
                         `;
                     }
@@ -5257,17 +6111,17 @@ $(document).ready(function() {
                 case 'text':
                     html += `
                         <div ${dependencyAttr} ${initialDisplay}>
-                            <label class="form-label" for="${fieldId}">${field.label}</label>
-                            <input type="text" name="${fieldName}" id="${fieldId}" class="form-control" ${isRequired ? 'required' : ''}>
+                            <label class="form-label" for="${fieldId}" style="font-size: 0.7rem; margin-bottom: 0.2rem;">${field.label}</label>
+                            <input type="text" name="${fieldName}" id="${fieldId}" class="form-control" ${isRequired ? 'required' : ''} style="font-size: 0.7rem; padding: 0.25rem 0.4rem; min-height: 28px;">
                         </div>
                     `;
                     break;
                 case 'checkbox':
                     html += `
                         <div class="form-check" ${dependencyAttr} ${initialDisplay}>
-                            <input class="form-check-input" type="checkbox" name="${fieldName}" id="${fieldId}" ${isRequired ? 'required' : ''}>
-                            <label class="form-check-label" for="${fieldId}">
-                                <i class="fas fa-check me-1"></i>${field.label}
+                            <input class="form-check-input" type="checkbox" name="${fieldName}" id="${fieldId}" ${isRequired ? 'required' : ''} style="width: 14px; height: 14px;">
+                            <label class="form-check-label" for="${fieldId}" style="font-size: 0.7rem;">
+                                <i class="fas fa-check me-1" style="font-size: 0.65rem;"></i>${field.label}
                             </label>
                         </div>
                     `;
@@ -5277,10 +6131,10 @@ $(document).ready(function() {
                     const staffOptions = generateStaffOptions();
                     html += `
                         <div ${dependencyAttr} ${initialDisplay}>
-                            <label class="form-label">${field.label}</label>
+                            <label class="form-label" style="font-size: 0.7rem; margin-bottom: 0.2rem;">${field.label}</label>
                             <div class="staff-select-container" id="${fieldId}_container">
-                                <div class="staff-select-item mb-2">
-                                    <select name="${fieldName}" class="form-select form-select-sm d-inline-block" style="width: calc(100% - 50px);">
+                                <div class="staff-select-item mb-1">
+                                    <select name="${fieldName}" class="form-select d-inline-block" style="width: calc(100% - 35px); font-size: 0.7rem; padding: 0.25rem 0.4rem; min-height: 28px;">
                                         <option value="">選択してください</option>
                     `;
                     if (staffOptions && Array.isArray(staffOptions)) {
@@ -5290,17 +6144,19 @@ $(document).ready(function() {
                     }
                     html += `
                                     </select>
-                                    <button type="button" class="btn btn-outline-danger btn-sm remove-staff-select-btn" style="display:none;">
-                                        <i class="fas fa-times"></i>
+                                    <button type="button" class="btn btn-outline-danger remove-staff-select-btn" style="display:none; font-size: 0.65rem; padding: 0.2rem 0.35rem; line-height: 1;">
+                                        ×
                                     </button>
                                 </div>
                             </div>
-                            <button type="button" class="btn btn-outline-primary btn-sm mt-2 add-staff-select-btn" data-container-id="${fieldId}_container" data-field-name="${fieldName}">
-                                <i class="fas fa-plus me-1"></i>担当者を追加
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="openStaffManagementPanel()">
-                                <i class="fas fa-users-cog me-1"></i>担当者管理
-                            </button>
+                            <div class="d-flex gap-1 mt-1">
+                                <button type="button" class="btn btn-outline-primary add-staff-select-btn" data-container-id="${fieldId}_container" data-field-name="${fieldName}" style="font-size: 0.65rem; padding: 0.2rem 0.4rem; line-height: 1.2;">
+                                    <i class="fas fa-plus" style="font-size: 0.6rem;"></i> 担当者を追加
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="openStaffManagementPanel()" style="font-size: 0.65rem; padding: 0.2rem 0.4rem; line-height: 1.2;">
+                                    <i class="fas fa-users-cog" style="font-size: 0.6rem;"></i> 担当者管理
+                                </button>
+                            </div>
                         </div>
                     `;
                     break;
@@ -5352,27 +6208,36 @@ $(document).ready(function() {
 
         // 担当者名を取得
         function getStaffInfo() {
-            const inputType = values.staff_input_type || 'existing';
-            if (inputType === 'existing' && values.staff_id) {
+            if (values.staff_id) {
                 return getStaffName(values.staff_id);
-            } else if (inputType === 'new' && values.staff_name) {
-                return values.staff_name;
             }
             return '';
         }
 
-        // ステップ別のステータス判定
+        // 今日の日付を取得（時刻なし）
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // ステップ別のステータス判定（予定日ベース：予定日が過去なら自動完了）
         switch (stepData.key) {
             case 'attendance':  // 立ち会い日
-                const attActual = values.actual_date;
+                const attCompleted = values.completed;
                 const attScheduled = values.scheduled_date;
                 const attStaff = getStaffInfo();
 
-                if (attActual) {
+                // 予定日が過去かチェック
+                let attScheduledPast = false;
+                if (attScheduled) {
+                    const scheduled = new Date(attScheduled);
+                    scheduled.setHours(0, 0, 0, 0);
+                    attScheduledPast = scheduled < today;
+                }
+
+                if (attCompleted || attScheduledPast) {
                     return {
                         completed: true,
                         status: 'completed',
-                        statusText: `<span class="badge bg-success">立ち会い済み</span> ${formatDate(attActual)}${attStaff ? ' (' + attStaff + ')' : ''}`
+                        statusText: `<span class="badge bg-success">立ち会い済み</span> ${attScheduled ? formatDate(attScheduled) : ''}${attStaff ? ' (' + attStaff + ')' : ''}`
                     };
                 } else if (attScheduled) {
                     return {
@@ -5389,15 +6254,23 @@ $(document).ready(function() {
                 }
 
             case 'survey':  // 現調日
-                const surActual = values.actual_date;
+                const surCompleted = values.completed;
                 const surScheduled = values.scheduled_date;
                 const surStaff = getStaffInfo();
 
-                if (surActual) {
+                // 予定日が過去かチェック
+                let surScheduledPast = false;
+                if (surScheduled) {
+                    const scheduled = new Date(surScheduled);
+                    scheduled.setHours(0, 0, 0, 0);
+                    surScheduledPast = scheduled < today;
+                }
+
+                if (surCompleted || surScheduledPast) {
                     return {
                         completed: true,
                         status: 'completed',
-                        statusText: `<span class="badge bg-success">現調済み</span> ${formatDate(surActual)}${surStaff ? ' (' + surStaff + ')' : ''}`
+                        statusText: `<span class="badge bg-success">現調済み</span> ${surScheduled ? formatDate(surScheduled) : ''}${surStaff ? ' (' + surStaff + ')' : ''}`
                     };
                 } else if (surScheduled) {
                     return {
@@ -5437,16 +6310,34 @@ $(document).ready(function() {
                     };
                 }
 
-            case 'construction_start':  // 着工日
-                const csActual = values.actual_date;
+            case 'construction_start':  // 着工日（実施日優先、予定日ベース：予定日が過去なら自動完了）
+                const csCompleted = values.completed;
                 const csScheduled = values.scheduled_date;
+                const csActual = values.actual_date;
                 const csStaff = getStaffInfo();
 
+                // 実施日が入力されている場合は、それを優先
                 if (csActual) {
                     return {
                         completed: true,
                         status: 'in_progress',
                         statusText: `<span class="badge bg-primary">工事中</span> ${formatDate(csActual)}${csStaff ? ' (' + csStaff + ')' : ''}`
+                    };
+                }
+
+                // 予定日が過去かチェック
+                let csScheduledPast = false;
+                if (csScheduled) {
+                    const scheduled = new Date(csScheduled);
+                    scheduled.setHours(0, 0, 0, 0);
+                    csScheduledPast = scheduled < today;
+                }
+
+                if (csCompleted || csScheduledPast) {
+                    return {
+                        completed: true,
+                        status: 'in_progress',
+                        statusText: `<span class="badge bg-primary">工事中</span> ${csScheduled ? formatDate(csScheduled) : ''}${csStaff ? ' (' + csStaff + ')' : ''}`
                     };
                 } else if (csScheduled) {
                     return {
@@ -5462,25 +6353,58 @@ $(document).ready(function() {
                     };
                 }
 
-            case 'completion':  // 完工日
-                const compActual = values.actual_date;
-                const compScheduled = values.scheduled_date;
+            case 'completion':  // 完工日（実施日優先、予定日ベース：予定日が過去なら自動完了）
                 const compCompleted = values.completed;
+                const compScheduled = values.scheduled_date;
+                const compActual = values.actual_date;
 
-                if (compCompleted || compActual) {
+                // 実施日が入力されている場合は、それを優先
+                if (compActual) {
                     return {
                         completed: true,
                         status: 'completed',
-                        statusText: `<span class="badge bg-success">完工</span> ${compActual ? formatDate(compActual) : ''}`
+                        statusText: `<span class="badge bg-success">完工</span> ${formatDate(compActual)}`
+                    };
+                }
+
+                // 予定日が過去かチェック
+                let compScheduledPast = false;
+                if (compScheduled) {
+                    const scheduled = new Date(compScheduled);
+                    scheduled.setHours(0, 0, 0, 0);
+                    compScheduledPast = scheduled < today;
+                }
+
+                if (compCompleted || compScheduledPast) {
+                    return {
+                        completed: true,
+                        status: 'completed',
+                        statusText: `<span class="badge bg-success">完工</span> ${compScheduled ? formatDate(compScheduled) : ''}`
                     };
                 } else if (compScheduled) {
-                    // 着工日の状態を確認
-                    const constructionStartStep = $('#activeSteps .progress-step[data-step-key="construction_start"]');
+                    // 着工日の状態を確認（実施日、completedベース、または予定日過去）
+                    const constructionStartStep = $('#activeSteps .progress-step[data-step="construction_start"]');
                     let isConstructionStarted = false;
 
                     if (constructionStartStep.length > 0) {
                         const csActualInput = constructionStartStep.find('input[name*="actual_date"]');
-                        isConstructionStarted = csActualInput.length > 0 && csActualInput.val() && csActualInput.val().trim() !== '';
+                        const csCompletedInput = constructionStartStep.find('input[name*="completed"]');
+                        const csScheduledInput = constructionStartStep.find('.scheduled-date-input');
+
+                        // 着工日の実施日が入力されているかチェック
+                        const hasActualDate = csActualInput.length > 0 && csActualInput.val();
+
+                        const csIsCompleted = csCompletedInput.length > 0 && csCompletedInput.is(':checked');
+
+                        // 着工日の予定日が過去かチェック
+                        let csScheduledPast = false;
+                        if (csScheduledInput.length > 0 && csScheduledInput.val()) {
+                            const csScheduled = new Date(csScheduledInput.val());
+                            csScheduled.setHours(0, 0, 0, 0);
+                            csScheduledPast = csScheduled < today;
+                        }
+
+                        isConstructionStarted = hasActualDate || csIsCompleted || csScheduledPast;
                     }
 
                     if (isConstructionStarted) {
@@ -5663,17 +6587,53 @@ $(document).ready(function() {
             $.ajax({
                 url: `/orders/api/staff/${staffId}/`,
                 method: 'DELETE',
+                dataType: 'json',  // JSONレスポンスを期待
                 success: function(response) {
-                    if (response.success) {
+                    console.log('削除成功:', response);
+
+                    // レスポンスの検証
+                    if (response && response.success) {
                         staffMaster = staffMaster.filter(s => s.id !== staffId);
                         refreshStaffList();
                         updateStaffSelects();
+                        if (typeof toastr !== 'undefined') {
+                            toastr.success('担当者を削除しました');
+                        }
                     } else {
-                        alert('削除に失敗しました: ' + response.error);
+                        console.error('削除失敗:', response);
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error(response.error || '削除に失敗しました');
+                        } else {
+                            alert('削除に失敗しました: ' + (response.error || ''));
+                        }
                     }
                 },
-                error: function() {
-                    alert('削除に失敗しました。');
+                error: function(xhr, status, error) {
+                    console.error('削除エラー詳細:', {
+                        status: status,
+                        error: error,
+                        responseText: xhr.responseText,
+                        statusCode: xhr.status
+                    });
+
+                    let errorMessage = '削除中にエラーが発生しました';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    } else if (xhr.status === 0) {
+                        errorMessage = 'ネットワークエラー: サーバーに接続できません';
+                    } else if (xhr.status === 403) {
+                        errorMessage = '権限エラー: この操作を実行する権限がありません';
+                    } else if (xhr.status === 404) {
+                        errorMessage = 'エラー: 担当者が見つかりません';
+                    } else if (xhr.status >= 500) {
+                        errorMessage = 'サーバーエラー: しばらくしてから再度お試しください';
+                    }
+
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(errorMessage);
+                    } else {
+                        alert(errorMessage);
+                    }
                 }
             });
         }
@@ -5708,10 +6668,14 @@ $(document).ready(function() {
             $.ajax({
                 url: `/orders/api/staff/${staffId}/`,
                 method: 'PUT',
+                dataType: 'json',  // JSONレスポンスを期待
                 data: JSON.stringify(staffData),
                 contentType: 'application/json',
                 success: function(response) {
-                    if (response.success) {
+                    console.log('更新成功:', response);
+
+                    // レスポンスの検証
+                    if (response && response.success) {
                         const staff = staffMaster.find(s => s.id === staffId);
                         if (staff) {
                             Object.assign(staff, response.staff);
@@ -5719,12 +6683,44 @@ $(document).ready(function() {
                         $('#staffModal').modal('hide');
                         refreshStaffList();
                         updateStaffSelects();
+                        if (typeof toastr !== 'undefined') {
+                            toastr.success('担当者を更新しました');
+                        }
                     } else {
-                        alert('更新に失敗しました: ' + response.error);
+                        console.error('更新失敗:', response);
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error(response.error || '更新に失敗しました');
+                        } else {
+                            alert('更新に失敗しました: ' + (response.error || ''));
+                        }
                     }
                 },
-                error: function() {
-                    alert('更新に失敗しました。');
+                error: function(xhr, status, error) {
+                    console.error('更新エラー詳細:', {
+                        status: status,
+                        error: error,
+                        responseText: xhr.responseText,
+                        statusCode: xhr.status
+                    });
+
+                    let errorMessage = '更新中にエラーが発生しました';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    } else if (xhr.status === 0) {
+                        errorMessage = 'ネットワークエラー: サーバーに接続できません';
+                    } else if (xhr.status === 403) {
+                        errorMessage = '権限エラー: この操作を実行する権限がありません';
+                    } else if (xhr.status === 404) {
+                        errorMessage = 'エラー: 担当者が見つかりません';
+                    } else if (xhr.status >= 500) {
+                        errorMessage = 'サーバーエラー: しばらくしてから再度お試しください';
+                    }
+
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(errorMessage);
+                    } else {
+                        alert(errorMessage);
+                    }
                 }
             });
         } else {
@@ -5732,20 +6728,56 @@ $(document).ready(function() {
             $.ajax({
                 url: '/orders/api/staff/',
                 method: 'POST',
+                dataType: 'json',  // JSONレスポンスを期待
                 data: JSON.stringify(staffData),
                 contentType: 'application/json',
                 success: function(response) {
-                    if (response.success) {
+                    console.log('追加成功:', response);
+
+                    // レスポンスの検証
+                    if (response && response.success) {
                         staffMaster.push(response.staff);
                         $('#staffModal').modal('hide');
                         refreshStaffList();
                         updateStaffSelects();
+                        if (typeof toastr !== 'undefined') {
+                            toastr.success('担当者を追加しました');
+                        }
                     } else {
-                        alert('追加に失敗しました: ' + response.error);
+                        console.error('追加失敗:', response);
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error(response.error || '追加に失敗しました');
+                        } else {
+                            alert('追加に失敗しました: ' + (response.error || ''));
+                        }
                     }
                 },
-                error: function() {
-                    alert('追加に失敗しました。');
+                error: function(xhr, status, error) {
+                    console.error('追加エラー詳細:', {
+                        status: status,
+                        error: error,
+                        responseText: xhr.responseText,
+                        statusCode: xhr.status
+                    });
+
+                    let errorMessage = '追加中にエラーが発生しました';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    } else if (xhr.status === 0) {
+                        errorMessage = 'ネットワークエラー: サーバーに接続できません';
+                    } else if (xhr.status === 403) {
+                        errorMessage = '権限エラー: この操作を実行する権限がありません';
+                    } else if (xhr.status === 404) {
+                        errorMessage = 'エラー: リソースが見つかりません';
+                    } else if (xhr.status >= 500) {
+                        errorMessage = 'サーバーエラー: しばらくしてから再度お試しください';
+                    }
+
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(errorMessage);
+                    } else {
+                        alert(errorMessage);
+                    }
                 }
             });
         }
@@ -5792,6 +6824,81 @@ $(document).ready(function() {
 
             console.log('Step initialization complete');
         }, 100);
+    });
+
+    // 詳細コメント関連の処理
+    // コメント一覧を読み込んで表示
+    function loadDetailedComments() {
+        $.ajax({
+            url: `/orders/api/projects/{{ project.pk }}/comments/`,
+            method: 'GET',
+            success: function(data) {
+                displayComments(data.comments || []);
+            },
+            error: function() {
+                console.error('コメントの読み込みに失敗しました');
+            }
+        });
+    }
+
+    // コメント一覧を表示
+    function displayComments(comments) {
+        const $commentsList = $('#commentsList');
+        $commentsList.empty();
+
+        if (comments.length === 0) {
+            $commentsList.html('<p class="text-muted" style="font-size: 0.7rem; padding: 0.5rem;">コメントはまだありません</p>');
+            return;
+        }
+
+        comments.forEach(function(comment) {
+            const commentHtml = `
+                <div class="comment-item mb-1 p-2" style="border-left: 3px solid #007bff; background-color: #f8f9fa; font-size: 0.7rem;">
+                    <div class="d-flex justify-content-between mb-1">
+                        <strong style="font-size: 0.7rem;">${comment.user}</strong>
+                        <small class="text-muted" style="font-size: 0.65rem;">${comment.timestamp}</small>
+                    </div>
+                    <p class="mb-0" style="font-size: 0.7rem; line-height: 1.3; white-space: pre-wrap;">${comment.comment}</p>
+                </div>
+            `;
+            $commentsList.append(commentHtml);
+        });
+    }
+
+    // コメント追加ボタンのクリックイベント
+    $('#saveCommentBtn').on('click', function() {
+        const commentText = $('#newCommentText').val().trim();
+
+        if (!commentText) {
+            alert('コメントを入力してください');
+            return;
+        }
+
+        $.ajax({
+            url: `/orders/api/projects/{{ project.pk }}/comments/`,
+            method: 'POST',
+            data: JSON.stringify({
+                comment: commentText
+            }),
+            contentType: 'application/json',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            success: function(data) {
+                if (data.success) {
+                    // コメント入力欄をクリア
+                    $('#newCommentText').val('');
+                    // コメント一覧を再読み込み
+                    loadDetailedComments();
+                } else {
+                    alert('コメントの保存に失敗しました: ' + (data.error || '不明なエラー'));
+                }
+            },
+            error: function(xhr) {
+                alert('コメントの保存に失敗しました');
+                console.error(xhr);
+            }
+        });
     });
 });
 
@@ -6500,12 +7607,16 @@ $(document).on('change', '.order-forecast-select-detail', function(e) {
     $.ajax({
         url: '/orders/' + projectId + '/update-forecast/',
         method: 'POST',
+        dataType: 'json',  // JSONレスポンスを期待
         data: {
             project_status: newValue,
             csrfmiddlewaretoken: csrfToken
         },
         success: function(response) {
-            if (response.success) {
+            console.log('保存成功:', response);
+
+            // レスポンスの検証
+            if (response && response.success) {
                 // 保存成功時の視覚フィードバック
                 select.css('border-color', '#28a745');
 
@@ -6533,13 +7644,41 @@ $(document).on('change', '.order-forecast-select-detail', function(e) {
                     select.css('border-color', '');
                 }, 1000);
             } else {
-                alert('保存に失敗しました: ' + (response.error || '不明なエラー'));
+                console.error('保存失敗:', response);
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(response.error || '保存に失敗しました');
+                } else {
+                    alert('保存に失敗しました: ' + (response.error || '不明なエラー'));
+                }
                 location.reload();
             }
         },
         error: function(xhr, status, error) {
-            console.error('保存エラー:', error);
-            alert('保存に失敗しました');
+            console.error('保存エラー詳細:', {
+                status: status,
+                error: error,
+                responseText: xhr.responseText,
+                statusCode: xhr.status
+            });
+
+            let errorMessage = '受注ヨミの保存中にエラーが発生しました';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            } else if (xhr.status === 0) {
+                errorMessage = 'ネットワークエラー: サーバーに接続できません';
+            } else if (xhr.status === 403) {
+                errorMessage = '権限エラー: この操作を実行する権限がありません';
+            } else if (xhr.status === 404) {
+                errorMessage = 'エラー: 案件が見つかりません';
+            } else if (xhr.status >= 500) {
+                errorMessage = 'サーバーエラー: しばらくしてから再度お試しください';
+            }
+
+            if (typeof toastr !== 'undefined') {
+                toastr.error(errorMessage);
+            } else {
+                alert(errorMessage);
+            }
             location.reload();
         },
         complete: function() {

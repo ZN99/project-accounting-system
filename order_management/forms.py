@@ -15,6 +15,8 @@ class ProjectForm(forms.ModelForm):
             # Phase 11: デフォルト値があるフィールド（フォームから除外）
             'witness_status', 'witness_assignee_type', 'estimate_status',
             'construction_status', 'payment_status',
+            # 完了報告ステータス（システム管理フィールド）
+            'completion_report_status',
             # 進捗状況キャッシュフィールド（JavaScriptで自動更新）
             'current_stage', 'current_stage_color',
         ]
@@ -48,13 +50,14 @@ class ProjectForm(forms.ModelForm):
         required_fields = [
             'site_name',  # 現場名
             'work_type',  # 施工種別
-            'client_name',  # 元請会社名
         ]
         for field_name in required_fields:
             if field_name in self.fields:
                 self.fields[field_name].required = True
 
         # 以下は必須ではない
+        if 'client_name' in self.fields:
+            self.fields['client_name'].required = False  # 元請会社から自動入力
         if 'project_manager' in self.fields:
             self.fields['project_manager'].required = False
         if 'payment_due_date' in self.fields:
@@ -215,10 +218,11 @@ class ClientCompanyForm(forms.ModelForm):
     class Meta:
         model = ClientCompany
         fields = [
-            'company_name', 'contact_person', 'email', 'phone', 'address',
+            'company_name', 'contact_person', 'email', 'phone', 'address', 'website',
+            'payment_cycle', 'closing_day', 'payment_day',
             'default_key_handover_location', 'key_handover_notes',
             'completion_report_template', 'completion_report_notes',
-            'approval_threshold', 'special_notes', 'is_active'
+            'special_notes', 'is_active'
         ]
         widgets = {
             'company_name': forms.TextInput(attrs={
@@ -242,6 +246,25 @@ class ClientCompanyForm(forms.ModelForm):
                 'rows': 2,
                 'placeholder': '住所を入力'
             }),
+            'website': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://example.com'
+            }),
+            'payment_cycle': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'closing_day': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': '31',
+                'min': '1',
+                'max': '31'
+            }),
+            'payment_day': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': '25',
+                'min': '1',
+                'max': '31'
+            }),
             'default_key_handover_location': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 2,
@@ -260,11 +283,6 @@ class ClientCompanyForm(forms.ModelForm):
                 'rows': 3,
                 'placeholder': '完了報告に関する特記事項'
             }),
-            'approval_threshold': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'placeholder': '1000000',
-                'min': '0'
-            }),
             'special_notes': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 4,
@@ -278,7 +296,7 @@ class ClientCompanyForm(forms.ModelForm):
         # デフォルト値設定
         if not self.instance.pk:
             self.fields['is_active'].initial = True
-            self.fields['approval_threshold'].initial = 1000000
+            self.fields['payment_cycle'].initial = 'monthly'
 
     def clean_email(self):
         email = self.cleaned_data.get('email')

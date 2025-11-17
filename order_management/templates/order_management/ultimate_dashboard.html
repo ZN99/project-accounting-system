@@ -367,6 +367,14 @@
         background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
     }
 
+    .profit-fill.neutral {
+        background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+    }
+
+    .profit-fill.positive {
+        background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+    }
+
     /* 年間業績テーブル */
     .income-statement-wrapper {
         background: white;
@@ -695,6 +703,131 @@
     <!-- メインコンテンツ -->
     <div class="content-area">
         <div class="container-fluid">
+            <!-- 元請業者別パフォーマンス分析（新規追加） -->
+            {% if user|can_view_profit %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h4 class="chart-title">
+                                <i class="fas fa-building"></i> 元請業者別パフォーマンス分析
+                                <small class="text-muted">（利益率順 TOP10）</small>
+                            </h4>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>順位</th>
+                                        <th>元請業者名</th>
+                                        <th class="text-end">案件数</th>
+                                        <th class="text-end">総売上</th>
+                                        <th class="text-end">総原価</th>
+                                        <th class="text-end">総利益</th>
+                                        <th class="text-end">平均利益率</th>
+                                        <th>利益率グラフ</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for client in profitable_clients %}
+                                    <tr>
+                                        <td>
+                                            <strong class="text-primary">#{{ forloop.counter }}</strong>
+                                        </td>
+                                        <td>
+                                            <strong>{{ client.company_name }}</strong>
+                                        </td>
+                                        <td class="text-end">
+                                            <span class="badge bg-info">{{ client.project_count }}件</span>
+                                        </td>
+                                        <td class="text-end">
+                                            <strong class="text-success">¥{{ client.total_revenue|floatformat:0|intcomma }}</strong>
+                                        </td>
+                                        <td class="text-end">
+                                            ¥{{ client.total_costs|floatformat:0|intcomma }}
+                                        </td>
+                                        <td class="text-end">
+                                            <strong class="text-primary">¥{{ client.total_profit|floatformat:0|intcomma }}</strong>
+                                        </td>
+                                        <td class="text-end">
+                                            <strong class="{% if client.avg_margin >= 25 %}text-success{% elif client.avg_margin >= 15 %}text-warning{% else %}text-danger{% endif %}">
+                                                {{ client.avg_margin|floatformat:1 }}%
+                                            </strong>
+                                        </td>
+                                        <td>
+                                            <div class="profit-graph" style="width: 200px;">
+                                                <div class="profit-fill {% if client.avg_margin >= 25 %}positive{% elif client.avg_margin >= 15 %}neutral{% else %}negative{% endif %}"
+                                                     style="width: {% if client.avg_margin > 100 %}100{% else %}{{ client.avg_margin|floatformat:0 }}{% endif %}%">
+                                                    {{ client.avg_margin|floatformat:1 }}%
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="8" class="text-center text-muted">
+                                            元請業者データがありません
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- サマリー統計 -->
+                        <div class="mt-3 p-3" style="background: #f8f9fa; border-radius: 8px;">
+                            <div class="row text-center">
+                                <div class="col-md-3">
+                                    <div class="text-muted small">総元請業者数</div>
+                                    <div class="h5 mb-0">{{ client_company_performance|length }}社</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-muted small">平均利益率</div>
+                                    <div class="h5 mb-0 text-success">
+                                        {% widthratio profitable_clients|length 1 1 as total_clients %}
+                                        {% if total_clients > 0 %}
+                                            {% with sum=0 %}
+                                                {% for client in profitable_clients %}
+                                                    {% widthratio client.avg_margin 1 1 as margin %}
+                                                    {% widthratio sum|add:margin 1 1 as sum %}
+                                                {% endfor %}
+                                                {% widthratio sum total_clients 1 %}%
+                                            {% endwith %}
+                                        {% else %}
+                                            0%
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-muted small">最高利益率</div>
+                                    <div class="h5 mb-0 text-primary">
+                                        {% if profitable_clients %}
+                                            {{ profitable_clients.0.avg_margin|floatformat:1 }}%
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-muted small">目標25%達成業者</div>
+                                    <div class="h5 mb-0 text-success">
+                                        {% with count=0 %}
+                                            {% for client in profitable_clients %}
+                                                {% if client.avg_margin >= 25 %}
+                                                    {% widthratio count|add:1 1 1 as count %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            {{ count }}社
+                                        {% endwith %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
                 <div class="row broken-charts-row" id="brokenChartsRow" style="display: none;">
                     <!-- 左カラム: プロジェクト収益性 -->
                     {% if user|can_view_profit %}

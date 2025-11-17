@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Sum, Count, Avg
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -14,6 +15,7 @@ from .forms import ContractorForm, SubcontractForm
 from order_management.models import Project
 
 
+@login_required
 def subcontract_dashboard(request):
     """発注管理ダッシュボード"""
     # 基本統計
@@ -67,6 +69,7 @@ def subcontract_dashboard(request):
     return render(request, 'subcontract_management/dashboard.html', context)
 
 
+@login_required
 def project_subcontract_list(request, project_id):
     """案件別発注一覧"""
     project = get_object_or_404(Project, pk=project_id)
@@ -89,6 +92,7 @@ def project_subcontract_list(request, project_id):
     return render(request, 'subcontract_management/project_subcontract_list.html', context)
 
 
+@login_required
 def subcontract_create(request, project_id):
     """発注新規作成"""
     project = get_object_or_404(Project, pk=project_id)
@@ -113,6 +117,7 @@ def subcontract_create(request, project_id):
     return render(request, 'subcontract_management/subcontract_form.html', context)
 
 
+@login_required
 def subcontract_update(request, pk):
     """外注編集"""
     subcontract = get_object_or_404(Subcontract, pk=pk)
@@ -137,6 +142,7 @@ def subcontract_update(request, pk):
     return render(request, 'subcontract_management/subcontract_form.html', context)
 
 
+@login_required
 def subcontract_delete(request, pk):
     """外注削除"""
     subcontract = get_object_or_404(Subcontract, pk=pk)
@@ -152,6 +158,7 @@ def subcontract_delete(request, pk):
     return redirect('subcontract_management:project_subcontract_list', project_id=project.pk)
 
 
+@login_required
 def contractor_list(request):
     """外注先マスター一覧"""
     contractors = Contractor.objects.all()
@@ -191,14 +198,80 @@ def contractor_list(request):
     return render(request, 'subcontract_management/contractor_list.html', context)
 
 
+@login_required
 def contractor_create(request):
-    """外注先マスター新規作成"""
+    """外注先マスター新規作成（AJAXとフォーム両対応）"""
     if request.method == 'POST':
-        form = ContractorForm(request.POST)
-        if form.is_valid():
-            contractor = form.save()
-            messages.success(request, f'外注先「{contractor.name}」を登録しました。')
-            return redirect('subcontract_management:contractor_list')
+        # AJAX リクエストの場合
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.POST.get('ajax_request')
+
+        if is_ajax:
+            try:
+                name = request.POST.get('name')
+                contractor_type = request.POST.get('contractor_type', 'company')
+                address = request.POST.get('address', '')
+                phone = request.POST.get('phone', '')
+                email = request.POST.get('email', '')
+                contact_person = request.POST.get('contact_person', '')
+                hourly_rate = request.POST.get('hourly_rate', 0)
+                specialties = request.POST.get('specialties', '')
+                is_active = request.POST.get('is_active', 'true').lower() == 'true'
+
+                # バリデーション
+                if not name:
+                    return JsonResponse({
+                        'success': False,
+                        'message': '業者名は必須です'
+                    }, status=400)
+
+                # 重複チェック
+                if Contractor.objects.filter(name=name).exists():
+                    return JsonResponse({
+                        'success': False,
+                        'message': f'業者名「{name}」は既に登録されています'
+                    }, status=400)
+
+                # 業者を作成
+                contractor = Contractor.objects.create(
+                    name=name,
+                    contractor_type=contractor_type,
+                    address=address,
+                    phone=phone,
+                    email=email,
+                    contact_person=contact_person,
+                    hourly_rate=float(hourly_rate) if hourly_rate else 0,
+                    specialties=specialties,
+                    is_active=is_active
+                )
+
+                return JsonResponse({
+                    'success': True,
+                    'message': f'業者「{name}」を登録しました',
+                    'contractor': {
+                        'id': contractor.id,
+                        'name': contractor.name,
+                        'contractor_type': contractor.contractor_type,
+                        'address': contractor.address,
+                        'phone': contractor.phone,
+                        'email': contractor.email,
+                        'contact_person': contractor.contact_person,
+                        'hourly_rate': float(contractor.hourly_rate) if contractor.hourly_rate else 0,
+                        'specialties': contractor.specialties,
+                        'is_active': contractor.is_active
+                    }
+                })
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'message': f'エラーが発生しました: {str(e)}'
+                }, status=500)
+        else:
+            # 通常のフォーム送信の場合
+            form = ContractorForm(request.POST)
+            if form.is_valid():
+                contractor = form.save()
+                messages.success(request, f'外注先「{contractor.name}」を登録しました。')
+                return redirect('subcontract_management:contractor_list')
     else:
         form = ContractorForm()
 
@@ -210,6 +283,130 @@ def contractor_create(request):
     return render(request, 'subcontract_management/contractor_form.html', context)
 
 
+@login_required
+def contractor_update(request, pk):
+    """外注先情報更新（AJAX対応）"""
+    contractor = get_object_or_404(Contractor, pk=pk)
+
+    if request.method == 'POST':
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.POST.get('ajax_request')
+
+        if is_ajax:
+            try:
+                # フォームデータを取得
+                name = request.POST.get('name')
+                contractor_type = request.POST.get('contractor_type', 'company')
+                address = request.POST.get('address', '')
+                phone = request.POST.get('phone', '')
+                email = request.POST.get('email', '')
+                contact_person = request.POST.get('contact_person', '')
+                hourly_rate = request.POST.get('hourly_rate', 0)
+                specialties = request.POST.get('specialties', '')
+                is_active = request.POST.get('is_active', 'false') == 'true'
+
+                # バリデーション
+                if not name:
+                    return JsonResponse({
+                        'success': False,
+                        'message': '業者名は必須です'
+                    }, status=400)
+
+                # 同名チェック（自分以外）
+                if Contractor.objects.filter(name=name).exclude(pk=pk).exists():
+                    return JsonResponse({
+                        'success': False,
+                        'message': f'業者名「{name}」は既に登録されています'
+                    }, status=400)
+
+                # 更新
+                contractor.name = name
+                contractor.contractor_type = contractor_type
+                contractor.address = address
+                contractor.phone = phone
+                contractor.email = email
+                contractor.contact_person = contact_person
+                contractor.hourly_rate = float(hourly_rate) if hourly_rate else 0
+                contractor.specialties = specialties
+                contractor.is_active = is_active
+                contractor.save()
+
+                return JsonResponse({
+                    'success': True,
+                    'message': f'業者「{name}」の情報を更新しました',
+                    'contractor': {
+                        'id': contractor.id,
+                        'name': contractor.name,
+                        'address': contractor.address or '',
+                        'phone': contractor.phone or '',
+                        'email': contractor.email or '',
+                        'contact_person': contractor.contact_person or '',
+                        'contractor_type': contractor.contractor_type,
+                        'hourly_rate': float(contractor.hourly_rate) if contractor.hourly_rate else 0,
+                        'specialties': contractor.specialties or '',
+                        'is_active': contractor.is_active
+                    }
+                })
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'message': f'エラーが発生しました: {str(e)}'
+                }, status=500)
+        else:
+            # 通常のフォーム送信
+            form = ContractorForm(request.POST, instance=contractor)
+            if form.is_valid():
+                contractor = form.save()
+                messages.success(request, f'外注先「{contractor.name}」の情報を更新しました。')
+                return redirect('subcontract_management:contractor_list')
+    else:
+        form = ContractorForm(instance=contractor)
+
+    context = {
+        'form': form,
+        'contractor': contractor,
+        'title': '外注先情報編集'
+    }
+
+    return render(request, 'subcontract_management/contractor_form.html', context)
+
+
+@login_required
+def contractor_delete(request, pk):
+    """外注先削除（AJAX対応）"""
+    contractor = get_object_or_404(Contractor, pk=pk)
+
+    if request.method == 'POST':
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.POST.get('ajax_request')
+
+        if is_ajax:
+            try:
+                contractor_name = contractor.name
+                contractor.delete()
+
+                return JsonResponse({
+                    'success': True,
+                    'message': f'業者「{contractor_name}」を削除しました'
+                })
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'message': f'削除中にエラーが発生しました: {str(e)}'
+                }, status=500)
+        else:
+            # 通常のフォーム送信
+            contractor_name = contractor.name
+            contractor.delete()
+            messages.success(request, f'外注先「{contractor_name}」を削除しました。')
+            return redirect('subcontract_management:contractor_list')
+
+    context = {
+        'contractor': contractor
+    }
+
+    return render(request, 'subcontract_management/contractor_confirm_delete.html', context)
+
+
+@login_required
 def profit_analysis_list(request):
     """利益分析一覧"""
     analyses = ProjectProfitAnalysis.objects.select_related(
@@ -229,6 +426,7 @@ def profit_analysis_list(request):
     return render(request, 'subcontract_management/profit_analysis_list.html', context)
 
 
+@login_required
 def payment_tracking(request):
     """支払い追跡"""
     subcontracts = Subcontract.objects.select_related(
@@ -258,6 +456,7 @@ def payment_tracking(request):
     return render(request, 'subcontract_management/payment_tracking.html', context)
 
 
+@login_required
 def export_subcontracts_csv(request):
     """外注データCSVエクスポート"""
     response = HttpResponse(content_type='text/csv; charset=utf-8')
@@ -299,6 +498,118 @@ def export_subcontracts_csv(request):
     return response
 
 
+@login_required
+def update_internal_worker(request):
+    """社内担当者を更新"""
+    if request.method == 'POST':
+        try:
+            staff_id = request.POST.get('staff_id')
+            name = request.POST.get('name')
+            department = request.POST.get('department')
+            hourly_rate = request.POST.get('hourly_rate', 0)
+            specialties = request.POST.get('specialties', '')
+            is_active = request.POST.get('is_active', 'true').lower() == 'true'
+
+            if not staff_id:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'スタッフIDは必須です'
+                }, status=400)
+
+            if not name:
+                return JsonResponse({
+                    'success': False,
+                    'message': '名前は必須です'
+                }, status=400)
+
+            if not department:
+                return JsonResponse({
+                    'success': False,
+                    'message': '部署は必須です'
+                }, status=400)
+
+            # InternalWorkerを取得して更新
+            try:
+                worker = InternalWorker.objects.get(id=staff_id)
+                worker.name = name
+                worker.department = department
+                worker.hourly_rate = float(hourly_rate) if hourly_rate else 0
+                worker.specialties = specialties
+                worker.is_active = is_active
+                worker.save()
+
+                return JsonResponse({
+                    'success': True,
+                    'message': f'{name}を更新しました',
+                    'worker': {
+                        'id': worker.id,
+                        'name': worker.name,
+                        'department': worker.department,
+                        'hourly_rate': float(worker.hourly_rate) if worker.hourly_rate else 0,
+                        'specialties': worker.specialties,
+                        'is_active': worker.is_active
+                    }
+                })
+            except InternalWorker.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'スタッフが見つかりません'
+                }, status=404)
+
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'エラーが発生しました: {str(e)}'
+            }, status=500)
+    else:
+        return JsonResponse({
+            'success': False,
+            'message': 'POSTメソッドのみサポートされています'
+        }, status=405)
+
+
+@login_required
+def delete_internal_worker(request):
+    """社内担当者を削除"""
+    if request.method == 'POST':
+        try:
+            staff_id = request.POST.get('staff_id')
+
+            if not staff_id:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'スタッフIDは必須です'
+                }, status=400)
+
+            # InternalWorkerを取得して削除
+            try:
+                worker = InternalWorker.objects.get(id=staff_id)
+                worker_name = worker.name
+                worker.delete()
+
+                return JsonResponse({
+                    'success': True,
+                    'message': f'{worker_name}を削除しました'
+                })
+            except InternalWorker.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'スタッフが見つかりません'
+                }, status=404)
+
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'エラーが発生しました: {str(e)}'
+            }, status=500)
+    else:
+        return JsonResponse({
+            'success': False,
+            'message': 'POSTメソッドのみサポートされています'
+        }, status=405)
+
+
+@login_required
 def add_internal_worker(request):
     """社内担当者（営業スタッフ等）を追加"""
     if request.method == 'POST':
@@ -315,9 +626,33 @@ def add_internal_worker(request):
                     'message': '名前は必須です'
                 }, status=400)
 
+            if not department:
+                return JsonResponse({
+                    'success': False,
+                    'message': '部署は必須です'
+                }, status=400)
+
+            # employee_idを自動生成（既存の最大値+1、または timestamp-based）
+            from datetime import datetime
+            existing_ids = InternalWorker.objects.filter(
+                employee_id__startswith='EMP'
+            ).order_by('-employee_id').values_list('employee_id', flat=True).first()
+
+            if existing_ids and existing_ids.startswith('EMP'):
+                try:
+                    last_num = int(existing_ids[3:])
+                    employee_id = f'EMP{last_num + 1:04d}'
+                except:
+                    employee_id = f'EMP{datetime.now().strftime("%Y%m%d%H%M%S")}'
+            else:
+                # 最初のemployee_idを生成
+                existing_count = InternalWorker.objects.count()
+                employee_id = f'EMP{existing_count + 1:04d}'
+
             # InternalWorkerを作成
             worker = InternalWorker.objects.create(
                 name=name,
+                employee_id=employee_id,
                 department=department,
                 hourly_rate=float(hourly_rate) if hourly_rate else 0,
                 specialties=specialties,

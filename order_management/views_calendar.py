@@ -4,7 +4,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from datetime import datetime, timedelta
-from .models import Project, Contractor
+from .models import Project
+from subcontract_management.models import Contractor
 from subcontract_management.models import Subcontract
 from django.db.models import Q, Count
 
@@ -67,7 +68,7 @@ class WorkerResourceCalendarView(LoginRequiredMixin, TemplateView):
             contractor_data.append({
                 'id': contractor.id,
                 'name': contractor.name,
-                'specialty': contractor.specialty or '指定なし',
+                'specialty': contractor.specialties or '指定なし',
                 'phone': contractor.phone or '-',
                 'email': contractor.email or '-',
                 'utilization': utilization_rate,

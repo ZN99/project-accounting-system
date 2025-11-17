@@ -43,9 +43,9 @@ class Project(models.Model):
     )
 
     # 元請・担当情報（旧: 業者・担当情報）
-    client_name = models.CharField(max_length=100, verbose_name='元請名')  # 旧: contractor_name (請負業者名)
+    client_name = models.CharField(max_length=100, verbose_name='元請名', blank=True)  # 旧: contractor_name (請負業者名)
     client_address = models.TextField(verbose_name='元請住所', blank=True)  # 旧: contractor_address (請負業者住所)、任意に変更
-    project_manager = models.CharField(max_length=50, verbose_name='案件担当')
+    project_manager = models.CharField(max_length=50, verbose_name='案件担当', blank=True)
 
     # スケジュール
     payment_due_date = models.DateField(
@@ -329,7 +329,47 @@ class Project(models.Model):
         help_text='自動計算される優先度（高いほど優先）'
     )
 
+    # 完了報告管理 - Phase 8 追加
+    completion_report_content = models.TextField(
+        blank=True,
+        verbose_name='完了報告内容',
+        help_text='完了報告の本文（元請会社のテンプレートから自動入力可能）'
+    )
+    completion_report_date = models.DateField(
+        null=True, blank=True,
+        verbose_name='完了報告日'
+    )
+    completion_report_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('not_created', '未作成'),
+            ('draft', '下書き'),
+            ('submitted', '提出済み'),
+        ],
+        default='not_created',
+        verbose_name='完了報告ステータス'
+    )
+    completion_report_notes = models.TextField(
+        blank=True,
+        verbose_name='完了報告メモ',
+        help_text='完了報告に関する特記事項'
+    )
+    completion_report_file = models.FileField(
+        upload_to='completion_reports/',
+        null=True,
+        blank=True,
+        verbose_name='完了報告ファイル',
+        help_text='完了報告のPDF/Excelファイル（アップロード）'
+    )
+    completion_report_completed = models.BooleanField(
+        default=False,
+        verbose_name='完了報告完了',
+        help_text='完了報告が完了したかどうか'
+    )
+
     # その他
+    progress_comment = models.TextField(blank=True, verbose_name='進捗コメント', help_text='案件の進捗に関する詳細なコメント')
+    detailed_comments = models.JSONField(default=list, blank=True, verbose_name='詳細コメント履歴', help_text='複数の詳細コメントを時系列で保存')
     notes = models.TextField(blank=True, verbose_name='備考')
     additional_items = models.JSONField(default=dict, blank=True, verbose_name="追加項目")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='作成日時')
@@ -385,6 +425,10 @@ class Project(models.Model):
             if not self.key_handover_location and self.client_company.default_key_handover_location:
                 self.key_handover_location = self.client_company.default_key_handover_location
 
+            # 完了報告テンプレートのデフォルト値設定
+            if not self.completion_report_content and self.client_company.completion_report_notes:
+                self.completion_report_content = self.client_company.completion_report_notes
+
             # 承認必要チェック
             if self.order_amount >= self.client_company.approval_threshold:
                 self.requires_approval = True
@@ -397,6 +441,11 @@ class Project(models.Model):
 
         # Phase 8: 優先度スコア計算
         self.priority_score = self._calculate_priority_score()
+
+        # 着工日待ち状態でAヨミに自動変更
+        if self.construction_status == 'waiting' and self.project_status not in ['受注確定', 'A']:
+            # 着工日待ち（職人が決まった状態）ならAヨミに自動変更
+            self.project_status = 'A'
 
         super().save(*args, **kwargs)
 
@@ -634,25 +683,83 @@ class Project(models.Model):
         # 有効なステップの完了状況をチェック
         completed_count = 0
 
+        # 今日の日付を取得
+        from datetime import date
+        today = date.today()
+
         for step_info in step_order:
             step_key = step_info.get('step')
 
             if step_key == 'attendance':
-                if complex_fields.get('attendance_actual_date'):
+                # 予定日ベース：completedがtrueまたは予定日が過去なら完了
+                attendance_completed_str = complex_fields.get('attendance_completed')
+                attendance_completed = attendance_completed_str == 'true' or attendance_completed_str == True
+                attendance_scheduled = complex_fields.get('attendance_scheduled_date')
+
+                # 予定日を解析
+                is_scheduled_past = False
+                if attendance_scheduled:
+                    try:
+                        from datetime import datetime
+                        scheduled_date = datetime.strptime(attendance_scheduled, '%Y-%m-%d').date()
+                        is_scheduled_past = scheduled_date < today
+                    except:
+                        pass
+
+                if attendance_completed or is_scheduled_past:
                     completed_count += 1
             elif step_key == 'survey':
-                if complex_fields.get('survey_actual_date'):
+                # 予定日ベース：completedがtrueまたは予定日が過去なら完了
+                survey_completed_str = complex_fields.get('survey_completed')
+                survey_completed = survey_completed_str == 'true' or survey_completed_str == True
+                survey_scheduled = complex_fields.get('survey_scheduled_date')
+
+                is_scheduled_past = False
+                if survey_scheduled:
+                    try:
+                        from datetime import datetime
+                        scheduled_date = datetime.strptime(survey_scheduled, '%Y-%m-%d').date()
+                        is_scheduled_past = scheduled_date < today
+                    except:
+                        pass
+
+                if survey_completed or is_scheduled_past:
                     completed_count += 1
             elif step_key == 'estimate':
                 if self.estimate_issued_date or self.estimate_not_required:
                     completed_count += 1
             elif step_key == 'construction_start':
-                if complex_fields.get('construction_start_actual_date'):
+                # 予定日ベース：completedがtrueまたは予定日が過去なら完了
+                construction_start_completed_str = complex_fields.get('construction_start_completed')
+                construction_start_completed = construction_start_completed_str == 'true' or construction_start_completed_str == True
+                construction_start_scheduled = complex_fields.get('construction_start_scheduled_date')
+
+                is_scheduled_past = False
+                if construction_start_scheduled:
+                    try:
+                        from datetime import datetime
+                        scheduled_date = datetime.strptime(construction_start_scheduled, '%Y-%m-%d').date()
+                        is_scheduled_past = scheduled_date < today
+                    except:
+                        pass
+
+                if construction_start_completed or is_scheduled_past:
                     completed_count += 1
             elif step_key == 'completion':
                 completion_completed_str = complex_fields.get('completion_completed')
                 completion_completed = completion_completed_str == 'true' or completion_completed_str == True
-                if complex_fields.get('completion_actual_date') or completion_completed:
+                completion_scheduled = complex_fields.get('completion_scheduled_date')
+
+                is_scheduled_past = False
+                if completion_scheduled:
+                    try:
+                        from datetime import datetime
+                        scheduled_date = datetime.strptime(completion_scheduled, '%Y-%m-%d').date()
+                        is_scheduled_past = scheduled_date < today
+                    except:
+                        pass
+
+                if completion_completed or is_scheduled_past:
                     completed_count += 1
 
         percentage = int((completed_count / total_steps) * 100) if total_steps > 0 else 0
@@ -720,23 +827,30 @@ class Project(models.Model):
                 is_completed = bool(self.invoice_issued)
                 step_type = 'invoice'
             elif step_key in ['attendance', 'survey', 'construction_start', 'completion']:
-                # 複合ステップ: complex_step_fieldsを確認（get_progress_statusと同じロジック）
+                # 複合ステップ: complex_step_fieldsを確認（予定日ベースのロジック）
                 complex_fields = self.additional_items.get('complex_step_fields', {}) if self.additional_items else {}
                 scheduled_date = complex_fields.get(f'{step_key}_scheduled_date')
-                actual_date = complex_fields.get(f'{step_key}_actual_date')
+                actual_date = None  # 実施日は廃止（+ボタンで追加可能だが完了判定には使わない）
 
                 # completedチェックボックスの値を取得
                 completed_str = complex_fields.get(f'{step_key}_completed')
                 completed_checkbox = completed_str == 'true' or completed_str == True
 
-                # actual_dateのみで完了判定（completionはcompleted=trueも可）
-                if step_key == 'completion':
-                    is_completed = bool(actual_date or completed_checkbox)
-                else:
-                    # attendance, survey, construction_start: actual_dateのみ
-                    is_completed = bool(actual_date)
+                # 予定日ベース：completedチェックボックスがtrueまたは予定日が過去なら完了
+                is_scheduled_past = False
+                if scheduled_date:
+                    try:
+                        from datetime import datetime, date
+                        scheduled_date_obj = datetime.strptime(scheduled_date, '%Y-%m-%d').date()
+                        is_scheduled_past = scheduled_date_obj < date.today()
+                    except:
+                        pass
 
-                completed_date = actual_date
+                is_completed = bool(completed_checkbox or is_scheduled_past)
+
+                # 完了日は予定日を使用（実施日がある場合はそちらを優先）
+                actual_date_from_field = complex_fields.get(f'{step_key}_actual_date')
+                completed_date = actual_date_from_field if actual_date_from_field else scheduled_date
                 step_type = 'complex'
             else:
                 # その他の動的ステップ: dynamic_stepsから取得
@@ -861,21 +975,24 @@ class Project(models.Model):
             # 請求書：完了チェックボックスのみ
             next_action = f"{step_name}：完了チェックボックスをチェックしてください"
         elif step_type == 'complex':
-            # 複合ステップ（着手、現調、着工、完工）：予定日→実施日→完了チェック
-            # completionの場合はcompletedチェックボックスがあればそれでOK
-            if step_key == 'completion':
-                if actual_date and not completed_checkbox:
-                    next_action = f"{step_name}：完了チェックボックスをチェックしてください"
-                elif scheduled_date and not actual_date:
-                    next_action = f"{step_name}：実施日を入力してください"
-                else:
-                    next_action = f"{step_name}：予定日を入力してください"
+            # 複合ステップ（着手、現調、着工、完工）：予定日→自動完了（予定日ベース）
+            # 予定日が過去かチェック
+            is_scheduled_past = False
+            if scheduled_date:
+                try:
+                    from datetime import datetime, date
+                    scheduled_date_obj = datetime.strptime(scheduled_date, '%Y-%m-%d').date()
+                    is_scheduled_past = scheduled_date_obj < date.today()
+                except:
+                    pass
+
+            if completed_checkbox or is_scheduled_past:
+                next_action = f"{step_name}：完了"
+            elif scheduled_date:
+                # 予定日が未来の場合は待機中
+                next_action = f"{step_name}：予定日待ち（{scheduled_date}）"
             else:
-                # attendance, survey, construction_start
-                if scheduled_date and not actual_date:
-                    next_action = f"{step_name}：実施日を入力してください"
-                else:
-                    next_action = f"{step_name}：予定日を入力してください"
+                next_action = f"{step_name}：予定日を入力してください"
         elif step_type == 'dynamic':
             # 動的ステップ：completedチェックボックスまたは日付
             if completed_checkbox:
@@ -914,18 +1031,24 @@ class Project(models.Model):
             elif next_step_type == 'invoice':
                 next_step = f"{next_step_name}：完了チェックボックスをチェックしてください"
             elif next_step_type == 'complex':
-                if next_step_key == 'completion':
-                    if next_actual_date and not next_completed_checkbox:
-                        next_step = f"{next_step_name}：完了チェックボックスをチェックしてください"
-                    elif next_scheduled_date and not next_actual_date:
-                        next_step = f"{next_step_name}：実施日を入力してください"
-                    else:
-                        next_step = f"{next_step_name}：予定日を入力してください"
+                # 複合ステップ：予定日→自動完了（予定日ベース）
+                # 予定日が過去かチェック
+                is_next_scheduled_past = False
+                if next_scheduled_date:
+                    try:
+                        from datetime import datetime, date
+                        next_scheduled_date_obj = datetime.strptime(next_scheduled_date, '%Y-%m-%d').date()
+                        is_next_scheduled_past = next_scheduled_date_obj < date.today()
+                    except:
+                        pass
+
+                if next_completed_checkbox or is_next_scheduled_past:
+                    next_step = f"{next_step_name}：完了"
+                elif next_scheduled_date:
+                    # 予定日が未来の場合は待機中
+                    next_step = f"{next_step_name}：予定日待ち（{next_scheduled_date}）"
                 else:
-                    if next_scheduled_date and not next_actual_date:
-                        next_step = f"{next_step_name}：実施日を入力してください"
-                    else:
-                        next_step = f"{next_step_name}：予定日を入力してください"
+                    next_step = f"{next_step_name}：予定日を入力してください"
             elif next_step_type == 'dynamic':
                 if next_completed_checkbox:
                     next_step = f"{next_step_name}：完了"
@@ -1170,10 +1293,19 @@ class Project(models.Model):
             from subcontract_management.models import Subcontract
             subcontracts = Subcontract.objects.filter(project=self)
 
-            # 実際の原価を計算（外注費 + 材料費）
+            # 実際の原価を計算（外注費 + 材料費 + 追加費用）
             total_subcontract_cost = sum(s.billed_amount for s in subcontracts)
             total_material_cost = sum(s.total_material_cost for s in subcontracts)
-            cost_of_sales = total_subcontract_cost + total_material_cost
+
+            # 追加費用合計（dynamic_cost_items から計算）
+            total_additional_cost = Decimal('0')
+            for s in subcontracts:
+                if s.dynamic_cost_items:
+                    for item in s.dynamic_cost_items:
+                        if 'cost' in item:
+                            total_additional_cost += Decimal(str(item['cost']))
+
+            cost_of_sales = total_subcontract_cost + total_material_cost + total_additional_cost
         except ImportError:
             # subcontract_managementアプリが利用できない場合はフォールバック
             cost_of_sales = Decimal('0')
@@ -2575,6 +2707,7 @@ class ClientCompany(models.Model):
     email = models.EmailField(blank=True, verbose_name='メールアドレス')
     phone = models.CharField(max_length=20, blank=True, verbose_name='電話番号')
     address = models.TextField(blank=True, verbose_name='住所')
+    website = models.URLField(blank=True, verbose_name='ホームページ', help_text='会社のウェブサイトURL')
 
     # 鍵受け渡しデフォルト設定
     default_key_handover_location = models.TextField(blank=True, verbose_name='鍵受け渡し場所（デフォルト）')
@@ -2588,6 +2721,33 @@ class ClientCompany(models.Model):
         verbose_name='完了報告シートテンプレート'
     )
     completion_report_notes = models.TextField(blank=True, verbose_name='完了報告特記事項')
+
+    # 支払いサイクル設定
+    payment_cycle = models.CharField(
+        max_length=20,
+        choices=[
+            ('monthly', '月1回'),
+            ('bimonthly', '月2回'),
+            ('weekly', '週1回'),
+            ('custom', 'その他'),
+        ],
+        default='monthly',
+        blank=True,
+        verbose_name='支払サイクル',
+        help_text='案件登録時のデフォルト値として使用されます'
+    )
+    closing_day = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name='締め日',
+        help_text='月末締めの場合は31、20日締めの場合は20'
+    )
+    payment_day = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name='支払日',
+        help_text='毎月の支払日（1-31）。例：25日払いの場合は25'
+    )
 
     # 承認設定
     approval_threshold = models.DecimalField(

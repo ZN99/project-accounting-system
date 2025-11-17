@@ -117,6 +117,18 @@
                         </div>
                         {% endif %}
 
+                        <!-- 元請業者とは -->
+                        <div class="alert alert-info mb-4">
+                            <h5><i class="fas fa-info-circle me-2"></i>元請業者とは</h5>
+                            <p class="mb-2">
+                                この画面では<strong>案件をくれる会社（元請業者）</strong>を登録します。
+                            </p>
+                            <ul class="mb-0">
+                                <li>元請業者: 案件を発注してくれる会社</li>
+                                <li>職人・下請け業者: 案件作成時の「作業者追加」または「業者管理」画面で登録してください</li>
+                            </ul>
+                        </div>
+
                         <!-- 基本情報 -->
                         <div class="section-title">
                             <i class="fas fa-info-circle me-2"></i>基本情報
@@ -164,6 +176,50 @@
                             {{ form.address.errors }}
                         </div>
 
+                        <div class="mb-3">
+                            <label for="{{ form.website.id_for_label }}" class="form-label">
+                                ホームページ
+                            </label>
+                            {{ form.website }}
+                            <div class="help-text">会社のウェブサイトURL（例：https://example.com）</div>
+                            {{ form.website.errors }}
+                        </div>
+
+                        <!-- 支払いサイクル設定 -->
+                        <div class="section-title">
+                            <i class="fas fa-money-bill-wave me-2"></i>支払いサイクル設定
+                        </div>
+
+                        <div class="alert alert-secondary mb-3">
+                            <small>ここで設定した支払いサイクルは、案件登録時のデフォルト値として使用されます。案件ごとに個別に変更することも可能です。</small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.payment_cycle.id_for_label }}" class="form-label">
+                                    支払サイクル
+                                </label>
+                                {{ form.payment_cycle }}
+                                {{ form.payment_cycle.errors }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.closing_day.id_for_label }}" class="form-label">
+                                    締め日
+                                </label>
+                                {{ form.closing_day }}
+                                <div class="help-text">月末締めの場合は31、20日締めの場合は20</div>
+                                {{ form.closing_day.errors }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.payment_day.id_for_label }}" class="form-label">
+                                    支払日
+                                </label>
+                                {{ form.payment_day }}
+                                <div class="help-text">毎月の支払日（1-31）。例：25日払いの場合は25</div>
+                                {{ form.payment_day.errors }}
+                            </div>
+                        </div>
+
                         <!-- 鍵受け渡し設定 -->
                         <div class="section-title">
                             <i class="fas fa-key me-2"></i>鍵受け渡し設定
@@ -174,7 +230,7 @@
                                 デフォルト受け渡し場所
                             </label>
                             {{ form.default_key_handover_location }}
-                            <div class="help-text">案件登録時に自動入力されます</div>
+                            <div class="help-text">案件登録時に自動入力されます（案件ごとに変更可能）</div>
                             {{ form.default_key_handover_location.errors }}
                         </div>
 
@@ -202,24 +258,11 @@
 
                         <div class="mb-3">
                             <label for="{{ form.completion_report_notes.id_for_label }}" class="form-label">
-                                特記事項
+                                完了報告テンプレート内容
                             </label>
                             {{ form.completion_report_notes }}
+                            <div class="help-text">案件登録時に完了報告内容として自動入力されます（案件ごとに変更可能）</div>
                             {{ form.completion_report_notes.errors }}
-                        </div>
-
-                        <!-- 承認設定 -->
-                        <div class="section-title">
-                            <i class="fas fa-check-circle me-2"></i>承認設定
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="{{ form.approval_threshold.id_for_label }}" class="form-label">
-                                承認必要金額閾値（円）
-                            </label>
-                            {{ form.approval_threshold }}
-                            <div class="help-text">この金額以上の案件は承認が必要になります</div>
-                            {{ form.approval_threshold.errors }}
                         </div>
 
                         <!-- 運用ルール -->

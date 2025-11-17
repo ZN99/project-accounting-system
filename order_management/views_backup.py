@@ -5,7 +5,8 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
 import json
 from datetime import datetime
-from .models import Project, Contractor, UserProfile
+from .models import Project, UserProfile
+from subcontract_management.models import Contractor
 
 
 @login_required

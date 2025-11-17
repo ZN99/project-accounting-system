@@ -63,57 +63,69 @@
             color: white !important;
         }
 
-        /* ドロップダウンメニュー（2階層目） */
-        .dropdown-menu {
+        /* メインナビゲーションボタン */
+        .nav-btn {
+            display: inline-block;
+            background: none;
             border: none;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-            border-radius: 8px;
+            color: rgba(255, 255, 255, 0.95) !important;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            transition: all 0.3s ease;
+            border-radius: 6px;
+            margin: 0 0.25rem;
+            cursor: pointer;
+            font-size: 1rem;
+            text-decoration: none;
+        }
+
+        .nav-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white !important;
+            text-decoration: none;
+        }
+
+        .nav-btn.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white !important;
+        }
+
+        /* サブナビゲーションバー（第2階層） */
+        .subnav-bar {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             padding: 0.5rem 0;
-            min-width: 220px;
+            display: none; /* デフォルトは非表示 */
         }
 
-        .dropdown-item {
-            padding: 0.75rem 1.25rem;
-            font-weight: 500;
-            color: #2c3e50;
+        .subnav-bar.active {
+            display: block; /* activeクラスで表示 */
+        }
+
+        .subnav-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+
+        .subnav-item a {
+            display: inline-block;
+            color: rgba(255, 255, 255, 0.9);
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
             transition: all 0.2s ease;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
         }
 
-        .dropdown-item:hover {
-            background-color: rgba(102, 126, 234, 0.1);
-            color: var(--primary-color);
-            transform: translateX(4px);
-        }
-
-        .dropdown-divider {
-            margin: 0.5rem 0;
-        }
-
-        /* 3階層目のサブメニュー */
-        .dropdown-submenu {
-            position: relative;
-        }
-
-        .dropdown-submenu .dropdown-menu {
-            top: 0;
-            left: 100%;
-            margin-top: -1px;
-            margin-left: -1px;
-            display: none;
-        }
-
-        .dropdown-submenu:hover > .dropdown-menu {
-            display: block;
-        }
-
-        .dropdown-submenu > .dropdown-item::after {
-            content: "\f054";
-            font-family: "Font Awesome 6 Free";
-            font-weight: 900;
-            float: right;
-            margin-left: 10px;
-            font-size: 0.75rem;
-            opacity: 0.5;
+        .subnav-item a:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            transform: translateY(-1px);
         }
 
         /* ユーザー情報エリア */
@@ -186,14 +198,24 @@
 
         /* モバイル対応 */
         @media (max-width: 992px) {
-            .dropdown-submenu .dropdown-menu {
-                position: static;
-                display: none;
-                margin-left: 1rem;
+            .nav-btn {
+                display: block;
+                width: 100%;
+                text-align: left;
+                margin: 0.25rem 0;
             }
 
-            .dropdown-submenu:hover > .dropdown-menu {
+            .subnav-items {
+                flex-direction: column;
+            }
+
+            .subnav-item {
+                width: 100%;
+            }
+
+            .subnav-item a {
                 display: block;
+                width: 100%;
             }
 
             .user-info {
@@ -219,146 +241,48 @@
             </button>
 
             <div class="collapse navbar-collapse" id="navbarNav">
+                <!-- メインナビゲーションバー（第1階層） -->
                 <ul class="navbar-nav">
                     <!-- 案件管理 -->
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                    <li class="nav-item">
+                        <a class="nav-btn" href="{% url 'order_management:project_list' %}" data-section="projects" onclick="toggleSubNav('projects');">
                             <i class="fas fa-tasks me-1"></i>案件管理
                         </a>
-                        <ul class="dropdown-menu">
-                            <!-- 案件 -->
-                            <li class="dropdown-submenu">
-                                <a class="dropdown-item" href="#">
-                                    <i class="fas fa-project-diagram me-2"></i>案件
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{% url 'order_management:project_list' %}">案件一覧</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'order_management:project_create' %}">案件作成</a></li>
-                                </ul>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
+                    </li>
 
-                            <!-- 業者管理 -->
-                            <li class="dropdown-submenu">
-                                <a class="dropdown-item" href="#">
-                                    <i class="fas fa-users me-2"></i>業者管理
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{% url 'order_management:contractor_dashboard' %}">業者一覧</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'order_management:external_contractor_management' %}">外部協力社</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'order_management:supplier_management' %}">資材サプライヤー</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="{% url 'order_management:client_company_list' %}"><i class="fas fa-building me-2"></i>元請会社一覧</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'order_management:client_company_create' %}"><i class="fas fa-plus me-2"></i>元請会社作成</a></li>
-                                </ul>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
+                    <!-- 元請検索 -->
+                    <li class="nav-item">
+                        <a class="nav-btn" href="{% url 'order_management:client_company_list' %}" data-section="clients" onclick="toggleSubNav('clients');">
+                            <i class="fas fa-building me-1"></i>元請検索
+                        </a>
+                    </li>
 
-                            <!-- カレンダー管理 -->
-                            <li class="dropdown-submenu">
-                                <a class="dropdown-item" href="#">
-                                    <i class="fas fa-calendar-alt me-2"></i>カレンダー管理
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{% url 'order_management:worker_resource_calendar' %}">職人カレンダー</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'order_management:gantt_chart' %}">ガントチャート</a></li>
-                                </ul>
-                            </li>
-                        </ul>
+                    <!-- 下請け検索 -->
+                    <li class="nav-item">
+                        <a class="nav-btn" href="{% url 'order_management:external_contractor_management' %}" data-section="contractors" onclick="toggleSubNav('contractors');">
+                            <i class="fas fa-user-tie me-1"></i>下請け検索
+                        </a>
+                    </li>
+
+                    <!-- カレンダー -->
+                    <li class="nav-item">
+                        <a class="nav-btn" href="{% url 'order_management:construction_calendar' %}" data-section="calendar" onclick="toggleSubNav('calendar');">
+                            <i class="fas fa-calendar-alt me-1"></i>カレンダー
+                        </a>
                     </li>
 
                     <!-- 経理 -->
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                    <li class="nav-item">
+                        <a class="nav-btn" href="{% url 'order_management:accounting_dashboard' %}" data-section="accounting" onclick="toggleSubNav('accounting');">
                             <i class="fas fa-yen-sign me-1"></i>経理
                         </a>
-                        <ul class="dropdown-menu">
-                            <!-- ダッシュボード -->
-                            <li class="dropdown-submenu">
-                                <a class="dropdown-item" href="#">
-                                    <i class="fas fa-chart-line me-2"></i>ダッシュボード
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{% url 'order_management:accounting_dashboard' %}">会計</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'order_management:payment_dashboard' %}">支払い</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'order_management:receipt_dashboard' %}">入金</a></li>
-                                </ul>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
-
-                            <!-- キャッシュフロー -->
-                            <li class="dropdown-submenu">
-                                <a class="dropdown-item" href="#">
-                                    <i class="fas fa-money-bill-wave me-2"></i>キャッシュフロー
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{% url 'order_management:cashflow_dashboard' %}">CF管理</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'order_management:receivables_detail' %}">売掛金</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'order_management:payables_detail' %}">買掛金</a></li>
-                                </ul>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
-
-                            <!-- 予測・分析 -->
-                            <li class="dropdown-submenu">
-                                <a class="dropdown-item" href="#">
-                                    <i class="fas fa-chart-bar me-2"></i>予測・分析
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{% url 'order_management:forecast_dashboard' %}">売上予測</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'order_management:scenario_list' %}">シナリオ分析</a></li>
-                                </ul>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
-
-                            <!-- コスト管理 -->
-                            <li class="dropdown-submenu">
-                                <a class="dropdown-item" href="#">
-                                    <i class="fas fa-calculator me-2"></i>コスト管理
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{% url 'order_management:fixed_cost_list' %}">固定費</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'order_management:variable_cost_list' %}">変動費</a></li>
-                                </ul>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
-
-                            <!-- レポート -->
-                            <li class="dropdown-submenu">
-                                <a class="dropdown-item" href="#">
-                                    <i class="fas fa-file-alt me-2"></i>レポート
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{% url 'order_management:report_list' %}">レポート一覧</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'order_management:report_generate' %}">レポート生成</a></li>
-                                </ul>
-                            </li>
-                        </ul>
                     </li>
 
-                    <!-- システム -->
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-cog me-1"></i>システム
+                    <!-- システム管理 -->
+                    <li class="nav-item">
+                        <a class="nav-btn" href="{% url 'order_management:user_management' %}" data-section="system" onclick="toggleSubNav('system');">
+                            <i class="fas fa-cog me-1"></i>システム管理
                         </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'order_management:user_management' %}">
-                                <i class="fas fa-user-cog me-2"></i>ユーザー管理
-                            </a></li>
-                            <li><a class="dropdown-item" href="{% url 'order_management:approval_list' %}">
-                                <i class="fas fa-check-circle me-2"></i>承認フロー
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li class="dropdown-submenu">
-                                <a class="dropdown-item" href="#">
-                                    <i class="fas fa-database me-2"></i>データ管理
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{% url 'order_management:export_data' %}">エクスポート</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'order_management:import_data' %}">インポート</a></li>
-                                </ul>
-                            </li>
-                        </ul>
                     </li>
                 </ul>
 
@@ -391,6 +315,166 @@
             </div>
         </div>
     </nav>
+
+    <!-- サブナビゲーションバー（第2階層） -->
+    <!-- 案件管理サブメニュー -->
+    <div id="subnav-projects" class="subnav-bar">
+        <div class="container-fluid">
+            <ul class="subnav-items">
+                <li class="subnav-item"><a href="{% url 'order_management:project_list' %}"><i class="fas fa-list me-1"></i>案件一覧</a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:project_create' %}"><i class="fas fa-plus me-1"></i>新規案件登録</a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:ultimate_dashboard' %}"><i class="fas fa-chart-line me-1"></i>ダッシュボード <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 元請検索サブメニュー -->
+    <div id="subnav-clients" class="subnav-bar">
+        <div class="container-fluid">
+            <ul class="subnav-items">
+                <li class="subnav-item"><a href="{% url 'order_management:client_company_list' %}"><i class="fas fa-building me-1"></i>元請会社一覧</a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:client_company_create' %}"><i class="fas fa-plus me-1"></i>元請会社作成</a></li>
+                <li class="subnav-item"><a href="#"><i class="fas fa-bullseye me-1"></i>営業アタックリスト <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 下請け検索サブメニュー -->
+    <div id="subnav-contractors" class="subnav-bar">
+        <div class="container-fluid">
+            <ul class="subnav-items">
+                <li class="subnav-item"><a href="{% url 'order_management:external_contractor_management' %}"><i class="fas fa-user-tie me-1"></i>下請け業者一覧</a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:contractor_create' %}"><i class="fas fa-plus me-1"></i>下請け業者作成</a></li>
+                <li class="subnav-item"><a href="#"><i class="fas fa-users-cog me-1"></i>職人管理シート <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- カレンダーサブメニュー -->
+    <div id="subnav-calendar" class="subnav-bar">
+        <div class="container-fluid">
+            <ul class="subnav-items">
+                <li class="subnav-item"><a href="{% url 'order_management:construction_calendar' %}"><i class="fas fa-calendar-check me-1"></i>施工カレンダー <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:worker_resource_calendar' %}"><i class="fas fa-users-cog me-1"></i>職人リソース <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:gantt_chart' %}"><i class="fas fa-project-diagram me-1"></i>ガントチャート <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 経理サブメニュー -->
+    <div id="subnav-accounting" class="subnav-bar">
+        <div class="container-fluid">
+            <ul class="subnav-items">
+                <li class="subnav-item"><a href="{% url 'order_management:accounting_dashboard' %}"><i class="fas fa-chart-line me-1"></i>会計 <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:payment_dashboard' %}"><i class="fas fa-money-bill-wave me-1"></i>支払い <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:receipt_dashboard' %}"><i class="fas fa-receipt me-1"></i>入金 <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:cashflow_dashboard' %}"><i class="fas fa-exchange-alt me-1"></i>CF管理 <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:receivables_detail' %}"><i class="fas fa-hand-holding-usd me-1"></i>売掛金 <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:payables_detail' %}"><i class="fas fa-file-invoice-dollar me-1"></i>買掛金 <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:forecast_dashboard' %}"><i class="fas fa-chart-line me-1"></i>売上予測 <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:scenario_list' %}"><i class="fas fa-tasks me-1"></i>シナリオ分析 <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:fixed_cost_list' %}"><i class="fas fa-calculator me-1"></i>固定費 <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:variable_cost_list' %}"><i class="fas fa-coins me-1"></i>変動費 <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:report_list' %}"><i class="fas fa-file-alt me-1"></i>レポート一覧 <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:report_generate' %}"><i class="fas fa-file-export me-1"></i>レポート生成 <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- システム管理サブメニュー（開発中機能） -->
+    <div id="subnav-system" class="subnav-bar">
+        <div class="container-fluid">
+            <ul class="subnav-items">
+                <li class="subnav-item"><a href="{% url 'order_management:user_management' %}"><i class="fas fa-user-cog me-1"></i>ユーザー管理 <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:approval_list' %}"><i class="fas fa-check-circle me-1"></i>承認フロー <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:export_data' %}"><i class="fas fa-file-export me-1"></i>エクスポート <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+                <li class="subnav-item"><a href="{% url 'order_management:import_data' %}"><i class="fas fa-file-import me-1"></i>インポート <span class="badge bg-warning text-dark ms-1">開発中</span></a></li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+    // ページ読み込み時に現在のURLに基づいてサブナビを自動表示
+    document.addEventListener('DOMContentLoaded', function() {
+        const currentPath = window.location.pathname;
+        console.log('Current path:', currentPath);
+
+        // URLパターンマッチング（より包括的に）
+        const pathPatterns = {
+            'projects': ['/orders/list', '/orders/create', '/orders/ultimate', '/project', '/projects'],
+            'clients': ['/orders/client-companies', '/orders/client_company'],
+            'contractors': ['/orders/external-contractors', '/orders/contractors', '/orders/contractor'],
+            'calendar': ['/orders/calendar', '/orders/gantt'],
+            'accounting': ['/orders/accounting', '/orders/payment', '/orders/receipt', '/orders/cashflow', '/orders/forecast', '/orders/cost', '/orders/reports'],
+            'system': ['/orders/users', '/orders/approvals', '/orders/backup']
+        };
+
+        // すべてのサブナビとボタンの active クラスを削除
+        const allSubnavs = document.querySelectorAll('.subnav-bar');
+        const allButtons = document.querySelectorAll('.nav-btn');
+        allSubnavs.forEach(nav => nav.classList.remove('active'));
+        allButtons.forEach(btn => btn.classList.remove('active'));
+
+        // 現在のURLに基づいて適切なサブナビを表示
+        let matched = false;
+        for (const [navId, patterns] of Object.entries(pathPatterns)) {
+            if (patterns.some(pattern => currentPath.includes(pattern))) {
+                const subnav = document.getElementById('subnav-' + navId);
+                const button = document.querySelector(`a.nav-btn[data-section="${navId}"]`);
+
+                console.log('Matched section:', navId);
+
+                if (subnav) {
+                    subnav.classList.add('active');
+                    console.log('Subnav activated:', navId);
+                } else {
+                    console.log('Subnav not found:', 'subnav-' + navId);
+                }
+
+                if (button) {
+                    button.classList.add('active');
+                    console.log('Button activated:', navId);
+                } else {
+                    console.log('Button not found for:', navId);
+                }
+
+                matched = true;
+                break;
+            }
+        }
+
+        if (!matched) {
+            console.log('No pattern matched for path:', currentPath);
+        }
+    });
+
+    // サブナビゲーション切り替え関数
+    function toggleSubNav(section) {
+        console.log('toggleSubNav called with section:', section);
+
+        // すべてのサブナビを非表示
+        const allSubnavs = document.querySelectorAll('.subnav-bar');
+        allSubnavs.forEach(nav => nav.classList.remove('active'));
+
+        // すべてのナビボタンから active クラスを削除
+        const allButtons = document.querySelectorAll('.nav-btn');
+        allButtons.forEach(btn => btn.classList.remove('active'));
+
+        // 選択されたセクションのサブナビを表示
+        const selectedSubnav = document.getElementById('subnav-' + section);
+        const selectedButton = document.querySelector(`a.nav-btn[data-section="${section}"]`);
+
+        if (selectedSubnav) {
+            selectedSubnav.classList.add('active');
+            console.log('Activated subnav:', section);
+        }
+
+        if (selectedButton) {
+            selectedButton.classList.add('active');
+            console.log('Activated button:', section);
+        }
+    }
+    </script>
 
     <!-- メインコンテンツ -->
     <div class="main-content">

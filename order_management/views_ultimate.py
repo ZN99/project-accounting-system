@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import calendar
 from decimal import Decimal
 
-from .models import Project, FixedCost, VariableCost
+from .models import Project, FixedCost, VariableCost, ClientCompany
 from subcontract_management.models import Subcontract, Contractor, InternalWorker
 from .cashflow_utils import get_monthly_comparison, get_receivables_summary, get_payables_summary
 from .utils import safe_int
@@ -150,11 +150,11 @@ class UltimateDashboardView(TemplateView):
         # 財務・会計統計（Accounting Dashboard から）
         # ====================
 
-        # 入金データ（入金ベース）
+        # 入金データ（入金ベース） - 元請業者ベース
         receipt_projects = Project.objects.filter(
             Q(payment_due_date__range=[start_date, end_date]) |
             Q(project_status='完工', billing_amount__gt=0)
-        ).exclude(client_name__isnull=True).exclude(client_name='')
+        ).exclude(client_company__isnull=True).select_related('client_company')
 
         receipt_total = 0
         receipt_received = 0
@@ -193,18 +193,20 @@ class UltimateDashboardView(TemplateView):
         # 通帳スタイルのトランザクション
         transactions = []
 
-        # 入金トランザクション
+        # 入金トランザクション - 元請業者ベース
         for project in receipt_projects:
             amount = project.billing_amount or project.order_amount or 0
             if amount > 0:
+                client_company_name = project.client_company.company_name if project.client_company else '不明な元請'
                 transactions.append({
                     'date': project.payment_due_date or project.contract_date or start_date,
                     'description': f'入金: {project.site_name}',
-                    'client': project.client_name,
+                    'client': client_company_name,
                     'type': 'receipt',
                     'amount': amount,
                     'status': 'completed' if project.work_end_completed else 'pending',
-                    'project': project
+                    'project': project,
+                    'client_company': project.client_company  # 元請業者オブジェクトも追加
                 })
 
         # 出金トランザクション
@@ -243,12 +245,70 @@ class UltimateDashboardView(TemplateView):
         consecutive_profit_months = annual_performance.get('consecutive_profit_months', 0)
 
         # ====================
-        # 統合分析データ（新規）
+        # 統合分析データ（新規） - 元請業者ベース
         # ====================
 
-        # プロジェクト収益性分析
+        # 元請業者別の収益性分析
+        client_company_performance = {}
+
+        # 完工済みプロジェクトを元請業者でグループ化
+        completed_projects = Project.objects.filter(
+            project_status='完工',
+            client_company__isnull=False
+        ).select_related('client_company')
+
+        for project in completed_projects:
+            client_company = project.client_company
+            company_id = client_company.id
+
+            if company_id not in client_company_performance:
+                client_company_performance[company_id] = {
+                    'client_company': client_company,
+                    'company_name': client_company.company_name,
+                    'project_count': 0,
+                    'total_revenue': Decimal('0'),
+                    'total_costs': Decimal('0'),
+                    'total_profit': Decimal('0'),
+                    'avg_margin': Decimal('0'),
+                    'projects': []
+                }
+
+            # プロジェクトの売上と原価を計算
+            revenue = project.billing_amount or project.order_amount or Decimal('0')
+            costs = Subcontract.objects.filter(project=project).aggregate(
+                total=Sum('billed_amount')
+            )['total'] or Decimal('0')
+            profit = revenue - costs
+
+            # 元請業者の実績に加算
+            client_company_performance[company_id]['project_count'] += 1
+            client_company_performance[company_id]['total_revenue'] += revenue
+            client_company_performance[company_id]['total_costs'] += costs
+            client_company_performance[company_id]['total_profit'] += profit
+            client_company_performance[company_id]['projects'].append({
+                'project': project,
+                'revenue': revenue,
+                'costs': costs,
+                'profit': profit
+            })
+
+        # 各元請業者の平均利益率を計算
+        for company_id, performance in client_company_performance.items():
+            if performance['total_revenue'] > 0:
+                performance['avg_margin'] = (performance['total_profit'] / performance['total_revenue']) * 100
+            else:
+                performance['avg_margin'] = Decimal('0')
+
+        # 利益率でソート（降順）
+        profitable_clients = sorted(
+            client_company_performance.values(),
+            key=lambda x: x['avg_margin'],
+            reverse=True
+        )
+
+        # プロジェクト収益性分析（従来通り、参考用として残す）
         profitable_projects = []
-        for project in Project.objects.filter(project_status='完工')[:10]:
+        for project in Project.objects.filter(project_status='完工').select_related('client_company')[:10]:
             revenue = project.billing_amount or project.order_amount or 0
             costs = Subcontract.objects.filter(project=project).aggregate(
                 total=Sum('billed_amount')
@@ -338,8 +398,10 @@ class UltimateDashboardView(TemplateView):
             'transactions': transactions[:20],  # 最新20件
             'annual_performance': annual_performance,
 
-            # 統合分析データ
-            'profitable_projects': profitable_projects[:5],  # Top 5
+            # 統合分析データ - 元請業者ベース
+            'profitable_clients': profitable_clients[:10],  # Top 10元請業者
+            'client_company_performance': client_company_performance,  # 全元請業者の実績
+            'profitable_projects': profitable_projects[:5],  # Top 5プロジェクト（参考用）
             'pipeline_value': pipeline_value,
             'fixed_costs_monthly': fixed_costs_monthly,
             'variable_costs_monthly': variable_costs_monthly,

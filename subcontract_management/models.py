@@ -545,8 +545,16 @@ class ProjectProfitAnalysis(models.Model):
             sub.total_material_cost for sub in subcontracts
         )
 
-        # 総支出
-        self.total_expense = self.total_subcontract_cost + self.total_material_cost
+        # 追加費用合計（dynamic_cost_items から計算）
+        total_additional_cost = 0
+        for sub in subcontracts:
+            if sub.dynamic_cost_items:
+                for item in sub.dynamic_cost_items:
+                    if 'cost' in item:
+                        total_additional_cost += float(item['cost'])
+
+        # 総支出（外注費 + 部材費 + 追加費用）
+        self.total_expense = self.total_subcontract_cost + self.total_material_cost + total_additional_cost
 
         # 粗利益
         self.gross_profit = self.total_revenue - self.total_expense

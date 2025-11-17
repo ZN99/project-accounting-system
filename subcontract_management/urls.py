@@ -17,6 +17,8 @@ urlpatterns = [
     # 発注先マスター管理
     path('contractors/', views.contractor_list, name='contractor_list'),
     path('contractors/create/', views.contractor_create, name='contractor_create'),
+    path('contractors/<int:pk>/update/', views.contractor_update, name='contractor_update'),
+    path('contractors/<int:pk>/delete/', views.contractor_delete, name='contractor_delete'),
 
     # 職人スキル管理 - Phase 8
     path('contractor-skills/', ContractorSkillsDashboardView.as_view(), name='contractor_skills_dashboard'),
@@ -33,4 +35,6 @@ urlpatterns = [
 
     # 社内担当者管理
     path('add-internal-worker/', views.add_internal_worker, name='add_internal_worker'),
+    path('update-internal-worker/', views.update_internal_worker, name='update_internal_worker'),
+    path('delete-internal-worker/', views.delete_internal_worker, name='delete_internal_worker'),
 ]

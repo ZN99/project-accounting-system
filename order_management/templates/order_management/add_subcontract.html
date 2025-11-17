@@ -5,6 +5,9 @@
 {% block title %}作業者追加 - {{ project.project_name }}{% endblock %}
 
 {% block extra_css %}
+<!-- Toastr CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+
 <style>
     .form-section {
         background: white;
@@ -176,16 +179,27 @@
                         <div id="existing-contractor-section">
                             <div class="mb-3">
                                 <label class="form-label">外注先を選択</label>
-                                <select class="form-select" name="existing_contractor_id" id="contractorSelect">
-                                    <option value="">選択してください</option>
-                                    {% for contractor in contractors %}
-                                    <option value="{{ contractor.id }}"
-                                            data-name="{{ contractor.name }}"
-                                            data-address="{{ contractor.address|default:'' }}">
-                                        {{ contractor.name }}{% if contractor.address %} ({{ contractor.address }}){% endif %}
-                                    </option>
-                                    {% endfor %}
-                                </select>
+                                <div class="d-flex gap-2">
+                                    <select class="form-select" name="existing_contractor_id" id="contractorSelect">
+                                        <option value="">選択してください</option>
+                                        {% for contractor in contractors %}
+                                        <option value="{{ contractor.id }}"
+                                                data-name="{{ contractor.name }}"
+                                                data-address="{{ contractor.address|default:'' }}"
+                                                data-contractor-type="{{ contractor.contractor_type }}"
+                                                data-phone="{{ contractor.phone|default:'' }}"
+                                                data-email="{{ contractor.email|default:'' }}"
+                                                data-contact-person="{{ contractor.contact_person|default:'' }}"
+                                                data-specialties="{{ contractor.specialties|default:'' }}"
+                                                data-hourly-rate="{{ contractor.hourly_rate|default:'' }}">
+                                            {{ contractor.name }}{% if contractor.address %} ({{ contractor.address }}){% endif %}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openContractorManagementPanel()" style="white-space: nowrap;">
+                                        <i class="fas fa-building"></i> 業者管理
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -472,9 +486,10 @@
                             <label class="form-label" id="contractAmountLabel">作業費用 <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <span class="input-group-text">¥</span>
-                                <input type="number" class="form-control" name="contract_amount" id="internalContractAmount" required>
+                                <input type="number" class="form-control" name="contract_amount" id="internalContractAmount" value="0" min="0" required>
                             </div>
                             <small class="text-muted" id="contractAmountHint">時給ベースの場合は時給 × 工数 + 追加費用で自動計算されます</small>
+                            <div class="invalid-feedback">作業費用を入力してください</div>
                         </div>
 
                         <!-- 出金情報（社内） -->
@@ -568,6 +583,12 @@
                     </div>
                 </div>
             </form>
+
+            <!-- 業者追加モーダル（モジュール化） -->
+            {% include 'order_management/includes/contractor_add_modal.html' %}
+
+            <!-- 業者管理パネル（モジュール化） -->
+            {% include 'order_management/includes/contractor_management_panel.html' %}
         </div>
 
         <!-- 右側：利益率プレビュー -->
@@ -631,12 +652,15 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Toastr JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+
 <script>
 // グローバル変数
 let materialItemCounter = 0;
 let additionalCostCounter = 0;
 let costItemCounter = 0;
-const revenue = parseFloat("{{ project.billing_amount|default:0 }}") || 0;
+const revenue = parseFloat("{{ project.order_amount|default:0 }}") || 0;  // 修正: billing_amount → order_amount
 const existingCost = parseFloat("{{ existing_total_cost|default:0 }}") || 0;
 
 $(document).ready(function() {
@@ -997,6 +1021,125 @@ $(document).ready(function() {
 
     // 初期計算
     updateProfitPreview();
+
+    // フォーム送信時のバリデーション
+    $('#addWorkerForm').on('submit', function(e) {
+        const workerType = $('input[name="worker_type"]:checked').val();
+        let isValid = true;
+        let errorMessage = '';
+
+        console.log('フォーム送信開始');
+        console.log('作業者タイプ:', workerType);
+
+        // 外注先の場合のバリデーション
+        if (workerType === 'external') {
+            const contractorInputType = $('input[name="contractor_input_type"]:checked').val();
+
+            if (contractorInputType === 'existing') {
+                const contractorId = $('#contractorSelect').val();
+                if (!contractorId) {
+                    isValid = false;
+                    errorMessage = '外注先を選択してください';
+                }
+            } else {
+                const contractorName = $('#contractorName').val();
+                if (!contractorName || !contractorName.trim()) {
+                    isValid = false;
+                    errorMessage = '外注先名を入力してください';
+                }
+            }
+
+            const contractAmount = parseFloat($('#externalContractAmountInput').val());
+            if (!contractAmount || contractAmount <= 0) {
+                isValid = false;
+                errorMessage = '依頼金額を入力してください';
+            }
+        }
+        // 社内リソースの場合のバリデーション
+        else {
+            const internalInputType = $('input[name="internal_input_type"]:checked').val();
+
+            if (internalInputType === 'existing') {
+                const internalId = $('#internalSelect').val();
+                if (!internalId) {
+                    isValid = false;
+                    errorMessage = 'スタッフを選択してください';
+                }
+            } else {
+                const workerName = $('#internalWorkerName').val();
+                if (!workerName || !workerName.trim()) {
+                    isValid = false;
+                    errorMessage = 'スタッフ名を入力してください';
+                }
+            }
+
+            const pricingType = $('input[name="internal_pricing_type"]:checked').val();
+
+            if (pricingType === 'hourly') {
+                const hourlyRate = parseFloat($('#internalHourlyRate').val());
+                const hours = parseFloat($('#estimatedHours').val());
+
+                if (!hourlyRate || hourlyRate <= 0) {
+                    isValid = false;
+                    errorMessage = '時給単価を入力してください';
+                } else if (!hours || hours <= 0) {
+                    isValid = false;
+                    errorMessage = '見積工数を入力してください';
+                }
+            } else {
+                const projectAmount = parseFloat($('#projectContractAmount').val());
+                if (!projectAmount || projectAmount <= 0) {
+                    isValid = false;
+                    errorMessage = '契約金額を入力してください';
+                }
+            }
+
+            const contractAmount = parseFloat($('#internalContractAmount').val());
+            if (!contractAmount || contractAmount <= 0) {
+                isValid = false;
+                errorMessage = '作業費用が0円です。必要な情報を入力してください';
+            }
+        }
+
+        if (!isValid) {
+            e.preventDefault();
+            console.error('バリデーションエラー:', errorMessage);
+            toastr.error(errorMessage);
+            return false;
+        }
+
+        console.log('バリデーション成功 - フォームを送信します');
+
+        // 送信ボタンを無効化（二重送信防止）
+        $(this).find('button[type="submit"]').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> 処理中...');
+
+        return true;
+    });
+});
+</script>
+
+<!-- 業者追加モーダルのJavaScript（モジュール化） -->
+{% include 'order_management/includes/contractor_add_modal_script.html' %}
+
+<!-- 業者管理パネルのJavaScript（モジュール化） -->
+{% include 'order_management/includes/contractor_management_panel_script.html' %}
+
+<script>
+$(document).ready(function() {
+    // Djangoメッセージの表示
+    {% if messages %}
+        {% for message in messages %}
+            {% if message.tags == 'error' or message.tags == 'danger' %}
+                toastr.error('{{ message|escapejs }}');
+            {% elif message.tags == 'warning' %}
+                toastr.warning('{{ message|escapejs }}');
+            {% elif message.tags == 'success' %}
+                toastr.success('{{ message|escapejs }}');
+            {% else %}
+                toastr.info('{{ message|escapejs }}');
+            {% endif %}
+        {% endfor %}
+    {% endif %}
 });
 </script>
 {% endblock %}

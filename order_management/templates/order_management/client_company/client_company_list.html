@@ -14,7 +14,7 @@
     .list-header {
         background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
         color: white;
-        padding: 2rem 0;
+        padding: 1.25rem 0;
         margin-bottom: 2rem;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
@@ -31,7 +31,7 @@
     .stats-card {
         background: white;
         border-radius: 12px;
-        padding: 1.5rem;
+        padding: 1rem;
         box-shadow: 0 4px 20px rgba(71,85,105,0.08);
         border: 1px solid #e2e8f0;
         margin-bottom: 2rem;
@@ -42,7 +42,7 @@
     }
 
     .stat-value {
-        font-size: 1.5rem;
+        font-size: 1.2rem;
         font-weight: 700;
         color: #3b82f6;
         font-family: 'SF Mono', 'Monaco', monospace;
@@ -132,10 +132,10 @@
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-md-8">
-                    <h1 class="mb-0">
-                        <i class="fas fa-building me-3"></i>元請会社一覧
-                    </h1>
-                    <p class="mb-0 mt-2 opacity-75">Client Company Management</p>
+                    <h3 class="mb-0">
+                        <i class="fas fa-building me-2"></i>元請会社一覧
+                    </h3>
+                    <p class="mb-0 mt-1 opacity-75" style="font-size: 0.85rem;">Client Company Management</p>
                 </div>
                 <div class="col-md-4 text-end">
                     <a href="{% url 'order_management:client_company_create' %}" class="btn btn-light btn-lg">
@@ -194,7 +194,8 @@
                             <th>会社名</th>
                             <th>担当者</th>
                             <th>連絡先</th>
-                            <th>承認閾値</th>
+                            <th>ホームページ</th>
+                            <th>支払サイクル</th>
                             <th>関連案件数</th>
                             <th>ステータス</th>
                             <th>アクション</th>
@@ -218,7 +219,29 @@
                                     —
                                 {% endif %}
                             </td>
-                            <td>¥{{ company.approval_threshold|intcomma }}</td>
+                            <td>
+                                {% if company.website %}
+                                    <a href="{{ company.website }}" target="_blank" rel="noopener noreferrer">
+                                        <i class="fas fa-external-link-alt me-1"></i>サイト
+                                    </a>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if company.payment_cycle %}
+                                    {{ company.get_payment_cycle_display }}
+                                    {% if company.closing_day or company.payment_day %}
+                                        <br>
+                                        <small class="text-muted">
+                                            {% if company.closing_day %}締{{ company.closing_day }}日{% endif %}
+                                            {% if company.payment_day %}払{{ company.payment_day }}日{% endif %}
+                                        </small>
+                                    {% endif %}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
                             <td>
                                 <span class="badge bg-info">{{ company.project_count }}</span>
                             </td>
@@ -240,7 +263,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="7" class="text-center py-5 text-muted">
+                            <td colspan="8" class="text-center py-5 text-muted">
                                 <i class="fas fa-inbox fa-3x mb-3"></i>
                                 <p class="mb-0">元請会社が登録されていません</p>
                             </td>

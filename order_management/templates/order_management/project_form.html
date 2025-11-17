@@ -344,6 +344,9 @@
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
 </style>
+
+<!-- Toastr CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
 {% endblock %}
 
 {% block content %}
@@ -428,23 +431,24 @@
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">元請名 <span class="text-danger">*</span></label>
                                     <div class="d-flex gap-2">
-                                        <select name="contractor_company" class="form-select" id="contractorCompanySelect">
-                                            <option value="">-- 業者を選択してください --</option>
-                                            {% for contractor in contractors %}
-                                            <option value="{{ contractor.id }}"
-                                                    data-name="{{ contractor.name }}"
-                                                    data-address="{{ contractor.address }}">
-                                                {{ contractor.name }}{% if contractor.address %} - {{ contractor.address }}{% endif %}
+                                        <select name="client_company" class="form-select" id="clientCompanySelect">
+                                            <option value="">-- 元請会社を選択してください --</option>
+                                            {% for company in client_companies %}
+                                            <option value="{{ company.id }}"
+                                                    {% if project.client_company_id == company.id %}selected{% endif %}
+                                                    data-name="{{ company.company_name }}"
+                                                    data-address="{{ company.address }}"
+                                                    data-payment-cycle="{{ company.payment_cycle }}"
+                                                    data-closing-day="{{ company.closing_day|default:'' }}"
+                                                    data-payment-day="{{ company.payment_day|default:'' }}">
+                                                {{ company.company_name }}{% if company.address %} - {{ company.address }}{% endif %}
                                             </option>
                                             {% endfor %}
                                         </select>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="console.log('ボタンがクリックされました'); try { openBasicInfoContractorManagementPanel(); } catch(e) { console.error('関数実行エラー:', e); alert('エラー: ' + e.message); }">
-                                            <i class="fas fa-building"></i> 業者管理
-                                        </button>
+                                        <a href="{% url 'order_management:client_company_list' %}" target="_blank" class="btn btn-outline-secondary btn-sm" title="元請会社管理ページを開く">
+                                            <i class="fas fa-building"></i> 元請管理
+                                        </a>
                                     </div>
-                                    <!-- 隠しフィールド：client_nameとclient_address -->
-                                    <input type="hidden" name="client_name" id="client_name" value="{{ project.client_name|default:'' }}">
-                                    <input type="hidden" name="client_address" id="client_address" value="{{ project.client_address|default:'' }}">
                                     <!-- 隠しフィールド：survey_status -->
                                     <input type="hidden" name="survey_status" value="{{ project.survey_status|default:'not_required' }}">
                                 </div>
@@ -456,6 +460,7 @@
                                             {% for worker in internal_workers %}
                                             {% if worker.department == 'sales' or worker.department == 'marketing' %}
                                             <option value="{{ worker.id }}"
+                                                    {% if project and worker.name == project.project_manager %}selected{% endif %}
                                                     data-name="{{ worker.name }}"
                                                     data-department="{{ worker.get_department_display }}">
                                                 {{ worker.name }} ({{ worker.get_department_display }})
@@ -467,6 +472,40 @@
                                             <i class="fas fa-chart-line"></i> 営業管理
                                         </button>
                                     </div>
+                                </div>
+                            </div>
+
+                            <!-- 鍵受け渡し設定 -->
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <h6 class="border-bottom pb-2">
+                                        <i class="fas fa-key me-2"></i>鍵受け渡し設定
+                                    </h6>
+                                    <div class="alert alert-info small mb-3">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        元請会社のデフォルト設定が自動入力されますが、案件ごとに変更可能です。
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.key_handover_location.id_for_label }}" class="form-label">
+                                        鍵受け渡し場所
+                                    </label>
+                                    {{ form.key_handover_location }}
+                                    <div class="form-text">鍵の受け渡し場所を記入してください（元請会社のデフォルト設定から自動入力）</div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.key_handover_date.id_for_label }}" class="form-label">
+                                        鍵受け渡し日時
+                                    </label>
+                                    {{ form.key_handover_date }}
+                                    <div class="form-text">鍵の受け渡し予定日時</div>
+                                </div>
+                                <div class="col-12 mb-3">
+                                    <label for="{{ form.key_handover_notes.id_for_label }}" class="form-label">
+                                        鍵受け渡しメモ
+                                    </label>
+                                    {{ form.key_handover_notes }}
+                                    <div class="form-text">鍵受け渡しに関する特記事項やメモ</div>
                                 </div>
                             </div>
                         </div>
@@ -591,6 +630,36 @@
                                 </div>
                             </div>
 
+                            <!-- 支払いサイクル情報 -->
+                            <div class="row mb-4">
+                                <div class="col-md-12">
+                                    <h6 class="text-info border-bottom pb-2 mb-3">
+                                        <i class="fas fa-money-bill-wave me-2"></i>支払いサイクル情報
+                                    </h6>
+                                    <small class="text-muted">元請会社を選択すると、その会社の支払いサイクル設定が自動入力されます。任意で編集可能です。</small>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="{{ form.payment_cycle.id_for_label }}" class="form-label">
+                                        支払サイクル
+                                    </label>
+                                    {{ form.payment_cycle }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="{{ form.closing_day.id_for_label }}" class="form-label">
+                                        締め日
+                                    </label>
+                                    {{ form.closing_day }}
+                                    <small class="text-muted">月末締めの場合は31</small>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="{{ form.payment_day.id_for_label }}" class="form-label">
+                                        支払日
+                                    </label>
+                                    {{ form.payment_day }}
+                                    <small class="text-muted">例：25日払いの場合は25</small>
+                                </div>
+                            </div>
+
                             <div class="row mb-4">
                                 <div class="col-md-12 mb-3">
                                     <label class="form-label">請求書状況</label>
@@ -622,13 +691,13 @@
                                 </div>
                                 <div class="col-md-3 mb-3">
                                     <label for="{{ form.work_start_date.id_for_label }}" class="form-label">
-                                        工事開始予定日
+                                        着工日
                                     </label>
                                     {{ form.work_start_date }}
                                 </div>
                                 <div class="col-md-3 mb-3">
                                     <label for="{{ form.work_end_date.id_for_label }}" class="form-label">
-                                        工事終了予定日
+                                        完工日
                                     </label>
                                     {{ form.work_end_date }}
                                 </div>
@@ -643,37 +712,6 @@
                                         請求書発行ステータス
                                     </label>
                                     {{ form.invoice_status }}
-                                </div>
-                            </div>
-
-                            <!-- Phase 5: 施工日入力方法の改善 -->
-                            <div class="row mb-3">
-                                <div class="col-md-12">
-                                    <h6 class="text-info border-bottom pb-2 mb-3">
-                                        <i class="fas fa-calendar-check me-2"></i>施工日入力方法
-                                    </h6>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <div class="form-check">
-                                        {{ form.asap_requested }}
-                                        <label class="form-check-label" for="{{ form.asap_requested.id_for_label }}">
-                                            <i class="fas fa-bolt me-1 text-warning"></i>できるだけ早く施工を希望（最短希望）
-                                        </label>
-                                        <div class="form-text">
-                                            具体的な施工日は未定だが、できるだけ早い対応を希望する場合にチェック
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <div class="form-check">
-                                        {{ form.work_date_specified }}
-                                        <label class="form-check-label" for="{{ form.work_date_specified.id_for_label }}">
-                                            <i class="fas fa-calendar-day me-1 text-primary"></i>施工日を具体的に指定する
-                                        </label>
-                                        <div class="form-text">
-                                            上記の「工事開始予定日」で具体的な日付を指定する場合にチェック
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
 
@@ -704,7 +742,7 @@
                             <!-- 実施体制・業者追加ボタン -->
                             <div class="row">
                                 <div class="col-md-12 text-center">
-                                    <button type="button" class="btn btn-primary btn-lg" onclick="console.log('実施体制ボタンがクリックされました'); try { openAddImplementationModal(); } catch(e) { console.error('実施体制関数実行エラー:', e); alert('エラー: ' + e.message); }">
+                                    <button type="button" class="btn btn-primary btn-lg" onclick="console.log('実施体制ボタンがクリックされました'); try { openAddImplementationModal(); } catch(e) { console.error('実施体制関数実行エラー:', e); toastr.error('エラー: ' + e.message); }">
                                         <i class="fas fa-plus me-2"></i>実施体制・業者を追加
                                     </button>
                                     <small class="d-block text-muted mt-2">外注先、社内リソース、または後で決定を追加できます</small>
@@ -1307,9 +1345,9 @@
                             <tr>
                                 <th>名前</th>
                                 <th>部署</th>
-                                <th>時給単価</th>
                                 <th>専門分野</th>
                                 <th>状態</th>
+                                <th>アクション</th>
                             </tr>
                         </thead>
                         <tbody id="salesStaffTableBody">
@@ -1320,7 +1358,8 @@
                     </table>
                 </div>
 
-                <!-- 実績推移グラフ予定地 -->
+                <!-- 実績推移グラフ予定地 (管理者のみ表示) -->
+                {% if user.is_staff or user.is_superuser %}
                 <div class="mt-4" style="opacity: 0.6;">
                     <h6 class="mb-3">実績推移</h6>
                     <div class="row">
@@ -1350,9 +1389,153 @@
                         </div>
                     </div>
                 </div>
+                {% endif %}
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 新規営業スタッフ追加モーダル -->
+<div class="modal fade" id="addSalesStaffModal" tabindex="-1" aria-labelledby="addSalesStaffModalLabel" aria-hidden="true" style="z-index: 10000 !important;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addSalesStaffModalLabel">
+                    <i class="fas fa-user-plus"></i> 新規営業担当者追加
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addSalesStaffForm">
+                    <div class="mb-3">
+                        <label for="salesStaffName" class="form-label">名前 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="salesStaffName" name="name" required placeholder="例: 田中 太郎">
+                    </div>
+                    <div class="mb-3">
+                        <label for="salesStaffDepartment" class="form-label">部署 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="salesStaffDepartment" name="department" required>
+                            <option value="">-- 部署を選択 --</option>
+                            <option value="sales">営業部</option>
+                            <option value="marketing">マーケティング部</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="salesStaffSpecialties" class="form-label">専門分野</label>
+                        <input type="text" class="form-control" id="salesStaffSpecialties" name="specialties" placeholder="例: 住宅営業、法人営業">
+                        <small class="form-text text-muted">任意: カンマ区切りで複数入力可</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-primary" onclick="submitNewSalesStaff()">
+                    <i class="fas fa-save"></i> 追加
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 営業スタッフ編集モーダル -->
+<div class="modal fade" id="editSalesStaffModal" tabindex="-1" aria-labelledby="editSalesStaffModalLabel" aria-hidden="true" style="z-index: 10000 !important;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editSalesStaffModalLabel">
+                    <i class="fas fa-user-edit"></i> 営業担当者編集
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editSalesStaffForm">
+                    <input type="hidden" id="editSalesStaffId">
+                    <div class="mb-3">
+                        <label for="editSalesStaffName" class="form-label">名前 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="editSalesStaffName" name="name" required placeholder="例: 田中 太郎">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editSalesStaffDepartment" class="form-label">部署 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="editSalesStaffDepartment" name="department" required>
+                            <option value="">-- 部署を選択 --</option>
+                            <option value="sales">営業部</option>
+                            <option value="marketing">マーケティング部</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editSalesStaffSpecialties" class="form-label">専門分野</label>
+                        <input type="text" class="form-control" id="editSalesStaffSpecialties" name="specialties" placeholder="例: 住宅営業、法人営業">
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="editSalesStaffIsActive" name="is_active" checked>
+                            <label class="form-check-label" for="editSalesStaffIsActive">
+                                有効
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-primary" onclick="submitEditSalesStaff()">
+                    <i class="fas fa-save"></i> 保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 営業スタッフ削除確認モーダル -->
+<div class="modal fade" id="deleteSalesStaffModal" tabindex="-1" aria-labelledby="deleteSalesStaffModalLabel" aria-hidden="true" style="z-index: 10000 !important;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteSalesStaffModalLabel">
+                    <i class="fas fa-exclamation-triangle"></i> 削除確認
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3"><strong id="deleteSalesStaffName"></strong>を削除してもよろしいですか？</p>
+                <div class="alert alert-warning mb-0">
+                    <i class="fas fa-exclamation-circle"></i> この操作は取り消せません。
+                </div>
+                <input type="hidden" id="deleteSalesStaffId">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDeleteSalesStaff()">
+                    <i class="fas fa-trash"></i> 削除
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 汎用削除確認モーダル -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true" style="z-index: 10000 !important;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="confirmDeleteModalLabel">
+                    <i class="fas fa-exclamation-triangle"></i> 削除確認
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3" id="confirmDeleteMessage">この項目を削除してもよろしいですか？</p>
+                <div class="alert alert-warning mb-0">
+                    <i class="fas fa-exclamation-circle"></i> この操作は取り消せません。
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteButton">
+                    <i class="fas fa-trash"></i> 削除
+                </button>
             </div>
         </div>
     </div>
@@ -1373,7 +1556,7 @@
                     <h6 class="mb-0">職人一覧</h6>
                     <div class="d-flex gap-2">
                         <span class="badge bg-warning">※ バックエンド実装予定</span>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="alert('新規追加機能は後日実装予定です')" disabled>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="toastr.info('新規追加機能は後日実装予定です')" disabled>
                             <i class="fas fa-plus"></i> 新規追加
                         </button>
                     </div>
@@ -1741,6 +1924,9 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Toastr JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+
 <script>
 // フォーム変更状態の管理
 let formChanged = false;
@@ -1848,28 +2034,8 @@ $(document).ready(function() {
         // 初期状態でボタンを更新
         updateButtonText();
 
-        // 初期化時にcontractor_companyが選択されている場合、隠しフィールドを設定
-        const initialContractorOption = $('#contractorCompanySelect option:selected');
-        if (initialContractorOption.val()) {
-            $('#client_name').val(initialContractorOption.data('name') || '');
-            $('#client_address').val(initialContractorOption.data('address') || '');
-        }
-
         console.log('Form initialization completed');
     }, 100);
-
-    // contractor_company選択時の処理
-    $('#contractorCompanySelect').on('change', function() {
-        const selectedOption = $(this).find('option:selected');
-        const contractorName = selectedOption.data('name') || '';
-        const contractorAddress = selectedOption.data('address') || '';
-
-        // 隠しフィールドを更新
-        $('#client_name').val(contractorName);
-        $('#client_address').val(contractorAddress);
-
-        console.log('Contractor selected:', contractorName, contractorAddress);
-    });
 
     // 受注ヨミの変更を特別に処理
     $('select[name="project_status"]').on('change', function(e) {
@@ -1898,12 +2064,12 @@ $(document).ready(function() {
                     originalFormData['project_status'] = newValue;
                     updateButtonText();
                 } else {
-                    alert('保存に失敗しました: ' + (response.error || '不明なエラー'));
+                    toastr.error('保存に失敗しました: ' + (response.error || '不明なエラー'));
                 }
             },
             error: function(xhr, status, error) {
                 console.error('保存エラー:', error);
-                alert('保存に失敗しました');
+                toastr.error('保存に失敗しました');
             }
         });
     });
@@ -2064,11 +2230,11 @@ window.openBasicInfoContractorManagementPanel = function() {
             console.log('✅ 業者管理モーダルが表示されました');
         } else {
             console.error('❌ contractorManagementModal が見つかりません');
-            alert('モーダル要素が見つかりません。HTMLにモーダル要素を追加する必要があります。');
+            toastr.error('モーダル要素が見つかりません。HTMLにモーダル要素を追加する必要があります。');
         }
     } catch(e) {
         console.error('Error:', e);
-        alert('エラー: ' + e.message);
+        toastr.error('エラー: ' + e.message);
     }
 };
 
@@ -2106,11 +2272,11 @@ window.openAddImplementationModal = function() {
             console.log('✅ 実施体制モーダルが表示されました');
         } else {
             console.error('❌ addImplementationModal が見つかりません');
-            alert('モーダル要素が見つかりません。HTMLにモーダル要素を追加する必要があります。');
+            toastr.error('モーダル要素が見つかりません。HTMLにモーダル要素を追加する必要があります。');
         }
     } catch(e) {
         console.error('Error:', e);
-        alert('エラー: ' + e.message);
+        toastr.error('エラー: ' + e.message);
     }
 };
 
@@ -2151,11 +2317,11 @@ window.openSalesStaffManagementPanel = function() {
             console.log('✅ 営業スタッフ管理モーダルが表示されました');
         } else {
             console.error('❌ salesStaffManagementModal が見つかりません');
-            alert('営業スタッフ管理モーダル要素が見つかりません。');
+            toastr.error('営業スタッフ管理モーダル要素が見つかりません。');
         }
     } catch(e) {
         console.error('Error:', e);
-        alert('エラー: ' + e.message);
+        toastr.error('エラー: ' + e.message);
     }
 };
 
@@ -2183,16 +2349,22 @@ window.refreshSalesStaffList = function() {
         const statusBadge = staff.is_active ?
             '<span class="badge bg-success">有効</span>' :
             '<span class="badge bg-secondary">無効</span>';
-        const hourlyRate = staff.hourly_rate ? `¥${staff.hourly_rate.toLocaleString()}` : '-';
         const specialties = staff.specialties || '-';
 
         html += `
             <tr>
                 <td><strong>${staff.name}</strong></td>
                 <td>${departmentDisplay}</td>
-                <td>${hourlyRate}</td>
                 <td>${specialties}</td>
                 <td>${statusBadge}</td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="editSalesStaff(${staff.id})" title="編集">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteSalesStaff(${staff.id}, '${staff.name}')" title="削除">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
             </tr>
         `;
     });
@@ -2203,14 +2375,34 @@ window.refreshSalesStaffList = function() {
 window.openAddSalesStaffModal = function() {
     console.log('✅ openAddSalesStaffModal called');
 
-    // 簡易的な入力フォームを表示
-    const name = prompt('営業担当者の名前を入力してください:');
-    if (!name) return;
+    // フォームをクリア/リセット
+    $('#addSalesStaffForm')[0].reset();
 
-    const department = confirm('部署を選択してください\nOK = 営業部\nキャンセル = マーケティング部') ? 'sales' : 'marketing';
-    const hourlyRateStr = prompt('時給単価を入力してください（数字のみ）:', '3000');
+    // モーダルを表示
+    const modal = new bootstrap.Modal(document.getElementById('addSalesStaffModal'));
+    modal.show();
+};
+
+window.submitNewSalesStaff = function() {
+    console.log('✅ submitNewSalesStaff called');
+
+    // フォームデータを取得
+    const name = $('#salesStaffName').val().trim();
+    const department = $('#salesStaffDepartment').val();
+    const hourlyRateStr = $('#salesStaffHourlyRate').val();
     const hourlyRate = hourlyRateStr ? parseFloat(hourlyRateStr) : 0;
-    const specialties = prompt('専門分野を入力してください（任意）:', '');
+    const specialties = $('#salesStaffSpecialties').val().trim();
+
+    // バリデーション
+    if (!name) {
+        toastr.error('名前を入力してください');
+        return;
+    }
+
+    if (!department) {
+        toastr.error('部署を選択してください');
+        return;
+    }
 
     // 新規営業担当者を追加
     addNewSalesStaff({
@@ -2241,20 +2433,202 @@ window.addNewSalesStaff = function(staffData) {
         },
         success: function(response) {
             if (response.success) {
-                alert('営業担当者を追加しました！');
+                // モーダルを閉じる
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addSalesStaffModal'));
+                if (modal) {
+                    modal.hide();
+                }
+
+                // 成功メッセージを表示
+                toastr.success(`${staffData.name}を追加しました！`);
 
                 // リストを更新
                 refreshSalesStaffList();
 
-                // ドロップダウンも更新
-                location.reload(); // ページをリロードして最新のデータを反映
+                // ドロップダウンも更新（ページリロード）
+                setTimeout(function() {
+                    location.reload();
+                }, 1000);
             } else {
-                alert('エラー: ' + (response.message || '追加に失敗しました'));
+                toastr.error(response.message || '追加に失敗しました');
             }
         },
         error: function(xhr, status, error) {
             console.error('Error:', error);
-            alert('追加中にエラーが発生しました: ' + error);
+            let errorMessage = '追加中にエラーが発生しました';
+
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            } else if (error) {
+                errorMessage = `追加中にエラーが発生しました: ${error}`;
+            }
+
+            toastr.error(errorMessage);
+        }
+    });
+};
+
+// 営業スタッフ編集
+window.editSalesStaff = function(staffId) {
+    console.log('✅ editSalesStaff called for ID:', staffId);
+
+    // スタッフデータを取得
+    const allInternalWorkers = {{ internal_workers_json|safe }};
+    const staff = allInternalWorkers.find(w => w.id === staffId);
+
+    if (!staff) {
+        toastr.error('スタッフ情報が見つかりません');
+        return;
+    }
+
+    // フォームにデータを設定
+    $('#editSalesStaffId').val(staff.id);
+    $('#editSalesStaffName').val(staff.name);
+    $('#editSalesStaffDepartment').val(staff.department);
+    $('#editSalesStaffHourlyRate').val(staff.hourly_rate || '');
+    $('#editSalesStaffSpecialties').val(staff.specialties || '');
+    $('#editSalesStaffIsActive').prop('checked', staff.is_active);
+
+    // モーダルを表示
+    const modal = new bootstrap.Modal(document.getElementById('editSalesStaffModal'));
+    modal.show();
+};
+
+// 営業スタッフ編集を保存
+window.submitEditSalesStaff = function() {
+    console.log('✅ submitEditSalesStaff called');
+
+    // フォームデータを取得
+    const staffId = $('#editSalesStaffId').val();
+    const name = $('#editSalesStaffName').val().trim();
+    const department = $('#editSalesStaffDepartment').val();
+    const hourlyRateStr = $('#editSalesStaffHourlyRate').val();
+    const hourlyRate = hourlyRateStr ? parseFloat(hourlyRateStr) : 0;
+    const specialties = $('#editSalesStaffSpecialties').val().trim();
+    const isActive = $('#editSalesStaffIsActive').is(':checked');
+
+    // バリデーション
+    if (!name) {
+        toastr.error('名前を入力してください');
+        return;
+    }
+
+    if (!department) {
+        toastr.error('部署を選択してください');
+        return;
+    }
+
+    // CSRFトークンを取得
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    // バックエンドに更新リクエストを送信
+    $.ajax({
+        url: '{% url "subcontract_management:update_internal_worker" %}',
+        method: 'POST',
+        data: {
+            csrfmiddlewaretoken: csrftoken,
+            staff_id: staffId,
+            name: name,
+            department: department,
+            hourly_rate: hourlyRate,
+            specialties: specialties,
+            is_active: isActive
+        },
+        success: function(response) {
+            if (response.success) {
+                // モーダルを閉じる
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editSalesStaffModal'));
+                if (modal) {
+                    modal.hide();
+                }
+
+                // 成功メッセージを表示
+                toastr.success(`${name}の情報を更新しました！`);
+
+                // リストを更新（ページリロード）
+                setTimeout(function() {
+                    location.reload();
+                }, 1000);
+            } else {
+                toastr.error(response.message || '更新に失敗しました');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error:', error);
+            let errorMessage = '更新中にエラーが発生しました';
+
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            } else if (error) {
+                errorMessage = `更新中にエラーが発生しました: ${error}`;
+            }
+
+            toastr.error(errorMessage);
+        }
+    });
+};
+
+// 営業スタッフ削除（モーダル表示）
+window.deleteSalesStaff = function(staffId, staffName) {
+    console.log('✅ deleteSalesStaff called for ID:', staffId);
+
+    // モーダルにデータを設定
+    $('#deleteSalesStaffId').val(staffId);
+    $('#deleteSalesStaffName').text(staffName);
+
+    // 削除確認モーダルを表示
+    const modal = new bootstrap.Modal(document.getElementById('deleteSalesStaffModal'));
+    modal.show();
+};
+
+// 営業スタッフ削除を実行
+window.confirmDeleteSalesStaff = function() {
+    console.log('✅ confirmDeleteSalesStaff called');
+
+    const staffId = $('#deleteSalesStaffId').val();
+    const staffName = $('#deleteSalesStaffName').text();
+
+    // CSRFトークンを取得
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    // バックエンドに削除リクエストを送信
+    $.ajax({
+        url: '{% url "subcontract_management:delete_internal_worker" %}',
+        method: 'POST',
+        data: {
+            csrfmiddlewaretoken: csrftoken,
+            staff_id: staffId
+        },
+        success: function(response) {
+            if (response.success) {
+                // モーダルを閉じる
+                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteSalesStaffModal'));
+                if (modal) {
+                    modal.hide();
+                }
+
+                // 成功メッセージを表示
+                toastr.success(`${staffName}を削除しました`);
+
+                // リストを更新（ページリロード）
+                setTimeout(function() {
+                    location.reload();
+                }, 1000);
+            } else {
+                toastr.error(response.message || '削除に失敗しました');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error:', error);
+            let errorMessage = '削除中にエラーが発生しました';
+
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            } else if (error) {
+                errorMessage = `削除中にエラーが発生しました: ${error}`;
+            }
+
+            toastr.error(errorMessage);
         }
     });
 };
@@ -2281,11 +2655,11 @@ window.openContractorManagementPanel = function() {
             console.log('✅ 工事業者管理モーダルが表示されました');
         } else {
             console.error('❌ contractorManagementModal が見つかりません');
-            alert('工事業者管理モーダル要素が見つかりません。');
+            toastr.error('工事業者管理モーダル要素が見つかりません。');
         }
     } catch(e) {
         console.error('Error:', e);
-        alert('エラー: ' + e.message);
+        toastr.error('エラー: ' + e.message);
     }
 };
 
@@ -2311,11 +2685,11 @@ window.openCraftsmanManagementPanel = function() {
             console.log('✅ 職人管理モーダルが表示されました');
         } else {
             console.error('❌ craftsmanManagementModal が見つかりません');
-            alert('職人管理モーダル要素が見つかりません。');
+            toastr.error('職人管理モーダル要素が見つかりません。');
         }
     } catch(e) {
         console.error('Error:', e);
-        alert('エラー: ' + e.message);
+        toastr.error('エラー: ' + e.message);
     }
 };
 
@@ -2325,7 +2699,7 @@ window.addImplementationItem = function() {
     const implementationType = $('input[name="modal_implementation_type"]:checked').val();
 
     if (!implementationType) {
-        alert('実施体制タイプを選択してください。');
+        toastr.warning('実施体制タイプを選択してください。');
         return;
     }
 
@@ -2352,7 +2726,7 @@ window.addImplementationItem = function() {
         const contractAmount = $('input[name="modal_contract_amount"]').val();
 
         if (!contractorName || !workDescription) {
-            alert('元請名と作業内容を入力してください。');
+            toastr.warning('元請名と作業内容を入力してください。');
             return;
         }
 
@@ -2380,7 +2754,7 @@ window.addImplementationItem = function() {
         }
 
         if (!staffName) {
-            alert('担当者名を入力してください。');
+            toastr.warning('担当者名を入力してください。');
             return;
         }
 
@@ -2398,7 +2772,7 @@ window.addImplementationItem = function() {
     $('#addImplementationModal').removeClass('show').css('display', 'none');
     $('.modal-backdrop').remove();
 
-    alert('実施体制が追加されました！');
+    toastr.success('実施体制が追加されました！');
 };
 
 window.addNewStaff = function() {
@@ -2437,7 +2811,7 @@ window.saveStaff = function() {
 
     // バリデーション
     if (!formData.name) {
-        alert('スタッフ名を入力してください。');
+        toastr.warning('スタッフ名を入力してください。');
         return;
     }
 
@@ -2447,7 +2821,7 @@ window.saveStaff = function() {
     // モーダルを閉じる
     $('#staffModal').removeClass('show').css('display', 'none');
 
-    alert('スタッフが保存されました！');
+    toastr.success('スタッフが保存されました！');
 };
 
 window.addNewContractor = function() {
@@ -2491,7 +2865,7 @@ window.saveContractor = function() {
 
     // バリデーション
     if (!formData.name) {
-        alert('元請名を入力してください。');
+        toastr.warning('元請名を入力してください。');
         return;
     }
 
@@ -2501,7 +2875,7 @@ window.saveContractor = function() {
     // モーダルを閉じる
     $('#contractorModal').removeClass('show').css('display', 'none');
 
-    alert('業者が保存されました！');
+    toastr.success('業者が保存されました！');
 };
 
 // 業者一覧に追加
@@ -2530,10 +2904,10 @@ window.addContractorToList = function(contractorData) {
 
     tableBody.append(newRow);
 
-    // ドロップダウンにも追加
-    const option = `<option value="${id}" data-name="${contractorData.name}">${contractorData.name}</option>`;
-    $('#contractorCompanySelect').append(option);
-    $('#modalContractorSelect').append(option);
+    // ドロップダウンにも追加（この機能は現在未使用）
+    // const option = `<option value="${id}" data-name="${contractorData.name}">${contractorData.name}</option>`;
+    // $('#clientCompanySelect').append(option);
+    // $('#modalContractorSelect').append(option);
 };
 
 // ダミーデータ定義
@@ -2982,46 +3356,13 @@ window.selectContractor = function(id) {
     // 選択された業者情報を取得
     const contractor = window.dummyContractors.find(c => c.id === id);
     if (!contractor) {
-        alert('業者情報が見つかりません');
+        toastr.error('業者情報が見つかりません');
         return;
     }
 
-    // 基本情報の業者セレクトボックスに設定
-    const contractorSelect = document.getElementById('contractorCompanySelect');
-    console.log('contractorSelect element:', contractorSelect);
-
-    if (contractorSelect) {
-        console.log('現在のオプション数:', contractorSelect.options.length);
-        console.log('選択したい元請名:', contractor.name);
-
-        // 業者セレクトボックスから該当する業者を探して選択
-        let found = false;
-        for (let option of contractorSelect.options) {
-            console.log('チェック中のオプション:', option.text);
-            if (option.text.includes(contractor.name)) {
-                option.selected = true;
-                found = true;
-                console.log('業者を既存オプションで選択しました:', option.text);
-                break;
-            }
-        }
-
-        // 選択肢にない場合は動的に追加
-        if (!found || contractorSelect.value === '') {
-            console.log('業者を新しいオプションとして追加します');
-            const newOption = document.createElement('option');
-            newOption.value = contractor.id;
-            newOption.text = contractor.name;
-            newOption.selected = true;
-            contractorSelect.appendChild(newOption);
-            console.log('新しいオプションを追加しました:', contractor.name);
-        }
-
-        // セレクトボックスの変更イベントを発火
-        contractorSelect.dispatchEvent(new Event('change'));
-    } else {
-        console.warn('contractorCompanySelect フィールドが見つかりません');
-    }
+    // この機能は廃止: ClientCompanyは専用の管理ページで管理します
+    // 必要に応じて元請会社管理ページ（/orders/client-companies/）から登録してください
+    console.warn('この機能は廃止されました。元請会社は専用の管理ページで管理してください。');
 
     // 業者管理モーダルを閉じる
     $('#contractorManagementModal').removeClass('show').css('display', 'none');
@@ -3039,33 +3380,63 @@ window.editContractor = function(id) {
     window.open(`/orders/contractors/${id}/edit/`, '_blank');
 };
 
+// 汎用削除確認モーダルを表示するヘルパー関数
+window.showConfirmDelete = function(message, onConfirm) {
+    // メッセージを設定
+    $('#confirmDeleteMessage').text(message);
+
+    // 削除ボタンのイベントリスナーをクリア
+    $('#confirmDeleteButton').off('click');
+
+    // 新しいイベントリスナーを設定
+    $('#confirmDeleteButton').on('click', function() {
+        // モーダルを閉じる
+        const modal = bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal'));
+        if (modal) {
+            modal.hide();
+        }
+
+        // コールバック関数を実行
+        if (onConfirm && typeof onConfirm === 'function') {
+            onConfirm();
+        }
+    });
+
+    // モーダルを表示
+    const modal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
+    modal.show();
+};
+
 window.deleteContractor = function(id) {
-    if (confirm('この業者を削除しますか？')) {
+    showConfirmDelete('この業者を削除しますか？', function() {
         window.dummyContractors = window.dummyContractors.filter(c => c.id !== id);
         refreshContractorList();
-    }
+        toastr.success('業者を削除しました');
+    });
 };
 
 window.editCraftsman = function(id) {
-    alert(`職人ID ${id} の編集機能（未実装）`);
+    toastr.info(`職人ID ${id} の編集機能（未実装）`);
 };
 
 window.deleteCraftsman = function(id) {
-    if (confirm('この職人を削除しますか？')) {
+    showConfirmDelete('この職人を削除しますか？', function() {
         window.dummyCraftsmen = window.dummyCraftsmen.filter(c => c.id !== id);
         refreshCraftsmanList();
-    }
+        toastr.success('職人を削除しました');
+    });
 };
 
 window.editStaff = function(id) {
-    alert(`スタッフID ${id} の編集機能（未実装）`);
+    toastr.info(`スタッフID ${id} の編集機能（未実装）`);
 };
 
 window.deleteStaff = function(id) {
-    if (confirm('このスタッフを削除しますか？')) {
+    showConfirmDelete('このスタッフを削除しますか？', function() {
         window.dummyInternalStaff = window.dummyInternalStaff.filter(s => s.id !== id);
         refreshStaffList();
-    }
+        toastr.success('スタッフを削除しました');
+    });
 };
 
 // 実施体制タイプ切り替え機能
@@ -3353,17 +3724,11 @@ $(document).ready(function() {
     console.log('📌 イベントリスナーが設定されました');
 });
 
-// ドロップダウン初期化
+// ドロップダウン初期化（この機能は廃止）
 window.initializeDropdowns = function() {
-    // 業者ドロップダウンに追加
-    const contractorSelect = $('#contractorCompanySelect');
-    const modalContractorSelect = $('#modalContractorSelect');
-
-    window.dummyContractors.filter(c => c.active).forEach(contractor => {
-        const option = `<option value="${contractor.id}" data-name="${contractor.name}">${contractor.name}</option>`;
-        contractorSelect.append(option);
-        modalContractorSelect.append(option);
-    });
+    // 元請会社は専用の管理ページで管理します
+    // この関数は後方互換性のために残していますが、何も実行しません
+    console.log('initializeDropdowns: この機能は廃止されました');
 
     // 社内スタッフドロップダウンに追加
     const internalSelect = $('#modalInternalSelect');
@@ -3385,7 +3750,7 @@ window.addModalCostItem = function() {
     const description = $('#modalNewCostItemDescription').val().trim();
 
     if (!name || amount <= 0) {
-        alert('費用項目名と金額を正しく入力してください。');
+        toastr.warning('費用項目名と金額を正しく入力してください。');
         return;
     }
 
@@ -3521,6 +3886,41 @@ document.addEventListener('DOMContentLoaded', function() {
     const savedMode = localStorage.getItem('projectFormViewMode');
     if (savedMode === 'full') {
         switchFormViewMode('full');
+    }
+
+    // 元請会社選択時に支払いサイクル情報を自動コピー
+    const clientCompanySelect = document.getElementById('clientCompanySelect');
+    if (clientCompanySelect) {
+        clientCompanySelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption && selectedOption.value) {
+                // データ属性から支払いサイクル情報を取得
+                const paymentCycle = selectedOption.getAttribute('data-payment-cycle');
+                const closingDay = selectedOption.getAttribute('data-closing-day');
+                const paymentDay = selectedOption.getAttribute('data-payment-day');
+
+                // 支払いサイクルフィールドに値を設定
+                const paymentCycleField = document.getElementById('{{ form.payment_cycle.id_for_label }}');
+                const closingDayField = document.getElementById('{{ form.closing_day.id_for_label }}');
+                const paymentDayField = document.getElementById('{{ form.payment_day.id_for_label }}');
+
+                if (paymentCycleField && paymentCycle) {
+                    paymentCycleField.value = paymentCycle;
+                }
+                if (closingDayField && closingDay) {
+                    closingDayField.value = closingDay;
+                }
+                if (paymentDayField && paymentDay) {
+                    paymentDayField.value = paymentDay;
+                }
+
+                console.log('支払いサイクル情報が自動入力されました:', {
+                    paymentCycle: paymentCycle,
+                    closingDay: closingDay,
+                    paymentDay: paymentDay
+                });
+            }
+        });
     }
 });
 </script>

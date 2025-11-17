@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.models import User
+from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Count, Sum, Avg
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -10,7 +11,8 @@ from django.urls import reverse
 from datetime import datetime, timedelta
 import json
 from decimal import Decimal
-from .models import Project, Contractor, Invoice, InvoiceItem
+from .models import Project, Invoice, InvoiceItem
+from subcontract_management.models import Contractor
 
 try:
     from subcontract_management.models import InternalWorker
@@ -19,6 +21,7 @@ except ImportError:
 from .forms import ProjectForm
 
 
+@login_required
 def dashboard(request):
     """ダッシュボード - 進捗状況の可視化"""
     today = timezone.now().date()
@@ -90,6 +93,7 @@ def dashboard(request):
     return render(request, 'order_management/dashboard.html', context)
 
 
+@login_required
 def project_list(request):
     """案件一覧表示"""
     # パフォーマンス最適化：関連データを事前取得
@@ -255,6 +259,7 @@ def project_list(request):
     return render(request, 'order_management/project_list.html', context)
 
 
+@login_required
 def project_create(request):
     """案件新規作成"""
     from subcontract_management.models import InternalWorker, Subcontract
@@ -391,7 +396,9 @@ def project_create(request):
         form = ProjectForm()
 
     # フォーム表示用のデータを準備
-    contractors = Contractor.objects.filter(is_active=True)
+    from .models import ClientCompany
+    client_companies = ClientCompany.objects.filter(is_active=True).order_by('company_name')
+    contractors = Contractor.objects.filter(is_active=True)  # 協力会社（作業者追加用）
     internal_workers = InternalWorker.objects.filter(is_active=True)
 
     # internal_workersをJSON形式でシリアライズ
@@ -408,12 +415,14 @@ def project_create(request):
     return render(request, 'order_management/project_form.html', {
         'form': form,
         'title': '案件新規登録',
-        'contractors': contractors,
+        'client_companies': client_companies,  # 元請会社
+        'contractors': contractors,  # 協力会社（作業者追加で使用）
         'internal_workers': internal_workers,
         'internal_workers_json': internal_workers_json,
     })
 
 
+@login_required
 def project_detail(request, pk):
     """案件詳細表示"""
     from subcontract_management.models import Contractor, Subcontract, ProjectProfitAnalysis
@@ -440,8 +449,9 @@ def project_detail(request, pk):
     total_material_cost = sum(s.total_material_cost for s in subcontracts)
     unpaid_amount = sum(s.billed_amount for s in subcontracts.filter(payment_status='pending'))
 
-    # 暫定利益率計算用の既存総費用
-    existing_total_cost = total_subcontract_cost + total_material_cost
+    # 暫定利益率計算用の既存総費用（追加費用を含む）
+    # get_total_cost() = billed_amount + total_material_cost + additional_cost (from dynamic_cost_items)
+    existing_total_cost = sum(s.get_total_cost() for s in subcontracts)
 
     # 利益分析
     profit_analysis = None
@@ -562,6 +572,7 @@ def project_detail(request, pk):
     })
 
 
+@login_required
 def update_progress(request, pk):
     """進捗状況の更新（統一エンドポイント）"""
     project = get_object_or_404(Project, pk=pk)
@@ -572,15 +583,6 @@ def update_progress(request, pk):
         # AJAXリクエストかどうかをチェック（編集完了ボタン用）
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.POST.get('ajax_save')
 
-        # デバッグ: POSTデータの確認
-        print(f"\n{'='*80}")
-        print(f"DEBUG update_progress for project {pk}")
-        print(f"POST data keys: {list(request.POST.keys())}")
-        print(f"estimate_not_required in POST? {'estimate_not_required' in request.POST}")
-        print(f"estimate_not_required raw value: {repr(request.POST.get('estimate_not_required'))}")
-        print(f"estimate_issued_date raw value: {repr(request.POST.get('estimate_issued_date'))}")
-        print(f"{'='*80}\n")
-
         estimate_issued_date = request.POST.get('estimate_issued_date')
         contract_date = request.POST.get('contract_date')
         work_start_date = request.POST.get('work_start_date')
@@ -589,6 +591,12 @@ def update_progress(request, pk):
         work_start_completed = request.POST.get('work_start_completed')
         work_end_completed = request.POST.get('work_end_completed')
         estimate_not_required = request.POST.get('estimate_not_required')
+
+        # 完了報告フィールド
+        completion_report_date = request.POST.get('completion_report_date')
+        completion_report_status = request.POST.get('completion_report_status')
+        completion_report_content = request.POST.get('completion_report_content')
+        completion_report_notes = request.POST.get('completion_report_notes')
 
         # 日付フィールドの更新（空文字列も処理）
         if estimate_issued_date is not None:
@@ -611,6 +619,29 @@ def update_progress(request, pk):
         # 見積書不要の場合は見積書発行日をクリア
         if project.estimate_not_required:
             project.estimate_issued_date = None
+
+        # 完了報告フィールドの更新
+        if completion_report_date is not None:
+            project.completion_report_date = completion_report_date if completion_report_date else None
+        if completion_report_status is not None:
+            project.completion_report_status = completion_report_status if completion_report_status else 'not_created'
+        if completion_report_content is not None:
+            project.completion_report_content = completion_report_content
+        if completion_report_notes is not None:
+            project.completion_report_notes = completion_report_notes
+
+        # 完了報告ファイルのアップロード処理
+        if 'completion_report_file' in request.FILES:
+            project.completion_report_file = request.FILES['completion_report_file']
+
+        # 完了チェックボックスの更新
+        completion_report_completed = request.POST.get('completion_report_completed')
+        project.completion_report_completed = completion_report_completed == 'on'
+
+        # 進捗コメントの更新
+        progress_comment = request.POST.get('progress_comment')
+        if progress_comment is not None:
+            project.progress_comment = progress_comment
 
         # 追加項目の処理
         additional_items = {}
@@ -642,11 +673,9 @@ def update_progress(request, pk):
                 field_name = key.replace('dynamic_field_', '')
                 if value.strip():  # 空でない値のみ保存
                     complex_step_fields[field_name] = value.strip()
-                    print(f"Saving complex field: {field_name} = {value.strip()}")
                 else:
                     # 空の値の場合、Noneを設定（削除ではなく）
                     complex_step_fields[field_name] = None
-                    print(f"Clearing complex field: {field_name}")  # デバッグ用
 
         for key, value in request.POST.items():
             if key.endswith('_date') or key.endswith('_completed') or key.endswith('_value'):
@@ -707,7 +736,6 @@ def update_progress(request, pk):
                                    if key not in active_step_keys]
                 for key in steps_to_remove:
                     del project.additional_items['dynamic_steps'][key]
-                    print(f"Removed dynamic_step data for deleted step: {key}")
 
             # complex_step_fieldsから削除されたステップに関連するフィールドを削除
             if 'complex_step_fields' in project.additional_items:
@@ -721,15 +749,9 @@ def update_progress(request, pk):
 
                 for field_name in fields_to_remove:
                     del project.additional_items['complex_step_fields'][field_name]
-                    print(f"Removed complex_step_field for deleted step: {field_name}")
 
         project.save()
-
-        # デバッグ: 保存後の確認
         project.refresh_from_db()
-        print(f"After save and refresh:")
-        print(f"  project.estimate_not_required = {project.estimate_not_required}")
-        print(f"  project.estimate_issued_date = {project.estimate_issued_date}\n")
 
         # AJAX リクエストの場合はJSONレスポンスを返す
         if is_ajax:
@@ -744,6 +766,7 @@ def update_progress(request, pk):
     return redirect('order_management:project_detail', pk=pk)
 
 
+@login_required
 def add_subcontract(request, pk):
     """案件詳細ページから作業者を追加（外注・社内リソース対応）"""
     from subcontract_management.models import Contractor, Subcontract
@@ -946,7 +969,19 @@ def add_subcontract(request, pk):
                 messages.success(request, f'社内リソース「{internal_worker_name}」を案件に追加しました。')
 
         except Exception as e:
-            messages.error(request, f'作業者の追加中にエラーが発生しました: {str(e)}')
+            import traceback
+            error_details = traceback.format_exc()
+
+            # ユーザーフレンドリーなエラーメッセージ
+            error_message = str(e)
+            if 'UNIQUE constraint' in error_message:
+                messages.error(request, '同じ作業者が既に登録されています。')
+            elif 'NOT NULL constraint' in error_message:
+                messages.error(request, '必須項目が入力されていません。すべての必須フィールドを入力してください。')
+            elif 'FOREIGN KEY constraint' in error_message:
+                messages.error(request, '選択された業者またはスタッフが見つかりません。')
+            else:
+                messages.error(request, f'作業者の追加中にエラーが発生しました: {str(e)}')
 
         return redirect('order_management:project_detail', pk=pk)
 
@@ -967,9 +1002,25 @@ def add_subcontract(request, pk):
     except ImportError:
         pass
 
+    # 業者管理パネル用にJSON形式でも渡す
+    import json
+    contractors_json = json.dumps([{
+        'id': c.id,
+        'name': c.name,
+        'address': c.address or '',
+        'phone': c.phone or '',
+        'email': c.email or '',
+        'contact_person': c.contact_person or '',
+        'contractor_type': c.contractor_type,
+        'hourly_rate': float(c.hourly_rate) if c.hourly_rate else 0,
+        'specialties': c.specialties or '',
+        'is_active': c.is_active
+    } for c in contractors])
+
     context = {
         'project': project,
         'contractors': contractors,
+        'contractors_json': contractors_json,
         'staff_members': staff_members,
         'internal_workers': internal_workers,
         'existing_total_cost': existing_total_cost,
@@ -977,6 +1028,7 @@ def add_subcontract(request, pk):
     return render(request, 'order_management/add_subcontract.html', context)
 
 
+@login_required
 def project_update(request, pk):
     """案件編集"""
     project = get_object_or_404(Project, pk=pk)
@@ -986,6 +1038,16 @@ def project_update(request, pk):
         form = ProjectForm(request.POST, instance=project)
         if form.is_valid():
             project = form.save(commit=False)
+
+            # 営業担当者（sales_manager）をproject_managerに保存
+            sales_manager_id = request.POST.get('sales_manager')
+            if sales_manager_id:
+                try:
+                    from subcontract_management.models import InternalWorker
+                    sales_worker = InternalWorker.objects.get(id=sales_manager_id)
+                    project.project_manager = sales_worker.name
+                except InternalWorker.DoesNotExist:
+                    pass
 
             # Phase 11: 詳細スケジュール管理フィールドの保存
             # 立ち会い
@@ -1028,14 +1090,36 @@ def project_update(request, pk):
     else:
         form = ProjectForm(instance=project)
 
+    # フォーム表示用のデータを準備
+    from .models import ClientCompany
+    from subcontract_management.models import InternalWorker
+    client_companies = ClientCompany.objects.filter(is_active=True).order_by('company_name')
+    contractors = Contractor.objects.filter(is_active=True)  # 協力会社（作業者追加用）
+    internal_workers = InternalWorker.objects.filter(is_active=True)
+
+    # internal_workersをJSON形式でシリアライズ
+    import json
+    internal_workers_json = json.dumps([{
+        'id': w.id,
+        'name': w.name,
+        'department': w.department,
+        'hourly_rate': float(w.hourly_rate) if w.hourly_rate else 0,
+        'specialties': w.specialties or '',
+        'is_active': w.is_active
+    } for w in internal_workers])
+
     return render(request, 'order_management/project_form.html', {
         'form': form,
         'title': '案件編集',
         'project': project,
-        'contractors': Contractor.objects.all()
+        'client_companies': client_companies,  # 元請会社
+        'contractors': contractors,  # 協力会社（作業者追加で使用）
+        'internal_workers': internal_workers,
+        'internal_workers_json': internal_workers_json,
     })
 
 
+@login_required
 def project_delete(request, pk):
     """案件削除"""
     project = get_object_or_404(Project, pk=pk)
@@ -1051,6 +1135,7 @@ def project_delete(request, pk):
     })
 
 
+@login_required
 def update_forecast(request, pk):
     """受注ヨミを更新（AJAX）"""
     if request.method == 'POST':
@@ -1075,6 +1160,7 @@ def update_forecast(request, pk):
     return JsonResponse({'success': False, 'error': 'POSTメソッドのみ許可されています'})
 
 
+@login_required
 def update_project_stage(request, pk):
     """プロジェクト進捗状況を更新（AJAX）"""
     if request.method == 'POST':
@@ -1100,6 +1186,7 @@ def update_project_stage(request, pk):
 
 
 @csrf_exempt
+@login_required
 def project_api_list(request):
     """DataTables用API"""
     if request.method == 'GET':
@@ -1180,6 +1267,7 @@ def project_api_list(request):
 
 
 @csrf_exempt
+@login_required
 def staff_api(request, staff_id=None):
     """担当者のCRUD操作用API"""
     if not InternalWorker:
@@ -1257,6 +1345,7 @@ def staff_api(request, staff_id=None):
 
 
 @csrf_exempt
+@login_required
 def contractor_api(request, contractor_id=None):
     """業者のCRUD操作用API"""
 
@@ -1379,6 +1468,7 @@ def contractor_api(request, contractor_id=None):
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
 
+@login_required
 def ordering_dashboard(request):
     """発注ダッシュボード"""
     projects = Project.objects.filter(project_status='完工').order_by('-created_at')
@@ -1396,6 +1486,7 @@ def ordering_dashboard(request):
     return render(request, 'order_management/ordering_dashboard.html', context)
 
 
+@login_required
 def receipt_dashboard(request):
     """受注ダッシュボード"""
     projects = Project.objects.filter(project_status='完工').order_by('-created_at')
@@ -1414,6 +1505,7 @@ def receipt_dashboard(request):
 
 
 @csrf_exempt
+@login_required
 def generate_client_invoice_api(request):
     """得意先向け請求書生成API"""
     if request.method == 'POST':
@@ -1483,6 +1575,7 @@ def generate_client_invoice_api(request):
 
 
 @csrf_exempt
+@login_required
 def get_client_invoice_preview_api(request):
     """クライアント向け複数プロジェクト請求書プレビューAPI"""
     if request.method == 'POST':
@@ -1565,6 +1658,7 @@ def get_client_invoice_preview_api(request):
 
 
 @csrf_exempt
+@login_required
 def generate_invoices_by_client_api(request):
     """入金予定日ベースで当月の請求書を受注先別に生成するAPI"""
     if request.method == 'POST':
@@ -1666,6 +1760,7 @@ def generate_invoices_by_client_api(request):
 
 
 @csrf_exempt
+@login_required
 def get_invoice_preview_api(request, project_id):
     """請求書プレビューデータ取得API"""
     if request.method == 'GET':
@@ -1710,6 +1805,63 @@ def get_invoice_preview_api(request, project_id):
                 'preview_data': preview_data
             })
 
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+
+@login_required
+def project_comments(request, pk):
+    """
+    プロジェクトの詳細コメントを取得・追加するAPIエンドポイント
+    """
+    try:
+        project = get_object_or_404(Project, pk=pk)
+    except Exception:
+        return JsonResponse({'error': 'Project not found'}, status=404)
+
+    if request.method == 'GET':
+        # コメント一覧を取得
+        comments = project.detailed_comments if project.detailed_comments else []
+        return JsonResponse({'success': True, 'comments': comments})
+
+    elif request.method == 'POST':
+        # 新しいコメントを追加
+        try:
+            import json
+            from datetime import datetime
+
+            data = json.loads(request.body)
+            comment_text = data.get('comment', '').strip()
+
+            if not comment_text:
+                return JsonResponse({'success': False, 'error': 'コメントが空です'}, status=400)
+
+            # 現在のユーザー名を取得
+            user_name = request.user.get_full_name() or request.user.username
+
+            # 新しいコメントオブジェクト
+            new_comment = {
+                'comment': comment_text,
+                'user': user_name,
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
+
+            # コメントリストを取得（なければ空リスト）
+            comments = project.detailed_comments if project.detailed_comments else []
+
+            # 新しいコメントを追加（最新が最後）
+            comments.append(new_comment)
+
+            # プロジェクトに保存
+            project.detailed_comments = comments
+            project.save()
+
+            return JsonResponse({'success': True, 'comment': new_comment})
+
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
 

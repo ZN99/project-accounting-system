@@ -1,14 +1,17 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 import json
 
-from .models import Project, Contractor, MaterialOrder, MaterialOrderItem
+from .models import Project, MaterialOrder, MaterialOrderItem
+from subcontract_management.models import Contractor
 
 
+@login_required
 def material_order_list(request, project_id):
     """案件の資材発注一覧"""
     project = get_object_or_404(Project, id=project_id)
@@ -21,6 +24,7 @@ def material_order_list(request, project_id):
     return render(request, 'order_management/material/material_order_list.html', context)
 
 
+@login_required
 def material_order_create(request, project_id):
     """資材発注作成"""
     project = get_object_or_404(Project, id=project_id)
@@ -92,6 +96,7 @@ def material_order_create(request, project_id):
     return render(request, 'order_management/material/material_order_form.html', context)
 
 
+@login_required
 def material_order_detail(request, project_id, order_id):
     """資材発注詳細"""
     project = get_object_or_404(Project, id=project_id)
@@ -104,6 +109,7 @@ def material_order_detail(request, project_id, order_id):
     return render(request, 'order_management/material/material_order_detail.html', context)
 
 
+@login_required
 def material_order_edit(request, project_id, order_id):
     """資材発注編集"""
     project = get_object_or_404(Project, id=project_id)
@@ -161,6 +167,7 @@ def material_order_edit(request, project_id, order_id):
 
 
 @csrf_exempt
+@login_required
 def material_order_status_update(request, project_id, order_id):
     """資材発注ステータス更新（AJAX）"""
     if request.method == 'POST':

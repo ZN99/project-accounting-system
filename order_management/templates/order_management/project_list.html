@@ -48,12 +48,20 @@
     }
     .list-view-item {
         cursor: pointer;
-        transition: all 0.2s;
-        border-left: 4px solid transparent;
+        transition: all 0.3s;
+        border: 2px solid #dee2e6;
+        border-left: 5px solid transparent;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        padding: 16px !important;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     .list-view-item:hover {
-        background-color: rgba(0, 123, 255, 0.05);
-        transform: translateX(2px);
+        background-color: #f8f9fa;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border-color: #007bff;
     }
     .summary-card:hover {
         transform: translateY(-2px) scale(1.02);
@@ -219,109 +227,148 @@
     </div>
 </div>
 
-<!-- 検索・フィルター -->
-<div class="card border-0 shadow-sm mb-4 filter-card">
-    <div class="card-header bg-white border-0">
-        <h6 class="mb-0">
-            <i class="fas fa-filter me-2"></i>検索・フィルター
-            <button class="btn btn-sm btn-outline-secondary float-end" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
-                <i class="fas fa-chevron-down"></i>
-            </button>
-        </h6>
-    </div>
-    <div class="collapse show" id="filterCollapse">
-        <div class="card-body">
-            <form method="get" class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label"><i class="fas fa-tasks me-1"></i>プロジェクトステータス</label>
-                    <select name="stage_filter" class="form-select border-0 shadow-sm">
-                        <option value="">すべて</option>
+<!-- コンパクト検索・フィルター -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-3">
+        <form method="get" id="searchForm">
+            <div class="row g-2 align-items-center">
+                <!-- キーワード検索 -->
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="fas fa-search text-muted"></i>
+                        </span>
+                        <input type="text"
+                               name="search"
+                               class="form-control border-start-0 ps-0"
+                               placeholder="現場名、住所、管理No で検索..."
+                               value="{{ search_query|default_if_none:'' }}">
+                    </div>
+                </div>
+
+                <!-- クイックフィルター -->
+                <div class="col-md-2">
+                    <select name="stage_filter" class="form-select" onchange="this.form.submit()">
+                        <option value="">すべての進捗</option>
                         {% for stage in stage_choices %}
                         <option value="{{ stage }}" {% if stage == stage_filter %}selected{% endif %}>{{ stage }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label"><i class="fas fa-chart-line me-1"></i>受注ヨミ（営業見込み）</label>
-                    <select name="order_forecast" class="form-select border-0 shadow-sm">
-                        <option value="">すべて</option>
+
+                <div class="col-md-2">
+                    <select name="order_forecast" class="form-select" onchange="this.form.submit()">
+                        <option value="">すべての受注ヨミ</option>
                         {% for value, label in order_forecast_choices %}
                         <option value="{{ value }}" {% if value == order_forecast %}selected{% endif %}>{{ label }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label"><i class="fas fa-cogs me-1"></i>施工種別</label>
-                    <input type="text" name="work_type" class="form-control border-0 shadow-sm" value="{{ work_type|default_if_none:'' }}" placeholder="種別を入力">
+
+                <!-- 検索ボタン -->
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-1"></i>検索
+                    </button>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label"><i class="fas fa-user-tie me-1"></i>案件担当</label>
-                    <input type="text" name="project_manager" class="form-control border-0 shadow-sm" value="{{ project_manager|default_if_none:'' }}" placeholder="担当者名">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label"><i class="fas fa-search me-1"></i>キーワード検索</label>
-                    <div class="input-group">
-                        <input type="text" name="search" class="form-control border-0 shadow-sm" value="{{ search_query|default_if_none:'' }}" placeholder="現場名、住所、管理No...">
-                        <button class="btn btn-primary shadow-sm" type="submit">
-                            <i class="fas fa-search"></i> 検索
+
+                <!-- 詳細フィルター＆クリア -->
+                <div class="col-md-2">
+                    <div class="d-flex gap-2">
+                        <button type="button"
+                                class="btn btn-outline-secondary flex-grow-1"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#advancedFilters"
+                                aria-expanded="false">
+                            <i class="fas fa-sliders-h"></i>
                         </button>
+                        {% if search_query or stage_filter or order_forecast or work_type or project_manager or witness_status or survey_status or estimate_status or construction_status or assignee_name %}
+                        <a href="{% url 'order_management:project_list' %}"
+                           class="btn btn-outline-danger"
+                           title="クリア">
+                            <i class="fas fa-times"></i>
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
+            </div>
 
-                <!-- Phase 11: 詳細スケジュールフィルター -->
-                <div class="col-12 mt-3">
-                    <h6 class="text-muted mb-3"><i class="fas fa-calendar-check me-2"></i>詳細スケジュールフィルター</h6>
+            <!-- 詳細フィルター（折りたたみ） -->
+            <div class="collapse mt-3" id="advancedFilters">
+                <div class="border-top pt-3">
+                    <h6 class="text-muted mb-3">
+                        <i class="fas fa-filter me-2"></i>詳細フィルター
+                    </h6>
+                    <div class="row g-2">
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted">施工種別</label>
+                            <input type="text"
+                                   name="work_type"
+                                   class="form-control form-control-sm"
+                                   value="{{ work_type|default_if_none:'' }}"
+                                   placeholder="種別を入力">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted">案件担当</label>
+                            <input type="text"
+                                   name="project_manager"
+                                   class="form-control form-control-sm"
+                                   value="{{ project_manager|default_if_none:'' }}"
+                                   placeholder="担当者名">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted">立ち会い</label>
+                            <select name="witness_status" class="form-select form-select-sm">
+                                <option value="">すべて</option>
+                                {% for value, label in witness_status_choices %}
+                                <option value="{{ value }}" {% if value == witness_status %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted">現地調査</label>
+                            <select name="survey_status" class="form-select form-select-sm">
+                                <option value="">すべて</option>
+                                {% for value, label in survey_status_choices %}
+                                <option value="{{ value }}" {% if value == survey_status %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted">見積もり</label>
+                            <select name="estimate_status" class="form-select form-select-sm">
+                                <option value="">すべて</option>
+                                {% for value, label in estimate_status_choices %}
+                                <option value="{{ value }}" {% if value == estimate_status %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted">工事</label>
+                            <select name="construction_status" class="form-select form-select-sm">
+                                <option value="">すべて</option>
+                                {% for value, label in construction_status_choices %}
+                                <option value="{{ value }}" {% if value == construction_status %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted">担当者名</label>
+                            <input type="text"
+                                   name="assignee_name"
+                                   class="form-control form-control-sm"
+                                   value="{{ assignee_name|default_if_none:'' }}"
+                                   placeholder="担当者名で絞り込み">
+                        </div>
+                        <div class="col-md-7 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="fas fa-filter me-1"></i>フィルター適用
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label"><i class="fas fa-handshake me-1"></i>立ち会い</label>
-                    <select name="witness_status" class="form-select border-0 shadow-sm">
-                        <option value="">すべて</option>
-                        {% for value, label in witness_status_choices %}
-                        <option value="{{ value }}" {% if value == witness_status %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label"><i class="fas fa-map-marked-alt me-1"></i>現地調査</label>
-                    <select name="survey_status" class="form-select border-0 shadow-sm">
-                        <option value="">すべて</option>
-                        {% for value, label in survey_status_choices %}
-                        <option value="{{ value }}" {% if value == survey_status %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label"><i class="fas fa-file-invoice me-1"></i>見積もり</label>
-                    <select name="estimate_status" class="form-select border-0 shadow-sm">
-                        <option value="">すべて</option>
-                        {% for value, label in estimate_status_choices %}
-                        <option value="{{ value }}" {% if value == estimate_status %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label"><i class="fas fa-hammer me-1"></i>工事</label>
-                    <select name="construction_status" class="form-select border-0 shadow-sm">
-                        <option value="">すべて</option>
-                        {% for value, label in construction_status_choices %}
-                        <option value="{{ value }}" {% if value == construction_status %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label"><i class="fas fa-user me-1"></i>担当者名</label>
-                    <input type="text" name="assignee_name" class="form-control border-0 shadow-sm" value="{{ assignee_name|default_if_none:'' }}" placeholder="担当者名で絞り込み">
-                </div>
-
-                {% if search_query or stage_filter or order_forecast or work_type or project_manager or witness_status or survey_status or estimate_status or construction_status or assignee_name %}
-                <div class="col-12">
-                    <a href="{% url 'order_management:project_list' %}" class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-times me-1"></i>フィルターをクリア
-                    </a>
-                </div>
-                {% endif %}
-            </form>
-        </div>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -335,42 +382,32 @@
                         <th>管理No</th>
                         <th>現場名</th>
                         <th>現場住所</th>
+                        <th>元請名</th>
+                        <th>案件担当</th>
                         <th>施工種別</th>
-                        <th>プロジェクトステータス</th>
-                        <th>進捗状況</th>
+                        <th>案件進捗</th>
                         <th>受注ヨミ</th>
                         <th>手配状況</th>
-                        <th>見積書発行日</th>
+                        <th>工期</th>
                         <th>売上内訳</th>
-                        <th>駐車場代</th>
-                        <th>元請名</th>
-                        <th>元請住所</th>
-                        <th>案件担当</th>
-                        <th>入金予定日</th>
-                        <th>工事開始日</th>
-                        <th>工事終了日</th>
-                        <th>契約日</th>
-                        <th>請求書発行</th>
-                        <th>諸経費①</th>
-                        <th>諸経費金額①</th>
-                        <th>諸経費②</th>
-                        <th>諸経費金額②</th>
-                        <th>請求額実請求</th>
-                        <th>増減</th>
                         <th>操作</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for project in projects %}
                     <tr class="clickable-row" style="background-color: {{ project.get_status_color_hex }}20;" data-href="{% url 'order_management:project_detail' project.pk %}">
-                        <td>{{ project.management_no }}</td>
+                        <td><small class="text-muted">{{ project.management_no }}</small></td>
                         <td>
-                            <a href="{% url 'order_management:project_detail' project.pk %}">
+                            <a href="{% url 'order_management:project_detail' project.pk %}" class="fw-bold">
                                 {{ project.site_name }}
                             </a>
                         </td>
-                        <td>{{ project.site_address|truncatechars:30 }}</td>
-                        <td>{{ project.work_type }}</td>
+                        <td style="max-width: 200px;">
+                            <small class="text-muted">{{ project.site_address|default:"-" }}</small>
+                        </td>
+                        <td>{{ project.client_name|default:"-" }}</td>
+                        <td>{{ project.project_manager|default:"-" }}</td>
+                        <td>{{ project.work_type|default:"-" }}</td>
                         <td>
                             {% with stage=project.get_current_project_stage %}
                             <span class="badge bg-{{ stage.color }}">
@@ -378,69 +415,7 @@
                             </span>
                             {% endwith %}
                         </td>
-                        <td class="progress-cell">
-                            {% with stage=project.get_current_project_stage details=project.get_progress_details %}
-                            <div class="d-flex flex-column">
-                                <div class="d-flex justify-content-between align-items-center mb-1 progress-indicator">
-                                    <span class="badge bg-{{ stage.color }}">{{ stage.stage }}</span>
-                                    {% if details.total_steps > 0 %}
-                                    <small class="text-muted fw-bold">{{ details.completed_steps }}/{{ details.total_steps }}</small>
-                                    {% elif details.total_steps == 0 and details.completed_steps == 0 %}
-                                    <small class="text-muted fw-bold">0%</small>
-                                    {% endif %}
-                                </div>
-
-                                <!-- Next Action & Next Step - バッジの直下に表示 -->
-                                {% with next_info=project.get_next_action_and_step %}
-                                {% if next_info.next_action and next_info.next_action != '完了' %}
-                                <div class="mb-1">
-                                    <small class="text-muted d-block" style="font-size: 0.7rem; line-height: 1.3;">
-                                        <i class="fas fa-arrow-right me-1" style="font-size: 0.65rem;"></i><strong>Next Action:</strong><br>{{ next_info.next_action|format_next_action|safe }}
-                                    </small>
-                                    {% if next_info.next_step and next_info.next_step != '完了' and next_info.next_step != '-' %}
-                                    <small class="text-secondary d-block" style="font-size: 0.65rem; line-height: 1.2; margin-top: 0.3rem;">
-                                        <i class="fas fa-forward me-1" style="font-size: 0.6rem;"></i><strong>Next Step:</strong><br>{{ next_info.next_step|format_next_action|safe }}
-                                    </small>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
-                                {% endwith %}
-
-                                {% if details.total_steps > 0 %}
-                                <div class="progress progress-enhanced" style="height: 6px;">
-                                    <div class="progress-bar bg-{{ stage.color }}" role="progressbar"
-                                         style="width: {% widthratio details.completed_steps details.total_steps 100 %}%"
-                                         aria-valuenow="{% widthratio details.completed_steps details.total_steps 100 %}"
-                                         aria-valuemin="0" aria-valuemax="100">
-                                    </div>
-                                </div>
-                                <small class="text-muted mt-1" title="完了済み: {{ details.completed_steps }}/{{ details.total_steps }}ステップ">
-                                    <i class="fas fa-tasks"></i> {{ details.completed_steps }}/{{ details.total_steps }}
-                                </small>
-                                {% elif details.total_steps == 0 %}
-                                <div class="progress progress-enhanced" style="height: 6px;">
-                                    <div class="progress-bar bg-{{ stage.color }}" role="progressbar"
-                                         style="width: 0%"
-                                         aria-valuenow="0"
-                                         aria-valuemin="0" aria-valuemax="100">
-                                    </div>
-                                </div>
-                                {% endif %}
-                                {% if project.is_deadline_approaching %}
-                                <small class="text-danger mt-1 deadline-warning">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                    あと{{ project.get_days_until_deadline }}日
-                                </small>
-                                {% elif project.get_days_until_deadline %}
-                                <small class="text-muted mt-1">
-                                    <i class="fas fa-calendar"></i>
-                                    あと{{ project.get_days_until_deadline }}日
-                                </small>
-                                {% endif %}
-                            </div>
-                            {% endwith %}
-                        </td>
-                        <td class="text-center" data-order="{{ project.project_status }}">
+                        <td class="text-center" data-order="{{ project.project_status }}" onclick="event.stopPropagation();">
                             <select class="form-select form-select-sm order-forecast-select"
                                     data-project-id="{{ project.pk }}"
                                     style="width: auto; display: inline-block;">
@@ -453,58 +428,43 @@
                         </td>
                         <td class="text-center">
                             {% with subcontract_status=project.get_subcontract_status %}
-                            <div class="d-flex flex-column align-items-center">
-                                <span class="badge bg-{{ subcontract_status.color }} mb-1">
-                                    <i class="fas {{ subcontract_status.icon }}"></i> {{ subcontract_status.status }}
-                                </span>
-                                {% if subcontract_status.count > 0 %}
-                                <small class="text-muted">{{ subcontract_status.count }}件</small>
-                                {% endif %}
-                            </div>
+                            <span class="badge bg-{{ subcontract_status.color }}">
+                                <i class="fas {{ subcontract_status.icon }}"></i> {{ subcontract_status.status }}
+                                {% if subcontract_status.count > 0 %}<br><small>({{ subcontract_status.count }}件)</small>{% endif %}
+                            </span>
                             {% endwith %}
                         </td>
-                        <td>{{ project.estimate_issued_date|date:"Y-m-d"|default:"-" }}</td>
-                        <td class="text-end" style="min-width: 120px;">
-                            {% with revenue=project.get_revenue_breakdown %}
-                            <div style="font-size: 0.8rem; line-height: 1.2;">
-                                <div class="text-success fw-bold">売上 ¥{{ revenue.revenue|floatformat:0|intcomma }}</div>
-                                <div class="text-warning">原価 ¥{{ revenue.cost_of_sales|floatformat:0|intcomma }}</div>
-                                <div class="text-primary">利益 ¥{{ revenue.gross_profit|floatformat:0|intcomma }} ({{ revenue.profit_margin|floatformat:1 }}%)</div>
-                            </div>
-                            {% endwith %}
-                        </td>
-                        <td class="text-end">¥{{ project.parking_fee|floatformat:0|intcomma|default:"0" }}</td>
-                        <td>{{ project.client_name }}</td>
-                        <td>{{ project.client_address|truncatechars:30 }}</td>
-                        <td>{{ project.project_manager }}</td>
-                        <td>{{ project.payment_due_date|date:"Y-m-d"|default:"-" }}</td>
-                        <td>{{ project.work_start_date|date:"Y-m-d"|default:"-" }}</td>
-                        <td>{{ project.work_end_date|date:"Y-m-d"|default:"-" }}</td>
-                        <td>{{ project.contract_date|date:"Y-m-d"|default:"-" }}</td>
-                        <td class="text-center">
-                            {% if project.invoice_issued %}
-                            <i class="fas fa-check-circle text-success"></i>
+                        <td style="font-size: 0.85rem;">
+                            {% if project.work_start_date and project.work_end_date %}
+                            <div>{{ project.work_start_date|date:"m/d" }} ~ {{ project.work_end_date|date:"m/d" }}</div>
+                            {% elif project.work_start_date %}
+                            <div>{{ project.work_start_date|date:"m/d" }} ~</div>
                             {% else %}
-                            <i class="fas fa-times-circle text-muted"></i>
+                            <div class="text-muted">未定</div>
                             {% endif %}
                         </td>
-                        <td>{{ project.expense_item_1|default:"-" }}</td>
-                        <td class="text-end">¥{{ project.expense_amount_1|floatformat:0|intcomma|default:"0" }}</td>
-                        <td>{{ project.expense_item_2|default:"-" }}</td>
-                        <td class="text-end">¥{{ project.expense_amount_2|floatformat:0|intcomma|default:"0" }}</td>
-                        <td class="text-end fw-bold">¥{{ project.billing_amount|floatformat:0|intcomma|default:"0" }}</td>
-                        <td class="text-end {% if project.amount_difference > 0 %}text-success{% elif project.amount_difference < 0 %}text-danger{% endif %}">
-                            ¥{{ project.amount_difference|floatformat:0|intcomma|default:"0" }}
+                        <td style="min-width: 220px; font-size: 0.75rem;">
+                            {% with revenue=project.get_revenue_breakdown %}
+                            <span class="text-muted" style="opacity: 0.7;">売上</span>
+                            <span class="text-success fw-bold">¥{{ revenue.revenue|floatformat:0|intcomma }}</span>
+                            <span class="text-muted mx-1">|</span>
+                            <span class="text-muted" style="opacity: 0.7;">原価</span>
+                            <span class="text-warning">-¥{{ revenue.cost_of_sales|floatformat:0|intcomma }}</span>
+                            <span class="text-muted mx-1">|</span>
+                            <span class="text-muted" style="opacity: 0.7;">利益</span>
+                            <span class="text-primary fw-bold">¥{{ revenue.gross_profit|floatformat:0|intcomma }}</span>
+                            <small class="text-info">({{ revenue.profit_margin|floatformat:1 }}%)</small>
+                            {% endwith %}
                         </td>
                         <td onclick="event.stopPropagation();">
                             <div class="btn-group btn-group-sm" role="group">
-                                <a href="{% url 'order_management:project_detail' project.pk %}" class="btn btn-info btn-action" title="詳細">
+                                <a href="{% url 'order_management:project_detail' project.pk %}" class="btn btn-info btn-sm" title="詳細">
                                     <i class="fas fa-eye"></i>
                                 </a>
-                                <a href="{% url 'subcontract_management:project_subcontract_list' project.pk %}" class="btn btn-success btn-action" title="発注">
+                                <a href="{% url 'subcontract_management:project_subcontract_list' project.pk %}" class="btn btn-success btn-sm" title="発注">
                                     <i class="fas fa-handshake"></i>
                                 </a>
-                                <a href="{% url 'order_management:project_update' project.pk %}" class="btn btn-warning btn-action" title="編集">
+                                <a href="{% url 'order_management:project_update' project.pk %}" class="btn btn-warning btn-sm" title="編集">
                                     <i class="fas fa-edit"></i>
                                 </a>
                             </div>
@@ -512,7 +472,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="25" class="text-center text-muted">案件データがありません</td>
+                        <td colspan="9" class="text-center text-muted">案件データがありません</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -554,7 +514,7 @@
     <div class="row g-3" id="tileView">
         {% for project in projects %}
         <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-            <div class="card summary-card h-100" onclick="window.location='{% url 'order_management:project_detail' project.pk %}';" style="border-left: 4px solid {{ project.get_status_color_hex }};">
+            <div class="card summary-card h-100" onclick="window.location='{% url 'order_management:project_detail' project.pk %}';" style="border-left: 4px solid {% if project.project_status == '受注確定' %}#28a745{% elif project.project_status == 'A' %}#dc3545{% elif project.project_status == 'B' %}#ffc107{% elif project.project_status == 'NG' %}#6c757d{% else %}#e9d5ff{% endif %};">
                 {% with stage=project.get_current_project_stage %}
                 <div class="card-header bg-{{ stage.color }} text-white">
                     <h6 class="mb-0 text-truncate" title="{{ project.site_name }}">{{ project.site_name }}</h6>
@@ -572,6 +532,14 @@
                     </div>
                 {% endwith %}
                     <div class="mb-2">
+                        <small class="text-muted">受注ヨミ:</small>
+                        <span class="badge {% if project.project_status == '受注確定' %}bg-success{% elif project.project_status == 'A' %}bg-danger{% elif project.project_status == 'B' %}bg-warning text-dark{% elif project.project_status == 'NG' %}bg-secondary{% else %}text-dark{% endif %}"
+                              style="{% if project.project_status == 'ネタ' %}background-color: #e9d5ff;{% endif %} cursor: help;"
+                              title="{% if project.project_status == '受注確定' %}正式に契約が決定した案件。施工準備・実施段階{% elif project.project_status == 'A' %}受注確度【高】見積提出済みで、契約の意向が強く確認できている案件{% elif project.project_status == 'B' %}受注確度【中】見積提出済みだが、他社との競合や不確定要素がある案件{% elif project.project_status == 'NG' %}失注または取り下げた案件。他社受注や予算不成立など{% else %}初期段階の見込み案件。元請からの問い合わせや引き合いがあった段階{% endif %}">
+                            {{ project.get_project_status_display }}
+                        </span>
+                    </div>
+                    <div class="mb-2">
                         <small class="text-muted">進捗:</small>
                         {% with stage=project.get_current_project_stage details=project.get_progress_details %}
                         <div class="progress progress-enhanced" style="height: 20px;">
@@ -584,11 +552,6 @@
                                 {% if details.total_steps > 0 %}{{ details.completed_steps }}/{{ details.total_steps }}{% else %}0%{% endif %}
                             </div>
                         </div>
-                        {% if details.total_steps > 0 %}
-                        <small class="text-muted">
-                            <i class="fas fa-tasks"></i> {{ details.completed_steps }}/{{ details.total_steps }} 完了
-                        </small>
-                        {% endif %}
                         {% endwith %}
                     </div>
                     <!-- Next Action & Next Step -->
@@ -632,19 +595,16 @@
                     <div>
                         <small class="text-muted">売上内訳:</small>
                         {% with revenue=project.get_revenue_breakdown %}
-                        <div style="font-size: 0.85rem; line-height: 1.3; margin-top: 0.25rem;">
-                            <div class="d-flex justify-content-between">
-                                <span class="text-muted">売上</span>
-                                <span class="text-success fw-bold">¥{{ revenue.revenue|floatformat:0|intcomma }}</span>
-                            </div>
-                            <div class="d-flex justify-content-between">
-                                <span class="text-muted">原価</span>
-                                <span class="text-warning">¥{{ revenue.cost_of_sales|floatformat:0|intcomma }}</span>
-                            </div>
-                            <div class="d-flex justify-content-between">
-                                <span class="text-muted">利益</span>
-                                <span class="text-primary fw-bold">¥{{ revenue.gross_profit|floatformat:0|intcomma }} <small class="text-info">({{ revenue.profit_margin|floatformat:1 }}%)</small></span>
-                            </div>
+                        <div style="font-size: 0.75rem; line-height: 1.4; margin-top: 0.25rem;">
+                            <span class="text-muted" style="opacity: 0.7;">売上</span>
+                            <span class="text-success fw-bold">¥{{ revenue.revenue|floatformat:0|intcomma }}</span>
+                            <span class="text-muted mx-1">|</span>
+                            <span class="text-muted" style="opacity: 0.7;">原価</span>
+                            <span class="text-warning">-¥{{ revenue.cost_of_sales|floatformat:0|intcomma }}</span>
+                            <span class="text-muted mx-1">|</span>
+                            <span class="text-muted" style="opacity: 0.7;">利益</span>
+                            <span class="text-primary fw-bold">¥{{ revenue.gross_profit|floatformat:0|intcomma }}</span>
+                            <small class="text-info">({{ revenue.profit_margin|floatformat:1 }}%)</small>
                         </div>
                         {% endwith %}
                     </div>
@@ -666,7 +626,7 @@
     <!-- リスト表示 -->
     <div id="listView" style="display: none;">
         <!-- リスト表示のヘッダー行 -->
-        <div class="list-group-item bg-light" style="cursor: default;">
+        <div class="mb-3 p-3 bg-white rounded shadow-sm border">
             <div class="row align-items-center">
                 <div class="col-md-3">
                     <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('name')">
@@ -694,19 +654,14 @@
                 <div class="col-md-1-5">
                     <small class="text-muted fw-bold">工期・入金予定</small>
                 </div>
-                <div class="col-md-2 text-end">
-                    <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('revenue')">
-                        売上内訳 <i class="fas fa-sort"></i>
-                    </small>
-                </div>
             </div>
         </div>
-        <div class="list-group" id="summaryListItems">
+        <div id="summaryListItems">
             {% for project in projects %}
             {% with stage=project.get_current_project_stage details=project.get_progress_details revenue=project.get_revenue_breakdown %}
-            <div class="list-group-item list-view-item"
+            <div class="list-view-item"
                  onclick="window.location='{% url 'order_management:project_detail' project.pk %}'"
-                 style="border-left: 4px solid {{ project.get_status_color_hex }};"
+                 style="border-left-color: {% if project.project_status == '受注確定' %}#28a745{% elif project.project_status == 'A' %}#dc3545{% elif project.project_status == 'B' %}#ffc107{% elif project.project_status == 'NG' %}#6c757d{% else %}#e9d5ff{% endif %};"
                  data-name="{{ project.site_name }}"
                  data-work-type="{{ project.work_type|default:'' }}"
                  data-stage="{{ stage.stage }}"
@@ -714,23 +669,46 @@
                  data-revenue="{{ revenue.revenue }}">
                 <div class="row align-items-center">
                     <div class="col-md-3">
-                        <h6 class="mb-1">{{ project.site_name }}</h6>
-                        <small class="text-muted">{{ project.management_no }}</small>
+                        <h6 class="mb-1 fw-bold" style="color: #2c3e50;">{{ project.site_name }}</h6>
+                        <small class="text-muted"><i class="fas fa-hashtag me-1"></i>{{ project.management_no }}</small>
+
+                        <!-- 売上内訳（一列表示） -->
+                        {% with revenue=project.get_revenue_breakdown %}
+                        <div class="mt-1" style="font-size: 0.75rem; line-height: 1.4;">
+                            <span class="text-muted" style="opacity: 0.7;">売上</span>
+                            <span class="text-success fw-bold">¥{{ revenue.revenue|floatformat:0|intcomma }}</span>
+                            <span class="text-muted mx-1">|</span>
+                            <span class="text-muted" style="opacity: 0.7;">原価</span>
+                            <span class="text-warning">-¥{{ revenue.cost_of_sales|floatformat:0|intcomma }}</span>
+                            <span class="text-muted mx-1">|</span>
+                            <span class="text-muted" style="opacity: 0.7;">利益</span>
+                            <span class="text-primary fw-bold">¥{{ revenue.gross_profit|floatformat:0|intcomma }}</span>
+                            <small class="text-info">({{ revenue.profit_margin|floatformat:1 }}%)</small>
+                        </div>
+                        {% endwith %}
                     </div>
                     <div class="col-md-1-5">
-                        <small class="text-muted d-block">施工種別</small>
-                        <strong>{{ project.work_type|default:"-" }}</strong>
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;"><i class="fas fa-tools me-1"></i>施工種別</small>
+                        <strong style="font-size: 0.9rem;">{{ project.work_type|default:"-" }}</strong>
                     </div>
                     <div class="col-md-1-5">
-                        <small class="text-muted d-block">案件進捗</small>
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;"><i class="fas fa-tasks me-1"></i>案件進捗</small>
                         {% with stage=project.get_current_project_stage %}
-                        <span class="badge bg-{{ stage.color }}">
+                        <span class="badge bg-{{ stage.color }}" style="font-size: 0.85rem; padding: 0.35rem 0.6rem;">
                             {{ stage.stage }}
                         </span>
                         {% endwith %}
+                        <div class="mt-1">
+                            <small class="text-muted d-block mb-1" style="font-size: 0.65rem;"><i class="fas fa-chart-pie me-1"></i>受注ヨミ</small>
+                            <span class="badge {% if project.project_status == '受注確定' %}bg-success{% elif project.project_status == 'A' %}bg-danger{% elif project.project_status == 'B' %}bg-warning text-dark{% elif project.project_status == 'NG' %}bg-secondary{% else %}text-dark{% endif %}"
+                                  style="font-size: 0.75rem; padding: 0.25rem 0.5rem;{% if project.project_status == 'ネタ' %} background-color: #e9d5ff;{% endif %} cursor: help;"
+                                  title="{% if project.project_status == '受注確定' %}正式に契約が決定した案件。施工準備・実施段階{% elif project.project_status == 'A' %}受注確度【高】見積提出済みで、契約の意向が強く確認できている案件{% elif project.project_status == 'B' %}受注確度【中】見積提出済みだが、他社との競合や不確定要素がある案件{% elif project.project_status == 'NG' %}失注または取り下げた案件。他社受注や予算不成立など{% else %}初期段階の見込み案件。元請からの問い合わせや引き合いがあった段階{% endif %}">
+                                {{ project.get_project_status_display }}
+                            </span>
+                        </div>
                     </div>
                     <div class="col-md-2">
-                        <small class="text-muted d-block">進捗</small>
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;"><i class="fas fa-chart-line me-1"></i>進捗</small>
                         {% with stage=project.get_current_project_stage details=project.get_progress_details %}
                         <div class="progress progress-enhanced" style="height: 15px;">
                             <div class="progress-bar bg-{{ stage.color }}"
@@ -738,9 +716,6 @@
                                 {% if details.total_steps > 0 %}{{ details.completed_steps }}/{{ details.total_steps }}{% else %}0%{% endif %}
                             </div>
                         </div>
-                        {% if details.total_steps > 0 %}
-                        <small class="text-muted">{{ details.completed_steps }}/{{ details.total_steps }}</small>
-                        {% endif %}
                         {% endwith %}
                         <!-- Next Action & Next Step -->
                         {% with next_info=project.get_next_action_and_step %}
@@ -759,7 +734,7 @@
                         {% endwith %}
                     </div>
                     <div class="col-md-1-5">
-                        <small class="text-muted d-block">手配状況</small>
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;"><i class="fas fa-handshake me-1"></i>手配状況</small>
                         {% with subcontract_status=project.get_subcontract_status %}
                         <span class="badge bg-{{ subcontract_status.color }}">
                             <i class="fas {{ subcontract_status.icon }}"></i> {{ subcontract_status.status }}
@@ -767,7 +742,7 @@
                         {% endwith %}
                     </div>
                     <div class="col-md-1-5">
-                        <small class="text-muted d-block">工期・入金予定</small>
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;"><i class="fas fa-calendar me-1"></i>工期・入金予定</small>
                         {% with period=project.get_construction_period %}
                         <div style="font-size: 0.75rem; line-height: 1.3;">
                             {% if period.days is not None %}
@@ -784,16 +759,6 @@
                             {% else %}
                             <div class="text-muted">未定</div>
                             {% endif %}
-                        </div>
-                        {% endwith %}
-                    </div>
-                    <div class="col-md-2 text-end">
-                        <small class="text-muted d-block">売上内訳</small>
-                        {% with revenue=project.get_revenue_breakdown %}
-                        <div style="font-size: 0.8rem; line-height: 1.2;">
-                            <div class="text-success fw-bold">¥{{ revenue.revenue|floatformat:0|intcomma }}</div>
-                            <div class="text-warning">-¥{{ revenue.cost_of_sales|floatformat:0|intcomma }}</div>
-                            <div class="text-primary fw-bold">¥{{ revenue.gross_profit|floatformat:0|intcomma }} <small class="text-info">({{ revenue.profit_margin|floatformat:1 }}%)</small></div>
                         </div>
                         {% endwith %}
                     </div>
@@ -961,6 +926,17 @@ $(document).ready(function() {
     switchMode(savedMode);
     console.log('=== End View Mode Initialization ===');
 
+    // Auto-expand advanced filters if any are active
+    {% if work_type or project_manager or witness_status or survey_status or estimate_status or construction_status or assignee_name %}
+    var advancedFiltersElement = document.getElementById('advancedFilters');
+    if (advancedFiltersElement && typeof bootstrap !== 'undefined') {
+        var advancedFiltersCollapse = new bootstrap.Collapse(advancedFiltersElement, {
+            show: true
+        });
+        console.log('Advanced filters auto-expanded due to active filters');
+    }
+    {% endif %}
+
     // 行クリック時の処理（DataTablesイベントを使用）
     $('#projectTable tbody').on('click', 'tr.clickable-row', function(e) {
         // ボタン要素のクリックは除外、そしてselectも除外
@@ -1046,7 +1022,7 @@ function sortSummaryList(field) {
     }
 
     const container = $('#summaryListItems');
-    const items = container.children('.list-group-item').get();
+    const items = container.children('.list-view-item').get();
 
     items.sort(function(a, b) {
         let aValue, bValue;
@@ -1099,11 +1075,11 @@ function sortSummaryList(field) {
 
 function updateSortIcons(field) {
     // すべてのソートアイコンをリセット
-    $('#listView .list-group-item.bg-light i').removeClass('fa-sort-up fa-sort-down').addClass('fa-sort');
+    $('#listView .bg-white.rounded i').removeClass('fa-sort-up fa-sort-down').addClass('fa-sort');
 
     // 現在のソートフィールドのアイコンを更新
     const iconClass = currentSortDirection === 'asc' ? 'fa-sort-up' : 'fa-sort-down';
-    $('#listView .list-group-item.bg-light small[onclick*="' + field + '"] i')
+    $('#listView .bg-white.rounded small[onclick*="' + field + '"] i')
         .removeClass('fa-sort')
         .addClass(iconClass);
 }

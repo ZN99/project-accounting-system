@@ -1,0 +1,271 @@
+<script>
+/**
+ * 業者管理パネル - JavaScript
+ * 営業管理パネルと同じUI/UXパターン
+ */
+
+// 業者管理パネルを開く
+window.openContractorManagementPanel = function() {
+    console.log('✅ openContractorManagementPanel called');
+
+    // モーダルを表示
+    const modal = new bootstrap.Modal(document.getElementById('contractorManagementModal'));
+    modal.show();
+
+    // 業者一覧を読み込む
+    refreshContractorList();
+};
+
+// 業者一覧を更新
+window.refreshContractorList = function() {
+    console.log('✅ refreshContractorList called');
+
+    const tbody = $('#contractorTableBody');
+    tbody.html('<tr><td colspan="8" class="text-center text-muted">読み込み中...</td></tr>');
+
+    // すべての業者を取得（Djangoテンプレートから）
+    const allContractors = {{ contractors|safe }};
+
+    if (!allContractors || allContractors.length === 0) {
+        tbody.html('<tr><td colspan="8" class="text-center text-muted">業者が登録されていません</td></tr>');
+        return;
+    }
+
+    let html = '';
+    allContractors.forEach(function(contractor) {
+        const typeLabel = contractor.contractor_type === 'individual' ? '個人職人' : '協力会社';
+        const statusBadge = contractor.is_active ?
+            '<span class="badge bg-success">有効</span>' :
+            '<span class="badge bg-secondary">無効</span>';
+        const hourlyRate = contractor.contractor_type === 'individual' && contractor.hourly_rate ?
+            `¥${parseInt(contractor.hourly_rate).toLocaleString()}` : '-';
+
+        html += `
+            <tr>
+                <td><strong>${escapeHtml(contractor.name)}</strong></td>
+                <td><span class="badge bg-info">${typeLabel}</span></td>
+                <td>${escapeHtml(contractor.address || '-')}</td>
+                <td>${escapeHtml(contractor.phone || '-')}</td>
+                <td>${escapeHtml(contractor.contact_person || '-')}</td>
+                <td>${hourlyRate}</td>
+                <td>${statusBadge}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="openEditContractorModal(${contractor.id})" title="編集">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteContractor(${contractor.id}, '${escapeHtml(contractor.name)}')" title="削除">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.html(html);
+};
+
+// 業者編集モーダルを開く
+window.openEditContractorModal = function(contractorId) {
+    console.log('✅ openEditContractorModal called', contractorId);
+
+    const allContractors = {{ contractors|safe }};
+    const contractor = allContractors.find(c => c.id === contractorId);
+
+    if (!contractor) {
+        toastr.error('業者情報が見つかりません');
+        return;
+    }
+
+    // フォームに値を設定
+    $('#editContractorId').val(contractor.id);
+    $('#editContractorName').val(contractor.name);
+    $('#editContractorType').val(contractor.contractor_type);
+    $('#editContractorAddress').val(contractor.address || '');
+    $('#editContractorPhone').val(contractor.phone || '');
+    $('#editContractorEmail').val(contractor.email || '');
+    $('#editContractorContactPerson').val(contractor.contact_person || '');
+    $('#editContractorHourlyRate').val(contractor.hourly_rate || '');
+    $('#editContractorSpecialties').val(contractor.specialties || '');
+    $('#editContractorIsActive').prop('checked', contractor.is_active);
+
+    // 時給単価フィールドの表示/非表示
+    toggleEditHourlyRateField();
+
+    // モーダルを表示
+    const modal = new bootstrap.Modal(document.getElementById('editContractorModal'));
+    modal.show();
+};
+
+// 編集モーダルの時給単価フィールド表示切り替え
+window.toggleEditHourlyRateField = function() {
+    const contractorType = $('#editContractorType').val();
+    const hourlyRateField = $('#editHourlyRateField');
+
+    if (contractorType === 'individual') {
+        hourlyRateField.show();
+    } else {
+        hourlyRateField.hide();
+        $('#editContractorHourlyRate').val('');
+    }
+};
+
+// 業者情報を更新
+window.submitEditContractor = function() {
+    console.log('✅ submitEditContractor called');
+
+    const contractorId = $('#editContractorId').val();
+    const name = $('#editContractorName').val().trim();
+    const contractorType = $('#editContractorType').val();
+    const address = $('#editContractorAddress').val().trim();
+    const phone = $('#editContractorPhone').val().trim();
+    const email = $('#editContractorEmail').val().trim();
+    const contactPerson = $('#editContractorContactPerson').val().trim();
+    const hourlyRateStr = $('#editContractorHourlyRate').val();
+    const hourlyRate = hourlyRateStr ? parseFloat(hourlyRateStr) : 0;
+    const specialties = $('#editContractorSpecialties').val().trim();
+    const isActive = $('#editContractorIsActive').is(':checked');
+
+    // バリデーション
+    if (!name) {
+        toastr.error('業者名を入力してください');
+        $('#editContractorName').focus();
+        return;
+    }
+
+    if (!contractorType) {
+        toastr.error('業者種別を選択してください');
+        $('#editContractorType').focus();
+        return;
+    }
+
+    if (email && !isValidEmail(email)) {
+        toastr.error('有効なメールアドレスを入力してください');
+        $('#editContractorEmail').focus();
+        return;
+    }
+
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    // AJAX リクエスト
+    $.ajax({
+        url: `/subcontract/contractors/${contractorId}/update/`,
+        method: 'POST',
+        dataType: 'json',
+        data: {
+            csrfmiddlewaretoken: csrftoken,
+            name: name,
+            contractor_type: contractorType,
+            address: address,
+            phone: phone,
+            email: email,
+            contact_person: contactPerson,
+            hourly_rate: hourlyRate,
+            specialties: specialties,
+            is_active: isActive,
+            ajax_request: true
+        },
+        success: function(response) {
+            if (response && response.success) {
+                // モーダルを閉じる
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editContractorModal'));
+                if (modal) modal.hide();
+
+                toastr.success(response.message || '業者情報を更新しました');
+
+                // 一覧を更新
+                refreshContractorList();
+
+                // ページをリロード（ドロップダウンを更新）
+                setTimeout(function() {
+                    location.reload();
+                }, 1000);
+            } else {
+                toastr.error(response.message || '更新に失敗しました');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error:', error);
+            let errorMessage = '更新中にエラーが発生しました';
+
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            } else if (xhr.status === 0) {
+                errorMessage = 'ネットワークエラー: サーバーに接続できません';
+            } else if (xhr.status === 400) {
+                errorMessage = xhr.responseJSON?.message || '入力内容を確認してください';
+            } else if (xhr.status === 403) {
+                errorMessage = '権限エラー: この操作を実行する権限がありません';
+            } else if (xhr.status === 404) {
+                errorMessage = '業者が見つかりません';
+            } else if (xhr.status === 500) {
+                errorMessage = 'サーバーエラー: しばらくしてから再度お試しください';
+            }
+
+            toastr.error(errorMessage);
+        }
+    });
+};
+
+// 業者を削除
+window.deleteContractor = function(contractorId, contractorName) {
+    console.log('✅ deleteContractor called', contractorId, contractorName);
+
+    if (!confirm(`本当に「${contractorName}」を削除しますか？\n\nこの操作は取り消せません。`)) {
+        return;
+    }
+
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    $.ajax({
+        url: `/subcontract/contractors/${contractorId}/delete/`,
+        method: 'POST',
+        dataType: 'json',
+        data: {
+            csrfmiddlewaretoken: csrftoken,
+            ajax_request: true
+        },
+        success: function(response) {
+            if (response && response.success) {
+                toastr.success(response.message || '業者を削除しました');
+
+                // 一覧を更新
+                refreshContractorList();
+
+                // ページをリロード（ドロップダウンを更新）
+                setTimeout(function() {
+                    location.reload();
+                }, 1000);
+            } else {
+                toastr.error(response.message || '削除に失敗しました');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error:', error);
+            let errorMessage = '削除中にエラーが発生しました';
+
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            } else if (xhr.status === 404) {
+                errorMessage = '業者が見つかりません';
+            } else if (xhr.status === 500) {
+                errorMessage = 'サーバーエラー: しばらくしてから再度お試しください';
+            }
+
+            toastr.error(errorMessage);
+        }
+    });
+};
+
+// HTMLエスケープ関数
+function escapeHtml(text) {
+    if (!text) return '';
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.toString().replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+</script>

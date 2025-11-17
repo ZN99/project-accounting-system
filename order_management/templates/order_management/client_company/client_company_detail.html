@@ -147,22 +147,16 @@
     <div class="container">
         <!-- 統計 -->
         <div class="row mb-4">
-            <div class="col-md-4">
+            <div class="col-md-6">
                 <div class="stat-box">
                     <div class="stat-value">{{ total_projects|intcomma }}</div>
                     <div class="stat-label">総案件数</div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
                 <div class="stat-box">
                     <div class="stat-value">{{ active_projects|intcomma }}</div>
-                    <div class="stat-label">進行中</div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="stat-box">
-                    <div class="stat-value">¥{{ company.approval_threshold|intcomma }}</div>
-                    <div class="stat-label">承認閾値</div>
+                    <div class="stat-label">進行中案件</div>
                 </div>
             </div>
         </div>
@@ -208,6 +202,51 @@
                 <div class="info-label">住所</div>
                 <div class="info-value">{{ company.address|linebreaksbr }}</div>
             </div>
+            {% endif %}
+
+            {% if company.website %}
+            <div class="info-row">
+                <div class="info-label">ホームページ</div>
+                <div class="info-value">
+                    <a href="{{ company.website }}" target="_blank">{{ company.website }}</a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 支払いサイクル設定 -->
+        <div class="info-card">
+            <div class="section-title">
+                <i class="fas fa-money-bill-wave me-2"></i>支払いサイクル設定
+            </div>
+
+            <div class="info-row">
+                <div class="info-label">支払サイクル</div>
+                <div class="info-value">
+                    {% if company.payment_cycle %}
+                        {{ company.get_payment_cycle_display }}
+                    {% else %}
+                        <span class="text-muted">未設定</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if company.closing_day %}
+            <div class="info-row">
+                <div class="info-label">締め日</div>
+                <div class="info-value">毎月{{ company.closing_day }}日締め</div>
+            </div>
+            {% endif %}
+
+            {% if company.payment_day %}
+            <div class="info-row">
+                <div class="info-label">支払日</div>
+                <div class="info-value">毎月{{ company.payment_day }}日払い</div>
+            </div>
+            {% endif %}
+
+            {% if not company.payment_cycle and not company.closing_day and not company.payment_day %}
+            <p class="text-muted mb-0">設定されていません</p>
             {% endif %}
         </div>
 

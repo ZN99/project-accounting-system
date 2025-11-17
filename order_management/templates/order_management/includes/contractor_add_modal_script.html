@@ -1,0 +1,182 @@
+<script>
+/**
+ * 業者追加モーダル - JavaScript
+ * 営業管理モーダルと同じUI/UXパターン
+ */
+
+// 業者種別に応じて時給単価フィールドを表示/非表示
+window.toggleHourlyRateField = function() {
+    const contractorType = $('#contractorType').val();
+    const hourlyRateField = $('#hourlyRateField');
+
+    if (contractorType === 'individual') {
+        // 個人職人の場合は表示
+        hourlyRateField.show();
+    } else {
+        // 協力会社の場合は非表示
+        hourlyRateField.hide();
+        $('#contractorHourlyRate').val(''); // 値をクリア
+    }
+};
+
+// モーダルを開く
+window.openAddContractorModal = function() {
+    console.log('✅ openAddContractorModal called');
+
+    // フォームをクリア/リセット
+    $('#addContractorForm')[0].reset();
+
+    // デフォルト値を設定（協力会社）
+    $('#contractorType').val('company');
+
+    // 時給単価フィールドを初期状態（非表示）にする
+    toggleHourlyRateField();
+
+    // モーダルを表示
+    const modal = new bootstrap.Modal(document.getElementById('addContractorModal'));
+    modal.show();
+};
+
+// フォーム送信（バリデーション付き）
+window.submitNewContractor = function() {
+    console.log('✅ submitNewContractor called');
+
+    // フォームデータを取得
+    const name = $('#contractorName').val().trim();
+    const contractorType = $('#contractorType').val();
+    const address = $('#contractorAddress').val().trim();
+    const phone = $('#contractorPhone').val().trim();
+    const email = $('#contractorEmail').val().trim();
+    const contactPerson = $('#contractorContactPerson').val().trim();
+    const hourlyRateStr = $('#contractorHourlyRate').val();
+    const hourlyRate = hourlyRateStr ? parseFloat(hourlyRateStr) : 0;
+    const specialties = $('#contractorSpecialties').val().trim();
+
+    // バリデーション
+    if (!name) {
+        toastr.error('業者名を入力してください');
+        $('#contractorName').focus();
+        return;
+    }
+
+    if (!contractorType) {
+        toastr.error('業者種別を選択してください');
+        $('#contractorType').focus();
+        return;
+    }
+
+    // メールアドレスの形式チェック（入力されている場合のみ）
+    if (email && !isValidEmail(email)) {
+        toastr.error('有効なメールアドレスを入力してください');
+        $('#contractorEmail').focus();
+        return;
+    }
+
+    // 新規業者を追加
+    addNewContractor({
+        name: name,
+        contractor_type: contractorType,
+        address: address,
+        phone: phone,
+        email: email,
+        contact_person: contactPerson,
+        hourly_rate: hourlyRate,
+        specialties: specialties
+    });
+};
+
+// AJAX で業者を追加
+window.addNewContractor = function(contractorData) {
+    console.log('✅ addNewContractor called', contractorData);
+
+    // CSRFトークンを取得
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    // バックエンドに新規業者を追加（AJAX）
+    $.ajax({
+        url: '{% url "subcontract_management:contractor_create" %}',
+        method: 'POST',
+        dataType: 'json',
+        data: {
+            csrfmiddlewaretoken: csrftoken,
+            name: contractorData.name,
+            contractor_type: contractorData.contractor_type,
+            address: contractorData.address,
+            phone: contractorData.phone,
+            email: contractorData.email,
+            contact_person: contractorData.contact_person,
+            hourly_rate: contractorData.hourly_rate,
+            specialties: contractorData.specialties,
+            is_active: true,
+            ajax_request: true
+        },
+        success: function(response) {
+            if (response && response.success) {
+                // モーダルを閉じる
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addContractorModal'));
+                if (modal) {
+                    modal.hide();
+                }
+
+                // 成功メッセージを表示
+                toastr.success(response.message || `${contractorData.name}を追加しました！`);
+
+                // 業者ドロップダウンに追加して自動選択
+                if (response.contractor) {
+                    const contractor = response.contractor;
+                    const option = $('<option>')
+                        .val(contractor.id)
+                        .text(contractor.name + (contractor.address ? ' (' + contractor.address + ')' : ''))
+                        .attr('data-name', contractor.name)
+                        .attr('data-address', contractor.address || '')
+                        .attr('data-contractor-type', contractor.contractor_type)
+                        .attr('data-phone', contractor.phone || '')
+                        .attr('data-email', contractor.email || '')
+                        .attr('data-contact-person', contractor.contact_person || '')
+                        .attr('data-specialties', contractor.specialties || '')
+                        .attr('data-hourly-rate', contractor.hourly_rate || '');
+
+                    $('#contractorSelect').append(option);
+                    $('#contractorSelect').val(contractor.id).trigger('change');
+
+                    // 「既存業者を使用」をチェック
+                    $('#existing_contractor').prop('checked', true).trigger('change');
+                }
+
+                // ページをリロード（ドロップダウンを最新化）
+                setTimeout(function() {
+                    location.reload();
+                }, 1000);
+            } else {
+                toastr.error(response.message || '追加に失敗しました');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error:', error);
+            let errorMessage = '追加中にエラーが発生しました';
+
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            } else if (xhr.status === 0) {
+                errorMessage = 'ネットワークエラー: サーバーに接続できません';
+            } else if (xhr.status === 400) {
+                errorMessage = xhr.responseJSON?.message || '入力内容を確認してください';
+            } else if (xhr.status === 403) {
+                errorMessage = '権限エラー: この操作を実行する権限がありません';
+            } else if (xhr.status === 500) {
+                errorMessage = 'サーバーエラー: しばらくしてから再度お試しください';
+            } else if (error) {
+                errorMessage = `追加中にエラーが発生しました: ${error}`;
+            }
+
+            toastr.error(errorMessage);
+        }
+    });
+};
+
+// メールアドレスの形式チェック
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+</script>

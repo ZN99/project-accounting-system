@@ -219,6 +219,9 @@ urlpatterns = [
     path('api/notifications/<int:notification_id>/read/', views_comment.mark_notification_read, name='api_mark_notification_read'),
     path('api/notifications/read-all/', views_comment.mark_all_notifications_read, name='api_mark_all_notifications_read'),
 
+    # 詳細コメント機能
+    path('api/projects/<int:pk>/comments/', views.project_comments, name='api_project_comments'),
+
     # カレンダー・業績管理 - Phase 7
     path('calendar/', ConstructionCalendarView.as_view(), name='construction_calendar'),
     path('calendar/worker-resources/', WorkerResourceCalendarView.as_view(), name='worker_resource_calendar'),

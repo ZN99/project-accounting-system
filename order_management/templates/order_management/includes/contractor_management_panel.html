@@ -1,0 +1,116 @@
+<!-- 業者管理パネルモーダル -->
+<div class="modal fade" id="contractorManagementModal" tabindex="-1" aria-labelledby="contractorManagementModalLabel" aria-hidden="true" style="z-index: 9999 !important;">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="contractorManagementModalLabel">
+                    <i class="fas fa-building"></i> 業者管理
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">登録業者一覧</h6>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="openAddContractorModal()">
+                        <i class="fas fa-plus"></i> 新規追加
+                    </button>
+                </div>
+
+                <!-- 業者テーブル -->
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead class="table-light">
+                            <tr>
+                                <th>業者名</th>
+                                <th>種別</th>
+                                <th>住所</th>
+                                <th>電話番号</th>
+                                <th>担当者</th>
+                                <th>時給単価</th>
+                                <th>状態</th>
+                                <th style="width: 120px;">アクション</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contractorTableBody">
+                            <tr>
+                                <td colspan="8" class="text-center text-muted">読み込み中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 業者編集モーダル -->
+<div class="modal fade" id="editContractorModal" tabindex="-1" aria-labelledby="editContractorModalLabel" aria-hidden="true" style="z-index: 10000 !important;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editContractorModalLabel">
+                    <i class="fas fa-edit"></i> 業者情報編集
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editContractorForm">
+                    <input type="hidden" id="editContractorId">
+                    <div class="mb-3">
+                        <label for="editContractorName" class="form-label">業者名 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="editContractorName" required placeholder="例: ○○建設株式会社">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editContractorType" class="form-label">業者種別 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="editContractorType" required onchange="toggleEditHourlyRateField()">
+                            <option value="">-- 業者種別を選択 --</option>
+                            <option value="company">協力会社</option>
+                            <option value="individual">個人職人</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editContractorAddress" class="form-label">住所</label>
+                        <input type="text" class="form-control" id="editContractorAddress" placeholder="例: 東京都渋谷区...">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editContractorPhone" class="form-label">電話番号</label>
+                        <input type="tel" class="form-control" id="editContractorPhone" placeholder="例: 03-1234-5678">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editContractorEmail" class="form-label">メールアドレス</label>
+                        <input type="email" class="form-control" id="editContractorEmail" placeholder="例: info@example.com">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editContractorContactPerson" class="form-label">担当者名</label>
+                        <input type="text" class="form-control" id="editContractorContactPerson" placeholder="例: 山田 太郎">
+                    </div>
+                    <div class="mb-3" id="editHourlyRateField" style="display: none;">
+                        <label for="editContractorHourlyRate" class="form-label">時給単価（円）</label>
+                        <input type="number" class="form-control" id="editContractorHourlyRate" placeholder="3000" min="0" step="100">
+                        <small class="form-text text-muted">任意: コスト計算用（個人職人のみ）</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editContractorSpecialties" class="form-label">専門分野</label>
+                        <input type="text" class="form-control" id="editContractorSpecialties" placeholder="例: 建築工事、内装工事">
+                        <small class="form-text text-muted">任意: カンマ区切りで複数入力可</small>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="editContractorIsActive">
+                        <label class="form-check-label" for="editContractorIsActive">
+                            アクティブ
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-primary" onclick="submitEditContractor()">
+                    <i class="fas fa-save"></i> 更新
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
