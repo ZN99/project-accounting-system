@@ -44,11 +44,11 @@ def material_order_create(request, project_id):
             # 新しい業者を作成
             contractor_name = request.POST.get('contractor_name')
             client_address = request.POST.get('client_address', '')
-            if contractor_name:
+            if contractor_name and contractor_name.strip():
                 contractor = Contractor.objects.create(
-                    name=contractor_name,
+                    name=contractor_name.strip(),
                     address=client_address,
-                    is_supplier=True
+                    is_active=True
                 )
 
         if contractor:
@@ -84,10 +84,10 @@ def material_order_create(request, project_id):
         else:
             messages.error(request, '業者情報が正しく入力されていません。')
 
-    # 資材業者一覧（supplier=True または既存の資材業者）
+    # 資材業者一覧（アクティブな業者のみ）
     contractors = Contractor.objects.filter(
-        Q(is_supplier=True) | Q(materialorder__isnull=False)
-    ).distinct().order_by('name')
+        is_active=True
+    ).order_by('name')
 
     context = {
         'project': project,
@@ -153,10 +153,10 @@ def material_order_edit(request, project_id, order_id):
         messages.success(request, f'資材発注 {order.order_number} を更新しました。')
         return redirect('order_management:material_order_detail', project_id=project.id, order_id=order.id)
 
-    # 資材業者一覧（supplier=True または既存の資材業者）
+    # 資材業者一覧（アクティブな業者のみ）
     contractors = Contractor.objects.filter(
-        Q(is_supplier=True) | Q(materialorder__isnull=False)
-    ).distinct().order_by('name')
+        is_active=True
+    ).order_by('name')
 
     context = {
         'project': project,

@@ -4,64 +4,30 @@
 
 {% block extra_css %}
 <style>
-.material-header {
-    background: linear-gradient(135deg, #ff9800, #f57c00);
-    color: white;
+.info-label {
+    font-weight: 600;
+    color: #6c757d;
+    font-size: 0.85rem;
 }
-.material-detail {
-    background: linear-gradient(135deg, #fff8e1, #fff3c4);
-    border-left: 4px solid #ff9800;
-    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.1);
-}
-.material-status {
-    padding: 8px 16px;
-    border-radius: 16px;
-    font-weight: bold;
+.info-value {
     font-size: 1rem;
+    color: #212529;
 }
-.status-draft { background-color: #e0e0e0; color: #666; }
-.status-ordered { background-color: #fff3e0; color: #f57c00; }
-.status-delivered { background-color: #e8f5e8; color: #2e7d32; }
-.status-completed { background-color: #e3f2fd; color: #1976d2; }
-.status-cancelled { background-color: #ffebee; color: #d32f2f; }
-.btn-material {
-    background: linear-gradient(135deg, #ff9800, #f57c00);
-    border: none;
-    color: white;
+.material-item-card {
+    border-left: 3px solid #ffc107;
+    background-color: #fffbf0;
 }
-.btn-material:hover {
-    background: linear-gradient(135deg, #f57c00, #ef6c00);
-    color: white;
+.timeline-item {
+    display: flex;
+    align-items: start;
+    margin-bottom: 1rem;
+    padding-left: 10px;
+    border-left: 2px solid #dee2e6;
 }
-.info-box {
-    background: rgba(255, 152, 0, 0.1);
-    border: 1px solid rgba(255, 152, 0, 0.3);
-    border-radius: 8px;
-    padding: 20px;
-}
-.material-item {
-    background: white;
-    border: 1px solid rgba(255, 152, 0, 0.2);
-    border-radius: 8px;
-    padding: 15px;
-    margin-bottom: 10px;
-    box-shadow: 0 2px 4px rgba(255, 152, 0, 0.1);
-}
-.total-amount {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #f57c00;
-    background: rgba(255, 152, 0, 0.1);
-    padding: 15px;
-    border-radius: 8px;
-    text-align: center;
-}
-.status-badge {
-    cursor: pointer;
-    transition: all 0.3s;
-}
-.status-badge:hover {
-    transform: scale(1.05);
+.timeline-item i {
+    margin-right: 10px;
+    margin-top: 3px;
+    width: 20px;
 }
 </style>
 {% endblock %}
@@ -69,220 +35,242 @@
 {% block title %}資材発注詳細 - {{ order.order_number }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="material-header p-4 mb-4 rounded">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h2 class="mb-1">📋 資材発注詳細</h2>
-                <p class="mb-0">{{ order.order_number }} - {{ project.name }}</p>
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-file-invoice"></i> 資材発注詳細</h2>
+        <p class="text-muted">{{ project.management_no }} - {{ project.site_name }} | {{ order.order_number }}</p>
+    </div>
+    <div class="col text-end">
+        <a href="{% url 'order_management:material_order_edit' project.id order.id %}"
+           class="btn btn-warning">
+            <i class="fas fa-edit"></i> 編集
+        </a>
+        <a href="{% url 'order_management:material_order_list' project.id %}"
+           class="btn btn-secondary">
+            <i class="fas fa-list"></i> 一覧へ戻る
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 左カラム: 発注情報と資材項目 -->
+    <div class="col-md-8">
+        <!-- 発注基本情報 -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-warning text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> 発注情報</h5>
             </div>
-            <div class="d-flex gap-2">
-                <a href="{% url 'order_management:material_order_edit' project.id order.id %}"
-                   class="btn btn-light">
-                    <i class="fas fa-edit"></i> 編集
-                </a>
-                <a href="{% url 'order_management:material_order_list' project.id %}"
-                   class="btn btn-outline-light">
-                    <i class="fas fa-list"></i> 一覧
-                </a>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="info-label">発注番号</div>
+                        <div class="info-value"><strong>{{ order.order_number }}</strong></div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-label">ステータス</div>
+                        <div class="info-value">
+                            <span class="badge
+                                {% if order.status == 'completed' %}bg-success
+                                {% elif order.status == 'delivered' %}bg-info
+                                {% elif order.status == 'ordered' %}bg-warning
+                                {% elif order.status == 'cancelled' %}bg-danger
+                                {% else %}bg-secondary
+                                {% endif %} fs-6">
+                                {{ order.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="info-label">資材業者</div>
+                        <div class="info-value">
+                            <i class="fas fa-building text-warning"></i>
+                            {% if order.contractor %}
+                                {{ order.contractor.name }}
+                            {% else %}
+                                <span class="text-muted">業者未設定</span>
+                            {% endif %}
+                        </div>
+                        {% if order.contractor.address %}
+                        <small class="text-muted">{{ order.contractor.address }}</small>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-label">発注日</div>
+                        <div class="info-value">{{ order.order_date|date:"Y年m月d日" }}</div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="info-label">希望納期</div>
+                        <div class="info-value">
+                            {% if order.delivery_date %}
+                                {{ order.delivery_date|date:"Y年m月d日" }}
+                            {% else %}
+                                <span class="text-muted">未設定</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-label">実際の納品日</div>
+                        <div class="info-value">
+                            {% if order.actual_delivery_date %}
+                                <span class="text-success">{{ order.actual_delivery_date|date:"Y年m月d日" }}</span>
+                            {% else %}
+                                <span class="text-muted">未納品</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                {% if order.notes %}
+                <div class="row">
+                    <div class="col-12">
+                        <div class="info-label">備考</div>
+                        <div class="info-value bg-light p-2 rounded">{{ order.notes|linebreaks }}</div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
-    </div>
 
-    <div class="row">
-        <div class="col-md-8">
-            <!-- 発注基本情報 -->
-            <div class="material-detail card mb-4">
-                <div class="card-header bg-warning text-white">
-                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> 発注情報</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label text-muted">発注番号</label>
-                            <div class="h5">{{ order.order_number }}</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label text-muted">ステータス</label>
-                            <div>
-                                <span class="material-status status-{{ order.status }} status-badge"
-                                      data-order-id="{{ order.id }}" data-current-status="{{ order.status }}">
-                                    {{ order.get_status_display }}
-                                </span>
-                            </div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label text-muted">資材業者</label>
-                            <div class="h6">
-                                <i class="fas fa-building text-warning"></i> {{ order.contractor.name }}
-                                {% if order.contractor.address %}
-                                <br><small class="text-muted">{{ order.contractor.address }}</small>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label text-muted">発注日</label>
-                            <div class="h6">{{ order.order_date }}</div>
-                        </div>
-                        {% if order.delivery_date %}
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label text-muted">希望納期</label>
-                            <div class="h6">{{ order.delivery_date }}</div>
-                        </div>
-                        {% endif %}
-                        {% if order.actual_delivery_date %}
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label text-muted">実際の納品日</label>
-                            <div class="h6 text-success">{{ order.actual_delivery_date }}</div>
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    {% if order.notes %}
-                    <div class="mt-3 pt-3 border-top">
-                        <label class="form-label text-muted">備考</label>
-                        <div class="info-box">{{ order.notes|linebreaks }}</div>
-                    </div>
-                    {% endif %}
-                </div>
+        <!-- 資材項目一覧 -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-warning text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-boxes"></i> 資材項目</h5>
+                <span class="badge bg-light text-dark">{{ order.items.count }}件</span>
             </div>
-
-            <!-- 資材項目一覧 -->
-            <div class="material-detail card">
-                <div class="card-header bg-warning text-white d-flex justify-content-between">
-                    <h5 class="mb-0"><i class="fas fa-boxes"></i> 資材項目</h5>
-                    <span class="badge bg-light text-dark">{{ order.items.count }}件</span>
-                </div>
-                <div class="card-body">
-                    {% if order.items.exists %}
-                        {% for item in order.items.all %}
-                        <div class="material-item">
+            <div class="card-body">
+                {% if order.items.exists %}
+                    {% for item in order.items.all %}
+                    <div class="material-item-card card mb-3">
+                        <div class="card-body">
                             <div class="row align-items-center">
                                 <div class="col-md-4">
                                     <h6 class="mb-1">
                                         <i class="fas fa-box text-warning"></i> {{ item.material_name }}
                                     </h6>
                                     {% if item.specification %}
-                                    <small class="text-muted">{{ item.specification }}</small>
+                                    <small class="text-muted">規格: {{ item.specification }}</small>
                                     {% endif %}
                                 </div>
                                 <div class="col-md-2 text-center">
-                                    <div class="h6 mb-0">{{ item.quantity }}</div>
-                                    <small class="text-muted">{{ item.unit }}</small>
+                                    <div class="info-label">数量</div>
+                                    <div class="info-value">{{ item.quantity }} {{ item.unit }}</div>
                                 </div>
-                                <div class="col-md-2 text-center">
-                                    <div class="h6 mb-0">¥{{ item.unit_price|floatformat:0|intcomma }}</div>
-                                    <small class="text-muted">単価</small>
+                                <div class="col-md-3 text-center">
+                                    <div class="info-label">単価</div>
+                                    <div class="info-value">¥{{ item.unit_price|floatformat:0|intcomma }}</div>
                                 </div>
-                                <div class="col-md-2 text-center">
-                                    <div class="h6 mb-0 text-warning">¥{{ item.total_price|floatformat:0|intcomma }}</div>
-                                    <small class="text-muted">小計</small>
-                                </div>
-                                <div class="col-md-2 text-end">
-                                    {% if item.notes %}
-                                    <i class="fas fa-sticky-note text-warning" title="{{ item.notes }}"></i>
-                                    {% endif %}
+                                <div class="col-md-3 text-end">
+                                    <div class="info-label">小計</div>
+                                    <div class="info-value text-warning">
+                                        <strong>¥{{ item.total_price|floatformat:0|intcomma }}</strong>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="text-center py-4">
-                            <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
-                            <p class="text-muted">資材項目がありません</p>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">資材項目がありません</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 右カラム: サマリーとステータス管理 -->
+    <div class="col-md-4">
+        <!-- 金額サマリー -->
+        <div class="card shadow-sm mb-4 border-warning">
+            <div class="card-header bg-warning text-white">
+                <h5 class="mb-0"><i class="fas fa-calculator"></i> 金額サマリー</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <h6 class="text-muted">合計金額</h6>
+                    <h2 class="text-warning mb-0">¥{{ order.total_amount|floatformat:0|intcomma }}</h2>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="info-label">項目数</div>
+                        <div class="info-value">{{ order.items.count }}件</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="info-label">平均単価</div>
+                        <div class="info-value">
+                            {% if order.items.count > 0 %}
+                                {% widthratio order.total_amount order.items.count 1 as avg %}
+                                ¥{{ avg|floatformat:0|intcomma }}
+                            {% else %}
+                                -
+                            {% endif %}
                         </div>
-                    {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-4">
-            <!-- 金額サマリー -->
-            <div class="material-detail card mb-4">
-                <div class="card-header bg-warning text-white">
-                    <h5 class="mb-0"><i class="fas fa-calculator"></i> 金額サマリー</h5>
-                </div>
-                <div class="card-body">
-                    <div class="total-amount">
-                        合計金額<br>¥{{ order.total_amount|floatformat:0|intcomma }}
-                    </div>
-
-                    <div class="mt-3">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>項目数</span>
-                            <span class="fw-bold">{{ order.items.count }}件</span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>平均単価</span>
-                            <span class="fw-bold">
-                                {% if order.items.count > 0 %}
-                                ¥{{ order.total_amount|div:order.items.count|floatformat:0|intcomma }}
-                                {% else %}
-                                -
-                                {% endif %}
-                            </span>
-                        </div>
-                    </div>
+        <!-- ステータス管理 -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h6 class="mb-0"><i class="fas fa-tasks"></i> ステータス管理</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% for value, label in order.ORDER_STATUS_CHOICES %}
+                    <button class="btn
+                            {% if order.status == value %}btn-warning{% else %}btn-outline-secondary{% endif %}"
+                            onclick="updateStatus('{{ value }}')"
+                            {% if order.status == value %}disabled{% endif %}>
+                        {{ label }}
+                    </button>
+                    {% endfor %}
                 </div>
             </div>
+        </div>
 
-            <!-- ステータス変更 -->
-            <div class="material-detail card mb-4">
-                <div class="card-header bg-warning text-white">
-                    <h6 class="mb-0"><i class="fas fa-tasks"></i> ステータス管理</h6>
-                </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        {% for value, label in order.ORDER_STATUS_CHOICES %}
-                        <button class="btn btn-sm
-                                {% if order.status == value %}btn-material{% else %}btn-outline-warning{% endif %}"
-                                onclick="updateStatus('{{ value }}')">
-                            {{ label }}
-                        </button>
-                        {% endfor %}
+        <!-- タイムライン -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-secondary text-white">
+                <h6 class="mb-0"><i class="fas fa-clock"></i> 履歴</h6>
+            </div>
+            <div class="card-body">
+                <div class="timeline-item">
+                    <i class="fas fa-plus-circle text-success"></i>
+                    <div>
+                        <div class="info-label">作成日時</div>
+                        <small class="text-muted">{{ order.created_at|date:"Y/m/d H:i" }}</small>
                     </div>
                 </div>
-            </div>
-
-            <!-- 進行状況 -->
-            <div class="material-detail card">
-                <div class="card-header bg-warning text-white">
-                    <h6 class="mb-0"><i class="fas fa-clock"></i> 進行状況</h6>
+                <div class="timeline-item">
+                    <i class="fas fa-paper-plane text-warning"></i>
+                    <div>
+                        <div class="info-label">発注日</div>
+                        <small class="text-muted">{{ order.order_date|date:"Y/m/d" }}</small>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="timeline">
-                        <div class="timeline-item">
-                            <i class="fas fa-calendar-plus text-success"></i>
-                            <div>
-                                <strong>作成日</strong><br>
-                                <small class="text-muted">{{ order.created_at|date:"Y/m/d H:i" }}</small>
-                            </div>
-                        </div>
-                        {% if order.order_date %}
-                        <div class="timeline-item">
-                            <i class="fas fa-paper-plane text-warning"></i>
-                            <div>
-                                <strong>発注日</strong><br>
-                                <small class="text-muted">{{ order.order_date }}</small>
-                            </div>
-                        </div>
-                        {% endif %}
-                        {% if order.actual_delivery_date %}
-                        <div class="timeline-item">
-                            <i class="fas fa-truck text-info"></i>
-                            <div>
-                                <strong>納品日</strong><br>
-                                <small class="text-muted">{{ order.actual_delivery_date }}</small>
-                            </div>
-                        </div>
-                        {% endif %}
-                        <div class="timeline-item">
-                            <i class="fas fa-edit text-secondary"></i>
-                            <div>
-                                <strong>最終更新</strong><br>
-                                <small class="text-muted">{{ order.updated_at|date:"Y/m/d H:i" }}</small>
-                            </div>
-                        </div>
+                {% if order.actual_delivery_date %}
+                <div class="timeline-item">
+                    <i class="fas fa-truck text-info"></i>
+                    <div>
+                        <div class="info-label">納品日</div>
+                        <small class="text-muted">{{ order.actual_delivery_date|date:"Y/m/d" }}</small>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="timeline-item">
+                    <i class="fas fa-edit text-secondary"></i>
+                    <div>
+                        <div class="info-label">最終更新</div>
+                        <small class="text-muted">{{ order.updated_at|date:"Y/m/d H:i" }}</small>
                     </div>
                 </div>
             </div>
@@ -290,59 +278,30 @@
     </div>
 </div>
 
-<style>
-.timeline-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 15px;
-}
-.timeline-item i {
-    margin-right: 10px;
-    width: 20px;
-}
-</style>
-
 <script>
 function updateStatus(newStatus) {
-    if (confirm('ステータスを変更しますか？')) {
-        fetch(`{% url 'order_management:material_project_status_update' project.id order.id %}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
-            body: JSON.stringify({
-                status: newStatus
-            })
+    fetch(`{% url 'order_management:material_order_status_update' project.id order.id %}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            status: newStatus
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('エラー: ' + data.error);
-            }
-        })
-        .catch(error => {
-            alert('通信エラーが発生しました');
-            console.error('Error:', error);
-        });
-    }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('エラー: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('通信エラーが発生しました');
+        console.error('Error:', error);
+    });
 }
-
-// ステータスバッジクリックでクイック変更
-document.querySelector('.status-badge').addEventListener('click', function() {
-    const currentStatus = this.dataset.currentStatus;
-    const statusOptions = {
-        'draft': 'ordered',
-        'ordered': 'delivered',
-        'delivered': 'completed'
-    };
-
-    const nextStatus = statusOptions[currentStatus];
-    if (nextStatus) {
-        updateStatus(nextStatus);
-    }
-});
 </script>
 {% endblock %}

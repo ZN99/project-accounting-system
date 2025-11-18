@@ -277,6 +277,32 @@ class Project(models.Model):
         verbose_name='元請会社'
     )
 
+    # 支払いサイクル情報（元請会社から自動入力、案件ごとに編集可能）
+    payment_cycle = models.CharField(
+        max_length=20,
+        choices=[
+            ('monthly', '月1回'),
+            ('bimonthly', '月2回'),
+            ('weekly', '週1回'),
+            ('custom', 'その他'),
+        ],
+        blank=True,
+        verbose_name='支払サイクル',
+        help_text='元請会社選択時に自動入力されます。案件ごとに編集可能です。'
+    )
+    closing_day = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name='締め日',
+        help_text='月末締めの場合は31、20日締めの場合は20'
+    )
+    payment_day = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name='支払日',
+        help_text='毎月の支払日（1-31）。例：25日払いの場合は25'
+    )
+
     # 鍵受け渡し管理 - Phase 8 追加
     key_handover_location = models.TextField(
         blank=True,
@@ -1294,8 +1320,9 @@ class Project(models.Model):
             subcontracts = Subcontract.objects.filter(project=self)
 
             # 実際の原価を計算（外注費 + 材料費 + 追加費用）
-            total_subcontract_cost = sum(s.billed_amount for s in subcontracts)
-            total_material_cost = sum(s.total_material_cost for s in subcontracts)
+            # 被請求額がある場合はそれを使用、なければ契約金額を使用（案件詳細と同じロジック）
+            total_subcontract_cost = sum((s.billed_amount if s.billed_amount else s.contract_amount) or 0 for s in subcontracts)
+            total_material_cost = sum(s.total_material_cost or 0 for s in subcontracts)
 
             # 追加費用合計（dynamic_cost_items から計算）
             total_additional_cost = Decimal('0')
@@ -1305,7 +1332,10 @@ class Project(models.Model):
                         if 'cost' in item:
                             total_additional_cost += Decimal(str(item['cost']))
 
-            cost_of_sales = total_subcontract_cost + total_material_cost + total_additional_cost
+            # MaterialOrderの資材発注合計を追加
+            material_order_total = sum(m.total_amount or 0 for m in self.material_orders.all())
+
+            cost_of_sales = total_subcontract_cost + total_material_cost + total_additional_cost + material_order_total
         except ImportError:
             # subcontract_managementアプリが利用できない場合はフォールバック
             cost_of_sales = Decimal('0')
@@ -1702,7 +1732,7 @@ class MaterialOrder(models.Model):
         verbose_name='案件'
     )
     contractor = models.ForeignKey(
-        Contractor,
+        'subcontract_management.Contractor',
         on_delete=models.CASCADE,
         verbose_name='資材業者'
     )

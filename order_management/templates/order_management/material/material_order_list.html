@@ -4,199 +4,140 @@
 
 {% block extra_css %}
 <style>
-.material-card {
-    background: linear-gradient(135deg, #fff8e1, #fff3c4);
-    border-left: 4px solid #ff9800;
-    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.1);
+.amount-cell {
+    text-align: right;
+    font-family: 'Courier New', monospace;
+    font-weight: 500;
 }
-.material-header {
-    background: linear-gradient(135deg, #ff9800, #f57c00);
-    color: white;
+.material-table {
+    font-size: 0.9rem;
 }
-.material-status {
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: bold;
+.material-table th {
+    white-space: nowrap;
+    vertical-align: middle;
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
 }
-.status-draft { background-color: #e0e0e0; color: #666; }
-.status-ordered { background-color: #fff3e0; color: #f57c00; }
-.status-delivered { background-color: #e8f5e8; color: #2e7d32; }
-.status-completed { background-color: #e3f2fd; color: #1976d2; }
-.status-cancelled { background-color: #ffebee; color: #d32f2f; }
-.btn-material {
-    background: linear-gradient(135deg, #ff9800, #f57c00);
-    border: none;
-    color: white;
-}
-.btn-material:hover {
-    background: linear-gradient(135deg, #f57c00, #ef6c00);
-    color: white;
-}
-.material-amount {
-    font-size: 1.1rem;
-    font-weight: bold;
-    color: #f57c00;
+.material-table td {
+    vertical-align: middle;
+    border-bottom: 1px solid #dee2e6;
 }
 </style>
 {% endblock %}
 
-{% block title %}資材発注管理 - {{ project.name }}{% endblock %}
+{% block title %}資材発注管理 - {{ project.site_name }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="material-header p-4 mb-4 rounded">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h2 class="mb-1">📦 資材発注管理</h2>
-                <p class="mb-0">案件: {{ project.name }}</p>
-            </div>
-            <a href="{% url 'order_management:material_order_create' project.id %}" class="btn btn-light btn-lg">
-                <i class="fas fa-plus"></i> 新規発注
-            </a>
-        </div>
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-box-open"></i> 資材発注管理</h2>
+        <p class="text-muted">{{ project.management_no }} - {{ project.site_name }}</p>
     </div>
+    <div class="col text-end">
+        <a href="{% url 'order_management:material_order_create' project.id %}" class="btn btn-warning">
+            <i class="fas fa-plus-circle"></i> 新規発注
+        </a>
+        <a href="{% url 'order_management:project_detail' project.id %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> 案件詳細へ戻る
+        </a>
+    </div>
+</div>
 
-    <div class="row">
-        <div class="col-md-8">
-            {% if orders %}
-                {% for order in orders %}
-                <div class="material-card card mb-3">
-                    <div class="card-body">
-                        <div class="row align-items-center">
-                            <div class="col-md-6">
-                                <h5 class="card-title mb-1">
-                                    <i class="fas fa-file-invoice text-warning"></i>
-                                    {{ order.order_number }}
-                                </h5>
-                                <p class="text-muted mb-2">
-                                    <i class="fas fa-building"></i> {{ order.contractor.name }}
-                                </p>
-                                <span class="material-status status-{{ order.status }}">
-                                    {{ order.get_status_display }}
-                                </span>
-                            </div>
-                            <div class="col-md-3 text-center">
-                                <div class="material-amount">
-                                    ¥{{ order.total_amount|floatformat:0|intcomma }}
-                                </div>
-                                <small class="text-muted">
-                                    発注日: {{ order.order_date }}
-                                </small>
-                                {% if order.delivery_date %}
-                                <br><small class="text-muted">
-                                    納期: {{ order.delivery_date }}
-                                </small>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-3 text-end">
+<!-- 発注一覧 -->
+<div class="card shadow-sm">
+    <div class="card-header bg-warning text-white">
+        <h5 class="mb-0"><i class="fas fa-list"></i> 発注一覧</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if orders %}
+        <div class="table-responsive">
+            <table class="table table-hover material-table mb-0">
+                <thead>
+                    <tr>
+                        <th>発注番号</th>
+                        <th>資材業者</th>
+                        <th style="width: 120px;">発注日</th>
+                        <th style="width: 120px;">納期</th>
+                        <th style="width: 120px;">納品日</th>
+                        <th style="width: 130px;">金額</th>
+                        <th style="width: 100px;">ステータス</th>
+                        <th style="width: 80px;">項目数</th>
+                        <th style="width: 150px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td>
+                            <strong>{{ order.order_number }}</strong>
+                        </td>
+                        <td>
+                            {% if order.contractor %}
+                                {{ order.contractor.name }}
+                            {% else %}
+                                <span class="text-muted">業者未設定</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ order.order_date|date:"Y/m/d" }}</td>
+                        <td>
+                            {% if order.delivery_date %}
+                                {{ order.delivery_date|date:"Y/m/d" }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if order.actual_delivery_date %}
+                                {{ order.actual_delivery_date|date:"Y/m/d" }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="amount-cell">
+                            <strong class="text-warning">¥{{ order.total_amount|floatformat:0|intcomma }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge
+                                {% if order.status == 'completed' %}bg-success
+                                {% elif order.status == 'delivered' %}bg-info
+                                {% elif order.status == 'ordered' %}bg-warning
+                                {% elif order.status == 'cancelled' %}bg-danger
+                                {% else %}bg-secondary
+                                {% endif %}">
+                                {{ order.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-light text-dark">{{ order.items.count }}件</span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
                                 <a href="{% url 'order_management:material_order_detail' project.id order.id %}"
-                                   class="btn btn-material btn-sm me-2">
-                                    詳細
+                                   class="btn btn-info btn-sm" title="詳細">
+                                    <i class="fas fa-eye"></i>
                                 </a>
                                 <a href="{% url 'order_management:material_order_edit' project.id order.id %}"
-                                   class="btn btn-outline-warning btn-sm">
-                                    編集
+                                   class="btn btn-warning btn-sm" title="編集">
+                                    <i class="fas fa-edit"></i>
                                 </a>
                             </div>
-                        </div>
-
-                        {% if order.items.exists %}
-                        <div class="mt-3 pt-3 border-top">
-                            <div class="row">
-                                {% for item in order.items.all|slice:":3" %}
-                                <div class="col-md-4">
-                                    <small class="text-muted">
-                                        <i class="fas fa-box"></i> {{ item.material_name }}
-                                        <br>数量: {{ item.quantity }} {{ item.unit }}
-                                    </small>
-                                </div>
-                                {% endfor %}
-                                {% if order.items.count > 3 %}
-                                <div class="col-md-12">
-                                    <small class="text-muted">他 {{ order.items.count|add:"-3" }} 項目...</small>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endfor %}
-            {% else %}
-                <div class="material-card card text-center py-5">
-                    <div class="card-body">
-                        <i class="fas fa-box-open fa-3x text-warning mb-3"></i>
-                        <h4>まだ資材発注がありません</h4>
-                        <p class="text-muted">新規発注ボタンから最初の発注を作成しましょう</p>
-                        <a href="{% url 'order_management:material_order_create' project.id %}" class="btn btn-material">
-                            <i class="fas fa-plus"></i> 新規発注作成
-                        </a>
-                    </div>
-                </div>
-            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-
-        <div class="col-md-4">
-            <div class="material-card card">
-                <div class="card-header bg-warning text-white">
-                    <h5 class="mb-0"><i class="fas fa-chart-pie"></i> 発注サマリー</h5>
-                </div>
-                <div class="card-body">
-                    {% with material_status=project.get_material_status %}
-                    <div class="row text-center">
-                        <div class="col-6 mb-3">
-                            <div class="h4 text-warning">{{ material_status.total_orders }}</div>
-                            <small class="text-muted">総発注数</small>
-                        </div>
-                        <div class="col-6 mb-3">
-                            <div class="h4 text-success">¥{{ material_status.total_amount|floatformat:0|intcomma }}</div>
-                            <small class="text-muted">総金額</small>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between">
-                            <span>下書き</span>
-                            <span class="badge bg-secondary">{{ material_status.draft_count }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span>発注済み</span>
-                            <span class="badge bg-warning">{{ material_status.ordered_count }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span>納品済み</span>
-                            <span class="badge bg-success">{{ material_status.delivered_count }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span>完了</span>
-                            <span class="badge bg-info">{{ material_status.completed_count }}</span>
-                        </div>
-                    </div>
-                    {% endwith %}
-                </div>
-            </div>
-
-            <div class="material-card card mt-3">
-                <div class="card-header bg-warning text-white">
-                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> 操作ガイド</h6>
-                </div>
-                <div class="card-body">
-                    <ul class="list-unstyled small">
-                        <li class="mb-2"><i class="fas fa-plus text-warning"></i> 新規発注で資材を注文</li>
-                        <li class="mb-2"><i class="fas fa-edit text-warning"></i> 編集で内容を変更</li>
-                        <li class="mb-2"><i class="fas fa-eye text-warning"></i> 詳細で進捗確認</li>
-                        <li class="mb-2"><i class="fas fa-check text-warning"></i> ステータス管理で進行状況を更新</li>
-                    </ul>
-                </div>
-            </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">まだ資材発注がありません</h5>
+            <p class="text-muted">新規発注ボタンから最初の発注を作成してください。</p>
+            <a href="{% url 'order_management:material_order_create' project.id %}" class="btn btn-warning">
+                <i class="fas fa-plus-circle"></i> 最初の発注を作成
+            </a>
         </div>
-    </div>
-
-    <div class="mt-4">
-        <a href="{% url 'order_management:project_detail' project.id %}" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left"></i> 案件詳細に戻る
-        </a>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

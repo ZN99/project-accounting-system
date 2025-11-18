@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Count, Sum, Avg
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.utils import timezone
 from django.urls import reverse
@@ -412,10 +413,33 @@ def project_create(request):
         'is_active': w.is_active
     } for w in internal_workers])
 
+    # 支払いサイクルの日本語マッピング
+    payment_cycle_labels = {
+        'monthly': '月1回',
+        'bimonthly': '月2回',
+        'weekly': '週1回',
+        'custom': 'その他'
+    }
+
+    # client_companiesをJSON形式でシリアライズ
+    client_companies_json = json.dumps([{
+        'id': c.id,
+        'company_name': c.company_name,
+        'address': c.address or '',
+        'phone': c.phone or '',
+        'contact_person': c.contact_person or '',
+        'payment_cycle': c.payment_cycle or '',
+        'payment_cycle_label': payment_cycle_labels.get(c.payment_cycle, c.payment_cycle) if c.payment_cycle else '',
+        'closing_day': c.closing_day,
+        'payment_day': c.payment_day,
+        'is_active': c.is_active
+    } for c in client_companies])
+
     return render(request, 'order_management/project_form.html', {
         'form': form,
         'title': '案件新規登録',
         'client_companies': client_companies,  # 元請会社
+        'client_companies_json': client_companies_json,
         'contractors': contractors,  # 協力会社（作業者追加で使用）
         'internal_workers': internal_workers,
         'internal_workers_json': internal_workers_json,
@@ -428,7 +452,7 @@ def project_detail(request, pk):
     from subcontract_management.models import Contractor, Subcontract, ProjectProfitAnalysis
     from subcontract_management.forms import SubcontractForm
 
-    project = get_object_or_404(Project, pk=pk)
+    project = get_object_or_404(Project.objects.select_related('client_company'), pk=pk)
 
     # 外注情報を取得
     subcontracts = Subcontract.objects.filter(project=project).select_related('contractor')
@@ -445,12 +469,25 @@ def project_detail(request, pk):
     surveys = []  # surveysアプリ未実装のため空リストを返す
 
     # 外注統計計算
-    total_subcontract_cost = sum(s.billed_amount for s in subcontracts)
-    total_material_cost = sum(s.total_material_cost for s in subcontracts)
-    unpaid_amount = sum(s.billed_amount for s in subcontracts.filter(payment_status='pending'))
+    # 基本契約金額の合計（被請求額がある場合はそれを使用、なければ契約金額）
+    total_subcontract_cost = sum((s.billed_amount if s.billed_amount else s.contract_amount) or 0 for s in subcontracts)
+    total_material_cost = sum(s.total_material_cost or 0 for s in subcontracts)
+
+    # 追加費用の合計（dynamic_cost_items から計算）
+    total_additional_cost = 0
+    for s in subcontracts:
+        if s.dynamic_cost_items:
+            for item in s.dynamic_cost_items:
+                if 'cost' in item:
+                    total_additional_cost += float(item['cost'])
+
+    # MaterialOrderの資材発注合計を追加
+    material_order_total = sum(m.total_amount or 0 for m in project.material_orders.all())
+
+    unpaid_amount = sum((s.billed_amount if s.billed_amount else s.contract_amount) or 0 for s in subcontracts.filter(payment_status='pending'))
 
     # 暫定利益率計算用の既存総費用（追加費用を含む）
-    # get_total_cost() = billed_amount + total_material_cost + additional_cost (from dynamic_cost_items)
+    # get_total_cost() = (billed_amount or contract_amount) + total_material_cost + additional_cost (from dynamic_cost_items)
     existing_total_cost = sum(s.get_total_cost() for s in subcontracts)
 
     # 利益分析
@@ -464,7 +501,7 @@ def project_detail(request, pk):
     from decimal import Decimal
 
     revenue = project.billing_amount  # 売上高
-    cost_of_sales = total_subcontract_cost + total_material_cost  # 売上原価（外注費＋材料費）
+    cost_of_sales = total_subcontract_cost + total_material_cost + total_additional_cost + material_order_total  # 売上原価（外注費＋材料費＋追加費用＋資材発注）
     selling_expenses = project.expense_amount_1 + project.expense_amount_2 + project.parking_fee  # 販売費（諸経費＋駐車場代）
     gross_profit = revenue - cost_of_sales  # 粗利
     gross_profit_rate = (gross_profit / revenue * Decimal('100')) if revenue > 0 else Decimal('0')  # 粗利率
@@ -483,6 +520,8 @@ def project_detail(request, pk):
         # 詳細内訳
         'subcontract_cost': total_subcontract_cost,
         'material_cost': total_material_cost,
+        'additional_cost': total_additional_cost,
+        'material_order_cost': material_order_total,  # 資材発注費用を追加
         'expense_1': project.expense_amount_1,
         'expense_2': project.expense_amount_2,
         'parking_fee': project.parking_fee,
@@ -775,21 +814,56 @@ def add_subcontract(request, pk):
     project = get_object_or_404(Project, pk=pk)
 
     if request.method == 'POST':
+        import logging
+        logger = logging.getLogger(__name__)
+
         # 作業者タイプを取得
         worker_type = request.POST.get('worker_type', 'external')
 
         # 共通フィールド
-        contract_amount = request.POST.get('contract_amount')
-        billed_amount = request.POST.get('billed_amount') or 0
-        payment_due_date = request.POST.get('payment_due_date')
-        payment_date = request.POST.get('payment_date')
+        contract_amount_raw = request.POST.get('contract_amount', '')
+        logger.info(f"=== 作業者追加デバッグ ===")
+        logger.info(f"contract_amount (raw): '{contract_amount_raw}'")
+
+        contract_amount = contract_amount_raw.strip()
+        try:
+            contract_amount = float(contract_amount) if contract_amount else 0
+            logger.info(f"contract_amount (processed): {contract_amount}")
+        except ValueError:
+            logger.error(f"contract_amount 変換エラー: '{contract_amount}'")
+            contract_amount = 0
+
+        billed_amount = request.POST.get('billed_amount', '').strip()
+        try:
+            billed_amount = float(billed_amount) if billed_amount else 0
+        except ValueError:
+            billed_amount = 0
+
+        payment_due_date = request.POST.get('payment_due_date', '').strip() or None
+        payment_date = request.POST.get('payment_date', '').strip() or None
         payment_status = request.POST.get('payment_status') or 'pending'
-        material_item_1 = request.POST.get('material_item_1')
-        material_cost_1 = request.POST.get('material_cost_1') or 0
-        material_item_2 = request.POST.get('material_item_2')
-        material_cost_2 = request.POST.get('material_cost_2') or 0
-        material_item_3 = request.POST.get('material_item_3')
-        material_cost_3 = request.POST.get('material_cost_3') or 0
+
+        material_item_1 = request.POST.get('material_item_1', '').strip()
+        material_cost_1 = request.POST.get('material_cost_1', '').strip()
+        try:
+            material_cost_1 = float(material_cost_1) if material_cost_1 else 0
+        except ValueError:
+            material_cost_1 = 0
+
+        material_item_2 = request.POST.get('material_item_2', '').strip()
+        material_cost_2 = request.POST.get('material_cost_2', '').strip()
+        try:
+            material_cost_2 = float(material_cost_2) if material_cost_2 else 0
+        except ValueError:
+            material_cost_2 = 0
+
+        material_item_3 = request.POST.get('material_item_3', '').strip()
+        material_cost_3 = request.POST.get('material_cost_3', '').strip()
+        try:
+            material_cost_3 = float(material_cost_3) if material_cost_3 else 0
+        except ValueError:
+            material_cost_3 = 0
+
         purchase_order_issued = request.POST.get('purchase_order_issued') == 'on'
 
         # 動的部材費の処理
@@ -816,19 +890,29 @@ def add_subcontract(request, pk):
                     pass
 
         # 外注先情報（外注の場合のみ）
-        contractor_input_type = request.POST.get('contractor_input_type', 'new')
-        existing_contractor_id = request.POST.get('existing_contractor_id')
-        contractor_name = request.POST.get('contractor_name')
-        contractor_address = request.POST.get('contractor_address')
+        contractor_input_type = request.POST.get('contractor_input_type', 'existing')
+        existing_contractor_id = request.POST.get('existing_contractor_id', '').strip() or None
+        contractor_name = request.POST.get('contractor_name', '').strip()
+        contractor_address = request.POST.get('contractor_address', '').strip()
 
         # 社内リソース情報（社内の場合のみ）
         internal_input_type = request.POST.get('internal_input_type', 'new')
-        existing_internal_id = request.POST.get('existing_internal_id')
-        internal_worker_name = request.POST.get('internal_worker_name')
-        internal_department = request.POST.get('internal_department')
+        existing_internal_id = request.POST.get('existing_internal_id', '').strip() or None
+        internal_worker_name = request.POST.get('internal_worker_name', '').strip()
+        internal_department = request.POST.get('internal_department', '').strip()
         internal_pricing_type = request.POST.get('internal_pricing_type', 'hourly')
-        internal_hourly_rate = request.POST.get('internal_hourly_rate')
-        estimated_hours = request.POST.get('estimated_hours')
+
+        internal_hourly_rate = request.POST.get('internal_hourly_rate', '').strip()
+        try:
+            internal_hourly_rate = float(internal_hourly_rate) if internal_hourly_rate else None
+        except ValueError:
+            internal_hourly_rate = None
+
+        estimated_hours = request.POST.get('estimated_hours', '').strip()
+        try:
+            estimated_hours = float(estimated_hours) if estimated_hours else None
+        except ValueError:
+            estimated_hours = None
 
         # 税込/税抜と動的費用項目
         tax_type = request.POST.get('tax_type', 'include')
@@ -876,7 +960,7 @@ def add_subcontract(request, pk):
                     # 既存業者を選択した場合
                     contractor = Contractor.objects.get(pk=existing_contractor_id)
                     created = False
-                else:
+                elif contractor_input_type == 'new' and contractor_name:
                     # 新規業者を入力した場合
                     contractor, created = Contractor.objects.get_or_create(
                         name=contractor_name,
@@ -886,6 +970,10 @@ def add_subcontract(request, pk):
                             'is_active': True
                         }
                     )
+                else:
+                    # 外注先が選択されていない場合
+                    messages.error(request, '外注先を選択してください。')
+                    raise ValueError('外注先が選択されていません')
 
             # 社内リソースの場合の処理
             elif worker_type == 'internal':
@@ -903,14 +991,23 @@ def add_subcontract(request, pk):
             # 日付フィールドの処理
             payment_due_date_obj = None
             payment_date_obj = None
-            if payment_due_date:
-                payment_due_date_obj = datetime.strptime(payment_due_date, '%Y-%m-%d').date()
-            if payment_date:
-                payment_date_obj = datetime.strptime(payment_date, '%Y-%m-%d').date()
+            if payment_due_date and payment_due_date.strip():
+                try:
+                    payment_due_date_obj = datetime.strptime(payment_due_date, '%Y-%m-%d').date()
+                except ValueError:
+                    pass
+            if payment_date and payment_date.strip():
+                try:
+                    payment_date_obj = datetime.strptime(payment_date, '%Y-%m-%d').date()
+                except ValueError:
+                    pass
 
             # 作業管理レコードを作成
             subcontract_data = {
                 'project': project,
+                'management_no': project.management_no or '',
+                'site_name': project.site_name or '',
+                'site_address': project.site_address or '',
                 'worker_type': worker_type,
                 'contract_amount': contract_amount,
                 'billed_amount': billed_amount,
@@ -945,20 +1042,36 @@ def add_subcontract(request, pk):
                     'dynamic_cost_items': dynamic_cost_items
                 })
 
-                # 社内リソースの場合、contract_amountを動的費用項目から再計算
-                if dynamic_cost_items:
-                    total_dynamic_cost = sum(item['cost'] for item in dynamic_cost_items)
-                    if internal_pricing_type == 'hourly':
-                        # 時給ベース：基本料金 + 追加費用
-                        base_amount = 0
-                        if internal_hourly_rate and estimated_hours:
-                            base_amount = float(internal_hourly_rate) * float(estimated_hours)
-                        subcontract_data['contract_amount'] = base_amount + total_dynamic_cost
-                    else:
-                        # 案件単位：費用項目の合計
+                # 社内リソースの場合、contract_amountを計算
+                total_dynamic_cost = sum(item['cost'] for item in dynamic_cost_items) if dynamic_cost_items else 0
+
+                if internal_pricing_type == 'hourly':
+                    # 時給ベース：基本料金 + 追加費用
+                    base_amount = 0
+                    if internal_hourly_rate and estimated_hours:
+                        base_amount = float(internal_hourly_rate) * float(estimated_hours)
+                    calculated_amount = base_amount + total_dynamic_cost
+                    # フォームから送信された値を使用（JavaScriptで計算済み）
+                    # ただし、0または空の場合は再計算した値を使用
+                    if not contract_amount or float(contract_amount) == 0:
+                        subcontract_data['contract_amount'] = calculated_amount
+                else:
+                    # 案件単位：フォームから送信された値またはdynamic_cost_itemsの合計
+                    if not contract_amount or float(contract_amount) == 0:
                         subcontract_data['contract_amount'] = total_dynamic_cost
 
+            # 保存直前のデータをログ出力
+            logger.info(f"保存するSubcontractデータ:")
+            logger.info(f"  - contract_amount: {subcontract_data.get('contract_amount')}")
+            logger.info(f"  - billed_amount: {subcontract_data.get('billed_amount')}")
+            logger.info(f"  - contractor: {subcontract_data.get('contractor')}")
+
             subcontract = Subcontract.objects.create(**subcontract_data)
+
+            logger.info(f"保存後のSubcontractレコード:")
+            logger.info(f"  - ID: {subcontract.id}")
+            logger.info(f"  - contract_amount: {subcontract.contract_amount}")
+            logger.info(f"  - billed_amount: {subcontract.billed_amount}")
 
             if worker_type == 'external':
                 if 'created' in locals() and created:
@@ -968,31 +1081,51 @@ def add_subcontract(request, pk):
             else:
                 messages.success(request, f'社内リソース「{internal_worker_name}」を案件に追加しました。')
 
+            # 成功時のみリダイレクト
+            return redirect('order_management:project_detail', pk=pk)
+
         except Exception as e:
             import traceback
+            import logging
+            logger = logging.getLogger(__name__)
+
             error_details = traceback.format_exc()
+            logger.error(f"作業者追加エラー: {error_details}")
+
+            # デバッグ情報をログに出力
+            logger.error(f"POST data: {request.POST}")
+            logger.error(f"Worker type: {worker_type}")
+            logger.error(f"Subcontract data: {subcontract_data if 'subcontract_data' in locals() else 'Not created'}")
 
             # ユーザーフレンドリーなエラーメッセージ
             error_message = str(e)
             if 'UNIQUE constraint' in error_message:
                 messages.error(request, '同じ作業者が既に登録されています。')
             elif 'NOT NULL constraint' in error_message:
-                messages.error(request, '必須項目が入力されていません。すべての必須フィールドを入力してください。')
+                # どのフィールドでエラーが発生したかを特定
+                import re
+                field_match = re.search(r'NOT NULL constraint failed: (\w+\.\w+)', error_message)
+                if field_match:
+                    field_name = field_match.group(1)
+                    messages.error(request, f'必須項目が入力されていません: {field_name}')
+                    logger.error(f"NOT NULL constraint on field: {field_name}")
+                else:
+                    messages.error(request, f'必須項目が入力されていません。詳細: {error_message}')
             elif 'FOREIGN KEY constraint' in error_message:
                 messages.error(request, '選択された業者またはスタッフが見つかりません。')
             else:
                 messages.error(request, f'作業者の追加中にエラーが発生しました: {str(e)}')
 
-        return redirect('order_management:project_detail', pk=pk)
+            # エラー時はフォームページに留まる（下のGET処理と同じコンテキストを使用）
 
     # GETリクエストの場合、フォームを表示
     from subcontract_management.models import Contractor, Subcontract
-    contractors = Contractor.objects.all().order_by('name')
+    contractors = Contractor.objects.all().order_by('-is_active', 'name')
     staff_members = User.objects.filter(is_staff=True).order_by('username')
 
     # 既存の作業費用を計算（利益率計算用）
-    existing_subcontracts = Subcontract.objects.filter(project=project)
-    existing_total_cost = sum(sc.contract_amount or 0 for sc in existing_subcontracts)
+    existing_subcontracts = Subcontract.objects.filter(project=project).select_related('contractor')
+    existing_total_cost = sum(sc.get_total_cost() for sc in existing_subcontracts)
 
     # 社内作業者リスト
     internal_workers = []
@@ -1023,6 +1156,7 @@ def add_subcontract(request, pk):
         'contractors_json': contractors_json,
         'staff_members': staff_members,
         'internal_workers': internal_workers,
+        'existing_subcontracts': existing_subcontracts,
         'existing_total_cost': existing_total_cost,
     }
     return render(request, 'order_management/add_subcontract.html', context)
@@ -1034,6 +1168,69 @@ def project_update(request, pk):
     project = get_object_or_404(Project, pk=pk)
 
     if request.method == 'POST':
+        # AJAXリクエストの場合はJSONレスポンスを返す
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            form = ProjectForm(request.POST, instance=project)
+            if form.is_valid():
+                project = form.save(commit=False)
+
+                # 営業担当者（sales_manager）をproject_managerに保存
+                sales_manager_id = request.POST.get('sales_manager')
+                if sales_manager_id:
+                    try:
+                        from subcontract_management.models import InternalWorker
+                        sales_worker = InternalWorker.objects.get(id=sales_manager_id)
+                        project.project_manager = sales_worker.name
+                    except InternalWorker.DoesNotExist:
+                        pass
+
+                # Phase 11: 詳細スケジュール管理フィールドの保存
+                # 立ち会い
+                if request.POST.get('witness_date'):
+                    from datetime import datetime
+                    try:
+                        project.witness_date = datetime.strptime(request.POST.get('witness_date'), '%Y-%m-%d').date()
+                    except (ValueError, TypeError):
+                        pass
+                project.witness_status = request.POST.get('witness_status', 'waiting')
+                project.witness_assignee_type = request.POST.get('witness_assignee_type', 'internal')
+                witness_assignees_str = request.POST.get('witness_assignees', '')
+                if witness_assignees_str:
+                    project.witness_assignees = [name.strip() for name in witness_assignees_str.split(',') if name.strip()]
+
+                # 現地調査
+                if request.POST.get('survey_date'):
+                    from datetime import datetime
+                    try:
+                        project.survey_date = datetime.strptime(request.POST.get('survey_date'), '%Y-%m-%d').date()
+                    except (ValueError, TypeError):
+                        pass
+                project.survey_status = request.POST.get('survey_status', 'not_required')
+                survey_assignees_str = request.POST.get('survey_assignees', '')
+                if survey_assignees_str:
+                    project.survey_assignees = [name.strip() for name in survey_assignees_str.split(',') if name.strip()]
+
+                # 見積もり
+                project.estimate_status = request.POST.get('estimate_status', 'not_issued')
+
+                # 着工
+                project.construction_status = request.POST.get('construction_status', 'waiting')
+                construction_assignees_str = request.POST.get('construction_assignees', '')
+                if construction_assignees_str:
+                    project.construction_assignees = [name.strip() for name in construction_assignees_str.split(',') if name.strip()]
+
+                project.save()
+                return JsonResponse({
+                    'success': True,
+                    'message': f'案件「{project.site_name}」を更新しました。'
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors,
+                    'message': 'フォームにエラーがあります。'
+                }, status=400)
+
         # 通常のPOSTリクエストの場合（編集フォーム保存）
         form = ProjectForm(request.POST, instance=project)
         if form.is_valid():
@@ -1108,11 +1305,34 @@ def project_update(request, pk):
         'is_active': w.is_active
     } for w in internal_workers])
 
+    # 支払いサイクルの日本語マッピング
+    payment_cycle_labels = {
+        'monthly': '月1回',
+        'bimonthly': '月2回',
+        'weekly': '週1回',
+        'custom': 'その他'
+    }
+
+    # client_companiesをJSON形式でシリアライズ
+    client_companies_json = json.dumps([{
+        'id': c.id,
+        'company_name': c.company_name,
+        'address': c.address or '',
+        'phone': c.phone or '',
+        'contact_person': c.contact_person or '',
+        'payment_cycle': c.payment_cycle or '',
+        'payment_cycle_label': payment_cycle_labels.get(c.payment_cycle, c.payment_cycle) if c.payment_cycle else '',
+        'closing_day': c.closing_day,
+        'payment_day': c.payment_day,
+        'is_active': c.is_active
+    } for c in client_companies])
+
     return render(request, 'order_management/project_form.html', {
         'form': form,
         'title': '案件編集',
         'project': project,
         'client_companies': client_companies,  # 元請会社
+        'client_companies_json': client_companies_json,
         'contractors': contractors,  # 協力会社（作業者追加で使用）
         'internal_workers': internal_workers,
         'internal_workers_json': internal_workers_json,
@@ -1866,3 +2086,63 @@ def project_comments(request, pk):
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+
+@login_required
+@require_POST
+def update_project_field(request, pk):
+    """案件詳細フィールドのインライン編集"""
+    import json
+    from decimal import Decimal
+    from datetime import datetime
+
+    project = get_object_or_404(Project, pk=pk)
+
+    try:
+        data = json.loads(request.body)
+        field_name = data.get('field')
+        field_value = data.get('value')
+
+        # 許可されたフィールドのみ更新
+        allowed_fields = {
+            'management_no', 'site_name', 'work_type', 'site_address',
+            'order_amount', 'billing_amount', 'parking_fee',
+            'estimate_issued_date', 'contract_date',
+            'work_start_date', 'work_end_date', 'payment_due_date',
+            'client_name', 'client_address', 'project_manager',
+            'expense_item_1', 'expense_amount_1', 'expense_item_2', 'expense_amount_2',
+            'notes'
+        }
+
+        if field_name not in allowed_fields:
+            return JsonResponse({'success': False, 'error': '更新が許可されていないフィールドです'}, status=403)
+
+        # フィールドのタイプに応じて変換
+        if field_name in ['order_amount', 'billing_amount', 'parking_fee', 'expense_amount_1', 'expense_amount_2']:
+            # 数値フィールド
+            if field_value and str(field_value).strip() and str(field_value).strip().lower() != 'none':
+                try:
+                    field_value = Decimal(str(field_value).strip())
+                except (ValueError, TypeError):
+                    field_value = 0
+            else:
+                field_value = 0
+        elif field_name in ['estimate_issued_date', 'contract_date', 'work_start_date', 'work_end_date', 'payment_due_date']:
+            # 日付フィールド
+            if field_value and str(field_value).strip() and str(field_value).strip().lower() != 'none':
+                field_value = datetime.strptime(field_value, '%Y-%m-%d').date()
+            else:
+                field_value = None
+
+        # フィールドを更新
+        setattr(project, field_name, field_value)
+        project.save()
+
+        return JsonResponse({'success': True, 'message': f'{field_name}を更新しました'})
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
+    except ValueError as e:
+        return JsonResponse({'success': False, 'error': f'値の形式が正しくありません: {str(e)}'}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

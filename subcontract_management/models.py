@@ -240,9 +240,9 @@ class Subcontract(models.Model):
         on_delete=models.CASCADE,
         verbose_name='関連案件'
     )
-    management_no = models.CharField(max_length=20, verbose_name='管理No')
-    site_name = models.CharField(max_length=200, verbose_name='現場名')
-    site_address = models.TextField(verbose_name='現場住所')
+    management_no = models.CharField(max_length=20, blank=True, verbose_name='管理No')
+    site_name = models.CharField(max_length=200, blank=True, verbose_name='現場名')
+    site_address = models.TextField(blank=True, verbose_name='現場住所')
 
     # 作業者タイプ
     worker_type = models.CharField(
@@ -324,7 +324,7 @@ class Subcontract(models.Model):
         max_digits=10, decimal_places=0, verbose_name='依頼金額'
     )
     billed_amount = models.DecimalField(
-        max_digits=10, decimal_places=0, default=0, verbose_name='被請求額'
+        max_digits=10, decimal_places=0, default=0, null=True, blank=True, verbose_name='被請求額'
     )
 
     # スケジュール・支払い
@@ -424,25 +424,34 @@ class Subcontract(models.Model):
 
         self.total_material_cost = fixed_total + dynamic_total
 
-        # 社内リソースの場合、動的費用項目に基づいてcontract_amountを再計算
+        # 社内リソースの場合のみ、動的費用項目に基づいてcontract_amountを再計算
+        # ただし、contract_amountが既に設定されている場合（外注先編集時）はスキップ
         if (self.worker_type == 'internal' and
             self.internal_pricing_type in ['hourly', 'project'] and
             self.dynamic_cost_items):
 
-            dynamic_cost_total = Decimal('0')
-            for item in self.dynamic_cost_items:
-                if 'cost' in item:
-                    dynamic_cost_total += Decimal(str(item['cost']))
+            # 新規作成時、またはcontract_amountが0または未設定の場合のみ再計算
+            should_recalculate = (
+                self.pk is None or  # 新規作成
+                not self.contract_amount or  # 金額未設定
+                self.contract_amount == 0  # 金額が0
+            )
 
-            # 時給ベースの場合は基本料金に追加
-            if self.internal_pricing_type == 'hourly':
-                base_amount = Decimal('0')
-                if self.internal_hourly_rate and self.estimated_hours:
-                    base_amount = Decimal(str(self.internal_hourly_rate)) * Decimal(str(self.estimated_hours))
-                self.contract_amount = base_amount + dynamic_cost_total
-            # 案件単位の場合は動的項目の合計
-            elif self.internal_pricing_type == 'project':
-                self.contract_amount = dynamic_cost_total
+            if should_recalculate:
+                dynamic_cost_total = Decimal('0')
+                for item in self.dynamic_cost_items:
+                    if 'cost' in item:
+                        dynamic_cost_total += Decimal(str(item['cost']))
+
+                # 時給ベースの場合は基本料金に追加
+                if self.internal_pricing_type == 'hourly':
+                    base_amount = Decimal('0')
+                    if self.internal_hourly_rate and self.estimated_hours:
+                        base_amount = Decimal(str(self.internal_hourly_rate)) * Decimal(str(self.estimated_hours))
+                    self.contract_amount = base_amount + dynamic_cost_total
+                # 案件単位の場合は動的項目の合計
+                elif self.internal_pricing_type == 'project':
+                    self.contract_amount = dynamic_cost_total
 
         super().save(*args, **kwargs)
 
@@ -461,8 +470,9 @@ class Subcontract(models.Model):
 
     def get_total_cost(self):
         """総コスト（外注費+部材費+追加費用）を計算"""
-        # 基本コスト
-        base_cost = self.billed_amount + self.total_material_cost
+        # 基本コスト：被請求額が入力されている（> 0）場合はそれを使用、なければ契約金額を使用
+        base_amount = self.billed_amount if (self.billed_amount and self.billed_amount > 0) else (self.contract_amount or 0)
+        base_cost = base_amount + (self.total_material_cost or 0)
 
         # 追加費用を計算
         additional_cost = 0
@@ -553,8 +563,11 @@ class ProjectProfitAnalysis(models.Model):
                     if 'cost' in item:
                         total_additional_cost += float(item['cost'])
 
-        # 総支出（外注費 + 部材費 + 追加費用）
-        self.total_expense = self.total_subcontract_cost + self.total_material_cost + total_additional_cost
+        # MaterialOrderの資材発注合計を追加
+        material_order_total = sum(m.total_amount or 0 for m in self.project.material_orders.all())
+
+        # 総支出（外注費 + 部材費 + 追加費用 + 資材発注）
+        self.total_expense = self.total_subcontract_cost + self.total_material_cost + total_additional_cost + material_order_total
 
         # 粗利益
         self.gross_profit = self.total_revenue - self.total_expense

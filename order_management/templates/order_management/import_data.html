@@ -8,13 +8,26 @@
     <div class="row">
         <div class="col-md-8 offset-md-2">
             <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0"><i class="fas fa-upload me-2"></i>データインポート</h4>
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="fas fa-upload me-2"></i>データインポート（完全復元）</h4>
+                    <a href="{% url 'order_management:export_data' %}" class="btn btn-light btn-sm">
+                        <i class="fas fa-download me-2"></i>エクスポート
+                    </a>
                 </div>
                 <div class="card-body">
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        バックアップファイル（JSON形式）をアップロードしてデータをインポートします。
+                        <strong>完全バックアップファイル（JSON形式）をアップロードしてデータをインポートします。</strong><br>
+                        <small>含まれるデータ: ユーザー情報、案件管理、下請け管理、資材発注、経理情報など全てのデータ</small>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>重要：メディアファイルについて</strong><br>
+                        <small>
+                            JSONバックアップには、アップロードされた画像やPDFファイルの<strong>パスのみ</strong>が含まれます。<br>
+                            実際のファイルは含まれないため、クリーンインストール後は別途 <code>media/</code> フォルダを復元する必要があります。
+                        </small>
                     </div>
 
                     <form id="importForm" method="post" enctype="multipart/form-data">
@@ -50,12 +63,27 @@
                     <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>注意事項</h5>
                 </div>
                 <div class="card-body">
+                    <h6 class="text-primary"><i class="fas fa-database me-1"></i> データベース</h6>
                     <ul>
-                        <li>インポート前に現在のデータのバックアップを取ることを推奨します</li>
-                        <li>同じIDのデータが存在する場合、上書きされる可能性があります</li>
-                        <li>大量のデータのインポートには時間がかかる場合があります</li>
-                        <li>インポート中はブラウザを閉じないでください</li>
+                        <li><strong>バックアップ推奨</strong>: インポート前に現在のデータのバックアップを取ることを強く推奨します</li>
+                        <li><strong>データの上書き</strong>: 同じIDのデータが存在する場合、上書きされる可能性があります</li>
+                        <li><strong>処理時間</strong>: 大量のデータのインポートには時間がかかる場合があります（数千件で数分程度）</li>
+                        <li><strong>ブラウザ</strong>: インポート中はブラウザを閉じないでください</li>
                     </ul>
+
+                    <h6 class="text-warning mt-3"><i class="fas fa-folder-open me-1"></i> メディアファイル</h6>
+                    <ul>
+                        <li><strong>別途復元が必要</strong>: 画像、PDF等のファイルはJSONバックアップに含まれません</li>
+                        <li><strong>復元方法</strong>: <code>media/</code> フォルダを手動でコピーするか、別途バックアップから復元してください</li>
+                        <li><strong>影響を受けるデータ</strong>: プロジェクト添付ファイル、完成報告書、請求書PDF、コメント添付ファイル等</li>
+                    </ul>
+
+                    <h6 class="text-success mt-3"><i class="fas fa-check-circle me-1"></i> 完全復元手順</h6>
+                    <ol>
+                        <li>このページでJSONバックアップをインポート</li>
+                        <li><code>media/</code> フォルダを手動で復元（必要な場合）</li>
+                        <li>ブラウザでログインして動作確認</li>
+                    </ol>
                 </div>
             </div>
         </div>
