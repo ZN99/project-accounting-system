@@ -15,7 +15,8 @@ class ContractorCreateView(LoginRequiredMixin, CreateView):
     template_name = 'order_management/contractor_create.html'
     fields = [
         'name', 'address', 'phone', 'email', 'contact_person',
-        'contractor_type', 'specialties', 'hourly_rate', 'is_active'
+        'contractor_type', 'specialties', 'hourly_rate',
+        'is_active'
     ]
     success_url = reverse_lazy('order_management:ordering_dashboard')
 

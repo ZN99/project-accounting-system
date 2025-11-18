@@ -9,12 +9,147 @@ from subcontract_management.models import Contractor
 
 
 class ContractorDashboardView(LoginRequiredMixin, TemplateView):
-    """業者ダッシュボード"""
+    """元請け検索ダッシュボード（開発中）"""
     template_name = 'order_management/contractor_dashboard.html'
 
     def get_context_data(self, **kwargs):
+        from django.db.models import Count, Sum, Q, F
+        from .models import ClientCompany
+        from datetime import datetime, timedelta
+        import json
+
         context = super().get_context_data(**kwargs)
-        context['contractors'] = Contractor.objects.all().order_by('name')
+
+        # すべての元請け業者を取得
+        contractors = ClientCompany.objects.all().order_by('company_name')
+
+        # 各業者に集計データを追加
+        contractors_data = []
+        total_contractors = 0
+        total_projects_count = 0
+        total_revenue = 0
+        total_cost = 0
+
+        for client_company in contractors:
+            # この元請けからの案件を取得
+            projects = Project.objects.filter(client_company=client_company)
+
+            # 案件数
+            project_count = projects.count()
+
+            # 売上合計（受注額）
+            contractor_revenue = projects.aggregate(total=Sum('billing_amount'))['total'] or 0
+            contractor_revenue = float(contractor_revenue)
+
+            # 原価合計（発注額）
+            contractor_cost = projects.aggregate(total=Sum('order_amount'))['total'] or 0
+            contractor_cost = float(contractor_cost)
+
+            # 利益
+            profit = contractor_revenue - contractor_cost
+
+            # 利益率
+            profit_rate = (profit / contractor_revenue * 100) if contractor_revenue > 0 else 0
+
+            # 業者タグ
+            contractor_tags = ['元請け業者']
+            if client_company.payment_cycle:
+                contractor_tags.append(f'支払い: {client_company.get_payment_cycle_display()}')
+
+            # 月次トレンドデータ（過去12ヶ月）
+            monthly_trends = []
+            today = datetime.now()
+            for i in range(12):
+                month_start = (today.replace(day=1) - timedelta(days=i*30)).replace(day=1)
+                month_label = month_start.strftime('%Y/%m')
+
+                # その月の案件
+                month_projects = projects.filter(
+                    created_at__year=month_start.year,
+                    created_at__month=month_start.month
+                )
+
+                month_revenue = month_projects.aggregate(total=Sum('billing_amount'))['total'] or 0
+                month_revenue = float(month_revenue)
+                month_cost = month_projects.aggregate(total=Sum('order_amount'))['total'] or 0
+                month_cost = float(month_cost)
+                month_profit = month_revenue - month_cost
+                month_profit_rate = (month_profit / month_revenue * 100) if month_revenue > 0 else 0
+
+                monthly_trends.insert(0, {
+                    'month': month_label,
+                    'revenue': month_revenue,
+                    'profit': month_profit,
+                    'profit_rate': month_profit_rate
+                })
+
+            contractor_obj = {
+                'id': client_company.id,
+                'name': client_company.company_name,
+                'contractor_type': 'client',
+                'specialties': client_company.address or '',
+                'status': 'active' if client_company.is_active else 'inactive',
+                'contractor_tags': contractor_tags,
+                'project_count': project_count,
+                'total_revenue': contractor_revenue,
+                'total_cost': contractor_cost,
+                'profit': profit,
+                'profit_rate': profit_rate,
+                'monthly_trends': monthly_trends
+            }
+
+            contractors_data.append(contractor_obj)
+
+            # 全体集計
+            total_contractors += 1
+            total_projects_count += project_count
+            total_revenue += contractor_revenue
+            total_cost += contractor_cost
+
+        # サマリーデータ
+        avg_profit_rate = ((total_revenue - total_cost) / total_revenue * 100) if total_revenue > 0 else 0
+
+        summary = {
+            'total_contractors': total_contractors,
+            'total_projects': total_projects_count,
+            'total_revenue': total_revenue,
+            'total_cost': total_cost,
+            'avg_profit_rate': avg_profit_rate
+        }
+
+        # 月次データ（全体）
+        monthly_data = []
+        chart_labels = []
+        today = datetime.now()
+        for i in range(12):
+            month_start = (today.replace(day=1) - timedelta(days=i*30)).replace(day=1)
+            month_label = month_start.strftime('%Y/%m')
+
+            month_projects = Project.objects.filter(
+                created_at__year=month_start.year,
+                created_at__month=month_start.month
+            )
+
+            month_revenue = month_projects.aggregate(total=Sum('billing_amount'))['total'] or 0
+            month_revenue = float(month_revenue)
+            month_cost = month_projects.aggregate(total=Sum('order_amount'))['total'] or 0
+            month_cost = float(month_cost)
+            month_profit = month_revenue - month_cost
+            month_profit_rate = (month_profit / month_revenue * 100) if month_revenue > 0 else 0
+
+            monthly_data.insert(0, {
+                'revenue': month_revenue,
+                'profit': month_profit,
+                'profit_rate': month_profit_rate
+            })
+            chart_labels.insert(0, month_label)
+
+        context['contractors'] = contractors_data
+        context['contractors_json'] = json.dumps(contractors_data)
+        context['summary'] = summary
+        context['monthly_data_json'] = json.dumps(monthly_data)
+        context['chart_labels_json'] = json.dumps(chart_labels)
+
         return context
 
 
@@ -42,7 +177,18 @@ class ContractorEditView(LoginRequiredMixin, UpdateView):
     model = Contractor
     template_name = 'order_management/contractor_edit.html'
     fields = ['name', 'contractor_type', 'address', 'phone', 'email', 'contact_person', 'hourly_rate', 'specialties', 'is_active']
-    success_url = reverse_lazy('order_management:contractor_dashboard')
+
+    def get_success_url(self):
+        """保存後のリダイレクト先を取得（元のページに戻る）"""
+        # リファラーがあればそこに戻る
+        referer = self.request.META.get('HTTP_REFERER')
+        if referer:
+            # 編集ページ自体のURLは除外（無限ループ防止）
+            if f'/contractors/{self.object.pk}/edit/' not in referer:
+                return referer
+
+        # デフォルトは下請け検索ページ
+        return reverse_lazy('subcontract_management:contractor_list')
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)

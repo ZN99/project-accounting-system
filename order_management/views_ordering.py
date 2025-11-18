@@ -6,7 +6,8 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from .models import Project, Contractor
+from .models import Project
+from subcontract_management.models import Contractor
 
 
 class OrderingDashboardView(LoginRequiredMixin, TemplateView):
@@ -42,13 +43,11 @@ class OrderingDashboardView(LoginRequiredMixin, TemplateView):
         """発注業務のサマリー情報を取得"""
         # 外注業者数
         external_contractor_count = Contractor.objects.filter(
-            is_ordering=True,
             is_active=True
         ).count()
 
         # 資材屋数
         supplier_count = Contractor.objects.filter(
-            is_supplier=True,
             is_active=True
         ).count()
 
@@ -78,7 +77,6 @@ class OrderingDashboardView(LoginRequiredMixin, TemplateView):
     def get_external_contractors(self):
         """外注業者の情報を取得"""
         contractors = Contractor.objects.filter(
-            is_ordering=True,
             is_active=True
         ).order_by('name')
 
@@ -112,7 +110,6 @@ class OrderingDashboardView(LoginRequiredMixin, TemplateView):
     def get_suppliers(self):
         """資材屋の情報を取得"""
         suppliers = Contractor.objects.filter(
-            is_supplier=True,
             is_active=True
         ).order_by('name')
 
@@ -189,13 +186,41 @@ class ExternalContractorManagementView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # 外注業者一覧
-        contractors = Contractor.objects.filter(
-            is_ordering=True
-        ).order_by('-is_active', 'name')
+        # 統計情報（フィルタ前の全データ）
+        all_contractors = Contractor.objects.all()
+        total_count = all_contractors.count()
+        active_count = all_contractors.filter(is_active=True).count()
+
+        # 外注業者一覧（すべての下請け業者を表示）
+        contractors = Contractor.objects.all()
+
+        # フィルタリング
+        status_filter = self.request.GET.get('status', '')
+        search_query = self.request.GET.get('search', '')
+
+        # ステータスフィルタ
+        if status_filter == 'active':
+            contractors = contractors.filter(is_active=True)
+        elif status_filter == 'inactive':
+            contractors = contractors.filter(is_active=False)
+
+        # 検索フィルタ
+        if search_query:
+            contractors = contractors.filter(
+                Q(name__icontains=search_query) |
+                Q(specialties__icontains=search_query) |
+                Q(contact_person__icontains=search_query)
+            )
+
+        # ソート
+        contractors = contractors.order_by('-is_active', 'name')
 
         context['contractors'] = contractors
+        context['total_count'] = total_count
+        context['active_count'] = active_count
         context['page_title'] = '外注業者管理'
+        context['status_filter'] = status_filter
+        context['search_query'] = search_query
 
         return context
 
@@ -207,10 +232,8 @@ class SupplierManagementView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # 資材屋一覧
-        suppliers = Contractor.objects.filter(
-            is_supplier=True
-        ).order_by('-is_active', 'name')
+        # 資材屋一覧（すべての業者を表示）
+        suppliers = Contractor.objects.all().order_by('-is_active', 'name')
 
         context['suppliers'] = suppliers
         context['page_title'] = '資材屋管理'

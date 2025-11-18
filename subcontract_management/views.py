@@ -125,10 +125,35 @@ def subcontract_update(request, pk):
     if request.method == 'POST':
         form = SubcontractForm(request.POST, instance=subcontract)
         if form.is_valid():
-            subcontract = form.save()
-            messages.success(request, f'外注先「{subcontract.contractor.name}」を更新しました。')
-            return redirect('subcontract_management:project_subcontract_list',
-                          project_id=subcontract.project.pk)
+            try:
+                subcontract = form.save()
+                messages.success(request, f'外注先「{subcontract.contractor.name}」を更新しました。')
+
+                # リファラーがあればそこに戻る、なければ案件詳細ページに戻る
+                referer = request.META.get('HTTP_REFERER')
+                if referer and 'subcontract' not in referer:
+                    # 編集ページ自体以外のリファラーがあればそこに戻る
+                    from django.http import HttpResponseRedirect
+                    return HttpResponseRedirect(referer)
+                else:
+                    # デフォルトは案件詳細ページ
+                    return redirect('order_management:project_detail', pk=subcontract.project.pk)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"外注先更新エラー: {str(e)}")
+                messages.error(request, f'保存中にエラーが発生しました: {str(e)}')
+        else:
+            # バリデーションエラーがある場合
+            messages.error(request, '入力内容に誤りがあります。以下のエラーを確認してください。')
+            # フォームのエラーをメッセージとして追加
+            for field, errors in form.errors.items():
+                for error in errors:
+                    if field == '__all__':
+                        messages.error(request, f'{error}')
+                    else:
+                        field_label = form.fields[field].label or field
+                        messages.error(request, f'{field_label}: {error}')
     else:
         form = SubcontractForm(instance=subcontract)
 

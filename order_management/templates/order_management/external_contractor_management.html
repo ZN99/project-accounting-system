@@ -78,52 +78,43 @@
         color: #374151;
         font-weight: 600;
         border: none;
-        padding: 1rem;
-        font-size: 0.9rem;
     }
 
     .table td {
-        padding: 1rem;
-        vertical-align: middle;
-        border-color: #f1f5f9;
+        border-top: 1px solid #e5e7eb;
     }
 
-    .table tbody tr {
-        transition: all 0.2s;
-    }
-
-    .table tbody tr:hover {
-        background-color: #f8fafc;
-        transform: scale(1.005);
-    }
-
-    .status-badge {
-        padding: 0.35rem 0.75rem;
+    .badge-active {
+        background-color: #10b981;
+        color: white;
+        padding: 0.25rem 0.75rem;
         border-radius: 9999px;
-        font-size: 0.8125rem;
-        font-weight: 600;
+        font-size: 0.875rem;
+        font-weight: 500;
     }
 
-    .status-active {
-        background-color: #d1fae5;
-        color: #065f46;
+    .badge-inactive {
+        background-color: #6b7280;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 500;
     }
 
-    .status-inactive {
-        background-color: #e5e7eb;
-        color: #6b7280;
+    .btn-primary {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        border: none;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
     }
 
-    .empty-state {
-        text-align: center;
-        padding: 4rem 2rem;
-        color: #9ca3af;
-    }
-
-    .empty-state i {
-        font-size: 4rem;
-        margin-bottom: 1rem;
-        opacity: 0.5;
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
     }
 
     .action-buttons a, .action-buttons button {
@@ -161,102 +152,113 @@
             <div class="row">
                 <div class="col-md-6">
                     <div class="stat-item">
-                        <div class="stat-value">{{ contractors|length|intcomma }}</div>
+                        <div class="stat-value">{{ total_count|intcomma }}</div>
                         <div class="stat-label">登録業者数</div>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="stat-item">
-                        {% with active_count=contractors|length %}
                         <div class="stat-value">{{ active_count|intcomma }}</div>
-                        {% endwith %}
                         <div class="stat-label">アクティブ</div>
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- フィルタ -->
+        <div class="filter-card">
+            <form method="get" class="row g-3" id="filterForm">
+                <div class="col-md-4">
+                    <select class="form-select" id="statusFilter" name="status">
+                        <option value="" {% if not status_filter %}selected{% endif %}>全てのステータス</option>
+                        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>アクティブのみ</option>
+                        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>非アクティブのみ</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <input type="text" class="form-control" id="searchInput" name="search" placeholder="業者名、専門分野、担当者名で検索..." value="{{ search_query|default:'' }}">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter me-2"></i>フィルタ
+                    </button>
+                </div>
+            </form>
+        </div>
+
         <!-- 業者一覧テーブル -->
         <div class="contractor-table">
             <div class="table-header">
-                <i class="fas fa-list me-2"></i>業者一覧
+                下請け業者一覧（{{ contractors|length }}件）
             </div>
-
-            {% if contractors %}
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th style="width: 25%;">業者名</th>
-                                <th style="width: 20%;">専門分野</th>
-                                <th style="width: 15%;">担当者</th>
-                                <th style="width: 20%;">連絡先</th>
-                                <th style="width: 10%;">状態</th>
-                                <th style="width: 10%;">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for contractor in contractors %}
-                            <tr>
-                                <td>
-                                    <strong style="color: #1f2937;">{{ contractor.name }}</strong>
-                                </td>
-                                <td>
-                                    <span class="text-muted">{{ contractor.specialties|default:"-" }}</span>
-                                </td>
-                                <td>
-                                    <span class="text-muted">{{ contractor.contact_person|default:"-" }}</span>
-                                </td>
-                                <td style="font-size: 0.875rem;">
-                                    {% if contractor.phone %}
-                                        <div class="mb-1">
-                                            <i class="fas fa-phone me-1 text-primary"></i>{{ contractor.phone }}
-                                        </div>
-                                    {% endif %}
-                                    {% if contractor.email %}
-                                        <div>
-                                            <i class="fas fa-envelope me-1 text-primary"></i>{{ contractor.email }}
-                                        </div>
-                                    {% endif %}
-                                    {% if not contractor.phone and not contractor.email %}
-                                        <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if contractor.is_active %}
-                                        <span class="status-badge status-active">
-                                            <i class="fas fa-check-circle me-1"></i>アクティブ
-                                        </span>
-                                    {% else %}
-                                        <span class="status-badge status-inactive">
-                                            <i class="fas fa-times-circle me-1"></i>非アクティブ
-                                        </span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <div class="action-buttons">
-                                        <a href="{% url 'order_management:contractor_edit' contractor.pk %}"
-                                           class="btn btn-outline-primary btn-sm"
-                                           title="編集">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <div class="empty-state">
-                    <i class="fas fa-user-tie"></i>
-                    <h5>下請け業者が登録されていません</h5>
-                    <p class="text-muted mb-3">新しい業者を登録して発注業務を開始しましょう。</p>
-                    <a href="{% url 'order_management:contractor_create' %}" class="btn btn-primary">
-                        <i class="fas fa-plus me-2"></i>最初の業者を登録
-                    </a>
-                </div>
-            {% endif %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>業者名</th>
+                            <th>業者種別</th>
+                            <th>専門分野</th>
+                            <th>担当者</th>
+                            <th>連絡先</th>
+                            <th>ステータス</th>
+                            <th>アクション</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for contractor in contractors %}
+                        <tr>
+                            <td>
+                                <strong>{{ contractor.name }}</strong>
+                            </td>
+                            <td>
+                                {% if contractor.contractor_type == 'individual' %}
+                                    <span class="badge bg-info">個人職人</span>
+                                {% elif contractor.contractor_type == 'company' %}
+                                    <span class="badge bg-primary">協力会社</span>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td>{{ contractor.specialties|default:"—" }}</td>
+                            <td>{{ contractor.contact_person|default:"—" }}</td>
+                            <td>
+                                {% if contractor.phone %}
+                                    <div><i class="fas fa-phone me-1"></i>{{ contractor.phone }}</div>
+                                {% endif %}
+                                {% if contractor.email %}
+                                    <div><i class="fas fa-envelope me-1"></i>{{ contractor.email }}</div>
+                                {% endif %}
+                                {% if not contractor.phone and not contractor.email %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if contractor.is_active %}
+                                    <span class="badge-active">アクティブ</span>
+                                {% else %}
+                                    <span class="badge-inactive">無効</span>
+                                {% endif %}
+                            </td>
+                            <td class="action-buttons">
+                                <a href="{% url 'order_management:contractor_projects' contractor.pk %}" class="btn btn-sm btn-info text-white">
+                                    <i class="fas fa-eye"></i> 詳細
+                                </a>
+                                <a href="{% url 'order_management:contractor_edit' contractor.pk %}" class="btn btn-sm btn-warning text-white">
+                                    <i class="fas fa-edit"></i> 編集
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <i class="fas fa-inbox fa-3x mb-3"></i>
+                                <p class="mb-0">下請け業者が登録されていません</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>

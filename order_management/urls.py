@@ -135,6 +135,7 @@ urlpatterns = [
     path('create/', views.project_create, name='project_create'),
     path('<int:pk>/', views.project_detail, name='project_detail'),
     path('<int:pk>/update/', views.project_update, name='project_update'),
+    path('<int:pk>/update-field/', views.update_project_field, name='update_project_field'),
     path('<int:pk>/update-progress/', views.update_progress, name='update_progress'),
     path('<int:pk>/update-forecast/', views.update_forecast, name='update_forecast'),
     path('<int:pk>/update-stage/', views.update_project_stage, name='update_project_stage'),

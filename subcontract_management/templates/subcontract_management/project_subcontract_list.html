@@ -93,32 +93,30 @@
     </div>
     <div class="card-body">
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <dl class="row">
-                    <dt class="col-sm-4">管理No:</dt>
-                    <dd class="col-sm-8">{{ project.management_no }}</dd>
-                    <dt class="col-sm-4">現場名:</dt>
-                    <dd class="col-sm-8">{{ project.site_name }}</dd>
-                    <dt class="col-sm-4">受注金額:</dt>
-                    <dd class="col-sm-8 text-primary fw-bold">¥{{ project.billing_amount|floatformat:0|intcomma }}</dd>
+                    <dt class="col-sm-5">管理No:</dt>
+                    <dd class="col-sm-7">{{ project.management_no }}</dd>
+                    <dt class="col-sm-5">現場名:</dt>
+                    <dd class="col-sm-7">{{ project.site_name }}</dd>
                 </dl>
             </div>
-            {% if profit_analysis %}
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <dl class="row">
-                    <dt class="col-sm-4">発注費合計:</dt>
-                    <dd class="col-sm-8">¥{{ profit_analysis.total_subcontract_cost|floatformat:0|intcomma }}</dd>
-                    <dt class="col-sm-4">部材費合計:</dt>
-                    <dd class="col-sm-8">¥{{ profit_analysis.total_material_cost|floatformat:0|intcomma }}</dd>
-                    <dt class="col-sm-4">利益率:</dt>
-                    <dd class="col-sm-8">
-                        <span class="badge bg-{{ profit_analysis.get_profit_rate_color }} fs-6">
-                            {{ profit_analysis.profit_rate|floatformat:1 }}%
-                        </span>
-                    </dd>
+                    <dt class="col-sm-5">受注金額:</dt>
+                    <dd class="col-sm-7 text-primary fw-bold">¥{{ project.order_amount|floatformat:0|intcomma }}</dd>
+                    <dt class="col-sm-5">実請求額:</dt>
+                    <dd class="col-sm-7 text-success fw-bold">¥{{ project.billing_amount|floatformat:0|intcomma }}</dd>
                 </dl>
             </div>
-            {% endif %}
+            <div class="col-md-4">
+                <dl class="row">
+                    <dt class="col-sm-5">外注費合計:</dt>
+                    <dd class="col-sm-7">¥{% widthratio 0 1 1 as total_contract %}{% for sub in subcontracts %}{% widthratio sub.contract_amount|add:total_contract 1 1 as total_contract %}{% endfor %}{{ total_contract|floatformat:0|intcomma }}</dd>
+                    <dt class="col-sm-5">被請求額合計:</dt>
+                    <dd class="col-sm-7 text-warning fw-bold">¥{% widthratio 0 1 1 as total_billed %}{% for sub in subcontracts %}{% widthratio sub.billed_amount|add:total_billed 1 1 as total_billed %}{% endfor %}{{ total_billed|floatformat:0|intcomma }}</dd>
+                </dl>
+            </div>
         </div>
     </div>
 </div>
@@ -247,76 +245,7 @@
     </div>
 </div>
 
-<!-- 合計情報カード -->
-{% if subcontracts %}
-<div class="row mt-4">
-    <div class="col-md-3">
-        <div class="card summary-card border-primary">
-            <div class="card-body text-center">
-                <h6 class="text-primary mb-2">契約金額合計</h6>
-                <h4 class="text-primary amount-cell">¥{% widthratio 0 1 1 as total_contract %}{% for sub in subcontracts %}{% widthratio sub.contract_amount|add:total_contract 1 1 as total_contract %}{% endfor %}{{ total_contract|floatformat:0|intcomma }}</h4>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card summary-card border-warning">
-            <div class="card-body text-center">
-                <h6 class="text-warning mb-2">被請求額合計</h6>
-                <h4 class="text-warning amount-cell">¥{% widthratio 0 1 1 as total_billed %}{% for sub in subcontracts %}{% widthratio sub.billed_amount|add:total_billed 1 1 as total_billed %}{% endfor %}{{ total_billed|floatformat:0|intcomma }}</h4>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card summary-card border-info">
-            <div class="card-body text-center">
-                <h6 class="text-info mb-2">部材費合計</h6>
-                <h4 class="text-info amount-cell">¥{% widthratio 0 1 1 as total_material %}{% for sub in subcontracts %}{% widthratio sub.total_material_cost|add:total_material 1 1 as total_material %}{% endfor %}{{ total_material|floatformat:0|intcomma }}</h4>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card summary-card border-success">
-            <div class="card-body text-center">
-                <h6 class="text-success mb-2">総コスト合計</h6>
-                <h4 class="text-success amount-cell">¥{% widthratio 0 1 1 as total_cost %}{% for sub in subcontracts %}{% widthratio sub.get_total_cost|add:total_cost 1 1 as total_cost %}{% endfor %}{{ total_cost|floatformat:0|intcomma }}</h4>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
 
-{% if profit_analysis %}
-<!-- 利益分析詳細 -->
-<div class="profit-analysis-card">
-    <h5 class="mb-4"><i class="fas fa-chart-bar"></i> 利益分析詳細</h5>
-    <div class="row g-3">
-        <div class="col-md-3">
-            <div class="profit-metric">
-                <h4 class="text-primary">¥{{ profit_analysis.total_revenue|floatformat:0|intcomma }}</h4>
-                <p class="mb-0 text-muted">総売上</p>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="profit-metric">
-                <h4 class="text-danger">¥{{ profit_analysis.total_expense|floatformat:0|intcomma }}</h4>
-                <p class="mb-0 text-muted">総支出</p>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="profit-metric">
-                <h4 class="text-success">¥{{ profit_analysis.gross_profit|floatformat:0|intcomma }}</h4>
-                <p class="mb-0 text-muted">粗利益</p>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="profit-metric">
-                <h4 class="text-{{ profit_analysis.get_profit_rate_color }}">{{ profit_analysis.profit_rate|floatformat:1 }}%</h4>
-                <p class="mb-0 text-muted">利益率</p>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
 
 <!-- 削除確認モーダル -->
 <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">

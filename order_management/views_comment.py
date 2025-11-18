@@ -117,29 +117,36 @@ def get_comments(request, project_id):
 @require_GET
 def get_notifications(request):
     """ユーザーの通知一覧を取得"""
-    notifications = request.user.notifications.select_related(
-        'related_project', 'related_comment'
-    ).all()[:20]  # 最新20件
+    try:
+        notifications = request.user.notifications.select_related(
+            'related_project', 'related_comment'
+        ).all()[:20]  # 最新20件
 
-    notifications_data = []
-    for notification in notifications:
-        notifications_data.append({
-            'id': notification.id,
-            'type': notification.notification_type,
-            'title': notification.title,
-            'message': notification.message,
-            'link': notification.link,
-            'is_read': notification.is_read,
-            'created_at': notification.created_at.strftime('%Y-%m-%d %H:%M'),
+        notifications_data = []
+        for notification in notifications:
+            notifications_data.append({
+                'id': notification.id,
+                'type': notification.notification_type,
+                'title': notification.title,
+                'message': notification.message,
+                'link': notification.link,
+                'is_read': notification.is_read,
+                'created_at': notification.created_at.strftime('%Y-%m-%d %H:%M'),
+            })
+
+        # 未読数も返す
+        unread_count = request.user.notifications.filter(is_read=False).count()
+
+        return JsonResponse({
+            'notifications': notifications_data,
+            'unread_count': unread_count
         })
-
-    # 未読数も返す
-    unread_count = request.user.notifications.filter(is_read=False).count()
-
-    return JsonResponse({
-        'notifications': notifications_data,
-        'unread_count': unread_count
-    })
+    except AttributeError:
+        # 通知機能が実装されていない場合は空の配列を返す
+        return JsonResponse({
+            'notifications': [],
+            'unread_count': 0
+        })
 
 
 @login_required

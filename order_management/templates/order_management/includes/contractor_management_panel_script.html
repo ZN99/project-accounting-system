@@ -14,47 +14,65 @@ window.openContractorManagementPanel = function() {
 
     // 業者一覧を読み込む
     refreshContractorList();
+
+    // 検索機能を初期化
+    setTimeout(function() {
+        const searchInput = $('#contractorSearchInput');
+        if (searchInput.length) {
+            searchInput.off('input').on('input', function() {
+                const searchTerm = $(this).val().toLowerCase();
+                filterContractorList(searchTerm);
+            });
+        }
+    }, 100);
 };
 
-// 業者一覧を更新
+// 下請け業者一覧を更新
 window.refreshContractorList = function() {
     console.log('✅ refreshContractorList called');
 
     const tbody = $('#contractorTableBody');
-    tbody.html('<tr><td colspan="8" class="text-center text-muted">読み込み中...</td></tr>');
+    tbody.html('<tr><td colspan="6" class="text-center text-muted">読み込み中...</td></tr>');
 
-    // すべての業者を取得（Djangoテンプレートから）
-    const allContractors = {{ contractors|safe }};
+    // すべての下請け業者を取得（Djangoテンプレートから）
+    const allContractors = {{ contractors_json|safe }};
 
     if (!allContractors || allContractors.length === 0) {
-        tbody.html('<tr><td colspan="8" class="text-center text-muted">業者が登録されていません</td></tr>');
+        tbody.html('<tr><td colspan="6" class="text-center text-muted">下請け業者が登録されていません</td></tr>');
         return;
     }
 
     let html = '';
     allContractors.forEach(function(contractor) {
-        const typeLabel = contractor.contractor_type === 'individual' ? '個人職人' : '協力会社';
         const statusBadge = contractor.is_active ?
-            '<span class="badge bg-success">有効</span>' :
-            '<span class="badge bg-secondary">無効</span>';
-        const hourlyRate = contractor.contractor_type === 'individual' && contractor.hourly_rate ?
-            `¥${parseInt(contractor.hourly_rate).toLocaleString()}` : '-';
+            '<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>アクティブ</span>' :
+            '<span class="badge bg-secondary"><i class="fas fa-times-circle me-1"></i>非アクティブ</span>';
+
+        // 連絡先情報
+        let contactInfo = '';
+        if (contractor.phone) {
+            contactInfo += `<div class="mb-1"><i class="fas fa-phone me-1 text-primary"></i>${escapeHtml(contractor.phone)}</div>`;
+        }
+        if (contractor.email) {
+            contactInfo += `<div><i class="fas fa-envelope me-1 text-primary"></i>${escapeHtml(contractor.email)}</div>`;
+        }
+        if (!contractor.phone && !contractor.email) {
+            contactInfo = '<span class="text-muted">-</span>';
+        }
 
         html += `
             <tr>
-                <td><strong>${escapeHtml(contractor.name)}</strong></td>
-                <td><span class="badge bg-info">${typeLabel}</span></td>
-                <td>${escapeHtml(contractor.address || '-')}</td>
-                <td>${escapeHtml(contractor.phone || '-')}</td>
-                <td>${escapeHtml(contractor.contact_person || '-')}</td>
-                <td>${hourlyRate}</td>
-                <td>${statusBadge}</td>
+                <td><strong style="color: #1f2937;">${escapeHtml(contractor.name)}</strong></td>
+                <td><span class="text-muted">${escapeHtml(contractor.specialties || '-')}</span></td>
+                <td><span class="text-muted">${escapeHtml(contractor.contact_person || '-')}</span></td>
+                <td style="font-size: 0.875rem;">${contactInfo}</td>
+                <td class="text-center">${statusBadge}</td>
                 <td>
+                    <button class="btn btn-sm btn-success me-1" onclick="selectContractor(${contractor.id})" title="この業者を選択">
+                        <i class="fas fa-check"></i> 選択
+                    </button>
                     <button class="btn btn-sm btn-outline-primary" onclick="openEditContractorModal(${contractor.id})" title="編集">
                         <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteContractor(${contractor.id}, '${escapeHtml(contractor.name)}')" title="削除">
-                        <i class="fas fa-trash"></i>
                     </button>
                 </td>
             </tr>
@@ -68,7 +86,7 @@ window.refreshContractorList = function() {
 window.openEditContractorModal = function(contractorId) {
     console.log('✅ openEditContractorModal called', contractorId);
 
-    const allContractors = {{ contractors|safe }};
+    const allContractors = {{ contractors_json|safe }};
     const contractor = allContractors.find(c => c.id === contractorId);
 
     if (!contractor) {
@@ -254,6 +272,83 @@ window.deleteContractor = function(contractorId, contractorName) {
             toastr.error(errorMessage);
         }
     });
+};
+
+// 下請け業者一覧をフィルタリング
+window.filterContractorList = function(searchTerm) {
+    console.log('🔍 Filtering contractors:', searchTerm);
+
+    const rows = $('#contractorTableBody tr');
+
+    if (!searchTerm || searchTerm.trim() === '') {
+        // 検索語が空の場合、すべて表示
+        rows.show();
+        return;
+    }
+
+    rows.each(function() {
+        const row = $(this);
+        const contractorName = row.find('td:first strong').text().toLowerCase();
+        const specialties = row.find('td:nth-child(2)').text().toLowerCase();
+        const contactPerson = row.find('td:nth-child(3)').text().toLowerCase();
+        const contactInfo = row.find('td:nth-child(4)').text().toLowerCase();
+
+        if (contractorName.includes(searchTerm) ||
+            specialties.includes(searchTerm) ||
+            contactPerson.includes(searchTerm) ||
+            contactInfo.includes(searchTerm)) {
+            row.show();
+        } else {
+            row.hide();
+        }
+    });
+
+    // 検索結果が0件の場合のメッセージ
+    const visibleRows = rows.filter(':visible').length;
+    if (visibleRows === 0) {
+        const tbody = $('#contractorTableBody');
+        if (tbody.find('.no-results-row').length === 0) {
+            tbody.append('<tr class="no-results-row"><td colspan="6" class="text-center text-muted py-4"><i class="fas fa-search me-2"></i>「' + escapeHtml(searchTerm) + '」に一致する下請け業者が見つかりませんでした</td></tr>');
+        }
+    } else {
+        $('#contractorTableBody .no-results-row').remove();
+    }
+};
+
+// 業者を選択してメインフォームに適用
+window.selectContractor = function(contractorId) {
+    console.log('✅ selectContractor called', contractorId);
+
+    // モーダルを閉じる
+    const modal = bootstrap.Modal.getInstance(document.getElementById('contractorManagementModal'));
+    if (modal) modal.hide();
+
+    // 外注先フォームに切り替え
+    const externalCard = $('.worker-type-card[data-type="external"]');
+    $('.worker-type-card').removeClass('active');
+    externalCard.addClass('active');
+    externalCard.find('input[type="radio"]').prop('checked', true);
+    $('.conditional-section').removeClass('active');
+    $('#external-form').addClass('active');
+
+    // 既存業者を選択
+    $('#existing_contractor').prop('checked', true).trigger('change');
+
+    // ドロップダウンで業者を選択
+    $('#contractorSelect').val(contractorId).trigger('change');
+
+    // 成功メッセージ
+    const selectedOption = $('#contractorSelect option:selected');
+    const contractorName = selectedOption.data('name');
+
+    if (typeof toastr !== 'undefined') {
+        toastr.success(`「${contractorName}」を選択しました`);
+    }
+
+    // フォームの先頭にスクロール
+    $('html, body').animate({
+        scrollTop: $('#external-form').offset().top - 100
+    }, 500);
 };
 
 // HTMLエスケープ関数

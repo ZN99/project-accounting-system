@@ -38,6 +38,20 @@ class ProjectForm(forms.ModelForm):
             'key_handover_location': forms.Textarea(attrs={'rows': 2}),
             'key_handover_date': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
             'key_handover_notes': forms.Textarea(attrs={'rows': 2}),
+            # Payment cycle widgets
+            'payment_cycle': forms.Select(attrs={'class': 'form-select'}),
+            'closing_day': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': '31',
+                'min': '1',
+                'max': '31'
+            }),
+            'payment_day': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': '25',
+                'min': '1',
+                'max': '31'
+            }),
         }
 
     def __init__(self, *args, **kwargs):

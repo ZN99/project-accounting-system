@@ -244,6 +244,50 @@
                             <div class="form-text">例：建築工事、電気工事、内装工事など</div>
                         </div>
 
+                        <!-- 業者種別 -->
+                        <div class="mb-4">
+                            <label for="{{ form.contractor_type.id_for_label }}" class="form-label">
+                                <i class="fas fa-user-tag me-1"></i>業者種別 <span class="required-asterisk">*</span>
+                            </label>
+                            {{ form.contractor_type }}
+                            {% if form.contractor_type.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.contractor_type.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">協力会社または個人職人を選択してください</div>
+                        </div>
+
+                        <!-- 時給単価（折りたたみ可能） -->
+                        <div class="mb-4">
+                            <!-- 折りたたみトグルボタン -->
+                            <div class="d-flex align-items-center mb-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleHourlyRateSection()" id="hourlyRateToggleBtn">
+                                    <i class="fas fa-plus me-1" id="hourlyRateToggleIcon"></i>
+                                    <i class="fas fa-yen-sign me-1"></i>時給単価を追加
+                                </button>
+                                <small class="text-muted ms-2">（個人職人の場合は入力してください）</small>
+                            </div>
+
+                            <!-- 折りたたみ可能な設定エリア -->
+                            <div id="hourlyRateSection" style="display: none;">
+                                <label for="{{ form.hourly_rate.id_for_label }}" class="form-label">
+                                    <i class="fas fa-yen-sign me-1"></i>時給単価
+                                </label>
+                                {{ form.hourly_rate }}
+                                {% if form.hourly_rate.errors %}
+                                    <div class="text-danger mt-1">
+                                        {% for error in form.hourly_rate.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">時給単価を円単位で入力してください</div>
+                            </div>
+                        </div>
+
                         <!-- 業者タイプ選択 -->
                         <div class="contractor-type-section">
                             <h6 class="mb-3">
@@ -266,25 +310,6 @@
                                                     </label>
                                                 </div>
                                                 <small class="text-muted">外部に工事を発注する業者</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6 mb-3">
-                                    <div class="type-checkbox" data-type="receiving">
-                                        <div class="d-flex align-items-center">
-                                            <div class="type-icon receiving-icon">
-                                                <i class="fas fa-handshake"></i>
-                                            </div>
-                                            <div class="flex-grow-1">
-                                                <div class="form-check">
-                                                    {{ form.is_receiving }}
-                                                    <label class="form-check-label" for="{{ form.is_receiving.id_for_label }}">
-                                                        受注業者
-                                                    </label>
-                                                </div>
-                                                <small class="text-muted">当社から工事を受注する業者</small>
                                             </div>
                                         </div>
                                     </div>
@@ -329,12 +354,22 @@
                                 </div>
                             </div>
 
-                            <!-- その他の詳細 -->
+                            <!-- その他の詳細（過去の入力候補付き） -->
                             <div class="other-description-field" id="otherDescriptionField">
                                 <label for="{{ form.other_description.id_for_label }}" class="form-label">
                                     その他の詳細
                                 </label>
-                                {{ form.other_description }}
+                                <input type="text"
+                                       class="form-control"
+                                       name="other_description"
+                                       id="{{ form.other_description.id_for_label }}"
+                                       list="pastOtherDescriptions"
+                                       placeholder="業者タイプの詳細を入力してください">
+                                <datalist id="pastOtherDescriptions">
+                                    {% for desc in past_other_descriptions %}
+                                    <option value="{{ desc }}">
+                                    {% endfor %}
+                                </datalist>
                                 {% if form.other_description.errors %}
                                     <div class="text-danger mt-1">
                                         {% for error in form.other_description.errors %}
@@ -342,6 +377,7 @@
                                         {% endfor %}
                                     </div>
                                 {% endif %}
+                                <div class="form-text">過去に入力した内容から選択または新規入力できます</div>
                             </div>
                         </div>
 
@@ -375,7 +411,35 @@
 
 {% block extra_js %}
 <script>
+// 時給単価セクションのトグル
+window.toggleHourlyRateSection = function() {
+    const section = document.getElementById('hourlyRateSection');
+    const toggleBtn = document.getElementById('hourlyRateToggleBtn');
+    const toggleIcon = document.getElementById('hourlyRateToggleIcon');
+
+    if (section.style.display === 'none') {
+        // 展開
+        section.style.display = 'block';
+        toggleIcon.classList.remove('fa-plus');
+        toggleIcon.classList.add('fa-minus');
+        toggleBtn.innerHTML = '<i class="fas fa-minus me-1" id="hourlyRateToggleIcon"></i><i class="fas fa-yen-sign me-1"></i>時給単価を閉じる';
+    } else {
+        // 折りたたみ
+        section.style.display = 'none';
+        toggleIcon.classList.remove('fa-minus');
+        toggleIcon.classList.add('fa-plus');
+        toggleBtn.innerHTML = '<i class="fas fa-plus me-1" id="hourlyRateToggleIcon"></i><i class="fas fa-yen-sign me-1"></i>時給単価を追加';
+    }
+};
+
 document.addEventListener('DOMContentLoaded', function() {
+    // 時給単価の初期状態チェック（値があれば展開）
+    const hourlyRateField = document.getElementById('{{ form.hourly_rate.id_for_label }}');
+    const hourlyRateSection = document.getElementById('hourlyRateSection');
+    if (hourlyRateField && hourlyRateField.value && hourlyRateField.value !== '') {
+        toggleHourlyRateSection();
+    }
+
     // その他チェックボックスの動作
     const isOtherCheckbox = document.getElementById('{{ form.is_other.id_for_label }}');
     const otherDescriptionField = document.getElementById('otherDescriptionField');
@@ -397,15 +461,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // タイプチェックボックスのビジュアル効果
     const typeCheckboxes = document.querySelectorAll('.type-checkbox');
-    const formCheckInputs = document.querySelectorAll('.form-check-input[type="checkbox"]');
+    // is_active を除外して業者タイプのチェックボックスのみを取得
+    const formCheckInputs = Array.from(document.querySelectorAll('.contractor-type-section .form-check-input[type="checkbox"]'));
 
     function updateTypeCheckboxes() {
         formCheckInputs.forEach((input, index) => {
-            const checkbox = typeCheckboxes[index];
-            if (input.checked) {
-                checkbox.classList.add('active');
-            } else {
-                checkbox.classList.remove('active');
+            if (typeCheckboxes[index]) {
+                const checkbox = typeCheckboxes[index];
+                if (input.checked) {
+                    checkbox.classList.add('active');
+                } else {
+                    checkbox.classList.remove('active');
+                }
             }
         });
     }
@@ -422,10 +489,12 @@ document.addEventListener('DOMContentLoaded', function() {
     typeCheckboxes.forEach((checkbox, index) => {
         checkbox.addEventListener('click', function(e) {
             if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'LABEL') {
-                const input = formCheckInputs[index];
-                input.checked = !input.checked;
-                updateTypeCheckboxes();
-                toggleOtherDescription();
+                if (formCheckInputs[index]) {
+                    const input = formCheckInputs[index];
+                    input.checked = !input.checked;
+                    updateTypeCheckboxes();
+                    toggleOtherDescription();
+                }
             }
         });
     });

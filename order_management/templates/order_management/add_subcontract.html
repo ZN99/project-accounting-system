@@ -2,7 +2,7 @@
 {% load static %}
 {% load humanize %}
 
-{% block title %}作業者追加 - {{ project.project_name }}{% endblock %}
+{% block title %}作業者追加 - {{ project.site_name }}{% endblock %}
 
 {% block extra_css %}
 <!-- Toastr CSS -->
@@ -113,8 +113,8 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2><i class="fas fa-user-plus text-primary"></i> 作業者追加</h2>
-            <p class="text-muted mb-0">案件：{{ project.project_name }}</p>
-            <p class="text-muted mb-0 small">受注額：¥{{ project.billing_amount|floatformat:0|intcomma }}</p>
+            <p class="text-muted mb-0">案件：{{ project.site_name }}</p>
+            <p class="text-muted mb-0 small">受注額：¥{{ project.billing_amount|default:0|floatformat:0|intcomma }}</p>
         </div>
         <a href="{% url 'order_management:project_detail' project.pk %}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left"></i> 案件詳細に戻る
@@ -197,7 +197,7 @@
                                         {% endfor %}
                                     </select>
                                     <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openContractorManagementPanel()" style="white-space: nowrap;">
-                                        <i class="fas fa-building"></i> 業者管理
+                                        <i class="fas fa-user-tie"></i> 下請け管理
                                     </button>
                                 </div>
                             </div>
@@ -236,8 +236,9 @@
                                 <label class="form-label">被請求額</label>
                                 <div class="input-group">
                                     <span class="input-group-text">¥</span>
-                                    <input type="number" class="form-control" name="billed_amount" id="externalBilledAmountInput" placeholder="0" value="0">
+                                    <input type="number" class="form-control" name="billed_amount" id="externalBilledAmountInput" placeholder="0">
                                 </div>
+                                <small class="form-text text-muted">未入力の場合は依頼金額を使用します</small>
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="form-label">出金予定日</label>
@@ -603,7 +604,7 @@
                             <tbody>
                                 <tr class="table-success">
                                     <td><strong>売上（受注額）</strong></td>
-                                    <td class="text-end"><strong>¥<span id="previewRevenue">{{ project.billing_amount|floatformat:0|intcomma }}</span></strong></td>
+                                    <td class="text-end"><strong>¥<span id="previewRevenue">{{ project.billing_amount|default:0|floatformat:0|intcomma }}</span></strong></td>
                                 </tr>
                                 <tr>
                                     <td colspan="2"><strong>支出内訳</strong></td>
@@ -612,13 +613,38 @@
                                     <td class="ps-3">既存作業費用</td>
                                     <td class="text-end">¥<span id="previewExistingCost">{{ existing_total_cost|floatformat:0|intcomma }}</span></td>
                                 </tr>
-                                <tr id="newCostRow">
-                                    <td class="ps-3">追加作業費用</td>
-                                    <td class="text-end">¥<span id="previewNewWorkCost">0</span></td>
+                                {% for sc in existing_subcontracts %}
+                                <tr class="small text-muted">
+                                    <td class="ps-5">
+                                        {% if sc.contractor %}
+                                            └ {{ sc.contractor.name }}
+                                        {% elif sc.internal_worker_name %}
+                                            └ {{ sc.internal_worker_name }}（社内）
+                                        {% else %}
+                                            └ 未設定
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">¥{{ sc.get_total_cost|floatformat:0|intcomma }}</td>
                                 </tr>
-                                <tr id="newMaterialRow">
-                                    <td class="ps-3">追加部材費</td>
+                                {% endfor %}
+                                <tr>
+                                    <td colspan="2" class="ps-3 pt-2"><strong>今回追加分：<span id="selectedContractorName" class="text-primary"></span></strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="ps-4">・依頼金額/契約金額</td>
+                                    <td class="text-end">¥<span id="previewNewBaseCost">0</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="ps-4">・追加費用</td>
+                                    <td class="text-end">¥<span id="previewNewAdditionalCost">0</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="ps-4">・部材費</td>
                                     <td class="text-end">¥<span id="previewNewMaterialCost">0</span></td>
+                                </tr>
+                                <tr class="table-light">
+                                    <td class="ps-3"><strong>追加分小計</strong></td>
+                                    <td class="text-end"><strong>¥<span id="previewNewWorkCost">0</span></strong></td>
                                 </tr>
                                 <tr class="table-warning">
                                     <td><strong>総支出</strong></td>
@@ -652,6 +678,7 @@
 {% endblock %}
 
 {% block extra_js %}
+{% load l10n %}
 <!-- Toastr JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 
@@ -660,8 +687,9 @@
 let materialItemCounter = 0;
 let additionalCostCounter = 0;
 let costItemCounter = 0;
-const revenue = parseFloat("{{ project.order_amount|default:0 }}") || 0;  // 修正: billing_amount → order_amount
-const existingCost = parseFloat("{{ existing_total_cost|default:0 }}") || 0;
+const revenue = parseFloat("{{ project.billing_amount|unlocalize|default:0 }}") || 0;  // 受注額（売上）
+const existingCost = parseFloat("{{ existing_total_cost|unlocalize|default:0 }}") || 0;
+console.log('📊 初期値:', { revenue, existingCost });
 
 $(document).ready(function() {
     // 作業者タイプ切り替え
@@ -674,6 +702,9 @@ $(document).ready(function() {
         $('.conditional-section').removeClass('active');
         $(`#${type}-form`).addClass('active');
 
+        // 選択した作業者名をクリア（切り替え時）
+        $('#selectedContractorName').text('');
+
         // 利益率を再計算
         updateProfitPreview();
     });
@@ -683,9 +714,23 @@ $(document).ready(function() {
         if ($(this).val() === 'existing') {
             $('#existing-contractor-section').show();
             $('#new-contractor-section').hide();
+            // 既存選択の場合は選択中の業者名を表示
+            const selectedName = $('#contractorSelect option:selected').data('name') || '';
+            if (selectedName) {
+                $('#selectedContractorName').text('【' + selectedName + '】');
+            } else {
+                $('#selectedContractorName').text('');
+            }
         } else {
             $('#existing-contractor-section').hide();
             $('#new-contractor-section').show();
+            // 新規の場合は入力中の名前を表示
+            const newName = $('#contractorName').val().trim();
+            if (newName) {
+                $('#selectedContractorName').text('【' + newName + '】');
+            } else {
+                $('#selectedContractorName').text('');
+            }
         }
     });
 
@@ -696,6 +741,23 @@ $(document).ready(function() {
         const name = selected.data('name') || '';
         $('#contractorAddress').val(address);
         $('#contractorName').val(name);
+
+        // 暫定利益率分析に選択した外注先名を表示
+        if (name) {
+            $('#selectedContractorName').text('【' + name + '】');
+        } else {
+            $('#selectedContractorName').text('');
+        }
+    });
+
+    // 新規外注先名の入力時に暫定利益率分析に表示
+    $('#contractorName').on('input', function() {
+        const name = $(this).val().trim();
+        if (name) {
+            $('#selectedContractorName').text('【' + name + '】');
+        } else {
+            $('#selectedContractorName').text('');
+        }
     });
 
     // 社内リソース：既存/新規切り替え
@@ -703,9 +765,33 @@ $(document).ready(function() {
         if ($(this).val() === 'existing') {
             $('#existing-internal-section').show();
             $('#new-internal-section').hide();
+            // 既存選択の場合は選択中のスタッフ名を表示
+            const selectedName = $('#internalSelect option:selected').data('name') || '';
+            if (selectedName) {
+                $('#selectedContractorName').text('【' + selectedName + '（社内）】');
+            } else {
+                $('#selectedContractorName').text('');
+            }
         } else {
             $('#existing-internal-section').hide();
             $('#new-internal-section').show();
+            // 新規入力の場合は入力フィールドの値を使用
+            const name = $('#internalWorkerName').val().trim();
+            if (name) {
+                $('#selectedContractorName').text('【' + name + '（社内）】');
+            } else {
+                $('#selectedContractorName').text('');
+            }
+        }
+    });
+
+    // 新規社内スタッフ名の入力時に暫定利益率分析に表示
+    $('#internalWorkerName').on('input', function() {
+        const name = $(this).val().trim();
+        if (name) {
+            $('#selectedContractorName').text('【' + name + '（社内）】');
+        } else {
+            $('#selectedContractorName').text('');
         }
     });
 
@@ -719,6 +805,13 @@ $(document).ready(function() {
         $('#internalWorkerName').val(name);
         $('#internalDepartment').val(department);
         $('#internalHourlyRate').val(hourlyRate);
+
+        // 暫定利益率分析に選択したスタッフ名を表示
+        if (name) {
+            $('#selectedContractorName').text('【' + name + '（社内）】');
+        } else {
+            $('#selectedContractorName').text('');
+        }
 
         // 時給が変更されたので計算を更新
         calculateInternalCosts();
@@ -902,7 +995,9 @@ $(document).ready(function() {
             additionalTotal += parseFloat($(this).val()) || 0;
         });
 
-        const grandTotal = Math.max(contractAmount, billedAmount) + materialTotal + additionalTotal;
+        // 被請求額が入力されていればそれを使用、なければ依頼金額を使用
+        const baseAmount = billedAmount > 0 ? billedAmount : contractAmount;
+        const grandTotal = baseAmount + materialTotal + additionalTotal;
 
         $('#externalMaterialTotal').text(materialTotal.toLocaleString());
         $('#externalAdditionalCostTotal').text(additionalTotal.toLocaleString());
@@ -960,38 +1055,108 @@ $(document).ready(function() {
 
     // 利益率プレビュー更新
     function updateProfitPreview() {
-        let newWorkCost = 0;
-        let newMaterialCost = 0;
+        console.log('📊 利益率プレビュー更新開始');
+        console.log('受注額 (revenue):', revenue);
+        console.log('既存費用 (existingCost):', existingCost);
+
+        let newBaseCost = 0;        // 基本作業費用（依頼金額または契約金額）
+        let newAdditionalCost = 0;  // 追加費用
+        let newMaterialCost = 0;    // 部材費
 
         const workerType = $('input[name="worker_type"]:checked').val();
+        console.log('作業者タイプ:', workerType);
 
         if (workerType === 'external') {
             const contractAmount = parseFloat($('#externalContractAmountInput').val()) || 0;
             const billedAmount = parseFloat($('#externalBilledAmountInput').val()) || 0;
-            newWorkCost = Math.max(contractAmount, billedAmount);
+            // 被請求額が入力されていればそれを使用、なければ依頼金額を使用
+            newBaseCost = billedAmount > 0 ? billedAmount : contractAmount;
+
+            console.log('外注先:', {
+                '依頼金額': contractAmount,
+                '被請求額': billedAmount,
+                '基本費用（max）': newBaseCost
+            });
 
             $('.external-material-cost-input').each(function() {
-                newMaterialCost += parseFloat($(this).val()) || 0;
+                const val = parseFloat($(this).val()) || 0;
+                newMaterialCost += val;
+                if (val > 0) console.log('部材費項目:', val);
             });
 
             $('.external-additional-cost-input').each(function() {
-                newWorkCost += parseFloat($(this).val()) || 0;
+                const val = parseFloat($(this).val()) || 0;
+                newAdditionalCost += val;
+                if (val > 0) console.log('追加費用項目:', val);
+            });
+
+            console.log('外注先合計:', {
+                '部材費': newMaterialCost,
+                '追加費用': newAdditionalCost
             });
         } else {
-            newWorkCost = parseFloat($('#internalContractAmount').val()) || 0;
+            // 社内リソースの場合
+            const pricingType = $('input[name="internal_pricing_type"]:checked').val();
+            console.log('社内リソース料金体系:', pricingType);
+
+            if (pricingType === 'hourly') {
+                const hourlyRate = parseFloat($('#internalHourlyRate').val()) || 0;
+                const hours = parseFloat($('#estimatedHours').val()) || 0;
+                newBaseCost = hourlyRate * hours;
+
+                console.log('時給ベース:', {
+                    '時給': hourlyRate,
+                    '工数': hours,
+                    '基本料金': newBaseCost
+                });
+
+                // 追加費用項目
+                $('.cost-item-input').each(function() {
+                    const val = parseFloat($(this).val()) || 0;
+                    newAdditionalCost += val;
+                    if (val > 0) console.log('費用項目:', val);
+                });
+            } else {
+                // 案件単位の場合
+                newBaseCost = parseFloat($('#projectContractAmount').val()) || 0;
+                console.log('案件単位:', { '契約金額': newBaseCost });
+            }
 
             $('.internal-material-cost-input').each(function() {
-                newMaterialCost += parseFloat($(this).val()) || 0;
+                const val = parseFloat($(this).val()) || 0;
+                newMaterialCost += val;
+                if (val > 0) console.log('部材費項目:', val);
+            });
+
+            console.log('社内リソース合計:', {
+                '基本費用': newBaseCost,
+                '追加費用': newAdditionalCost,
+                '部材費': newMaterialCost
             });
         }
 
-        const totalCost = existingCost + newWorkCost + newMaterialCost;
+        const newWorkCost = newBaseCost + newAdditionalCost;  // 作業費用合計（部材費除く）
+        const newTotalCost = newWorkCost + newMaterialCost;   // 追加分総額
+        const totalCost = existingCost + newTotalCost;        // 全体の総支出
         const grossProfit = revenue - totalCost;
         const profitRate = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
 
+        console.log('計算結果:', {
+            '基本作業費用': newBaseCost,
+            '追加費用': newAdditionalCost,
+            '部材費': newMaterialCost,
+            '作業費用合計': newWorkCost,
+            '追加分総額': newTotalCost,
+            '総支出': totalCost,
+            '粗利益': grossProfit,
+            '利益率': profitRate.toFixed(1) + '%'
+        });
+
         // 表示を更新
-        $('#previewNewWorkCost').text(newWorkCost.toLocaleString());
+        $('#previewNewBaseCost').text(newBaseCost.toLocaleString());
+        $('#previewNewAdditionalCost').text(newAdditionalCost.toLocaleString());
         $('#previewNewMaterialCost').text(newMaterialCost.toLocaleString());
+        $('#previewNewWorkCost').text(newTotalCost.toLocaleString());  // 追加分小計（全て含む）
         $('#previewTotalCost').text(totalCost.toLocaleString());
         $('#previewGrossProfit').text(grossProfit.toLocaleString());
         $('#previewProfitRate').text(profitRate.toFixed(1) + '%');
@@ -1028,21 +1193,26 @@ $(document).ready(function() {
         let isValid = true;
         let errorMessage = '';
 
-        console.log('フォーム送信開始');
+        console.log('🚀 フォーム送信開始');
         console.log('作業者タイプ:', workerType);
+        console.log('=== フォームデバッグ情報 ===');
 
         // 外注先の場合のバリデーション
         if (workerType === 'external') {
+            console.log('外注先バリデーション開始');
             const contractorInputType = $('input[name="contractor_input_type"]:checked').val();
+            console.log('  入力タイプ:', contractorInputType);
 
             if (contractorInputType === 'existing') {
                 const contractorId = $('#contractorSelect').val();
+                console.log('  業者ID:', contractorId);
                 if (!contractorId) {
                     isValid = false;
                     errorMessage = '外注先を選択してください';
                 }
             } else {
                 const contractorName = $('#contractorName').val();
+                console.log('  業者名:', contractorName);
                 if (!contractorName || !contractorName.trim()) {
                     isValid = false;
                     errorMessage = '外注先名を入力してください';
@@ -1050,6 +1220,7 @@ $(document).ready(function() {
             }
 
             const contractAmount = parseFloat($('#externalContractAmountInput').val());
+            console.log('  依頼金額:', contractAmount);
             if (!contractAmount || contractAmount <= 0) {
                 isValid = false;
                 errorMessage = '依頼金額を入力してください';
@@ -1057,16 +1228,20 @@ $(document).ready(function() {
         }
         // 社内リソースの場合のバリデーション
         else {
+            console.log('社内リソースバリデーション開始');
             const internalInputType = $('input[name="internal_input_type"]:checked').val();
+            console.log('  入力タイプ:', internalInputType);
 
             if (internalInputType === 'existing') {
                 const internalId = $('#internalSelect').val();
+                console.log('  スタッフID:', internalId);
                 if (!internalId) {
                     isValid = false;
                     errorMessage = 'スタッフを選択してください';
                 }
             } else {
                 const workerName = $('#internalWorkerName').val();
+                console.log('  スタッフ名:', workerName);
                 if (!workerName || !workerName.trim()) {
                     isValid = false;
                     errorMessage = 'スタッフ名を入力してください';
@@ -1074,41 +1249,88 @@ $(document).ready(function() {
             }
 
             const pricingType = $('input[name="internal_pricing_type"]:checked').val();
+            console.log('  料金体系:', pricingType);
 
             if (pricingType === 'hourly') {
                 const hourlyRate = parseFloat($('#internalHourlyRate').val());
                 const hours = parseFloat($('#estimatedHours').val());
+                console.log('  時給:', hourlyRate, '円/時');
+                console.log('  工数:', hours, '時間');
 
                 if (!hourlyRate || hourlyRate <= 0) {
                     isValid = false;
                     errorMessage = '時給単価を入力してください';
+                    console.error('❌ 時給単価エラー');
                 } else if (!hours || hours <= 0) {
                     isValid = false;
                     errorMessage = '見積工数を入力してください';
+                    console.error('❌ 見積工数エラー');
                 }
             } else {
                 const projectAmount = parseFloat($('#projectContractAmount').val());
+                console.log('  契約金額:', projectAmount);
                 if (!projectAmount || projectAmount <= 0) {
                     isValid = false;
                     errorMessage = '契約金額を入力してください';
+                    console.error('❌ 契約金額エラー');
                 }
             }
 
             const contractAmount = parseFloat($('#internalContractAmount').val());
+            console.log('  作業費用合計 (#internalContractAmount):', contractAmount);
             if (!contractAmount || contractAmount <= 0) {
                 isValid = false;
                 errorMessage = '作業費用が0円です。必要な情報を入力してください';
+                console.error('❌ 作業費用が0円です');
+                console.error('   これは計算が実行されていないか、入力値が不足している可能性があります');
             }
         }
 
         if (!isValid) {
             e.preventDefault();
-            console.error('バリデーションエラー:', errorMessage);
+            console.error('❌ バリデーションエラー:', errorMessage);
+            console.error('=== バリデーション失敗 ===');
             toastr.error(errorMessage);
             return false;
         }
 
-        console.log('バリデーション成功 - フォームを送信します');
+        console.log('✅ バリデーション成功 - フォームを送信します');
+        console.log('=== フォーム送信開始 ===');
+
+        // 選択されていない作業者タイプのフィールドを無効化（重複するフィールド名の問題を回避）
+        if (workerType === 'external') {
+            // 外注先の場合：社内リソース用のフィールドを無効化
+            console.log('社内リソース用フィールドを無効化します');
+            $('#internalResourceSection').find('input, select, textarea').each(function() {
+                $(this).prop('disabled', true);
+                // name属性を一時的に削除してフォーム送信から除外
+                const originalName = $(this).attr('name');
+                if (originalName) {
+                    $(this).data('original-name', originalName);
+                    $(this).removeAttr('name');
+                }
+            });
+        } else {
+            // 社内リソースの場合：外注先用のフィールドを無効化
+            console.log('外注先用フィールドを無効化します');
+            $('#externalContractorSection').find('input, select, textarea').each(function() {
+                $(this).prop('disabled', true);
+                // name属性を一時的に削除してフォーム送信から除外
+                const originalName = $(this).attr('name');
+                if (originalName) {
+                    $(this).data('original-name', originalName);
+                    $(this).removeAttr('name');
+                }
+            });
+        }
+
+        // フォームデータを確認
+        const formData = new FormData(this);
+        console.log('=== 送信されるフォームデータ ===');
+        for (let [key, value] of formData.entries()) {
+            console.log(`${key}: ${value}`);
+        }
+        console.log('=== フォームデータ確認終了 ===');
 
         // 送信ボタンを無効化（二重送信防止）
         $(this).find('button[type="submit"]').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> 処理中...');

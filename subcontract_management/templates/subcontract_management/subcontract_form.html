@@ -164,6 +164,10 @@
                                     </div>
                                 </div>
                             </div>
+                            <!-- 部材費合計表示 -->
+                            <div id="material_total_display" class="alert alert-info mt-3 mb-0">
+                                <strong>部材費合計: ¥<span id="material_total_amount">0</span></strong>
+                            </div>
                         </div>
                     </div>
 
@@ -180,12 +184,21 @@
                         </div>
                     </div>
 
+                    <!-- 総コスト表示 -->
+                    <div id="total_cost_display" class="alert alert-warning mb-3">
+                        <h5 class="mb-0">
+                            <i class="fas fa-calculator me-2"></i>
+                            <strong>総コスト: ¥<span id="total_cost_amount">0</span></strong>
+                        </h5>
+                        <small class="text-muted">（<span id="cost_base_label">契約金額</span> + 部材費合計）</small>
+                    </div>
+
                     <!-- ボタン -->
                     <div class="text-center">
                         <button type="submit" class="btn btn-primary btn-lg">
                             <i class="fas fa-save"></i> 保存
                         </button>
-                        <a href="{% url 'subcontract_management:project_subcontract_list' project.pk %}" class="btn btn-secondary btn-lg">
+                        <a href="javascript:window.history.back();" class="btn btn-secondary btn-lg">
                             <i class="fas fa-times"></i> キャンセル
                         </a>
                     </div>
@@ -205,26 +218,28 @@ $(document).ready(function() {
         var material2 = parseFloat($('#id_material_cost_2').val()) || 0;
         var material3 = parseFloat($('#id_material_cost_3').val()) || 0;
         var billed = parseFloat($('#id_billed_amount').val()) || 0;
+        var contract = parseFloat($('#id_contract_amount').val()) || 0;
+
+        // 被請求額がある場合はそれを使用、なければ契約金額を使用
+        var baseAmount = billed > 0 ? billed : contract;
 
         var totalMaterial = material1 + material2 + material3;
-        var totalCost = billed + totalMaterial;
+        var totalCost = baseAmount + totalMaterial;
 
-        // 部材費合計の表示（実際の保存はサーバー側で行う）
-        if ($('#material_total_display').length === 0) {
-            $('#id_material_cost_3').closest('.card-body').append(
-                '<div id="material_total_display" class="alert alert-info mt-3">' +
-                '<strong>部材費合計: ¥<span id="material_total_amount">0</span></strong><br>' +
-                '<strong>総コスト: ¥<span id="total_cost_amount">0</span></strong>' +
-                '</div>'
-            );
+        // ラベル更新
+        if (billed > 0) {
+            $('#cost_base_label').text('被請求額');
+        } else {
+            $('#cost_base_label').text('契約金額');
         }
 
+        // 金額を更新（常に表示）
         $('#material_total_amount').text(totalMaterial.toLocaleString());
         $('#total_cost_amount').text(totalCost.toLocaleString());
     }
 
     // 金額フィールドの変更を監視
-    $('#id_material_cost_1, #id_material_cost_2, #id_material_cost_3, #id_billed_amount').on('input', calculateTotal);
+    $('#id_material_cost_1, #id_material_cost_2, #id_material_cost_3, #id_billed_amount, #id_contract_amount').on('input', calculateTotal);
 
     // 初期計算
     calculateTotal();

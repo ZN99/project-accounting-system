@@ -81,7 +81,13 @@ class SubcontractForm(forms.ModelForm):
         model = Subcontract
         exclude = [
             'project', 'management_no', 'site_name', 'site_address',
-            'total_material_cost', 'created_at', 'updated_at'
+            'total_material_cost', 'created_at', 'updated_at',
+            # 外注先編集では使用しないフィールド
+            'worker_type', 'internal_worker', 'internal_worker_name',
+            'internal_department', 'internal_pricing_type',
+            'internal_hourly_rate', 'estimated_hours',
+            'dynamic_cost_items', 'dynamic_material_costs',
+            'dynamic_additional_cost_items', 'tax_type'
         ]
         widgets = {
             'payment_due_date': forms.DateInput(attrs={'type': 'date'}),
@@ -104,6 +110,12 @@ class SubcontractForm(forms.ModelForm):
             if field_name in self.fields:
                 self.fields[field_name].required = True
 
+        # 任意項目の設定
+        optional_fields = ['billed_amount']
+        for field_name in optional_fields:
+            if field_name in self.fields:
+                self.fields[field_name].required = False
+
         # フィールドラベルの設定
-        self.fields['billed_amount'].help_text = '実際に請求された金額を入力してください'
+        self.fields['billed_amount'].help_text = '実際に請求された金額を入力してください（任意）'
         self.fields['contract_amount'].help_text = '当初の契約金額を入力してください'
