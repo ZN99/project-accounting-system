@@ -111,7 +111,11 @@ class SubcontractForm(forms.ModelForm):
                 self.fields[field_name].required = True
 
         # 任意項目の設定
-        optional_fields = ['billed_amount']
+        optional_fields = [
+            'billed_amount',
+            'material_cost_1', 'material_cost_2', 'material_cost_3',
+            'material_item_1', 'material_item_2', 'material_item_3'
+        ]
         for field_name in optional_fields:
             if field_name in self.fields:
                 self.fields[field_name].required = False

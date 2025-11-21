@@ -176,7 +176,14 @@ class ContractorEditView(LoginRequiredMixin, UpdateView):
     """業者編集"""
     model = Contractor
     template_name = 'order_management/contractor_edit.html'
-    fields = ['name', 'contractor_type', 'address', 'phone', 'email', 'contact_person', 'hourly_rate', 'specialties', 'is_active']
+    fields = [
+        'name', 'contractor_type', 'address', 'phone', 'email', 'contact_person',
+        'hourly_rate', 'specialties', 'is_active',
+        # 支払い情報
+        'payment_cycle', 'closing_day', 'payment_day',
+        # 銀行口座情報
+        'bank_name', 'branch_name', 'account_type', 'account_number', 'account_holder'
+    ]
 
     def get_success_url(self):
         """保存後のリダイレクト先を取得（元のページに戻る）"""
@@ -229,6 +236,44 @@ class ContractorEditView(LoginRequiredMixin, UpdateView):
         })
         form.fields['is_active'].widget.attrs.update({
             'class': 'form-check-input'
+        })
+
+        # 支払い情報フィールド
+        form.fields['payment_cycle'].widget.attrs.update({
+            'class': 'form-select'
+        })
+        form.fields['closing_day'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': '1-31',
+            'min': '1',
+            'max': '31'
+        })
+        form.fields['payment_day'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': '1-31',
+            'min': '1',
+            'max': '31'
+        })
+
+        # 銀行口座情報フィールド
+        form.fields['bank_name'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': '例: みずほ銀行'
+        })
+        form.fields['branch_name'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': '例: 渋谷支店'
+        })
+        form.fields['account_type'].widget.attrs.update({
+            'class': 'form-select'
+        })
+        form.fields['account_number'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': '1234567'
+        })
+        form.fields['account_holder'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': '例: カ）マルマルケンセツ'
         })
 
         return form

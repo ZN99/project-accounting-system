@@ -153,6 +153,7 @@
                             {% if subcontract.worker_type == 'external' %}
                                 {% if subcontract.contractor %}
                                 <strong>{{ subcontract.contractor.name }}</strong>
+                                <span class="badge bg-info ms-1" style="font-size: 0.75rem;">{{ subcontract.get_step_display }}</span>
                                 {% if subcontract.contractor.contact_person %}
                                 <br><small class="text-muted">担当: {{ subcontract.contractor.contact_person }}</small>
                                 {% endif %}
@@ -169,6 +170,7 @@
                                         社内担当者未設定
                                     {% endif %}
                                 </strong>
+                                <span class="badge bg-info ms-1" style="font-size: 0.75rem;">{{ subcontract.get_step_display }}</span>
                                 {% if subcontract.internal_department %}
                                 <br><small class="text-muted">{{ subcontract.internal_department }}</small>
                                 {% endif %}

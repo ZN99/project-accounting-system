@@ -71,64 +71,6 @@
         box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
     }
 
-    .contractor-type-section {
-        background: #f8f9fa;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-    }
-
-    .type-checkbox {
-        border: 2px solid #e9ecef;
-        border-radius: 8px;
-        padding: 15px;
-        margin-bottom: 10px;
-        transition: all 0.2s;
-        cursor: pointer;
-    }
-
-    .type-checkbox:hover {
-        border-color: #667eea;
-        background: rgba(102, 126, 234, 0.05);
-    }
-
-    .type-checkbox.active {
-        border-color: #667eea;
-        background: rgba(102, 126, 234, 0.1);
-    }
-
-    .type-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 15px;
-        flex-shrink: 0;
-    }
-
-    .external-icon {
-        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-        color: #1976d2;
-    }
-    .supplier-icon {
-        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
-        color: #f57c00;
-    }
-    .receiving-icon {
-        background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%);
-        color: #388e3c;
-    }
-    .other-icon {
-        background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
-        color: #7b1fa2;
-    }
-
-    .other-description-field {
-        margin-top: 15px;
-        display: none;
-    }
 </style>
 {% endblock %}
 
@@ -139,14 +81,14 @@
     <div class="row justify-content-center">
         <div class="col-lg-8">
             <div class="card form-card">
-                <div class="form-header {% if contractor_type == 'external' %}external-header{% elif contractor_type == 'supplier' %}supplier-header{% elif contractor_type == 'receiving' %}receiving-header{% else %}general-header{% endif %}">
+                <div class="form-header {% if contractor_type == 'individual' %}external-header{% elif contractor_type == 'material' %}supplier-header{% elif contractor_type == 'company' %}general-header{% else %}general-header{% endif %}">
                     <h5 class="mb-0">
-                        {% if contractor_type == 'external' %}
-                            <i class="fas fa-building me-2"></i>外注業者情報
-                        {% elif contractor_type == 'supplier' %}
-                            <i class="fas fa-boxes me-2"></i>資材屋情報
-                        {% elif contractor_type == 'receiving' %}
-                            <i class="fas fa-handshake me-2"></i>受注業者情報
+                        {% if contractor_type == 'individual' %}
+                            <i class="fas fa-user me-2"></i>個人職人情報
+                        {% elif contractor_type == 'material' %}
+                            <i class="fas fa-boxes me-2"></i>資材業者情報
+                        {% elif contractor_type == 'company' %}
+                            <i class="fas fa-building me-2"></i>協力会社情報
                         {% else %}
                             <i class="fas fa-users me-2"></i>業者情報
                         {% endif %}
@@ -257,7 +199,7 @@
                                     {% endfor %}
                                 </div>
                             {% endif %}
-                            <div class="form-text">協力会社または個人職人を選択してください</div>
+                            <div class="form-text">協力会社、個人職人、または資材を選択してください</div>
                         </div>
 
                         <!-- 時給単価（折りたたみ可能） -->
@@ -288,98 +230,135 @@
                             </div>
                         </div>
 
-                        <!-- 業者タイプ選択 -->
-                        <div class="contractor-type-section">
-                            <h6 class="mb-3">
-                                <i class="fas fa-tags me-2"></i>業者タイプ
-                                <span class="text-muted">（複数選択可）</span>
-                            </h6>
+                        <!-- 支払い情報 -->
+                        <hr class="my-4">
+                        <h6 class="mb-3">
+                            <i class="fas fa-money-bill me-2"></i>支払い情報
+                        </h6>
 
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <div class="type-checkbox" data-type="ordering">
-                                        <div class="d-flex align-items-center">
-                                            <div class="type-icon external-icon">
-                                                <i class="fas fa-arrow-right"></i>
-                                            </div>
-                                            <div class="flex-grow-1">
-                                                <div class="form-check">
-                                                    {{ form.is_ordering }}
-                                                    <label class="form-check-label" for="{{ form.is_ordering.id_for_label }}">
-                                                        発注業者（外注先）
-                                                    </label>
-                                                </div>
-                                                <small class="text-muted">外部に工事を発注する業者</small>
-                                            </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.payment_cycle.id_for_label }}" class="form-label">支払サイクル</label>
+                                    {{ form.payment_cycle }}
+                                    {% if form.payment_cycle.errors %}
+                                        <div class="text-danger mt-1">
+                                            {% for error in form.payment_cycle.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
                                         </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6 mb-3">
-                                    <div class="type-checkbox" data-type="supplier">
-                                        <div class="d-flex align-items-center">
-                                            <div class="type-icon supplier-icon">
-                                                <i class="fas fa-boxes"></i>
-                                            </div>
-                                            <div class="flex-grow-1">
-                                                <div class="form-check">
-                                                    {{ form.is_supplier }}
-                                                    <label class="form-check-label" for="{{ form.is_supplier.id_for_label }}">
-                                                        資材屋
-                                                    </label>
-                                                </div>
-                                                <small class="text-muted">建築資材を供給する業者</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6 mb-3">
-                                    <div class="type-checkbox" data-type="other">
-                                        <div class="d-flex align-items-center">
-                                            <div class="type-icon other-icon">
-                                                <i class="fas fa-ellipsis-h"></i>
-                                            </div>
-                                            <div class="flex-grow-1">
-                                                <div class="form-check">
-                                                    {{ form.is_other }}
-                                                    <label class="form-check-label" for="{{ form.is_other.id_for_label }}">
-                                                        その他
-                                                    </label>
-                                                </div>
-                                                <small class="text-muted">上記以外の業者タイプ</small>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">月払い、隔月払いなど</small>
                                 </div>
                             </div>
-
-                            <!-- その他の詳細（過去の入力候補付き） -->
-                            <div class="other-description-field" id="otherDescriptionField">
-                                <label for="{{ form.other_description.id_for_label }}" class="form-label">
-                                    その他の詳細
-                                </label>
-                                <input type="text"
-                                       class="form-control"
-                                       name="other_description"
-                                       id="{{ form.other_description.id_for_label }}"
-                                       list="pastOtherDescriptions"
-                                       placeholder="業者タイプの詳細を入力してください">
-                                <datalist id="pastOtherDescriptions">
-                                    {% for desc in past_other_descriptions %}
-                                    <option value="{{ desc }}">
-                                    {% endfor %}
-                                </datalist>
-                                {% if form.other_description.errors %}
-                                    <div class="text-danger mt-1">
-                                        {% for error in form.other_description.errors %}
-                                            <small>{{ error }}</small>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                                <div class="form-text">過去に入力した内容から選択または新規入力できます</div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.closing_day.id_for_label }}" class="form-label">締日</label>
+                                    {{ form.closing_day }}
+                                    {% if form.closing_day.errors %}
+                                        <div class="text-danger mt-1">
+                                            {% for error in form.closing_day.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">毎月の締日（1-31）</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.payment_day.id_for_label }}" class="form-label">支払日</label>
+                                    {{ form.payment_day }}
+                                    {% if form.payment_day.errors %}
+                                        <div class="text-danger mt-1">
+                                            {% for error in form.payment_day.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">毎月の支払日（1-31）</small>
+                                </div>
                             </div>
                         </div>
+
+                        <!-- 銀行口座情報 -->
+                        <hr class="my-4">
+                        <h6 class="mb-3">
+                            <i class="fas fa-university me-2"></i>銀行口座情報
+                        </h6>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.bank_name.id_for_label }}" class="form-label">銀行名</label>
+                                    {{ form.bank_name }}
+                                    {% if form.bank_name.errors %}
+                                        <div class="text-danger mt-1">
+                                            {% for error in form.bank_name.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.branch_name.id_for_label }}" class="form-label">支店名</label>
+                                    {{ form.branch_name }}
+                                    {% if form.branch_name.errors %}
+                                        <div class="text-danger mt-1">
+                                            {% for error in form.branch_name.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.account_type.id_for_label }}" class="form-label">口座種別</label>
+                                    {{ form.account_type }}
+                                    {% if form.account_type.errors %}
+                                        <div class="text-danger mt-1">
+                                            {% for error in form.account_type.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.account_number.id_for_label }}" class="form-label">口座番号</label>
+                                    {{ form.account_number }}
+                                    {% if form.account_number.errors %}
+                                        <div class="text-danger mt-1">
+                                            {% for error in form.account_number.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.account_holder.id_for_label }}" class="form-label">口座名義</label>
+                            {{ form.account_holder }}
+                            {% if form.account_holder.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.account_holder.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">任意: カタカナで入力（例: カ）マルマルケンセツ）</small>
+                        </div>
+
+                        <hr class="my-4">
 
                         <!-- アクティブ状態 -->
                         <div class="mb-4">
@@ -439,65 +418,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (hourlyRateField && hourlyRateField.value && hourlyRateField.value !== '') {
         toggleHourlyRateSection();
     }
-
-    // その他チェックボックスの動作
-    const isOtherCheckbox = document.getElementById('{{ form.is_other.id_for_label }}');
-    const otherDescriptionField = document.getElementById('otherDescriptionField');
-
-    function toggleOtherDescription() {
-        if (isOtherCheckbox.checked) {
-            otherDescriptionField.style.display = 'block';
-        } else {
-            otherDescriptionField.style.display = 'none';
-            document.getElementById('{{ form.other_description.id_for_label }}').value = '';
-        }
-    }
-
-    // 初期状態を設定
-    toggleOtherDescription();
-
-    // チェックボックス変更時のイベント
-    isOtherCheckbox.addEventListener('change', toggleOtherDescription);
-
-    // タイプチェックボックスのビジュアル効果
-    const typeCheckboxes = document.querySelectorAll('.type-checkbox');
-    // is_active を除外して業者タイプのチェックボックスのみを取得
-    const formCheckInputs = Array.from(document.querySelectorAll('.contractor-type-section .form-check-input[type="checkbox"]'));
-
-    function updateTypeCheckboxes() {
-        formCheckInputs.forEach((input, index) => {
-            if (typeCheckboxes[index]) {
-                const checkbox = typeCheckboxes[index];
-                if (input.checked) {
-                    checkbox.classList.add('active');
-                } else {
-                    checkbox.classList.remove('active');
-                }
-            }
-        });
-    }
-
-    // 初期状態の設定
-    updateTypeCheckboxes();
-
-    // チェックボックス変更時の更新
-    formCheckInputs.forEach(input => {
-        input.addEventListener('change', updateTypeCheckboxes);
-    });
-
-    // タイプチェックボックスクリック時のトグル
-    typeCheckboxes.forEach((checkbox, index) => {
-        checkbox.addEventListener('click', function(e) {
-            if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'LABEL') {
-                if (formCheckInputs[index]) {
-                    const input = formCheckInputs[index];
-                    input.checked = !input.checked;
-                    updateTypeCheckboxes();
-                    toggleOtherDescription();
-                }
-            }
-        });
-    });
 });
 </script>
 {% endblock %}

@@ -31,7 +31,7 @@ def material_order_create(request, project_id):
 
     if request.method == 'POST':
         # 発注の基本情報
-        contractor_id = request.POST.get('contractor_id')
+        contractor_id = request.POST.get('contractor_id') or request.POST.get('contractor')
         order_date = request.POST.get('order_date')
         delivery_date = request.POST.get('delivery_date')
         notes = request.POST.get('notes', '')
@@ -79,9 +79,24 @@ def material_order_create(request, project_id):
                         unit_price=float(unit_prices[i]) if unit_prices[i] else 0
                     )
 
+            # AJAX リクエストの場合は JSON レスポンスを返す
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': f'資材発注 {order.order_number} を作成しました。',
+                    'order_id': order.id
+                })
+
             messages.success(request, f'資材発注 {order.order_number} を作成しました。')
             return redirect('order_management:material_order_list', project_id=project.id)
         else:
+            # AJAX リクエストの場合は JSON レスポンスを返す
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'error': '業者情報が正しく入力されていません。'
+                }, status=400)
+
             messages.error(request, '業者情報が正しく入力されていません。')
 
     # 資材業者一覧（アクティブな業者のみ）

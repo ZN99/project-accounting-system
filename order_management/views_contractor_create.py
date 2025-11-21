@@ -14,9 +14,12 @@ class ContractorCreateView(LoginRequiredMixin, CreateView):
     model = Contractor
     template_name = 'order_management/contractor_create.html'
     fields = [
-        'name', 'address', 'phone', 'email', 'contact_person',
-        'contractor_type', 'specialties', 'hourly_rate',
-        'is_active'
+        'name', 'contractor_type', 'address', 'phone', 'email', 'contact_person',
+        'hourly_rate', 'specialties', 'is_active',
+        # 支払い情報
+        'payment_cycle', 'closing_day', 'payment_day',
+        # 銀行口座情報
+        'bank_name', 'branch_name', 'account_type', 'account_number', 'account_holder'
     ]
     success_url = reverse_lazy('order_management:ordering_dashboard')
 
@@ -33,6 +36,9 @@ class ContractorCreateView(LoginRequiredMixin, CreateView):
         elif contractor_type == 'company':
             context['page_title'] = '新規協力会社追加'
             context['contractor_type'] = 'company'
+        elif contractor_type == 'material':
+            context['page_title'] = '新規資材業者追加'
+            context['contractor_type'] = 'material'
         else:
             context['page_title'] = '新規業者追加'
             context['contractor_type'] = 'company'  # デフォルトは協力会社
@@ -81,6 +87,44 @@ class ContractorCreateView(LoginRequiredMixin, CreateView):
             'class': 'form-check-input'
         })
 
+        # 支払い情報フィールド
+        form.fields['payment_cycle'].widget.attrs.update({
+            'class': 'form-select'
+        })
+        form.fields['closing_day'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': '1-31',
+            'min': '1',
+            'max': '31'
+        })
+        form.fields['payment_day'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': '1-31',
+            'min': '1',
+            'max': '31'
+        })
+
+        # 銀行口座情報フィールド
+        form.fields['bank_name'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': '例: みずほ銀行'
+        })
+        form.fields['branch_name'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': '例: 渋谷支店'
+        })
+        form.fields['account_type'].widget.attrs.update({
+            'class': 'form-select'
+        })
+        form.fields['account_number'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': '1234567'
+        })
+        form.fields['account_holder'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': '例: カ）マルマルケンセツ'
+        })
+
         return form
 
     def get_initial(self):
@@ -91,6 +135,8 @@ class ContractorCreateView(LoginRequiredMixin, CreateView):
 
         if contractor_type == 'individual':
             initial['contractor_type'] = 'individual'
+        elif contractor_type == 'material':
+            initial['contractor_type'] = 'material'
         else:
             initial['contractor_type'] = 'company'  # デフォルトは協力会社
 
@@ -108,7 +154,12 @@ class ContractorCreateView(LoginRequiredMixin, CreateView):
 
         # 成功メッセージ
         contractor_type = form.cleaned_data.get('contractor_type', 'company')
-        type_name = '個人職人' if contractor_type == 'individual' else '協力会社'
+        type_names = {
+            'individual': '個人職人',
+            'company': '協力会社',
+            'material': '資材業者'
+        }
+        type_name = type_names.get(contractor_type, '協力会社')
 
         messages.success(self.request, f'{type_name}「{name}」を登録しました。')
 

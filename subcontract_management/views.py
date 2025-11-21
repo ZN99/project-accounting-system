@@ -97,21 +97,136 @@ def subcontract_create(request, project_id):
     """発注新規作成"""
     project = get_object_or_404(Project, pk=project_id)
 
+    # ステップパラメータを取得
+    step = request.GET.get('step') or request.POST.get('step')
+
     if request.method == 'POST':
         form = SubcontractForm(request.POST)
         if form.is_valid():
+            # メインのステップに保存
             subcontract = form.save(commit=False)
             subcontract.project = project
+
+            # 金額設定方法を取得
+            import json
+            cost_allocation_method = request.POST.get('cost_allocation_method', 'lump_sum')
+            step_amounts_json = request.POST.get('step_amounts', '{}')
+
+            # 工程ごとの金額をパース
+            try:
+                step_amounts = json.loads(step_amounts_json)
+            except:
+                step_amounts = {}
+
+            # 工程ごとの金額設定の場合、メイン工程の金額を個別金額に上書き
+            if cost_allocation_method == 'per_step' and step in step_amounts:
+                subcontract.contract_amount = int(step_amounts[step])
+
             subcontract.save()
-            messages.success(request, f'外注先「{subcontract.contractor.name}」を追加しました。')
+
+            # 追加のステップにも同じ内容で保存
+            additional_steps = request.POST.getlist('additional_steps[]')
+            created_steps = [step] if step else []
+
+            if additional_steps:
+
+                step_names = {
+                    'attendance': '立ち会い',
+                    'survey': '現調',
+                    'construction_start': '着工',
+                    'material_order': '資材発注'
+                }
+
+                for add_step in additional_steps:
+                    # 金額を決定
+                    if cost_allocation_method == 'per_step' and add_step in step_amounts:
+                        # 工程ごとに金額を設定する場合
+                        step_contract_amount = int(step_amounts[add_step])
+                        step_billed_amount = 0  # 請求額はデフォルト0
+                        notes_suffix = f'工程別設定'
+                    else:
+                        # 一式で登録する場合（追加工程は0円で関連付け）
+                        step_contract_amount = 0
+                        step_billed_amount = 0
+                        notes_suffix = f'一式登録（メイン工程: {step_names.get(step, step)}）'
+
+                    # 同じ内容でSubcontractを複製
+                    additional_subcontract = Subcontract(
+                        project=project,
+                        management_no=subcontract.management_no,
+                        site_name=subcontract.site_name,
+                        site_address=subcontract.site_address,
+                        worker_type=subcontract.worker_type,
+                        step=add_step,  # 異なるステップを設定
+                        contractor=subcontract.contractor,
+                        contract_amount=step_contract_amount,
+                        billed_amount=step_billed_amount,
+                        payment_due_date=subcontract.payment_due_date,
+                        payment_date=subcontract.payment_date,
+                        payment_status=subcontract.payment_status,
+                        payment_cycle=subcontract.payment_cycle,
+                        payment_day=subcontract.payment_day,
+                        material_item_1='',
+                        material_cost_1=0,
+                        material_item_2='',
+                        material_cost_2=0,
+                        material_item_3='',
+                        material_cost_3=0,
+                        purchase_order_issued=subcontract.purchase_order_issued,
+                        work_description=f'{subcontract.work_description}',
+                        notes=f'{notes_suffix}',
+                    )
+                    additional_subcontract.save()
+                    created_steps.append(add_step)
+
+            # 成功メッセージ
+            step_names = {
+                'attendance': '立ち会い',
+                'survey': '現調',
+                'construction_start': '着工',
+                'material_order': '資材発注'
+            }
+            created_step_labels = [step_names.get(s, s) for s in created_steps if s]
+            steps_text = '、'.join(created_step_labels) if created_step_labels else ''
+
+            success_message = f'外注先「{subcontract.contractor.name}」を追加しました。'
+            if steps_text:
+                success_message = f'外注先「{subcontract.contractor.name}」を {steps_text} に追加しました。'
+
+            # AJAXリクエストの場合はJSONレスポンスを返す
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accepts('application/json'):
+                return JsonResponse({
+                    'status': 'success',
+                    'message': success_message,
+                    'subcontract_id': subcontract.id
+                })
+
+            messages.success(request, success_message)
+
+            # ステップ指定がある場合は案件詳細ページに戻る
+            if step:
+                return redirect('order_management:project_detail', pk=project.pk)
             return redirect('subcontract_management:project_subcontract_list', project_id=project.pk)
+        else:
+            # AJAXリクエストでバリデーションエラーの場合
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accepts('application/json'):
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'フォームの入力内容に誤りがあります。',
+                    'errors': form.errors
+                }, status=400)
     else:
-        form = SubcontractForm()
+        # ステップパラメータがある場合は初期値として設定
+        initial = {}
+        if step:
+            initial['step'] = step
+        form = SubcontractForm(initial=initial)
 
     context = {
         'form': form,
         'project': project,
-        'title': '外注先追加'
+        'title': '外注先追加',
+        'step': step,  # テンプレートで使用するためにステップを渡す
     }
 
     return render(request, 'subcontract_management/subcontract_form.html', context)

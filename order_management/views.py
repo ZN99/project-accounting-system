@@ -588,10 +588,56 @@ def project_detail(request, pk):
 
     import json
 
+    # ステップ別の下請け情報を取得
+    attendance_subcontracts = subcontracts.filter(step='attendance')
+    survey_subcontracts = subcontracts.filter(step='survey')
+    construction_start_subcontracts = subcontracts.filter(step='construction_start')
+
+    # ステップ別の下請け情報をJSON化（JavaScript用）
+    def serialize_subcontracts(subs):
+        return json.dumps([{
+            'id': s.id,
+            'contractor_name': s.contractor.name if s.contractor else '業者未設定',
+            'contract_amount': float(s.contract_amount or 0),
+            'billed_amount': float(s.billed_amount) if s.billed_amount else None,
+            'payment_status': s.payment_status,
+            'payment_status_display': s.get_payment_status_display(),
+            'payment_status_color': 'success' if s.payment_status == 'paid' else ('info' if s.payment_status == 'processing' else 'warning'),
+        } for s in subs])
+
+    attendance_subcontracts_json = serialize_subcontracts(attendance_subcontracts)
+    survey_subcontracts_json = serialize_subcontracts(survey_subcontracts)
+    construction_start_subcontracts_json = serialize_subcontracts(construction_start_subcontracts)
+
+    # 資材発注情報をJSON化（JavaScript用）
+    material_orders = project.material_orders.all()
+    material_orders_json = json.dumps([{
+        'id': m.id,
+        'contractor': {'name': m.contractor.name} if m.contractor else None,
+        'total_amount': float(m.total_amount or 0),
+        'order_date': m.order_date.strftime('%Y/%m/%d') if m.order_date else None,
+        'status': m.status,
+        'status_display': m.get_status_display(),
+        'items': [{
+            'material_name': item.material_name,
+        } for item in m.items.all()[:1]] if m.items.exists() else []
+    } for m in material_orders])
+
+    # 発注先の支払いサイクル情報をJSON化（JavaScript用）
+    contractors_json = json.dumps([{
+        'id': c.id,
+        'name': c.name,
+        'payment_cycle': c.payment_cycle if c.payment_cycle else '',
+        'payment_cycle_display': c.get_payment_cycle_display() if c.payment_cycle else '-',
+        'closing_day': c.closing_day if c.closing_day else None,
+        'payment_day': c.payment_day if c.payment_day else None,
+    } for c in contractors])
+
     return render(request, 'order_management/project_detail.html', {
         'project': project,
         'subcontracts': subcontracts,
         'contractors': contractors,
+        'contractors_json': contractors_json,
         'internal_workers': internal_workers,
         'surveys': surveys,  # 追加
         'subcontract_form': subcontract_form,
@@ -608,6 +654,14 @@ def project_detail(request, pk):
         'dynamic_steps_json': json.dumps(dynamic_steps),
         'complex_step_fields': complex_step_fields,
         'complex_step_fields_json': json.dumps(complex_step_fields),
+        # ステップ別下請け情報
+        'attendance_subcontracts': attendance_subcontracts,
+        'survey_subcontracts': survey_subcontracts,
+        'construction_start_subcontracts': construction_start_subcontracts,
+        'attendance_subcontracts_json': attendance_subcontracts_json,
+        'survey_subcontracts_json': survey_subcontracts_json,
+        'construction_start_subcontracts_json': construction_start_subcontracts_json,
+        'material_orders_json': material_orders_json,
     })
 
 

@@ -249,6 +249,7 @@
         padding: 0.25rem 0.4rem;
         margin-bottom: 0.3rem;
         background-color: #fff;
+        max-width: 800px;
     }
 
     .progress-step:hover {
@@ -993,10 +994,105 @@
     </div>
 </div>
 
-<!-- 3カラムレイアウト: 経理情報・下請け手配状況・プロジェクト段階管理 -->
+<!-- 1カラム: プロジェクト段階管理 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-gradient-primary text-white py-1">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0" style="font-size: 0.85rem; line-height: 1.4;"><i class="fas fa-cog"></i> プロジェクト段階管理</h6>
+                    <button type="button" class="btn btn-sm btn-light" id="toggleAllSteps" style="font-size: 0.65rem; padding: 0.2rem 0.4rem;">
+                        <i class="fas fa-compress-alt"></i> <span id="toggleButtonText">全部閉じる</span>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-2" style="overflow-y: auto; overflow-x: visible;">
+                <form method="post" action="{% url 'order_management:update_progress' project.pk %}">
+                    {% csrf_token %}
+
+                    <!-- 全体プログレスバー -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <small class="text-muted" style="font-size: 0.7rem;">
+                                <i class="fas fa-chart-line me-1"></i>進捗
+                                <span id="overallPhase" class="badge bg-secondary" style="font-size: 0.6rem; margin-left: 0.3rem;">未開始</span>
+                                <span id="overallStepCount" style="font-size: 0.65rem; margin-left: 0.3rem;">0/0</span>
+                            </small>
+                        </div>
+
+                        <div class="progress progress-enhanced" style="height: 15px;">
+                            <div class="progress-bar bg-warning" id="overallProgressBar" style="width: 0%">
+                                <span id="overallProgressText">0/0</span>
+                            </div>
+                        </div>
+
+                        <!-- Next Action & Next Step -->
+                        <div class="mt-1">
+                            <small class="text-muted d-block" style="font-size: 0.65rem; line-height: 1.2;">
+                                <i class="fas fa-arrow-right me-1" style="font-size: 0.6rem;"></i><strong>Next Action:</strong><br><span id="overallNextAction">-</span>
+                            </small>
+
+                            <small class="text-secondary d-block" style="font-size: 0.6rem; line-height: 1.1; margin-top: 0.3rem;">
+                                <i class="fas fa-forward me-1" style="font-size: 0.55rem;"></i><strong>Next Step:</strong><br><span id="overallNextStep">-</span>
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- プロジェクト段階（全て展開） -->
+                    <div class="mb-1">
+                        <label class="form-label fw-bold mb-1" style="font-size: 0.8rem; line-height: 1.2;">プロジェクト段階</label>
+                        <div class="vertical-progress" id="activeSteps" style="font-size: 0.75rem;">
+                            <!-- 動的にステップが構築される -->
+                        </div>
+
+                        <!-- 利用可能なステップ（常に表示） -->
+                        <div id="stepInventory" class="mt-3">
+                            <hr>
+                            <h6 style="font-size: 0.8rem;"><i class="fas fa-box"></i> 利用可能なステップ</h6>
+                            <div class="row" id="availableSteps">
+                                <!-- 利用可能なステップをここに動的に表示 -->
+                            </div>
+                        </div>
+
+                        <!-- ステップ順序の隠しフィールド -->
+                        <input type="hidden" name="step_order" id="stepOrderInput" value="">
+                    </div>
+
+                    <!-- 詳細コメント欄 -->
+                    <div class="mb-1">
+                        <label class="form-label fw-bold mb-1" style="font-size: 0.75rem; line-height: 1.2;"><i class="fas fa-comment-alt me-1"></i>詳細コメント</label>
+
+                        <!-- コメント一覧 -->
+                        <div id="commentsList" class="mb-2">
+                            <!-- コメントはJavaScriptで動的に表示 -->
+                        </div>
+
+                        <!-- 新規コメント入力 -->
+                        <div class="mb-1">
+                            <textarea class="form-control" id="newCommentText" rows="2" style="font-size: 0.7rem; padding: 0.25rem 0.4rem; line-height: 1.3;"
+                                      placeholder="新しいコメントを入力してください..."></textarea>
+                            <small class="text-muted" style="font-size: 0.65rem; line-height: 1.2;">コメントは日時とユーザー名付きで保存されます</small>
+                        </div>
+
+                        <!-- コメント保存ボタン -->
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="saveCommentBtn" style="font-size: 0.7rem; padding: 0.25rem 0.5rem;">
+                            <i class="fas fa-plus me-1"></i>コメント追加
+                        </button>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-sm" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">
+                        <i class="fas fa-save"></i> 進捗更新
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 2カラム: 経理情報 & 下請け手配状況 -->
 <div class="row mb-4">
     <!-- 左: 経理情報 -->
-    <div class="col-md-4">
+    <div class="col-md-6">
         <div class="card border-info shadow-sm" style="height: 100%;">
             <div class="card-header bg-info text-white py-1">
                 <h6 class="mb-0" style="font-size: 0.85rem; line-height: 1.4;"><i class="fas fa-calculator"></i> 経理情報</h6>
@@ -1106,8 +1202,8 @@
         </div>
     </div>
 
-    <!-- 中央: 下請け手配状況 & 資材発注状況 -->
-    <div class="col-md-4">
+    <!-- 右: 下請け手配状況 & 資材発注状況 -->
+    <div class="col-md-6">
         <!-- 下請け手配状況 -->
         <div class="card border-primary shadow-sm mb-2">
             <div class="card-header bg-primary text-white py-1">
@@ -1129,17 +1225,20 @@
                         <div class="mb-2 p-2 border-bottom">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div style="flex: 1;">
-                                    <div style="font-size: 0.75rem; font-weight: bold;">{{ subcontract.contractor.name }}</div>
+                                    <div style="font-size: 0.75rem; font-weight: bold;">
+                                        {{ subcontract.contractor.name }}
+                                        <span class="badge bg-info ms-1" style="font-size: 0.6rem;">{{ subcontract.get_step_display }}</span>
+                                    </div>
                                 </div>
+                                <span class="badge bg-{{ subcontract.get_payment_status_color }}" style="font-size: 0.6rem;">
+                                    {{ subcontract.get_payment_status_display }}
+                                </span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mt-1">
                                 <div style="font-size: 0.65rem;">
                                     <span class="text-muted">契約:</span> ¥{{ subcontract.contract_amount|floatformat:0|intcomma }}<br>
                                     <span class="text-muted">請求:</span> ¥{{ subcontract.billed_amount|floatformat:0|intcomma }}
                                 </div>
-                                <span class="badge bg-{{ subcontract.get_payment_status_color }}" style="font-size: 0.6rem;">
-                                    {{ subcontract.get_payment_status_display }}
-                                </span>
                             </div>
                         </div>
                         {% endfor %}
@@ -1152,9 +1251,9 @@
                 {% endif %}
                 <!-- 作業者追加ボタン -->
                 <div class="mt-2">
-                    <a href="{% url 'order_management:add_subcontract' project.pk %}" class="btn btn-sm btn-primary w-100" style="font-size: 0.65rem;">
+                    <button type="button" class="btn btn-sm btn-primary w-100" style="font-size: 0.65rem;" onclick="openSubcontractModal()">
                         <i class="fas fa-user-plus"></i> 作業者を追加
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>
@@ -1223,103 +1322,10 @@
                 {% endif %}
                 <!-- 資材発注を追加ボタン -->
                 <div class="mt-2">
-                    <a href="{% url 'order_management:material_order_create' project.id %}" class="btn btn-sm btn-warning w-100" style="font-size: 0.65rem;">
+                    <button type="button" class="btn btn-sm btn-warning w-100" style="font-size: 0.65rem;" onclick="openMaterialOrderModal()">
                         <i class="fas fa-plus"></i> 資材発注を追加
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 右: プロジェクト段階管理 -->
-    <div class="col-md-4">
-        <div class="card shadow-sm" style="height: 100%;">
-            <div class="card-header bg-gradient-primary text-white py-1">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0" style="font-size: 0.85rem; line-height: 1.4;"><i class="fas fa-cog"></i> プロジェクト段階管理</h6>
-                    <button type="button" class="btn btn-sm btn-light" id="toggleAllSteps" style="font-size: 0.65rem; padding: 0.2rem 0.4rem;">
-                        <i class="fas fa-compress-alt"></i> <span id="toggleButtonText">全部閉じる</span>
                     </button>
                 </div>
-            </div>
-            <div class="card-body p-2" style="overflow-y: auto; overflow-x: visible;">
-                <form method="post" action="{% url 'order_management:update_progress' project.pk %}">
-                    {% csrf_token %}
-
-                    <!-- 全体プログレスバー -->
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <small class="text-muted" style="font-size: 0.7rem;">
-                                <i class="fas fa-chart-line me-1"></i>進捗
-                                <span id="overallPhase" class="badge bg-secondary" style="font-size: 0.6rem; margin-left: 0.3rem;">未開始</span>
-                                <span id="overallStepCount" style="font-size: 0.65rem; margin-left: 0.3rem;">0/0</span>
-                            </small>
-                        </div>
-
-                        <div class="progress progress-enhanced" style="height: 15px;">
-                            <div class="progress-bar bg-warning" id="overallProgressBar" style="width: 0%">
-                                <span id="overallProgressText">0/0</span>
-                            </div>
-                        </div>
-
-                        <!-- Next Action & Next Step -->
-                        <div class="mt-1">
-                            <small class="text-muted d-block" style="font-size: 0.65rem; line-height: 1.2;">
-                                <i class="fas fa-arrow-right me-1" style="font-size: 0.6rem;"></i><strong>Next Action:</strong><br><span id="overallNextAction">-</span>
-                            </small>
-
-                            <small class="text-secondary d-block" style="font-size: 0.6rem; line-height: 1.1; margin-top: 0.3rem;">
-                                <i class="fas fa-forward me-1" style="font-size: 0.55rem;"></i><strong>Next Step:</strong><br><span id="overallNextStep">-</span>
-                            </small>
-                        </div>
-                    </div>
-
-                    <!-- プロジェクト段階（全て展開） -->
-                    <div class="mb-1">
-                        <label class="form-label fw-bold mb-1" style="font-size: 0.8rem; line-height: 1.2;">プロジェクト段階</label>
-                        <div class="vertical-progress" id="activeSteps" style="font-size: 0.75rem;">
-                            <!-- 動的にステップが構築される -->
-                        </div>
-
-                        <!-- 利用可能なステップ（常に表示） -->
-                        <div id="stepInventory" class="mt-3">
-                            <hr>
-                            <h6 style="font-size: 0.8rem;"><i class="fas fa-box"></i> 利用可能なステップ</h6>
-                            <div class="row" id="availableSteps">
-                                <!-- 利用可能なステップをここに動的に表示 -->
-                            </div>
-                        </div>
-
-                        <!-- ステップ順序の隠しフィールド -->
-                        <input type="hidden" name="step_order" id="stepOrderInput" value="">
-                    </div>
-
-                    <!-- 詳細コメント欄 -->
-                    <div class="mb-1">
-                        <label class="form-label fw-bold mb-1" style="font-size: 0.75rem; line-height: 1.2;"><i class="fas fa-comment-alt me-1"></i>詳細コメント</label>
-
-                        <!-- コメント一覧 -->
-                        <div id="commentsList" class="mb-2">
-                            <!-- コメントはJavaScriptで動的に表示 -->
-                        </div>
-
-                        <!-- 新規コメント入力 -->
-                        <div class="mb-1">
-                            <textarea class="form-control" id="newCommentText" rows="2" style="font-size: 0.7rem; padding: 0.25rem 0.4rem; line-height: 1.3;"
-                                      placeholder="新しいコメントを入力してください..."></textarea>
-                            <small class="text-muted" style="font-size: 0.65rem; line-height: 1.2;">コメントは日時とユーザー名付きで保存されます</small>
-                        </div>
-
-                        <!-- コメント保存ボタン -->
-                        <button type="button" class="btn btn-sm btn-outline-primary" id="saveCommentBtn" style="font-size: 0.7rem; padding: 0.25rem 0.5rem;">
-                            <i class="fas fa-plus me-1"></i>コメント追加
-                        </button>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary btn-sm" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">
-                        <i class="fas fa-save"></i> 進捗更新
-                    </button>
-                </form>
             </div>
         </div>
     </div>
@@ -4972,7 +4978,7 @@ $(document).ready(function() {
                 stepIcon = 'fas fa-file-signature';
                 break;
             case 'material_order':
-                stepName = '材料発注';
+                stepName = '資材発注';
                 stepIcon = 'fas fa-boxes';
                 break;
             case 'safety_training':
@@ -5423,12 +5429,6 @@ $(document).ready(function() {
                     label: '立ち会い完了',
                     type: 'checkbox',
                     required: false
-                },
-                {
-                    name: 'staff_id',
-                    label: '担当者（複数選択可）',
-                    type: 'staff_select_list',
-                    required: false
                 }
             ],
             statuses: [
@@ -5453,12 +5453,6 @@ $(document).ready(function() {
                     name: 'completed',
                     label: '現調完了',
                     type: 'checkbox',
-                    required: false
-                },
-                {
-                    name: 'staff_id',
-                    label: '担当者（複数選択可）',
-                    type: 'staff_select_list',
                     required: false
                 }
             ],
@@ -5508,12 +5502,6 @@ $(document).ready(function() {
                     name: 'completed',
                     label: '着工完了',
                     type: 'checkbox',
-                    required: false
-                },
-                {
-                    name: 'staff_id',
-                    label: '担当者（複数選択可）',
-                    type: 'staff_select_list',
                     required: false
                 }
             ],
@@ -5608,7 +5596,7 @@ $(document).ready(function() {
         },
         */
         {
-            name: '材料発注',
+            name: '資材発注',
             icon: 'fas fa-boxes',
             key: 'material_order',
             type: 'date'
@@ -5971,9 +5959,162 @@ $(document).ready(function() {
         pendingDeleteBtn = null;
     });
 
+    // ステップ別の下請け手配カードHTMLを生成
+    function generateStepSubcontractCardHtml(stepKey) {
+        // attendance, survey, construction_start の3つのステップのみ対象
+        const stepSubcontracts = {
+            'attendance': {{ attendance_subcontracts_json|safe }},
+            'survey': {{ survey_subcontracts_json|safe }},
+            'construction_start': {{ construction_start_subcontracts_json|safe }}
+        };
+
+        const subcontracts = stepSubcontracts[stepKey];
+        if (!subcontracts) return '';  // 対象ステップでなければ空文字を返す
+
+        const stepNames = {
+            'attendance': '立ち会い',
+            'survey': '現調',
+            'construction_start': '着工'
+        };
+
+        let subcontractListHtml = '';
+        if (subcontracts.length > 0) {
+            subcontracts.forEach(sub => {
+                subcontractListHtml += `
+                    <div class="mb-2 p-2 border-bottom">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div style="flex: 1;">
+                                <div style="font-size: 0.75rem; font-weight: bold;">
+                                    ${sub.contractor_name}
+                                    <span class="badge bg-info ms-1" style="font-size: 0.6rem;">${stepNames[stepKey]}</span>
+                                </div>
+                            </div>
+                            <span class="badge bg-${sub.payment_status_color}" style="font-size: 0.6rem;">
+                                ${sub.payment_status_display}
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <div style="font-size: 0.65rem;">
+                                <span class="text-muted">契約:</span> ¥${sub.contract_amount ? sub.contract_amount.toLocaleString() : 0}<br>
+                                <span class="text-muted">請求:</span> ¥${sub.billed_amount ? sub.billed_amount.toLocaleString() : 0}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            subcontractListHtml = `
+                <div class="text-center py-2">
+                    <i class="fas fa-file-contract fa-2x text-muted mb-2"></i>
+                    <p style="font-size: 0.7rem; color: #6c757d;" class="mb-0">発注先未登録</p>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="card border-primary shadow-sm mb-2 mt-3" style="max-width: 600px;">
+                <div class="card-header bg-white text-primary py-1 border-bottom border-primary">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0" style="font-size: 0.85rem; line-height: 1.4;">
+                            <i class="fas fa-file-contract"></i> ${stepNames[stepKey]}の下請け手配状況
+                            <span class="badge bg-primary text-white ms-2">${subcontracts.length}件</span>
+                        </h6>
+                    </div>
+                </div>
+                <div class="card-body p-2">
+                    ${subcontractListHtml}
+                    <!-- 作業者追加ボタン -->
+                    <div class="mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary w-100" style="font-size: 0.65rem;" onclick="openSubcontractModal('${stepKey}')">
+                            <i class="fas fa-user-plus"></i> 作業者を追加
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // 資材発注状況カードHTMLを生成
+    function generateMaterialOrderCardHtml() {
+        const materialOrders = {{ material_orders_json|safe }};
+
+        let materialOrderListHtml = '';
+        if (materialOrders && materialOrders.length > 0) {
+            materialOrders.forEach(order => {
+                const statusClass = order.status === 'completed' ? 'bg-success' :
+                                  order.status === 'delivered' ? 'bg-info' :
+                                  order.status === 'ordered' ? 'bg-warning' : 'bg-secondary';
+
+                materialOrderListHtml += `
+                    <div class="mb-2 p-2 border-bottom">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div style="flex: 1;">
+                                <div style="font-size: 0.75rem; font-weight: bold;">
+                                    ${order.contractor ? order.contractor.name : '発注先未設定'}
+                                </div>
+                                ${order.items && order.items.length > 0 ? `
+                                    <div style="font-size: 0.65rem; color: #6c757d;">
+                                        ${order.items[0].material_name}${order.items.length > 1 ? ' 他' + (order.items.length - 1) + '件' : ''}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <div style="font-size: 0.65rem;">
+                                <span class="text-muted">金額:</span> ¥${order.total_amount ? order.total_amount.toLocaleString() : 0}<br>
+                                <span class="text-muted">発注日:</span> ${order.order_date || '-'}
+                            </div>
+                            <span class="badge ${statusClass}" style="font-size: 0.6rem;">
+                                ${order.status_display || '-'}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            materialOrderListHtml = `
+                <div class="text-center py-2">
+                    <i class="fas fa-box-open fa-2x text-muted mb-2"></i>
+                    <p style="font-size: 0.7rem; color: #6c757d;" class="mb-0">資材発注未登録</p>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="card border-warning shadow-sm mb-2 mt-3" style="max-width: 600px;">
+                <div class="card-header bg-white text-warning py-1 border-bottom border-warning">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0" style="font-size: 0.85rem; line-height: 1.4;">
+                            <i class="fas fa-box-open"></i> 資材発注状況
+                            <span class="badge bg-warning text-white ms-2">${materialOrders ? materialOrders.length : 0}件</span>
+                        </h6>
+                    </div>
+                </div>
+                <div class="card-body p-2">
+                    ${materialOrderListHtml}
+                    <!-- 資材発注を追加ボタン -->
+                    <div class="mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-warning w-100" style="font-size: 0.65rem;" onclick="openMaterialOrderModal()">
+                            <i class="fas fa-plus"></i> 資材発注を追加
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     // 利用可能なステップから完全なステップHTMLを生成
     function generateAvailableStepHtml(stepData) {
         const fieldHtml = generateFieldHtml(stepData);
+
+        // attendance, survey, construction_start の場合は下請け手配カードを追加
+        // material_order の場合は資材発注状況カードを追加
+        let additionalCardHtml = '';
+        if (['attendance', 'survey', 'construction_start'].includes(stepData.key)) {
+            additionalCardHtml = generateStepSubcontractCardHtml(stepData.key);
+        } else if (stepData.key === 'material_order') {
+            additionalCardHtml = generateMaterialOrderCardHtml();
+        }
 
         return `
             <div class="progress-step" data-step="${stepData.key}">
@@ -5990,6 +6131,7 @@ $(document).ready(function() {
                 <div class="progress-step-date">未完了</div>
                 <div class="progress-step-content">
                     ${fieldHtml}
+                    ${additionalCardHtml}
                     <div class="mt-3">
                         <button type="button" class="btn btn-primary btn-sm save-step-btn" data-step="${stepData.key}">
                             <i class="fas fa-save me-1"></i>保存
@@ -7120,6 +7262,358 @@ function confirmFileDelete(fileId, fileName) {
     </div>
 </div>
 
+<!-- 下請け作成モーダル -->
+<div class="modal fade" id="subcontractModal" tabindex="-1" aria-labelledby="subcontractModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="subcontractModalLabel">
+                    <i class="fas fa-user-plus me-2"></i>作業者を追加
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="subcontractForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="subcontractStep" name="step">
+
+                    <div class="mb-3">
+                        <label for="subcontractContractor" class="form-label">
+                            発注先 <span class="text-danger">*</span>
+                        </label>
+                        <div class="d-flex gap-2">
+                            <select class="form-select" id="subcontractContractor" name="contractor" required style="flex: 1;">
+                                <option value="">選択してください</option>
+                                {% for contractor in contractors %}
+                                <option value="{{ contractor.id }}">{{ contractor.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <a href="{% url 'order_management:contractor_create' %}?back={{ request.path }}" target="_blank" class="btn btn-outline-primary" title="新規業者を追加">
+                                <i class="fas fa-plus"></i>
+                            </a>
+                        </div>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle me-1"></i>新しい業者を追加する場合は<i class="fas fa-plus"></i>ボタンをクリックしてください
+                        </small>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="subcontractContractAmount" class="form-label">
+                                    契約金額 <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">¥</span>
+                                    <input type="number" class="form-control" id="subcontractContractAmount" name="contract_amount" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="subcontractBilledAmount" class="form-label">
+                                    請求金額
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">¥</span>
+                                    <input type="number" class="form-control" id="subcontractBilledAmount" name="billed_amount">
+                                </div>
+                                <small class="form-text text-muted">実際に請求された金額を入力してください（任意）</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 発注先のデフォルト支払い情報（表示のみ） -->
+                    <div class="alert alert-info" style="display: none;" id="contractorPaymentInfo">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="alert-heading mb-0">
+                                <i class="fas fa-info-circle me-1"></i>発注先の支払い条件
+                            </h6>
+                            <button type="button" class="btn btn-sm btn-outline-warning" onclick="enableCustomPaymentDate()">
+                                <i class="fas fa-exclamation-triangle me-1"></i>例外処理
+                            </button>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-4">
+                                <small class="text-muted">支払サイクル:</small>
+                                <div><span id="contractorPaymentCycleDisplay">-</span></div>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted">締日:</small>
+                                <div><span id="contractorClosingDayDisplay">-</span></div>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted">支払日:</small>
+                                <div><span id="contractorPaymentDayDisplay">-</span></div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                発注先との契約上の支払い条件（参考情報）
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- 個別支払期限設定（例外処理） -->
+                    <div id="customPaymentDateSection" style="display: none;">
+                        <div class="alert alert-warning">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="alert-heading mb-0">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>例外処理：個別支払期限
+                                </h6>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="disableCustomPaymentDate()">
+                                    <i class="fas fa-undo me-1"></i>通常に戻す
+                                </button>
+                            </div>
+                            <small class="text-muted d-block mb-3">
+                                この案件のみ、発注先の通常の支払サイクルとは異なる支払期限を設定します
+                            </small>
+
+                            <div class="mb-0">
+                                <label for="subcontractPaymentDueDate" class="form-label">
+                                    <i class="fas fa-calendar-alt me-1"></i>支払期限 <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" class="form-control" id="subcontractPaymentDueDate" name="payment_due_date">
+                                <small class="form-text text-muted">この案件専用の出金予定日を設定してください</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="subcontractPaymentDate" class="form-label">
+                                    実際の支払日
+                                </label>
+                                <input type="date" class="form-control" id="subcontractPaymentDate" name="payment_date">
+                                <small class="form-text text-muted">実際に支払った日付（任意）</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="subcontractPaymentStatus" class="form-label">
+                                    支払状況
+                                </label>
+                                <select class="form-select" id="subcontractPaymentStatus" name="payment_status">
+                                    <option value="pending">未払い</option>
+                                    <option value="processing">処理中</option>
+                                    <option value="paid">支払済</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="subcontractWorkDescription" class="form-label">
+                            作業内容
+                        </label>
+                        <textarea class="form-control" id="subcontractWorkDescription" name="work_description" rows="3"></textarea>
+                    </div>
+
+                    <!-- 他の工程にも追加 -->
+                    <div class="mb-3" id="additionalStepsSection" style="display: none;">
+                        <div class="card border-info">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-clone me-2"></i>他の工程にも追加
+                                </h6>
+                                <small class="text-muted">同じ業者・同じ条件で複数の工程に一括登録できます</small>
+                            </div>
+                            <div class="card-body">
+                                <!-- 工程選択チェックボックス -->
+                                <div id="additionalStepsCheckboxes" class="mb-3">
+                                    <!-- JavaScriptで動的に生成 -->
+                                </div>
+
+                                <!-- 金額の設定方法を選択 -->
+                                <div id="costAllocationSection" style="display: none;">
+                                    <hr class="my-3">
+                                    <h6 class="mb-3">
+                                        <i class="fas fa-yen-sign me-2"></i>金額の設定方法
+                                    </h6>
+                                    <div class="mb-3">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="radio" name="cost_allocation_method" id="costMethodLumpSum" value="lump_sum" checked>
+                                            <label class="form-check-label" for="costMethodLumpSum">
+                                                <strong>全工程一式で登録</strong>
+                                                <div class="text-muted small">上記の契約金額で全工程をカバーします（追加工程は¥0で関連付け）</div>
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="cost_allocation_method" id="costMethodPerStep" value="per_step">
+                                            <label class="form-check-label" for="costMethodPerStep">
+                                                <strong>工程ごとに金額を設定</strong>
+                                                <div class="text-muted small">各工程の金額を個別に入力します</div>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- 工程ごとの金額入力欄 -->
+                                    <div id="perStepAmountsSection" style="display: none;">
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle me-1"></i>各工程の契約金額を入力してください
+                                        </div>
+                                        <div id="perStepAmountsInputs">
+                                            <!-- JavaScriptで動的に生成 -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="subcontractNotes" class="form-label">
+                            備考
+                        </label>
+                        <textarea class="form-control" id="subcontractNotes" name="notes" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>キャンセル
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveSubcontract()">
+                    <i class="fas fa-save me-1"></i>保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 資材発注作成モーダル -->
+<div class="modal fade" id="materialOrderModal" tabindex="-1" aria-labelledby="materialOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-white">
+                <h5 class="modal-title" id="materialOrderModalLabel">
+                    <i class="fas fa-box-open me-2"></i>資材発注を追加
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="materialOrderForm">
+                    {% csrf_token %}
+
+                    <!-- 資材業者選択 -->
+                    <div class="mb-3">
+                        <label for="materialContractor" class="form-label">
+                            資材業者 <span class="text-danger">*</span>
+                        </label>
+                        <div class="d-flex gap-2">
+                            <select class="form-select" id="materialContractor" name="contractor" required style="flex: 1;">
+                                <option value="">選択してください</option>
+                                {% for contractor in contractors %}
+                                <option value="{{ contractor.id }}">{{ contractor.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <a href="{% url 'order_management:contractor_create' %}?back={{ request.path }}" target="_blank" class="btn btn-outline-warning" title="新規業者を追加">
+                                <i class="fas fa-plus"></i>
+                            </a>
+                        </div>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle me-1"></i>新しい業者を追加する場合は<i class="fas fa-plus"></i>ボタンをクリックしてください
+                        </small>
+                    </div>
+
+                    <!-- 発注情報 -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="materialOrderDate" class="form-label">
+                                    発注日 <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" class="form-control" id="materialOrderDate" name="order_date" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="materialDeliveryDate" class="form-label">
+                                    希望納期
+                                </label>
+                                <input type="date" class="form-control" id="materialDeliveryDate" name="delivery_date">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 資材項目 -->
+                    <div class="mb-3">
+                        <h6 class="text-warning border-bottom border-warning pb-2 mb-3">
+                            <i class="fas fa-boxes me-1"></i>資材項目
+                        </h6>
+                        <div id="materialItems">
+                            <!-- 最初の資材項目 -->
+                            <div class="material-item mb-3 p-3 bg-light rounded">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <label class="form-label">資材名 <span class="text-danger">*</span></label>
+                                        <input type="text" name="material_name[]" class="form-control" placeholder="例: コンクリート" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">数量</label>
+                                        <input type="number" name="quantity[]" class="form-control material-quantity" step="0.01" placeholder="0.00">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">単位</label>
+                                        <input type="text" name="unit[]" class="form-control" placeholder="例: m³">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">単価(円)</label>
+                                        <input type="number" name="unit_price[]" class="form-control material-unit-price" step="0.01" placeholder="0.00">
+                                    </div>
+                                </div>
+                                <div class="row mt-2">
+                                    <div class="col-md-12">
+                                        <label class="form-label">仕様・規格</label>
+                                        <input type="text" name="specification[]" class="form-control" placeholder="例: 24-21-20">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 資材項目追加ボタン -->
+                        <button type="button" class="btn btn-sm btn-outline-warning" onclick="addMaterialItem()">
+                            <i class="fas fa-plus me-1"></i>資材項目を追加
+                        </button>
+                    </div>
+
+                    <!-- 合計金額（自動計算） -->
+                    <div class="mb-3">
+                        <div class="alert alert-warning">
+                            <div class="row align-items-center">
+                                <div class="col-md-6">
+                                    <strong><i class="fas fa-calculator me-1"></i>合計金額:</strong>
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    <h4 class="mb-0" id="materialTotalAmount">¥0</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 備考 -->
+                    <div class="mb-3">
+                        <label for="materialNotes" class="form-label">
+                            備考
+                        </label>
+                        <textarea class="form-control" id="materialNotes" name="notes" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>キャンセル
+                </button>
+                <button type="button" class="btn btn-warning" onclick="saveMaterialOrder()">
+                    <i class="fas fa-save me-1"></i>保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- 案件ファイル管理セクション - Phase 5 -->
 <div class="container mt-5 mb-5">
     <div class="card shadow-sm">
@@ -8030,6 +8524,547 @@ document.addEventListener('DOMContentLoaded', function() {
         switchViewMode('full');
     }
 });
+
+// 追加工程のチェックボックス変更ハンドラ
+function handleAdditionalStepsChange() {
+    const checkedBoxes = $('.additional-step-checkbox:checked');
+
+    if (checkedBoxes.length > 0) {
+        // 1つ以上の工程がチェックされている場合、金額設定方法セクションを表示
+        $('#costAllocationSection').show();
+
+        // 現在選択されている方法に応じて入力欄を更新
+        updatePerStepAmountsInputs();
+    } else {
+        // チェックされていない場合は非表示
+        $('#costAllocationSection').hide();
+        $('#perStepAmountsSection').hide();
+    }
+}
+
+// 工程ごとの金額入力欄を生成
+function updatePerStepAmountsInputs() {
+    const checkedBoxes = $('.additional-step-checkbox:checked');
+    const currentStepKey = $('#subcontractStep').val();
+
+    // 現在の工程名を取得
+    const stepNames = {
+        'attendance': '立ち会い',
+        'survey': '現調',
+        'construction_start': '着工'
+    };
+    const currentStepName = stepNames[currentStepKey] || '';
+
+    let inputsHtml = '';
+
+    // 現在の工程の入力欄
+    if (currentStepName) {
+        inputsHtml += `
+            <div class="mb-3">
+                <label class="form-label">
+                    <i class="fas fa-calendar-check me-1"></i>${currentStepName}（メイン工程）
+                </label>
+                <input type="number" class="form-control step-amount-input-all" id="currentStepAmount"
+                       placeholder="契約金額を入力" min="0" step="1000" required>
+            </div>
+        `;
+    }
+
+    // 追加工程の入力欄
+    checkedBoxes.each(function() {
+        const stepKey = $(this).val();
+        const stepLabel = $(this).data('label');
+
+        inputsHtml += `
+            <div class="mb-3">
+                <label class="form-label">
+                    <i class="fas fa-calendar-check me-1"></i>${stepLabel}
+                </label>
+                <input type="number" class="form-control step-amount-input step-amount-input-all"
+                       name="step_amounts[${stepKey}]"
+                       data-step="${stepKey}"
+                       placeholder="契約金額を入力" min="0" step="1000" required>
+            </div>
+        `;
+    });
+
+    $('#perStepAmountsInputs').html(inputsHtml);
+
+    // 金額入力欄に変更イベントを追加（合計を自動計算）
+    $('.step-amount-input-all').on('input', calculateTotalStepAmount);
+}
+
+// 各工程の金額合計を計算してメイン契約金額に反映
+function calculateTotalStepAmount() {
+    let total = 0;
+
+    // すべての工程の金額を合計
+    $('.step-amount-input-all').each(function() {
+        const value = parseInt($(this).val()) || 0;
+        total += value;
+    });
+
+    // メインの契約金額フィールドに設定
+    $('#subcontractContractAmount').val(total);
+}
+
+// 金額設定方法の変更ハンドラ
+$(document).on('change', 'input[name="cost_allocation_method"]', function() {
+    const method = $(this).val();
+
+    if (method === 'per_step') {
+        // 工程ごとに金額を設定する場合
+        updatePerStepAmountsInputs();
+        $('#perStepAmountsSection').show();
+
+        // メインの契約金額フィールドを読み取り専用にする
+        $('#subcontractContractAmount').prop('readonly', true);
+        $('#subcontractContractAmount').addClass('bg-light');
+        $('#subcontractContractAmount').attr('placeholder', '各工程の合計が自動入力されます');
+
+        // 合計を計算
+        calculateTotalStepAmount();
+    } else {
+        // 一式の場合は非表示
+        $('#perStepAmountsSection').hide();
+
+        // メインの契約金額フィールドを編集可能に戻す
+        $('#subcontractContractAmount').prop('readonly', false);
+        $('#subcontractContractAmount').removeClass('bg-light');
+        $('#subcontractContractAmount').attr('placeholder', '');
+    }
+});
+
+// 下請け作成モーダルを開く
+function openSubcontractModal(stepKey) {
+    // stepパラメータを設定
+    if (stepKey) {
+        $('#subcontractStep').val(stepKey);
+
+        // ステップ名をモーダルタイトルに追加
+        const stepNames = {
+            'attendance': '立ち会い',
+            'survey': '現調',
+            'construction_start': '着工',
+            'material_order': '資材発注'
+        };
+        const stepName = stepNames[stepKey] || '';
+        $('#subcontractModalLabel').html(`<i class="fas fa-user-plus me-2"></i>作業者を追加${stepName ? ' (' + stepName + ')' : ''}`);
+
+        // 他の工程のチェックボックスを生成
+        const allSteps = [
+            { key: 'attendance', label: '立ち会い' },
+            { key: 'survey', label: '現調' },
+            { key: 'construction_start', label: '着工' }
+        ];
+
+        const otherSteps = allSteps.filter(step => step.key !== stepKey);
+
+        if (otherSteps.length > 0) {
+            let checkboxesHtml = '<div class="row">';
+            otherSteps.forEach(step => {
+                checkboxesHtml += `
+                    <div class="col-md-6 mb-2">
+                        <div class="form-check">
+                            <input class="form-check-input additional-step-checkbox" type="checkbox" name="additional_steps[]" value="${step.key}" id="addStep_${step.key}" data-label="${step.label}">
+                            <label class="form-check-label" for="addStep_${step.key}">
+                                <i class="fas fa-calendar-check me-1"></i>${step.label}
+                            </label>
+                        </div>
+                    </div>
+                `;
+            });
+            checkboxesHtml += '</div>';
+
+            $('#additionalStepsCheckboxes').html(checkboxesHtml);
+            $('#additionalStepsSection').show();
+
+            // チェックボックスの変更イベントを監視
+            $('.additional-step-checkbox').on('change', handleAdditionalStepsChange);
+        } else {
+            $('#additionalStepsSection').hide();
+        }
+    } else {
+        $('#subcontractStep').val('');
+        $('#subcontractModalLabel').html('<i class="fas fa-user-plus me-2"></i>作業者を追加');
+        $('#additionalStepsSection').hide();
+    }
+
+    // フォームをリセット
+    $('#subcontractForm')[0].reset();
+    $('#subcontractStep').val(stepKey || '');  // hidden fieldは維持
+
+    // 発注先情報と例外処理をリセット
+    document.getElementById('contractorPaymentInfo').style.display = 'none';
+    document.getElementById('customPaymentDateSection').style.display = 'none';
+
+    // 金額設定方法セクションをリセット
+    $('#costAllocationSection').hide();
+    $('#perStepAmountsSection').hide();
+    $('#costMethodLumpSum').prop('checked', true);
+
+    // 契約金額フィールドの状態をリセット（編集可能に戻す）
+    $('#subcontractContractAmount').prop('readonly', false);
+    $('#subcontractContractAmount').removeClass('bg-light');
+    $('#subcontractContractAmount').attr('placeholder', '');
+
+    // モーダルを表示
+    const modal = new bootstrap.Modal(document.getElementById('subcontractModal'));
+    modal.show();
+}
+
+// 発注先データをJavaScriptで利用できるようにする
+const contractorsData = {{ contractors_json|safe }};
+
+// 発注先選択時に支払いサイクル情報を自動入力
+$(document).ready(function() {
+    $('#subcontractContractor').on('change', function() {
+        const contractorId = parseInt($(this).val());
+
+        if (contractorId) {
+            // 選択された発注先のデータを取得
+            const contractor = contractorsData.find(c => c.id === contractorId);
+
+            if (contractor) {
+                // 発注先のデフォルト値を表示
+                $('#contractorPaymentCycleDisplay').text(contractor.payment_cycle_display || '-');
+                $('#contractorClosingDayDisplay').text(contractor.closing_day ? contractor.closing_day + '日' : '-');
+                $('#contractorPaymentDayDisplay').text(contractor.payment_day ? contractor.payment_day + '日' : '-');
+
+                // 支払い情報がある場合は情報ボックスを表示
+                if (contractor.payment_cycle_display || contractor.closing_day || contractor.payment_day) {
+                    $('#contractorPaymentInfo').show();
+                } else {
+                    $('#contractorPaymentInfo').hide();
+                }
+            } else {
+                // 発注先が見つからない場合はクリア
+                $('#contractorPaymentCycleDisplay').text('-');
+                $('#contractorClosingDayDisplay').text('-');
+                $('#contractorPaymentDayDisplay').text('-');
+                $('#contractorPaymentInfo').hide();
+            }
+        } else {
+            // 発注先が選択されていない場合はクリア
+            $('#contractorPaymentCycleDisplay').text('-');
+            $('#contractorClosingDayDisplay').text('-');
+            $('#contractorPaymentDayDisplay').text('-');
+            $('#contractorPaymentInfo').hide();
+        }
+    });
+});
+
+// 例外処理：個別支払期限を有効化
+function enableCustomPaymentDate() {
+    document.getElementById('contractorPaymentInfo').style.display = 'none';
+    document.getElementById('customPaymentDateSection').style.display = 'block';
+}
+
+// 例外処理：通常の支払サイクルに戻す
+function disableCustomPaymentDate() {
+    document.getElementById('customPaymentDateSection').style.display = 'none';
+    document.getElementById('contractorPaymentInfo').style.display = 'block';
+
+    // 支払期限フィールドをクリア
+    document.getElementById('subcontractPaymentDueDate').value = '';
+}
+
+// 下請けを保存
+function saveSubcontract() {
+    const form = $('#subcontractForm');
+    const formData = new FormData(form[0]);
+
+    // 工程ごとの金額設定の場合、バリデーション
+    const costMethod = $('input[name="cost_allocation_method"]:checked').val();
+    if (costMethod === 'per_step' && $('#perStepAmountsSection').is(':visible')) {
+        // 現在の工程の金額を取得
+        const currentStepAmount = $('#currentStepAmount').val();
+        if (!currentStepAmount || currentStepAmount <= 0) {
+            alert('メイン工程の契約金額を入力してください');
+            return;
+        }
+
+        // 各追加工程の金額を収集してバリデーション
+        const stepAmounts = {};
+        let hasError = false;
+        $('.step-amount-input').each(function() {
+            const stepKey = $(this).data('step');
+            const amount = $(this).val();
+            if (!amount || amount <= 0) {
+                alert(`${$(this).prev('label').text().replace(/（.*）/, '')}の契約金額を入力してください`);
+                hasError = true;
+                return false;
+            }
+            stepAmounts[stepKey] = amount;
+        });
+
+        if (hasError) {
+            return;
+        }
+
+        // メイン工程の金額も stepAmounts に追加
+        stepAmounts[$('#subcontractStep').val()] = currentStepAmount;
+
+        // JSON形式で送信
+        formData.set('step_amounts', JSON.stringify(stepAmounts));
+
+        // 合計金額は自動計算されたものがすでに contract_amount に設定されている
+        // （calculateTotalStepAmountで設定済み）
+    }
+
+    // 金額設定方法を追加
+    if ($('#costAllocationSection').is(':visible')) {
+        formData.set('cost_allocation_method', costMethod);
+    }
+
+    // バリデーション
+    if (!form[0].checkValidity()) {
+        form[0].reportValidity();
+        return;
+    }
+
+    // 保存ボタンを無効化
+    const saveBtn = event.target;
+    const originalText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>保存中...';
+
+    // AJAX送信
+    $.ajax({
+        url: '{% url "subcontract_management:subcontract_create" project.pk %}',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(response) {
+            // モーダルを閉じる
+            bootstrap.Modal.getInstance(document.getElementById('subcontractModal')).hide();
+
+            // 成功メッセージを表示
+            if (typeof toastr !== 'undefined') {
+                toastr.success('作業者を追加しました');
+            }
+
+            // ページをリロードして更新を反映
+            setTimeout(function() {
+                location.reload();
+            }, 500);
+        },
+        error: function(xhr, status, error) {
+            // エラーメッセージを表示
+            let errorMessage = 'エラーが発生しました';
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMessage = xhr.responseJSON.error;
+            } else if (xhr.responseText) {
+                errorMessage = xhr.responseText;
+            }
+
+            if (typeof toastr !== 'undefined') {
+                toastr.error(errorMessage);
+            } else {
+                alert(errorMessage);
+            }
+
+            // ボタンを元に戻す
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    });
+}
+
+// ==================== 資材発注モーダル関連関数 ====================
+
+// 資材発注モーダルを開く
+function openMaterialOrderModal() {
+    // フォームをリセット
+    $('#materialOrderForm')[0].reset();
+
+    // 発注日を今日に設定
+    const today = new Date().toISOString().split('T')[0];
+    $('#materialOrderDate').val(today);
+
+    // 資材項目を初期化（1つだけ残す）
+    $('#materialItems').html(`
+        <div class="material-item mb-3 p-3 bg-light rounded">
+            <div class="row">
+                <div class="col-md-4">
+                    <label class="form-label">資材名 <span class="text-danger">*</span></label>
+                    <input type="text" name="material_name[]" class="form-control" placeholder="例: コンクリート" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">数量</label>
+                    <input type="number" name="quantity[]" class="form-control material-quantity" step="0.01" placeholder="0.00">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">単位</label>
+                    <input type="text" name="unit[]" class="form-control" placeholder="例: m³">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">単価(円)</label>
+                    <input type="number" name="unit_price[]" class="form-control material-unit-price" step="0.01" placeholder="0.00">
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-md-12">
+                    <label class="form-label">仕様・規格</label>
+                    <input type="text" name="specification[]" class="form-control" placeholder="例: 24-21-20">
+                </div>
+            </div>
+        </div>
+    `);
+
+    // 合計金額をリセット
+    $('#materialTotalAmount').text('¥0');
+
+    // 合計金額計算のイベントハンドラを再設定
+    attachMaterialCalculationEvents();
+
+    // モーダルを表示
+    const modal = new bootstrap.Modal(document.getElementById('materialOrderModal'));
+    modal.show();
+}
+
+// 資材項目を追加
+function addMaterialItem() {
+    const newItem = `
+        <div class="material-item mb-3 p-3 bg-light rounded position-relative">
+            <button type="button" class="btn btn-sm btn-outline-danger position-absolute"
+                    style="top: 10px; right: 10px;" onclick="removeMaterialItem(this)">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="row">
+                <div class="col-md-4">
+                    <label class="form-label">資材名 <span class="text-danger">*</span></label>
+                    <input type="text" name="material_name[]" class="form-control" placeholder="例: コンクリート" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">数量</label>
+                    <input type="number" name="quantity[]" class="form-control material-quantity" step="0.01" placeholder="0.00">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">単位</label>
+                    <input type="text" name="unit[]" class="form-control" placeholder="例: m³">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">単価(円)</label>
+                    <input type="number" name="unit_price[]" class="form-control material-unit-price" step="0.01" placeholder="0.00">
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-md-12">
+                    <label class="form-label">仕様・規格</label>
+                    <input type="text" name="specification[]" class="form-control" placeholder="例: 24-21-20">
+                </div>
+            </div>
+        </div>
+    `;
+
+    $('#materialItems').append(newItem);
+
+    // 新しく追加された項目にもイベントハンドラを設定
+    attachMaterialCalculationEvents();
+}
+
+// 資材項目を削除
+function removeMaterialItem(button) {
+    $(button).closest('.material-item').remove();
+    calculateMaterialTotal();
+}
+
+// 合計金額を計算
+function calculateMaterialTotal() {
+    let total = 0;
+
+    $('.material-item').each(function() {
+        const quantity = parseFloat($(this).find('.material-quantity').val()) || 0;
+        const unitPrice = parseFloat($(this).find('.material-unit-price').val()) || 0;
+        total += quantity * unitPrice;
+    });
+
+    $('#materialTotalAmount').text('¥' + total.toLocaleString());
+    return total;
+}
+
+// 合計金額計算のイベントハンドラを設定
+function attachMaterialCalculationEvents() {
+    $('.material-quantity, .material-unit-price').off('input').on('input', function() {
+        calculateMaterialTotal();
+    });
+}
+
+// 資材発注を保存
+function saveMaterialOrder() {
+    const form = $('#materialOrderForm');
+
+    // バリデーション
+    if (!form[0].checkValidity()) {
+        form[0].reportValidity();
+        return;
+    }
+
+    // フォームデータを収集
+    const formData = new FormData(form[0]);
+
+    // 合計金額を追加
+    const totalAmount = calculateMaterialTotal();
+    formData.append('total_amount', totalAmount);
+
+    // 保存ボタンを無効化
+    const saveBtn = event.target;
+    const originalText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>保存中...';
+
+    // AJAX送信
+    $.ajax({
+        url: '{% url "order_management:material_order_create" project.pk %}',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(response) {
+            // モーダルを閉じる
+            bootstrap.Modal.getInstance(document.getElementById('materialOrderModal')).hide();
+
+            // 成功メッセージを表示
+            if (typeof toastr !== 'undefined') {
+                toastr.success('資材発注を追加しました');
+            }
+
+            // ページをリロードして更新を反映
+            setTimeout(function() {
+                location.reload();
+            }, 500);
+        },
+        error: function(xhr, status, error) {
+            // エラーメッセージを表示
+            let errorMessage = 'エラーが発生しました';
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMessage = xhr.responseJSON.error;
+            } else if (xhr.responseText) {
+                errorMessage = xhr.responseText;
+            }
+
+            if (typeof toastr !== 'undefined') {
+                toastr.error(errorMessage);
+            } else {
+                alert(errorMessage);
+            }
+
+            // ボタンを元に戻す
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    });
+}
 </script>
 
 {% endblock %}

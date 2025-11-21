@@ -75,7 +75,8 @@ class InternalWorker(models.Model):
 class Contractor(models.Model):
     CONTRACTOR_TYPE_CHOICES = [
         ('individual', '個人職人'),
-        ('company', '協力会社')
+        ('company', '協力会社'),
+        ('material', '資材')
     ]
 
     name = models.CharField(max_length=100, verbose_name='工事業者名')
@@ -174,6 +175,11 @@ class Contractor(models.Model):
     account_holder = models.CharField(max_length=100, blank=True, verbose_name='口座名義')
 
     # 支払い条件
+    closing_day = models.IntegerField(
+        null=True, blank=True,
+        verbose_name='締日',
+        help_text='毎月の締日（1-31）。例：月末締めの場合は31、20日締めの場合は20'
+    )
     payment_day = models.IntegerField(
         null=True, blank=True,
         verbose_name='支払日',
@@ -234,6 +240,12 @@ class Subcontract(models.Model):
         ('internal', '社内リソース')
     ]
 
+    STEP_CHOICES = [
+        ('attendance', '立ち会い'),
+        ('survey', '現調'),
+        ('construction_start', '着工'),
+    ]
+
     # 案件情報（受注フォーマットから連携）
     project = models.ForeignKey(
         Project,
@@ -250,6 +262,15 @@ class Subcontract(models.Model):
         choices=WORKER_TYPE_CHOICES,
         default='external',
         verbose_name='作業者タイプ'
+    )
+
+    # プロジェクトステップ（立ち会い、現調、着工）
+    step = models.CharField(
+        max_length=20,
+        choices=STEP_CHOICES,
+        null=True,
+        blank=True,
+        verbose_name='対象ステップ'
     )
 
     # 発注先情報（外注の場合のみ使用）
@@ -339,6 +360,27 @@ class Subcontract(models.Model):
         choices=PAYMENT_STATUS_CHOICES,
         default='pending',
         verbose_name='出金状況'
+    )
+
+    # 支払い条件（個別案件で上書き可能）
+    payment_cycle = models.CharField(
+        max_length=10,
+        choices=[
+            ('monthly', '月払い'),
+            ('bimonthly', '隔月払い'),
+            ('quarterly', '四半期払い'),
+            ('custom', 'その他'),
+        ],
+        null=True,
+        blank=True,
+        verbose_name='支払サイクル',
+        help_text='未設定の場合は発注先のデフォルト値を使用'
+    )
+    payment_day = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name='支払日',
+        help_text='毎月の支払日（1-31）。未設定の場合は発注先のデフォルト値を使用'
     )
 
     # 部材費管理
