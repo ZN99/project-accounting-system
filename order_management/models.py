@@ -2718,9 +2718,11 @@ class Notification(models.Model):
     message = models.TextField(verbose_name="メッセージ")
     link = models.CharField(max_length=500, blank=True, verbose_name="リンク")
     is_read = models.BooleanField(default=False, verbose_name="既読フラグ")
+    is_archived = models.BooleanField(default=False, verbose_name="アーカイブ済み")
     related_comment = models.ForeignKey(Comment, on_delete=models.CASCADE, null=True, blank=True, related_name='notifications', verbose_name="関連コメント")
     related_project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True, blank=True, related_name='notifications', verbose_name="関連案件")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="作成日時")
+    archived_at = models.DateTimeField(null=True, blank=True, verbose_name="アーカイブ日時")
 
     class Meta:
         verbose_name = "通知"

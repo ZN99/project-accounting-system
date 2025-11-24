@@ -17,7 +17,7 @@ from .views_cost import (
 from .views_ultimate import UltimateDashboardView
 from . import views_material
 from . import views_comment
-from .views_notification import NotificationListView
+from .views_notification import NotificationListView, mark_as_read_and_archive
 from .views_cashflow import (
     CashFlowDashboardView,
     AccrualVsCashComparisonView,
@@ -117,6 +117,7 @@ urlpatterns = [
 
     # 通知管理
     path('notifications/', NotificationListView.as_view(), name='notifications'),
+    path('notifications/<int:notification_id>/archive/', mark_as_read_and_archive, name='notification_archive'),
 
     # ユーザー・ロール管理
     path('users/', UserManagementDashboardView.as_view(), name='user_management'),

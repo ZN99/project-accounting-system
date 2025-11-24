@@ -26,6 +26,52 @@
         padding: 1.5rem;
     }
 
+    /* タブスタイル */
+    .notification-tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid #e5e7eb;
+        padding-bottom: 0;
+    }
+
+    .tab-btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        background: transparent;
+        color: #6b7280;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 1rem;
+        font-weight: 600;
+        border-bottom: 3px solid transparent;
+        position: relative;
+        bottom: -2px;
+    }
+
+    .tab-btn:hover {
+        color: #667eea;
+    }
+
+    .tab-btn.active {
+        color: #667eea;
+        border-bottom-color: #667eea;
+    }
+
+    .tab-badge {
+        background: #ef4444;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        margin-left: 0.5rem;
+        font-weight: 700;
+    }
+
+    .tab-btn.active .tab-badge {
+        background: #667eea;
+    }
+
     .notification-filters {
         display: flex;
         gap: 0.5rem;
@@ -61,7 +107,7 @@
         margin-bottom: 1rem;
         border-radius: 8px;
         transition: all 0.3s;
-        cursor: pointer;
+        position: relative;
     }
 
     .notification-item:hover {
@@ -71,7 +117,21 @@
 
     .notification-item.unread {
         background: white;
-        border-left-width: 4px;
+        border-left-width: 6px;
+        box-shadow: 0 2px 12px rgba(102, 126, 234, 0.15);
+    }
+
+    .notification-item.unread::before {
+        content: '未読';
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: #ef4444;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 700;
     }
 
     .notification-item.work_completion_overdue {
@@ -161,7 +221,13 @@
         margin-bottom: 0.75rem;
     }
 
-    .notification-action {
+    .notification-actions {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .notification-link {
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
@@ -172,9 +238,29 @@
         transition: all 0.2s;
     }
 
-    .notification-action:hover {
+    .notification-link:hover {
         color: #764ba2;
         gap: 0.75rem;
+    }
+
+    .archive-btn {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .archive-btn:hover {
+        background: #764ba2;
+        transform: translateY(-1px);
     }
 
     .empty-state {
@@ -208,12 +294,35 @@
             <i class="fas fa-bell me-2"></i>通知センター
         </h2>
         <p class="mb-0" style="opacity: 0.9;">
-            {{ unread_count }}件の未読通知があります
+            {% if current_tab == 'unread' %}
+                {{ unread_count }}件の未読通知があります
+            {% else %}
+                {{ archived_count }}件のアーカイブ済み通知
+            {% endif %}
         </p>
     </div>
 
     <div class="notifications-body">
-        <!-- フィルター -->
+        <!-- タブ -->
+        <div class="notification-tabs">
+            <button class="tab-btn {% if current_tab == 'unread' %}active{% endif %}"
+                    onclick="window.location.href='{% url 'order_management:notifications' %}?tab=unread'">
+                <i class="fas fa-inbox me-1"></i>未読
+                {% if unread_count > 0 %}
+                <span class="tab-badge">{{ unread_count }}</span>
+                {% endif %}
+            </button>
+            <button class="tab-btn {% if current_tab == 'archived' %}active{% endif %}"
+                    onclick="window.location.href='{% url 'order_management:notifications' %}?tab=archived'">
+                <i class="fas fa-archive me-1"></i>アーカイブ
+                {% if archived_count > 0 %}
+                <span class="tab-badge" style="background: #9ca3af;">{{ archived_count }}</span>
+                {% endif %}
+            </button>
+        </div>
+
+        <!-- フィルター（未読タブのみ表示） -->
+        {% if current_tab == 'unread' %}
         <div class="notification-filters">
             <button class="filter-btn active" data-filter="all">
                 <i class="fas fa-list me-1"></i>すべて
@@ -235,6 +344,7 @@
                 <i class="fas fa-sync-alt me-1"></i>案件更新
             </button>
         </div>
+        {% endif %}
 
         <!-- 通知一覧 -->
         <div id="notificationsList">
@@ -242,7 +352,7 @@
                 {% for notification in notifications %}
                 <div class="notification-item {{ notification.notification_type }} {% if not notification.is_read %}unread{% endif %}"
                      data-type="{{ notification.notification_type }}"
-                     onclick="window.location.href='{{ notification.link }}'">
+                     data-id="{{ notification.id }}">
                     <div class="notification-header">
                         <span class="notification-type {{ notification.notification_type }}">
                             {% if notification.notification_type == 'work_completion_overdue' %}
@@ -265,16 +375,37 @@
                     <div class="notification-message">
                         {{ notification.message }}
                     </div>
-                    <a href="{{ notification.link }}" class="notification-action" onclick="event.stopPropagation()">
-                        <span>案件を確認する</span>
-                        <i class="fas fa-arrow-right"></i>
-                    </a>
+                    <div class="notification-actions">
+                        <a href="{{ notification.link }}" class="notification-link">
+                            <span>案件を確認する</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                        {% if not notification.is_archived %}
+                        <button class="archive-btn" onclick="archiveNotification({{ notification.id }}, event)">
+                            <i class="fas fa-check"></i>
+                            <span>既読＆アーカイブ</span>
+                        </button>
+                        {% else %}
+                        <span class="text-muted small">
+                            <i class="fas fa-archive me-1"></i>アーカイブ済み
+                            {% if notification.archived_at %}
+                            ({{ notification.archived_at|date:"m/d H:i" }})
+                            {% endif %}
+                        </span>
+                        {% endif %}
+                    </div>
                 </div>
                 {% endfor %}
             {% else %}
                 <div class="empty-state">
                     <i class="fas fa-bell-slash"></i>
-                    <p class="mb-0">通知はありません</p>
+                    <p class="mb-0">
+                        {% if current_tab == 'unread' %}
+                            通知はありません
+                        {% else %}
+                            アーカイブされた通知はありません
+                        {% endif %}
+                    </p>
                 </div>
             {% endif %}
         </div>
@@ -301,5 +432,73 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
         });
     });
 });
+
+// 通知をアーカイブする関数
+function archiveNotification(notificationId, event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!confirm('この通知をアーカイブしますか？')) {
+        return;
+    }
+
+    const btn = event.currentTarget;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 処理中...';
+
+    fetch(`/orders/notifications/${notificationId}/archive/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 通知要素を削除
+            const notificationElement = document.querySelector(`[data-id="${notificationId}"]`);
+            if (notificationElement) {
+                notificationElement.style.transition = 'all 0.3s';
+                notificationElement.style.opacity = '0';
+                notificationElement.style.transform = 'translateX(-20px)';
+                setTimeout(() => {
+                    notificationElement.remove();
+
+                    // リストが空になった場合は空状態を表示
+                    const remainingNotifications = document.querySelectorAll('.notification-item');
+                    if (remainingNotifications.length === 0) {
+                        document.getElementById('notificationsList').innerHTML = `
+                            <div class="empty-state">
+                                <i class="fas fa-bell-slash"></i>
+                                <p class="mb-0">通知はありません</p>
+                            </div>
+                        `;
+                    }
+                }, 300);
+            }
+
+            // ページをリロードして通知数を更新
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        } else {
+            alert('エラーが発生しました: ' + data.error);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> <span>既読＆アーカイブ</span>';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('エラーが発生しました');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check"></i> <span>既読＆アーカイブ</span>';
+    });
+}
 </script>
+
+<!-- CSRFトークン -->
+<form style="display: none;">
+    {% csrf_token %}
+</form>
 {% endblock %}
