@@ -4146,9 +4146,9 @@ window.filterClientCompanyList = function(searchTerm) {
     }
 };
 
-// 新規元請会社追加（別ページへ遷移）
+// 新規元請会社追加（モーダルで作成）
 window.addNewClientCompany = function() {
-    window.open('/orders/client-companies/create/', '_blank');
+    openClientCompanyCreateModal();
 };
 
 // 鍵受け渡し設定の折りたたみ切り替え
@@ -4251,5 +4251,287 @@ function escapeHtml(text) {
         </div>
     </div>
 </div>
+
+<!-- 元請会社新規作成モーダル -->
+<div class="modal fade" id="clientCompanyCreateModal" tabindex="-1" aria-labelledby="clientCompanyCreateModalLabel" aria-hidden="true" style="z-index: 10000 !important;">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="clientCompanyCreateModalLabel">
+                    <i class="fas fa-building"></i> 元請会社新規作成
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="clientCompanyCreateForm">
+                    {% csrf_token %}
+
+                    <!-- 基本情報 -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>基本情報</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="newCompanyName" class="form-label">
+                                    会社名 <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" id="newCompanyName" name="company_name" required placeholder="株式会社〇〇">
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="newContactPerson" class="form-label">
+                                        担当者名
+                                    </label>
+                                    <input type="text" class="form-control" id="newContactPerson" name="contact_person" placeholder="山田太郎">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="newPhone" class="form-label">
+                                        電話番号
+                                    </label>
+                                    <input type="tel" class="form-control" id="newPhone" name="phone" placeholder="03-1234-5678">
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="newEmail" class="form-label">
+                                        メールアドレス
+                                    </label>
+                                    <input type="email" class="form-control" id="newEmail" name="email" placeholder="contact@example.com">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="newWebsite" class="form-label">
+                                        ウェブサイト
+                                    </label>
+                                    <input type="url" class="form-control" id="newWebsite" name="website" placeholder="https://example.com">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="newAddress" class="form-label">
+                                    住所
+                                </label>
+                                <textarea class="form-control" id="newAddress" name="address" rows="2" placeholder="東京都〇〇区〇〇 1-2-3"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 支払い情報 -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-yen-sign me-2"></i>支払い情報</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="newPaymentCycle" class="form-label">
+                                        支払いサイクル
+                                    </label>
+                                    <select class="form-select" id="newPaymentCycle" name="payment_cycle">
+                                        <option value="">未設定</option>
+                                        <option value="monthly">月払い</option>
+                                        <option value="bimonthly">隔月払い</option>
+                                        <option value="quarterly">四半期払い</option>
+                                        <option value="half_yearly">半年払い</option>
+                                        <option value="yearly">年払い</option>
+                                        <option value="other">その他</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="newClosingDay" class="form-label">
+                                        締日
+                                    </label>
+                                    <input type="number" class="form-control" id="newClosingDay" name="closing_day" min="1" max="31" placeholder="31">
+                                    <small class="form-text text-muted">1〜31日</small>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="newPaymentDay" class="form-label">
+                                        支払日
+                                    </label>
+                                    <input type="number" class="form-control" id="newPaymentDay" name="payment_day" min="1" max="31" placeholder="25">
+                                    <small class="form-text text-muted">1〜31日</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- その他情報（折りたたみ） -->
+                    <div class="card">
+                        <div class="card-header bg-light" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#additionalInfoSection">
+                            <h6 class="mb-0">
+                                <i class="fas fa-plus-circle me-2"></i>その他情報（任意）
+                                <i class="fas fa-chevron-down float-end"></i>
+                            </h6>
+                        </div>
+                        <div id="additionalInfoSection" class="collapse">
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="newDefaultKeyHandoverLocation" class="form-label">
+                                        鍵受け渡し場所（デフォルト）
+                                    </label>
+                                    <input type="text" class="form-control" id="newDefaultKeyHandoverLocation" name="default_key_handover_location">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="newKeyHandoverNotes" class="form-label">
+                                        鍵受け渡しメモ
+                                    </label>
+                                    <textarea class="form-control" id="newKeyHandoverNotes" name="key_handover_notes" rows="2"></textarea>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="newCompletionReportTemplate" class="form-label">
+                                        完工報告書テンプレート
+                                    </label>
+                                    <textarea class="form-control" id="newCompletionReportTemplate" name="completion_report_template" rows="3"></textarea>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="newCompletionReportNotes" class="form-label">
+                                        完工報告書メモ
+                                    </label>
+                                    <textarea class="form-control" id="newCompletionReportNotes" name="completion_report_notes" rows="2"></textarea>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="newSpecialNotes" class="form-label">
+                                        特記事項
+                                    </label>
+                                    <textarea class="form-control" id="newSpecialNotes" name="special_notes" rows="3"></textarea>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="newIsActive" name="is_active" checked>
+                                    <label class="form-check-label" for="newIsActive">
+                                        アクティブ
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- エラーメッセージ表示エリア -->
+                <div id="clientCompanyCreateError" class="alert alert-danger mt-3" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> キャンセル
+                </button>
+                <button type="button" class="btn btn-primary" onclick="submitNewClientCompany()">
+                    <i class="fas fa-save"></i> 保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 元請会社新規作成モーダルを開く
+window.openClientCompanyCreateModal = function() {
+    console.log('✅ openClientCompanyCreateModal called');
+
+    // フォームをリセット
+    document.getElementById('clientCompanyCreateForm').reset();
+
+    // エラーメッセージを非表示
+    $('#clientCompanyCreateError').hide();
+
+    // モーダルを表示
+    const modal = new bootstrap.Modal(document.getElementById('clientCompanyCreateModal'));
+    modal.show();
+};
+
+// 元請会社を新規作成
+window.submitNewClientCompany = function() {
+    console.log('✅ submitNewClientCompany called');
+
+    const form = document.getElementById('clientCompanyCreateForm');
+    const formData = new FormData(form);
+
+    // エラーメッセージを非表示
+    $('#clientCompanyCreateError').hide();
+
+    // ボタンを無効化
+    const submitBtn = event.target;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+
+    $.ajax({
+        url: '{% url "order_management:client_company_create_ajax" %}',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            if (response.success) {
+                console.log('✅ 元請会社作成成功:', response.company);
+
+                // モーダルを閉じる
+                const modal = bootstrap.Modal.getInstance(document.getElementById('clientCompanyCreateModal'));
+                if (modal) modal.hide();
+
+                // 元請会社一覧を更新
+                refreshClientCompanyList();
+
+                // ドロップダウンに新しい元請会社を追加
+                const select = $('#clientCompanySelect');
+                const newOption = new Option(
+                    response.company.company_name + (response.company.address ? ' - ' + response.company.address : ''),
+                    response.company.id,
+                    false,
+                    true
+                );
+                $(newOption).attr('data-name', response.company.company_name);
+                $(newOption).attr('data-address', response.company.address || '');
+                $(newOption).attr('data-payment-cycle', response.company.payment_cycle || '');
+                $(newOption).attr('data-closing-day', response.company.closing_day || '');
+                $(newOption).attr('data-payment-day', response.company.payment_day || '');
+                select.append(newOption);
+
+                // 新しい元請会社を選択
+                select.val(response.company.id).trigger('change');
+
+                // 成功メッセージ
+                if (typeof toastr !== 'undefined') {
+                    toastr.success('元請会社「' + response.company.company_name + '」を作成しました');
+                }
+
+                // ボタンを有効化
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-save"></i> 保存';
+            } else {
+                // エラーメッセージを表示
+                let errorHtml = '<strong>エラー:</strong><ul class="mb-0">';
+                if (response.errors) {
+                    for (let field in response.errors) {
+                        response.errors[field].forEach(function(error) {
+                            errorHtml += '<li>' + error + '</li>';
+                        });
+                    }
+                } else {
+                    errorHtml += '<li>' + (response.error || '不明なエラーが発生しました') + '</li>';
+                }
+                errorHtml += '</ul>';
+                $('#clientCompanyCreateError').html(errorHtml).show();
+
+                // ボタンを有効化
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-save"></i> 保存';
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('❌ 元請会社作成エラー:', error);
+            $('#clientCompanyCreateError').html('<strong>エラー:</strong> ' + (xhr.responseJSON?.error || 'サーバーエラーが発生しました')).show();
+
+            // ボタンを有効化
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-save"></i> 保存';
+        }
+    });
+};
+</script>
 
 {% endblock %}

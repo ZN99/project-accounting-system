@@ -182,3 +182,62 @@ def client_company_api(request, company_id):
             'success': False,
             'error': '元請会社が見つかりません'
         }, status=404)
+
+
+@login_required
+def client_company_create_ajax(request):
+    """元請会社AJAX作成 - モーダルから作成
+
+    案件登録中に元請会社を作成するためのAJAXエンドポイント
+    """
+    if request.method != 'POST':
+        return JsonResponse({
+            'success': False,
+            'error': 'POSTリクエストのみ対応しています'
+        }, status=405)
+
+    # 権限チェック
+    if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.COORDINATION_DEPT)):
+        return JsonResponse({
+            'success': False,
+            'error': '元請会社の作成権限がありません'
+        }, status=403)
+
+    form = ClientCompanyForm(request.POST)
+
+    if form.is_valid():
+        company = form.save()
+
+        # 成功時のレスポンス
+        return JsonResponse({
+            'success': True,
+            'company': {
+                'id': company.id,
+                'company_name': company.company_name,
+                'contact_person': company.contact_person or '',
+                'email': company.email or '',
+                'phone': company.phone or '',
+                'address': company.address or '',
+                'website': company.website or '',
+                'payment_cycle': company.payment_cycle or '',
+                'payment_cycle_display': company.get_payment_cycle_display() if company.payment_cycle else '',
+                'closing_day': company.closing_day,
+                'payment_day': company.payment_day,
+                'default_key_handover_location': company.default_key_handover_location or '',
+                'key_handover_notes': company.key_handover_notes or '',
+                'completion_report_template': company.completion_report_template or '',
+                'completion_report_notes': company.completion_report_notes or '',
+                'special_notes': company.special_notes or '',
+                'is_active': company.is_active,
+            }
+        })
+    else:
+        # バリデーションエラー
+        errors = {}
+        for field, error_list in form.errors.items():
+            errors[field] = [str(error) for error in error_list]
+
+        return JsonResponse({
+            'success': False,
+            'errors': errors
+        }, status=400)

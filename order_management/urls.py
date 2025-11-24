@@ -75,7 +75,8 @@ from .views_client_company import (
     ClientCompanyCreateView,
     ClientCompanyUpdateView,
     ClientCompanyDeleteView,
-    client_company_api
+    client_company_api,
+    client_company_create_ajax
 )
 from .views_approval import (
     ApprovalListView,
@@ -244,6 +245,7 @@ urlpatterns = [
     path('client-companies/<int:pk>/edit/', ClientCompanyUpdateView.as_view(), name='client_company_update'),
     path('client-companies/<int:pk>/delete/', ClientCompanyDeleteView.as_view(), name='client_company_delete'),
     path('api/client-companies/<int:company_id>/', client_company_api, name='client_company_api'),
+    path('api/client-companies/create-ajax/', client_company_create_ajax, name='client_company_create_ajax'),
 
     # 承認フロー - Phase 8
     path('approvals/', ApprovalListView.as_view(), name='approval_list'),
