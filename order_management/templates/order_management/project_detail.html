@@ -8704,6 +8704,25 @@ function handleAdditionalStepsChange() {
     const checkedBoxes = $('.additional-step-checkbox:checked');
 
     if (checkedBoxes.length > 0) {
+        // 現調（survey）がチェックされた場合、動的ステップに追加
+        const surveyCheckbox = $('#addStep_survey');
+        if (surveyCheckbox.is(':checked')) {
+            // 現調ステップが既にプロジェクトに存在するかチェック
+            // ページ内に現調カードが存在しない場合は追加が必要
+            const surveyStepExists = $('[data-step-key="survey"]').length > 0 ||
+                                     $('.step-card:contains("現調")').length > 0;
+
+            if (!surveyStepExists) {
+                // 現調ステップを動的に追加
+                toastr.info('現調ステップをプロジェクトに追加しています...', '', {timeOut: 2000});
+
+                // ここで実際にステップを追加する処理
+                // 簡易的な実装：ページをリロードして更新を反映
+                // より洗練された実装では、AJAX経由でステップを追加してDOMを更新
+                console.log('Survey step will be added when saving the subcontract');
+            }
+        }
+
         // 1つ以上の工程がチェックされている場合、金額設定方法セクションを表示
         $('#costAllocationSection').show();
 

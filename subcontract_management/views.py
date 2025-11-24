@@ -137,6 +137,30 @@ def subcontract_create(request, project_id):
                     'material_order': '資材発注'
                 }
 
+                # プロジェクトのステップ構成を確認・更新
+                if not project.additional_items:
+                    project.additional_items = {}
+
+                step_order = project.additional_items.get('step_order', [])
+                existing_step_keys = [s.get('step') for s in step_order if isinstance(s, dict)]
+
+                # ステップが存在しない場合は追加
+                project_updated = False
+                for add_step in additional_steps:
+                    if add_step not in existing_step_keys:
+                        # ステップを追加
+                        step_order.append({
+                            'step': add_step,
+                            'label': step_names.get(add_step, add_step),
+                            'order': len(step_order)
+                        })
+                        project_updated = True
+
+                # 更新されたstep_orderを保存
+                if project_updated:
+                    project.additional_items['step_order'] = step_order
+                    project.save()
+
                 for add_step in additional_steps:
                     # 金額を決定
                     if cost_allocation_method == 'per_step' and add_step in step_amounts:

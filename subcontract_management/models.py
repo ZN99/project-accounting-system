@@ -461,11 +461,21 @@ class Subcontract(models.Model):
             self.site_name = self.project.site_name
             self.site_address = self.project.site_address
 
+        # 安全なDecimal変換ヘルパー関数
+        def safe_decimal(value):
+            """空文字列やNoneをDecimal('0')に変換"""
+            if value is None or value == '' or value == 'None':
+                return Decimal('0')
+            try:
+                return Decimal(str(value))
+            except (ValueError, TypeError):
+                return Decimal('0')
+
         # 部材費合計を自動計算（既存の固定フィールド + 動的フィールド）
         fixed_total = (
-            Decimal(str(self.material_cost_1)) +
-            Decimal(str(self.material_cost_2)) +
-            Decimal(str(self.material_cost_3))
+            safe_decimal(self.material_cost_1) +
+            safe_decimal(self.material_cost_2) +
+            safe_decimal(self.material_cost_3)
         )
 
         # 動的部材費も計算に含める
@@ -473,7 +483,7 @@ class Subcontract(models.Model):
         if self.dynamic_material_costs:
             for item in self.dynamic_material_costs:
                 if 'cost' in item:
-                    dynamic_total += Decimal(str(item['cost']))
+                    dynamic_total += safe_decimal(item['cost'])
 
         self.total_material_cost = fixed_total + dynamic_total
 
@@ -494,13 +504,13 @@ class Subcontract(models.Model):
                 dynamic_cost_total = Decimal('0')
                 for item in self.dynamic_cost_items:
                     if 'cost' in item:
-                        dynamic_cost_total += Decimal(str(item['cost']))
+                        dynamic_cost_total += safe_decimal(item['cost'])
 
                 # 時給ベースの場合は基本料金に追加
                 if self.internal_pricing_type == 'hourly':
                     base_amount = Decimal('0')
                     if self.internal_hourly_rate and self.estimated_hours:
-                        base_amount = Decimal(str(self.internal_hourly_rate)) * Decimal(str(self.estimated_hours))
+                        base_amount = safe_decimal(self.internal_hourly_rate) * safe_decimal(self.estimated_hours)
                     self.contract_amount = base_amount + dynamic_cost_total
                 # 案件単位の場合は動的項目の合計
                 elif self.internal_pricing_type == 'project':
