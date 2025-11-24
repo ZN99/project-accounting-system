@@ -185,6 +185,47 @@ def client_company_api(request, company_id):
 
 
 @login_required
+def client_company_list_ajax(request):
+    """元請会社一覧取得API - AJAX用
+
+    元請管理パネルで最新の元請会社一覧を取得する
+    """
+    try:
+        companies = ClientCompany.objects.all().order_by('-created_at')
+
+        companies_data = []
+        for company in companies:
+            companies_data.append({
+                'id': company.id,
+                'company_name': company.company_name,
+                'contact_person': company.contact_person or '',
+                'email': company.email or '',
+                'phone': company.phone or '',
+                'address': company.address or '',
+                'website': company.website or '',
+                'payment_cycle': company.payment_cycle or '',
+                'payment_cycle_label': company.get_payment_cycle_display() if company.payment_cycle else '',
+                'closing_day': company.closing_day,
+                'payment_day': company.payment_day,
+                'default_key_handover_location': company.default_key_handover_location or '',
+                'key_handover_notes': company.key_handover_notes or '',
+                'special_notes': company.special_notes or '',
+                'is_active': company.is_active,
+                'created_at': company.created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(company, 'created_at') else '',
+            })
+
+        return JsonResponse({
+            'success': True,
+            'companies': companies_data
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
 def client_company_create_ajax(request):
     """元請会社AJAX作成 - モーダルから作成
 

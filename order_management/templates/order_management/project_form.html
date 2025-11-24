@@ -3980,10 +3980,19 @@ window.refreshClientCompanyList = function() {
     console.log('✅ refreshClientCompanyList called');
 
     const tbody = $('#clientCompanyTableBody');
-    tbody.html('<tr><td colspan="9" class="text-center text-muted">読み込み中...</td></tr>');
+    tbody.html('<tr><td colspan="9" class="text-center text-muted"><i class="fas fa-spinner fa-spin me-2"></i>読み込み中...</td></tr>');
 
-    // すべての元請会社を取得（Djangoテンプレートから）
-    const allClientCompanies = {{ client_companies_json|safe }};
+    // AJAXで最新の元請会社一覧を取得
+    $.ajax({
+        url: '{% url "order_management:client_company_list_ajax" %}',
+        type: 'GET',
+        success: function(response) {
+            if (!response.success || !response.companies) {
+                tbody.html('<tr><td colspan="9" class="text-center text-danger">データの取得に失敗しました</td></tr>');
+                return;
+            }
+
+            const allClientCompanies = response.companies;
 
     // デバッグ: データの内容を確認
     console.log('📋 元請会社データ:', allClientCompanies);
@@ -4038,6 +4047,12 @@ window.refreshClientCompanyList = function() {
     });
 
     tbody.html(html);
+        },
+        error: function(xhr, status, error) {
+            console.error('❌ 元請会社一覧取得エラー:', error);
+            tbody.html('<tr><td colspan="9" class="text-center text-danger">データの取得に失敗しました: ' + error + '</td></tr>');
+        }
+    });
 };
 
 // 元請会社を選択してメインフォームに適用
