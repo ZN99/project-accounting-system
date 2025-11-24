@@ -523,7 +523,8 @@
             fetch('{% url "order_management:api_get_notifications" %}')
                 .then(response => response.json())
                 .then(data => {
-                    const unreadCount = data.filter(n => !n.is_read).length;
+                    // APIは {notifications: [...], unread_count: X} という構造を返す
+                    const unreadCount = data.unread_count || 0;
                     const badge = document.getElementById('notificationCount');
                     if (badge) {
                         badge.textContent = unreadCount;

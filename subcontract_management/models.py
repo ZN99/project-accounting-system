@@ -471,6 +471,14 @@ class Subcontract(models.Model):
             except (ValueError, TypeError):
                 return Decimal('0')
 
+        # NOT NULL制約があるフィールドのデフォルト値を設定
+        if self.material_cost_1 is None or self.material_cost_1 == '':
+            self.material_cost_1 = 0
+        if self.material_cost_2 is None or self.material_cost_2 == '':
+            self.material_cost_2 = 0
+        if self.material_cost_3 is None or self.material_cost_3 == '':
+            self.material_cost_3 = 0
+
         # 部材費合計を自動計算（既存の固定フィールド + 動的フィールド）
         fixed_total = (
             safe_decimal(self.material_cost_1) +
