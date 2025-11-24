@@ -8996,11 +8996,31 @@ function saveSubcontract() {
         formData.set('cost_allocation_method', costMethod);
     }
 
+    // 非表示フィールドのrequired属性を一時的に削除（HTML5バリデーションエラー回避）
+    const hiddenRequiredFields = [];
+    form.find('input[required], select[required], textarea[required]').each(function() {
+        const $field = $(this);
+        // 非表示、または親要素が非表示の場合
+        if (!$field.is(':visible') || $field.closest(':hidden').length > 0) {
+            hiddenRequiredFields.push($field);
+            $field.removeAttr('required');
+        }
+    });
+
     // バリデーション
     if (!form[0].checkValidity()) {
+        // バリデーション失敗時、required属性を復元
+        hiddenRequiredFields.forEach(function($field) {
+            $field.attr('required', 'required');
+        });
         form[0].reportValidity();
         return;
     }
+
+    // バリデーション成功後、required属性を復元
+    hiddenRequiredFields.forEach(function($field) {
+        $field.attr('required', 'required');
+    });
 
     // 保存ボタンを無効化
     const saveBtn = event.target;
