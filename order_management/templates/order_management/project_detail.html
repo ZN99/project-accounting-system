@@ -1391,12 +1391,14 @@
                         {% endif %}
                     </h5>
                     <div class="btn-group">
-{#                         <a href="#" class="btn btn-sm btn-light">
+                        {% comment %}
+                        <a href="#" class="btn btn-sm btn-light">
                             <i class="fas fa-list"></i> 調査一覧
                         </a>
-{#                         <a href="#" class="btn btn-sm btn-light">
+                        <a href="#" class="btn btn-sm btn-light">
                             <i class="fas fa-plus"></i> 調査追加
                         </a>
+                        {% endcomment %}
                     </div>
                 </div>
             </div>
@@ -1511,9 +1513,11 @@
                                 <small>この案件の現地調査をスケジュールしてください。正確な見積もりと施工計画のために必要です。</small>
                             </div>
                             <div class="col-md-3 text-end">
-{#                                 <a href="#" class="btn btn-primary">
+                                {% comment %}
+                                <a href="#" class="btn btn-primary">
                                     <i class="fas fa-plus me-1"></i>調査をスケジュール
                                 </a>
+                                {% endcomment %}
                             </div>
                         </div>
                     </div>
@@ -5244,12 +5248,14 @@ $(document).ready(function() {
                 ${statusHtml}
                 <div class="progress-step-content">
                     <div class="d-flex gap-2 mb-3">
-{#                         <a href="#" class="btn btn-primary btn-sm">
+                        {% comment %}
+                        <a href="#" class="btn btn-primary btn-sm">
                             <i class="fas fa-plus me-1"></i>調査作成
                         </a>
-{#                         <a href="#" class="btn btn-outline-secondary btn-sm">
+                        <a href="#" class="btn btn-outline-secondary btn-sm">
                             <i class="fas fa-list me-1"></i>調査一覧
                         </a>
+                        {% endcomment %}
                     </div>
                     {% if surveys %}
                     <div class="small">
