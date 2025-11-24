@@ -203,10 +203,18 @@ def client_company_create_ajax(request):
             'error': '元請会社の作成権限がありません'
         }, status=403)
 
-    form = ClientCompanyForm(request.POST)
+    form = ClientCompanyForm(request.POST, request.FILES)
 
     if form.is_valid():
         company = form.save()
+
+        # ファイルURLを取得
+        completion_template_url = ''
+        if company.completion_report_template:
+            try:
+                completion_template_url = company.completion_report_template.url
+            except:
+                completion_template_url = ''
 
         # 成功時のレスポンス
         return JsonResponse({
@@ -225,7 +233,7 @@ def client_company_create_ajax(request):
                 'payment_day': company.payment_day,
                 'default_key_handover_location': company.default_key_handover_location or '',
                 'key_handover_notes': company.key_handover_notes or '',
-                'completion_report_template': company.completion_report_template or '',
+                'completion_report_template_url': completion_template_url,
                 'completion_report_notes': company.completion_report_notes or '',
                 'special_notes': company.special_notes or '',
                 'is_active': company.is_active,
