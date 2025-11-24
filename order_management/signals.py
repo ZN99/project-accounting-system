@@ -1,34 +1,28 @@
 """
-コメント・通知システムのシグナルハンドラ
+Django Signals for automatic notification generation
 """
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.urls import reverse
-from .models import Comment, Notification
+from .models import Project
+from .notification_utils import check_and_create_overdue_notifications
 
 
-@receiver(post_save, sender=Comment)
-def handle_comment_posted(sender, instance, created, **kwargs):
+@receiver(post_save, sender=Project)
+def check_overdue_notifications_on_save(sender, instance, created, **kwargs):
     """
-    コメント投稿時の処理
-    - メンション抽出
-    - メンションされたユーザーへの通知作成
+    案件保存時に完工遅延通知を自動チェック
+    
+    Args:
+        sender: Project model
+        instance: 保存されたProjectインスタンス
+        created: 新規作成かどうか
+        **kwargs: その他のパラメータ
     """
-    if not created:
-        return
-
-    # メンションユーザーを抽出して保存
-    mentioned_users = instance.extract_mentions()
-    instance.mentioned_users.set(mentioned_users)
-
-    # メンションされたユーザーに通知を作成
-    for user in mentioned_users:
-        Notification.objects.create(
-            recipient=user,
-            notification_type='mention',
-            title=f'{instance.author.username}さんがあなたをメンションしました',
-            message=f'案件「{instance.project.site_name}」のコメントであなたがメンションされました。',
-            link=reverse('order_management:project_detail', kwargs={'pk': instance.project.pk}),
-            related_comment=instance,
-            related_project=instance.project
-        )
+    # 完工予定日または完工済みフラグが変更された場合のみチェック
+    # （パフォーマンス最適化）
+    try:
+        created_count, updated_count, deleted_count = check_and_create_overdue_notifications()
+        if created_count > 0 or updated_count > 0 or deleted_count > 0:
+            print(f"[Signal] 完工遅延通知: 新規={created_count}, 更新={updated_count}, 削除={deleted_count}")
+    except Exception as e:
+        print(f"[Signal] 完工遅延通知の自動生成でエラー: {e}")

@@ -835,6 +835,15 @@ def update_progress(request, pk):
         if complex_step_fields:
             project.additional_items['complex_step_fields'] = complex_step_fields
 
+            # 完工予定日を work_end_date にマッピング（通知システム用）
+            if 'completion_scheduled_date' in complex_step_fields:
+                completion_date = complex_step_fields['completion_scheduled_date']
+                project.work_end_date = completion_date if completion_date else None
+
+            # 完工済みチェックボックスを work_end_completed にマッピング
+            if 'completion_completed' in complex_step_fields:
+                project.work_end_completed = complex_step_fields['completion_completed'] == 'on'
+
         # ステップ順序を保存し、削除されたステップのデータをクリーンアップ
         if step_order:
             project.additional_items['step_order'] = step_order
@@ -873,7 +882,8 @@ def update_progress(request, pk):
                 'message': '変更を保存しました'
             })
 
-        messages.success(request, '進捗状況を更新しました。')
+        # メッセージを表示しない（ユーザーの要望）
+        # messages.success(request, '進捗状況を更新しました。')
 
     return redirect('order_management:project_detail', pk=pk)
 

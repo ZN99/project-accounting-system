@@ -10,6 +10,7 @@ from .models import Project, FixedCost, VariableCost, ClientCompany
 from subcontract_management.models import Subcontract, Contractor, InternalWorker
 from .cashflow_utils import get_monthly_comparison, get_receivables_summary, get_payables_summary
 from .utils import safe_int
+from .notification_utils import check_and_create_overdue_notifications
 
 
 class UltimateDashboardView(TemplateView):
@@ -18,6 +19,14 @@ class UltimateDashboardView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+
+        # 完工遅延通知を自動チェック・生成
+        try:
+            created, updated, deleted = check_and_create_overdue_notifications()
+            if created > 0 or updated > 0 or deleted > 0:
+                print(f"完工遅延通知: 新規作成={created}, 更新={updated}, 削除={deleted}")
+        except Exception as e:
+            print(f"完工遅延通知の自動生成でエラーが発生しました: {e}")
 
         # 現在の日時と会計情報
         now = timezone.now()

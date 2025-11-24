@@ -2771,11 +2771,12 @@ $(document).ready(function() {
 
                 // レスポンスの検証
                 if (response && response.success) {
-                    if (typeof toastr !== 'undefined') {
-                        toastr.success(response.message || `${stepKey}ステップを保存しました`);
-                    } else {
-                        alert(`${stepKey}ステップを保存しました`);
-                    }
+                    // メッセージを表示しない（ユーザーの要望）
+                    // if (typeof toastr !== 'undefined') {
+                    //     toastr.success(response.message || `${stepKey}ステップを保存しました`);
+                    // } else {
+                    //     alert(`${stepKey}ステップを保存しました`);
+                    // }
                     // 進捗状況を更新
                     updateProgressTimeline();
                     updateProgressStatus();
