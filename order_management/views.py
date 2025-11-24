@@ -12,7 +12,7 @@ from django.urls import reverse
 from datetime import datetime, timedelta
 import json
 from decimal import Decimal
-from .models import Project, Invoice, InvoiceItem
+from .models import Project, Invoice, InvoiceItem, ClientCompany
 from subcontract_management.models import Contractor
 
 try:
@@ -627,17 +627,36 @@ def project_detail(request, pk):
     contractors_json = json.dumps([{
         'id': c.id,
         'name': c.name,
+        'address': c.address if c.address else '',
+        'phone': c.phone if c.phone else '',
+        'contact_person': c.contact_person if c.contact_person else '',
+        'contractor_type': c.contractor_type if c.contractor_type else '',
+        'contractor_type_display': c.get_contractor_type_display() if c.contractor_type else '-',
+        'specialties': c.specialties if c.specialties else '',
         'payment_cycle': c.payment_cycle if c.payment_cycle else '',
         'payment_cycle_display': c.get_payment_cycle_display() if c.payment_cycle else '-',
         'closing_day': c.closing_day if c.closing_day else None,
+        'payment_offset_months': c.payment_offset_months if c.payment_offset_months is not None else None,
+        'payment_offset_months_display': c.get_payment_offset_months_display() if c.payment_offset_months is not None else '-',
         'payment_day': c.payment_day if c.payment_day else None,
+        'is_active': c.is_active,
     } for c in contractors])
+
+    # 元請会社情報を取得してJSON化（JavaScript用）
+    client_companies = ClientCompany.objects.all().order_by('company_name')
+    client_companies_json = json.dumps([{
+        'id': c.id,
+        'company_name': c.company_name,
+        'address': c.address,
+    } for c in client_companies])
 
     return render(request, 'order_management/project_detail.html', {
         'project': project,
         'subcontracts': subcontracts,
         'contractors': contractors,
         'contractors_json': contractors_json,
+        'client_companies': client_companies,
+        'client_companies_json': client_companies_json,
         'internal_workers': internal_workers,
         'surveys': surveys,  # 追加
         'subcontract_form': subcontract_form,
@@ -2163,7 +2182,7 @@ def update_project_field(request, pk):
             'order_amount', 'billing_amount', 'parking_fee',
             'estimate_issued_date', 'contract_date',
             'work_start_date', 'work_end_date', 'payment_due_date',
-            'client_name', 'client_address', 'project_manager',
+            'client_name', 'client_address', 'client_company', 'project_manager',
             'expense_item_1', 'expense_amount_1', 'expense_item_2', 'expense_amount_2',
             'notes'
         }
@@ -2172,7 +2191,24 @@ def update_project_field(request, pk):
             return JsonResponse({'success': False, 'error': '更新が許可されていないフィールドです'}, status=403)
 
         # フィールドのタイプに応じて変換
-        if field_name in ['order_amount', 'billing_amount', 'parking_fee', 'expense_amount_1', 'expense_amount_2']:
+        if field_name == 'client_company':
+            # 元請会社のForeignKey更新
+            if field_value and str(field_value).strip() and str(field_value).strip().lower() != 'none':
+                try:
+                    client_company_id = int(field_value)
+                    client_company = ClientCompany.objects.get(id=client_company_id)
+                    project.client_company = client_company
+                    # 元請名・住所も自動同期
+                    project.client_name = client_company.company_name
+                    project.client_address = client_company.address
+                except (ValueError, ClientCompany.DoesNotExist):
+                    return JsonResponse({'success': False, 'error': '元請会社が見つかりません'}, status=400)
+            else:
+                project.client_company = None
+                project.client_name = ''
+                project.client_address = ''
+            project.save()
+        elif field_name in ['order_amount', 'billing_amount', 'parking_fee', 'expense_amount_1', 'expense_amount_2']:
             # 数値フィールド
             if field_value and str(field_value).strip() and str(field_value).strip().lower() != 'none':
                 try:
@@ -2181,16 +2217,22 @@ def update_project_field(request, pk):
                     field_value = 0
             else:
                 field_value = 0
+            # フィールドを更新
+            setattr(project, field_name, field_value)
+            project.save()
         elif field_name in ['estimate_issued_date', 'contract_date', 'work_start_date', 'work_end_date', 'payment_due_date']:
             # 日付フィールド
             if field_value and str(field_value).strip() and str(field_value).strip().lower() != 'none':
                 field_value = datetime.strptime(field_value, '%Y-%m-%d').date()
             else:
                 field_value = None
-
-        # フィールドを更新
-        setattr(project, field_name, field_value)
-        project.save()
+            # フィールドを更新
+            setattr(project, field_name, field_value)
+            project.save()
+        else:
+            # その他のテキストフィールド
+            setattr(project, field_name, field_value)
+            project.save()
 
         return JsonResponse({'success': True, 'message': f'{field_name}を更新しました'})
 

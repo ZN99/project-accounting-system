@@ -1,0 +1,305 @@
+{% extends "order_management/base.html" %}
+{% load static %}
+
+{% block title %}通知一覧 - OKB管理システム{% endblock %}
+
+{% block extra_css %}
+<style>
+    .notifications-container {
+        max-width: 900px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    .notifications-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px 12px 0 0;
+        margin-bottom: 0;
+    }
+
+    .notifications-body {
+        background: white;
+        border-radius: 0 0 12px 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+    }
+
+    .notification-filters {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .filter-btn {
+        padding: 0.5rem 1rem;
+        border: 2px solid #e5e7eb;
+        background: white;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 0.9rem;
+    }
+
+    .filter-btn:hover {
+        border-color: #667eea;
+        background: #f8f9fa;
+    }
+
+    .filter-btn.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-color: transparent;
+    }
+
+    .notification-item {
+        background: #f9fafb;
+        border-left: 4px solid #d1d5db;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        border-radius: 8px;
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+
+    .notification-item:hover {
+        transform: translateX(4px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .notification-item.unread {
+        background: white;
+        border-left-width: 4px;
+    }
+
+    .notification-item.work_completion_overdue {
+        border-left-color: #ef4444;
+    }
+
+    .notification-item.work_completion_overdue.unread {
+        background: #fef2f2;
+    }
+
+    .notification-item.mention {
+        border-left-color: #3b82f6;
+    }
+
+    .notification-item.mention.unread {
+        background: #eff6ff;
+    }
+
+    .notification-item.comment {
+        border-left-color: #10b981;
+    }
+
+    .notification-item.comment.unread {
+        background: #f0fdf4;
+    }
+
+    .notification-item.project_update {
+        border-left-color: #f59e0b;
+    }
+
+    .notification-item.project_update.unread {
+        background: #fefce8;
+    }
+
+    .notification-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .notification-type {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 0.25rem 0.75rem;
+        border-radius: 6px;
+    }
+
+    .notification-type.work_completion_overdue {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+
+    .notification-type.mention {
+        background: #dbeafe;
+        color: #2563eb;
+    }
+
+    .notification-type.comment {
+        background: #d1fae5;
+        color: #059669;
+    }
+
+    .notification-type.project_update {
+        background: #fef3c7;
+        color: #d97706;
+    }
+
+    .notification-time {
+        font-size: 0.85rem;
+        color: #6b7280;
+    }
+
+    .notification-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 0.5rem;
+    }
+
+    .notification-message {
+        font-size: 0.9rem;
+        color: #4b5563;
+        margin-bottom: 0.75rem;
+    }
+
+    .notification-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #667eea;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .notification-action:hover {
+        color: #764ba2;
+        gap: 0.75rem;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: #9ca3af;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.3;
+    }
+
+    .unread-badge {
+        background: #ef4444;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="notifications-container">
+    <div class="notifications-header">
+        <h2 class="mb-2">
+            <i class="fas fa-bell me-2"></i>通知センター
+        </h2>
+        <p class="mb-0" style="opacity: 0.9;">
+            {{ unread_count }}件の未読通知があります
+        </p>
+    </div>
+
+    <div class="notifications-body">
+        <!-- フィルター -->
+        <div class="notification-filters">
+            <button class="filter-btn active" data-filter="all">
+                <i class="fas fa-list me-1"></i>すべて
+                <span class="unread-badge" style="background: #667eea;">{{ total_count }}</span>
+            </button>
+            <button class="filter-btn" data-filter="work_completion_overdue">
+                <i class="fas fa-exclamation-triangle me-1"></i>完工遅延
+                {% if overdue_count > 0 %}
+                <span class="unread-badge">{{ overdue_count }}</span>
+                {% endif %}
+            </button>
+            <button class="filter-btn" data-filter="mention">
+                <i class="fas fa-at me-1"></i>メンション
+            </button>
+            <button class="filter-btn" data-filter="comment">
+                <i class="fas fa-comment me-1"></i>コメント
+            </button>
+            <button class="filter-btn" data-filter="project_update">
+                <i class="fas fa-sync-alt me-1"></i>案件更新
+            </button>
+        </div>
+
+        <!-- 通知一覧 -->
+        <div id="notificationsList">
+            {% if notifications %}
+                {% for notification in notifications %}
+                <div class="notification-item {{ notification.notification_type }} {% if not notification.is_read %}unread{% endif %}"
+                     data-type="{{ notification.notification_type }}"
+                     onclick="window.location.href='{{ notification.link }}'">
+                    <div class="notification-header">
+                        <span class="notification-type {{ notification.notification_type }}">
+                            {% if notification.notification_type == 'work_completion_overdue' %}
+                                <i class="fas fa-exclamation-triangle"></i> 完工遅延
+                            {% elif notification.notification_type == 'mention' %}
+                                <i class="fas fa-at"></i> メンション
+                            {% elif notification.notification_type == 'comment' %}
+                                <i class="fas fa-comment"></i> コメント
+                            {% elif notification.notification_type == 'project_update' %}
+                                <i class="fas fa-sync-alt"></i> 案件更新
+                            {% endif %}
+                        </span>
+                        <span class="notification-time">
+                            {{ notification.created_at|date:"Y年m月d日 H:i" }}
+                        </span>
+                    </div>
+                    <div class="notification-title">
+                        {{ notification.title }}
+                    </div>
+                    <div class="notification-message">
+                        {{ notification.message }}
+                    </div>
+                    <a href="{{ notification.link }}" class="notification-action" onclick="event.stopPropagation()">
+                        <span>案件を確認する</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-bell-slash"></i>
+                    <p class="mb-0">通知はありません</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// フィルター機能
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        // アクティブ状態の切り替え
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+
+        const filter = this.dataset.filter;
+        const notifications = document.querySelectorAll('.notification-item');
+
+        notifications.forEach(notification => {
+            if (filter === 'all' || notification.dataset.type === filter) {
+                notification.style.display = 'block';
+            } else {
+                notification.style.display = 'none';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

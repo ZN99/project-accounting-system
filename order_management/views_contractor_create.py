@@ -17,7 +17,7 @@ class ContractorCreateView(LoginRequiredMixin, CreateView):
         'name', 'contractor_type', 'address', 'phone', 'email', 'contact_person',
         'hourly_rate', 'specialties', 'is_active',
         # 支払い情報
-        'payment_cycle', 'closing_day', 'payment_day',
+        'payment_cycle', 'closing_day', 'payment_offset_months', 'payment_day',
         # 銀行口座情報
         'bank_name', 'branch_name', 'account_type', 'account_number', 'account_holder'
     ]
@@ -96,6 +96,9 @@ class ContractorCreateView(LoginRequiredMixin, CreateView):
             'placeholder': '1-31',
             'min': '1',
             'max': '31'
+        })
+        form.fields['payment_offset_months'].widget.attrs.update({
+            'class': 'form-select'
         })
         form.fields['payment_day'].widget.attrs.update({
             'class': 'form-control',

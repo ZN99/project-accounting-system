@@ -164,7 +164,7 @@ class ContractorProjectsView(LoginRequiredMixin, TemplateView):
 
         # この業者が担当している案件を取得
         projects = Project.objects.filter(
-            subcontracts__contractor=contractor
+            subcontract__contractor=contractor
         ).distinct().order_by('-created_at')
 
         context['contractor'] = contractor
@@ -180,7 +180,7 @@ class ContractorEditView(LoginRequiredMixin, UpdateView):
         'name', 'contractor_type', 'address', 'phone', 'email', 'contact_person',
         'hourly_rate', 'specialties', 'is_active',
         # 支払い情報
-        'payment_cycle', 'closing_day', 'payment_day',
+        'payment_cycle', 'closing_day', 'payment_offset_months', 'payment_day',
         # 銀行口座情報
         'bank_name', 'branch_name', 'account_type', 'account_number', 'account_holder'
     ]

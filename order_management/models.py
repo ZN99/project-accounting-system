@@ -2709,10 +2709,11 @@ class Notification(models.Model):
         ('mention', 'メンション'),
         ('comment', 'コメント'),
         ('project_update', '案件更新'),
+        ('work_completion_overdue', '完工遅延'),
     ]
 
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications', verbose_name="受信者")
-    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES, verbose_name="通知タイプ")
+    notification_type = models.CharField(max_length=30, choices=NOTIFICATION_TYPES, verbose_name="通知タイプ")
     title = models.CharField(max_length=200, verbose_name="タイトル")
     message = models.TextField(verbose_name="メッセージ")
     link = models.CharField(max_length=500, blank=True, verbose_name="リンク")

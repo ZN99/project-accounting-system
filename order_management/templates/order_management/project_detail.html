@@ -7,9 +7,9 @@
 
 {% block extra_css %}
 <style>
-/* 全体的に文字を少し大きく */
+/* 全体的に文字を大きく */
 .content {
-    font-size: 1.05rem;
+    font-size: 1.1rem;
 }
 
 /* 料金体系選択カードのスタイル */
@@ -45,7 +45,7 @@
 }
 
 .progress-enhanced .progress-bar {
-    font-size: 0.7rem;
+    font-size: 0.85rem;
     font-weight: 600;
     display: flex;
     align-items: center;
@@ -57,6 +57,54 @@
 /* 進捗バッジの色 */
 .bg-verified {
     background-color: #155724 !important; /* 濃い緑：完了チェックボックスにチェック */
+}
+
+/* フォントサイズの統一的な拡大 - インラインスタイルを上書き */
+.content [style*="font-size: 0.6rem"],
+.content [style*="font-size: 0.65rem"] {
+    font-size: 0.8rem !important;
+}
+
+.content [style*="font-size: 0.7rem"],
+.content [style*="font-size: 0.75rem"] {
+    font-size: 0.9rem !important;
+}
+
+.content [style*="font-size: 0.8rem"],
+.content [style*="font-size: 0.85rem"] {
+    font-size: 1rem !important;
+}
+
+/* ボタンのフォントサイズ */
+.content .btn {
+    font-size: 0.9rem !important;
+}
+
+.content .btn-sm {
+    font-size: 0.85rem !important;
+}
+
+/* バッジのフォントサイズ */
+.content .badge {
+    font-size: 0.8rem !important;
+}
+
+/* フォーム要素 */
+.content .form-control,
+.content .form-select {
+    font-size: 0.9rem !important;
+}
+
+/* テーブル */
+.content .table {
+    font-size: 0.9rem !important;
+}
+
+/* 小さいテキスト */
+.content small,
+.content .small,
+.content .text-muted {
+    font-size: 0.85rem !important;
 }
 </style>
 <!-- Sortable.js CDN -->
@@ -146,7 +194,7 @@
         margin-bottom: 8px;
         cursor: pointer;
         transition: all 0.3s ease;
-        font-size: 0.75rem;
+        font-size: 0.9rem;
     }
 
     .progress-step::before {
@@ -231,7 +279,7 @@
         display: none;
         box-shadow: 0 1px 3px rgba(0,0,0,0.08);
         transition: all 0.3s ease;
-        font-size: 0.75rem;
+        font-size: 0.9rem;
         line-height: 1.3;
     }
 
@@ -265,21 +313,21 @@
     }
 
     .progress-step-date {
-        font-size: 0.7rem;
+        font-size: 0.85rem;
         color: #6c757d;
         line-height: 1.2;
     }
 
     /* プロジェクト段階管理パネル内のフォーム要素を小さくする */
     #activeSteps .form-label {
-        font-size: 0.7rem;
+        font-size: 0.85rem;
         margin-bottom: 0.2rem;
         line-height: 1.2;
     }
 
     #activeSteps .form-control,
     #activeSteps .form-select {
-        font-size: 0.7rem;
+        font-size: 0.85rem;
         padding: 0.25rem 0.4rem;
         height: auto;
         min-height: 28px;
@@ -574,7 +622,7 @@
                 </ul>
 
                 <!-- タブコンテンツ -->
-                <div class="tab-content p-2" id="projectDetailTabsContent">
+                <div class="tab-content p-3" id="projectDetailTabsContent">
                     <!-- 概要タブ -->
                     <div class="tab-pane fade show active" id="overview" role="tabpanel" data-section-title="📋 概要">
                         <div class="row g-3">
@@ -698,14 +746,13 @@
                                     </h6>
                                     <dl class="row mb-0">
                                         <dt class="col-sm-4 text-muted">元請名</dt>
-                                        <dd class="col-sm-8 fw-bold editable-field" data-field="client_name" data-type="text">
+                                        <dd class="col-sm-8 fw-bold editable-field" data-field="client_company" data-type="select" data-client-company-id="{{ project.client_company_id|default:'' }}">
                                             <span class="field-value">{{ project.client_name|default:"-" }}</span>
                                             <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
                                         </dd>
                                         <dt class="col-sm-4 text-muted">元請住所</dt>
-                                        <dd class="col-sm-8 editable-field" data-field="client_address" data-type="text">
+                                        <dd class="col-sm-8" id="client-address-display">
                                             <span class="field-value">{{ project.client_address|default:"-" }}</span>
-                                            <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
                                         </dd>
                                     </dl>
                                 </div>
@@ -1471,6 +1518,23 @@
                         </div>
                     </div>
                 {% endif %}
+
+                <!-- 現調担当者の表示 -->
+                {% if project.survey_assignees %}
+                <div class="mt-3 p-2 bg-light rounded">
+                    <small class="text-muted d-block mb-1"><i class="fas fa-users me-1"></i>現調担当者:</small>
+                    {% for assignee in project.survey_assignees %}
+                    <span class="badge bg-primary me-1">{{ assignee }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- 作業者追加ボタン -->
+                <div class="mt-2">
+                    <button type="button" class="btn btn-sm btn-info w-100" onclick="openSubcontractModal('survey')">
+                        <i class="fas fa-user-plus"></i> 作業者を追加（現調）
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -3012,7 +3076,7 @@ $(document).ready(function() {
             }
         } else {
             step.removeClass('completed');
-            step.find('.progress-step-date').html('未完了');
+            step.find('.progress-step-date').html('<span class="badge bg-secondary">未完了</span>');
 
             // 工事終了ステップからアクティブを削除（工事終了が完了していない場合）
             var nextStep = $('.progress-step[data-step="work_end"]');
@@ -3038,7 +3102,7 @@ $(document).ready(function() {
             }
         } else {
             step.removeClass('completed');
-            step.find('.progress-step-date').html('未完了');
+            step.find('.progress-step-date').html('<span class="badge bg-secondary">未完了</span>');
 
             // 請求書発行ステップからアクティブを削除（請求書が未発行の場合）
             var nextStep = $('.progress-step[data-step="invoice"]');
@@ -3432,7 +3496,7 @@ $(document).ready(function() {
         } else {
             // 日付がない場合は未完了
             step.removeClass('completed');
-            step.find('.progress-step-date').html('未完了');
+            step.find('.progress-step-date').html('<span class="badge bg-secondary">未完了</span>');
         }
 
         updateProgressTimeline();
@@ -3465,7 +3529,7 @@ $(document).ready(function() {
                 // 日付がある場合は予定として表示
                 step.find('.progress-step-date').html('<i class="fas fa-calendar me-1"></i>予定: ' + formatDate(workStartDate));
             } else {
-                step.find('.progress-step-date').html('未完了');
+                step.find('.progress-step-date').html('<span class="badge bg-secondary">未完了</span>');
             }
         }
 
@@ -3490,7 +3554,7 @@ $(document).ready(function() {
         } else {
             // 日付がない場合は未完了
             step.removeClass('completed');
-            step.find('.progress-step-date').html('未完了');
+            step.find('.progress-step-date').html('<span class="badge bg-secondary">未完了</span>');
         }
 
         updateProgressTimeline();
@@ -3523,7 +3587,7 @@ $(document).ready(function() {
                 // 日付がある場合は予定として表示
                 step.find('.progress-step-date').html('<i class="fas fa-calendar me-1"></i>予定: ' + formatDate(workEndDate));
             } else {
-                step.find('.progress-step-date').html('未完了');
+                step.find('.progress-step-date').html('<span class="badge bg-secondary">未完了</span>');
             }
         }
 
@@ -3758,7 +3822,7 @@ $(document).ready(function() {
             step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了: ' + value);
         } else {
             step.removeClass('completed');
-            step.find('.progress-step-date').html('未完了');
+            step.find('.progress-step-date').html('<span class="badge bg-secondary">未完了</span>');
         }
 
         // 進捗タイムラインも更新
@@ -4398,7 +4462,7 @@ $(document).ready(function() {
                         stepElement.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了');
                     } else {
                         stepElement.removeClass('completed');
-                        stepElement.find('.progress-step-date').html('未完了');
+                        stepElement.find('.progress-step-date').html('<span class="badge bg-secondary">未完了</span>');
                     }
                 }
             }
@@ -5447,6 +5511,12 @@ $(document).ready(function() {
                     name: 'scheduled_date',
                     label: '予定日',
                     type: 'date',
+                    required: false
+                },
+                {
+                    name: 'assignees',
+                    label: '担当者',
+                    type: 'staff_multiple',
                     required: false
                 },
                 {
@@ -7278,22 +7348,18 @@ function confirmFileDelete(fileId, fileName) {
                     <input type="hidden" id="subcontractStep" name="step">
 
                     <div class="mb-3">
-                        <label for="subcontractContractor" class="form-label">
+                        <label class="form-label">
                             発注先 <span class="text-danger">*</span>
                         </label>
-                        <div class="d-flex gap-2">
-                            <select class="form-select" id="subcontractContractor" name="contractor" required style="flex: 1;">
-                                <option value="">選択してください</option>
-                                {% for contractor in contractors %}
-                                <option value="{{ contractor.id }}">{{ contractor.name }}</option>
-                                {% endfor %}
-                            </select>
-                            <a href="{% url 'order_management:contractor_create' %}?back={{ request.path }}" target="_blank" class="btn btn-outline-primary" title="新規業者を追加">
-                                <i class="fas fa-plus"></i>
-                            </a>
+                        <div class="d-flex gap-2 align-items-center">
+                            <input type="hidden" id="subcontractContractor" name="contractor" required>
+                            <input type="text" id="selectedContractorDisplay" class="form-control" readonly placeholder="下請け管理から選択してください" style="flex: 1; background-color: #f8f9fa; cursor: pointer;" onclick="openContractorManagementPanel()">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openContractorManagementPanel()" title="下請け業者を選択・管理">
+                                <i class="fas fa-handshake"></i> 下請け管理
+                            </button>
                         </div>
                         <small class="form-text text-muted">
-                            <i class="fas fa-info-circle me-1"></i>新しい業者を追加する場合は<i class="fas fa-plus"></i>ボタンをクリックしてください
+                            下請け管理ボタンから業者を選択すると、その業者のデフォルト支払いサイクルが自動入力されます
                         </small>
                     </div>
 
@@ -7409,6 +7475,82 @@ function confirmFileDelete(fileId, fileName) {
                             作業内容
                         </label>
                         <textarea class="form-control" id="subcontractWorkDescription" name="work_description" rows="3"></textarea>
+                    </div>
+
+                    <!-- 発注書発行済み -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="subcontractPurchaseOrderIssued" name="purchase_order_issued">
+                            <label class="form-check-label" for="subcontractPurchaseOrderIssued">
+                                <i class="fas fa-file-invoice me-1"></i>発注書発行済み
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 部材費管理（折りたたみ可能） -->
+                    <div class="card mb-3 border-secondary">
+                        <div class="card-header bg-light" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#materialCostSection">
+                            <h6 class="mb-0">
+                                <i class="fas fa-boxes me-2"></i>部材費（任意）
+                                <i class="fas fa-chevron-down float-end"></i>
+                            </h6>
+                        </div>
+                        <div id="materialCostSection" class="collapse">
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="subcontractMaterialItem1" class="form-label">部材費項目①</label>
+                                        <input type="text" class="form-control" id="subcontractMaterialItem1" name="material_item_1" placeholder="例：木材">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="subcontractMaterialCost1" class="form-label">部材費代①</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">¥</span>
+                                            <input type="number" class="form-control material-cost-input" id="subcontractMaterialCost1" name="material_cost_1">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="subcontractMaterialItem2" class="form-label">部材費項目②</label>
+                                        <input type="text" class="form-control" id="subcontractMaterialItem2" name="material_item_2" placeholder="例：金具">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="subcontractMaterialCost2" class="form-label">部材費代②</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">¥</span>
+                                            <input type="number" class="form-control material-cost-input" id="subcontractMaterialCost2" name="material_cost_2">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="subcontractMaterialItem3" class="form-label">部材費項目③</label>
+                                        <input type="text" class="form-control" id="subcontractMaterialItem3" name="material_item_3" placeholder="例：塗料">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="subcontractMaterialCost3" class="form-label">部材費代③</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">¥</span>
+                                            <input type="number" class="form-control material-cost-input" id="subcontractMaterialCost3" name="material_cost_3">
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- 部材費合計表示 -->
+                                <div class="alert alert-info mb-0">
+                                    <strong>部材費合計: ¥<span id="modalMaterialTotalAmount">0</span></strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 総コスト表示 -->
+                    <div class="alert alert-warning mb-3">
+                        <h6 class="mb-0">
+                            <i class="fas fa-calculator me-2"></i>
+                            <strong>総コスト: ¥<span id="modalTotalCostAmount">0</span></strong>
+                        </h6>
+                        <small class="text-muted">（<span id="modalCostBaseLabel">契約金額</span> + 部材費合計）</small>
                     </div>
 
                     <!-- 他の工程にも追加 -->
@@ -8340,6 +8482,18 @@ function enableEdit(icon) {
             currentValue = '';
         }
         inputHtml = `<textarea class="form-control form-control-sm edit-input" rows="5" style="font-size: 0.7rem; padding: 0.4rem; width: 100%;">${currentValue}</textarea>`;
+    } else if (type === 'select') {
+        // selectの場合は、ドロップダウンを作成
+        const currentCompanyId = dd.data('client-company-id') || '';
+
+        // 元請会社リストからオプションを生成
+        let options = '<option value="">-- 元請会社を選択 --</option>';
+        clientCompaniesData.forEach(function(company) {
+            const selected = company.id == currentCompanyId ? 'selected' : '';
+            options += `<option value="${company.id}" ${selected} data-address="${company.address || ''}">${company.company_name}</option>`;
+        });
+
+        inputHtml = `<select class="form-select form-select-sm edit-input" style="font-size: 0.7rem; padding: 0.2rem 0.4rem; width: auto; display: inline-block;">${options}</select>`;
     } else {
         currentValue = fieldValue.text().replace('¥', '').replace(/,/g, '').trim();
 
@@ -8404,7 +8558,19 @@ function saveField(button) {
             if (response.success) {
                 // 表示を更新
                 let displayValue = newValue;
-                if (type === 'number') {
+                if (type === 'select') {
+                    // selectの場合は、選択された会社名と住所を取得
+                    const selectedOption = input.find('option:selected');
+                    const companyName = selectedOption.text();
+                    const companyAddress = selectedOption.data('address') || '-';
+
+                    // 元請名を更新
+                    fieldValue.text(companyName);
+                    dd.data('client-company-id', newValue);
+
+                    // 元請住所も更新
+                    $('#client-address-display .field-value').text(companyAddress);
+                } else if (type === 'number') {
                     // 数値をフォーマット
                     const num = parseFloat(newValue);
                     displayValue = '¥' + num.toLocaleString('ja-JP', {maximumFractionDigits: 0});
@@ -8418,16 +8584,24 @@ function saveField(button) {
                     }
                 }
 
-                // バッジがある場合の処理
-                if (fieldValue.find('.badge').length > 0) {
-                    fieldValue.find('.badge').text(displayValue.replace('¥', '').replace(/,/g, ''));
-                } else {
-                    fieldValue.text(displayValue);
+                // バッジがある場合の処理（select以外）
+                if (type !== 'select') {
+                    if (fieldValue.find('.badge').length > 0) {
+                        fieldValue.find('.badge').text(displayValue.replace('¥', '').replace(/,/g, ''));
+                    } else {
+                        fieldValue.text(displayValue);
+                    }
                 }
 
-                // 案件詳細情報を開いた状態を記憶してからリロード
-                localStorage.setItem('detailInfoOpen', 'true');
-                location.reload();
+                // 編集モードを終了
+                dd.find('.edit-controls').remove();
+                fieldValue.show();
+                dd.find('.edit-icon').show();
+
+                // 成功メッセージ
+                if (typeof toastr !== 'undefined') {
+                    toastr.success('保存しました');
+                }
             } else {
                 if (typeof toastr !== 'undefined') {
                     toastr.error(response.error || '保存に失敗しました');
@@ -8694,6 +8868,9 @@ function openSubcontractModal(stepKey) {
     $('#subcontractForm')[0].reset();
     $('#subcontractStep').val(stepKey || '');  // hidden fieldは維持
 
+    // 発注先表示フィールドをリセット
+    $('#selectedContractorDisplay').val('');
+
     // 発注先情報と例外処理をリセット
     document.getElementById('contractorPaymentInfo').style.display = 'none';
     document.getElementById('customPaymentDateSection').style.display = 'none';
@@ -8716,41 +8893,43 @@ function openSubcontractModal(stepKey) {
 // 発注先データをJavaScriptで利用できるようにする
 const contractorsData = {{ contractors_json|safe }};
 
-// 発注先選択時に支払いサイクル情報を自動入力
+// 元請会社データをJavaScriptで利用できるようにする
+const clientCompaniesData = {{ client_companies_json|safe }};
+
+// モーダル総コスト自動計算
 $(document).ready(function() {
-    $('#subcontractContractor').on('change', function() {
-        const contractorId = parseInt($(this).val());
+    // モーダル総コスト自動計算
+    function calculateModalTotalCost() {
+        var material1 = parseFloat($('#subcontractMaterialCost1').val()) || 0;
+        var material2 = parseFloat($('#subcontractMaterialCost2').val()) || 0;
+        var material3 = parseFloat($('#subcontractMaterialCost3').val()) || 0;
+        var billed = parseFloat($('#subcontractBilledAmount').val()) || 0;
+        var contract = parseFloat($('#subcontractContractAmount').val()) || 0;
 
-        if (contractorId) {
-            // 選択された発注先のデータを取得
-            const contractor = contractorsData.find(c => c.id === contractorId);
+        // 被請求額がある場合はそれを使用、なければ契約金額を使用
+        var baseAmount = billed > 0 ? billed : contract;
 
-            if (contractor) {
-                // 発注先のデフォルト値を表示
-                $('#contractorPaymentCycleDisplay').text(contractor.payment_cycle_display || '-');
-                $('#contractorClosingDayDisplay').text(contractor.closing_day ? contractor.closing_day + '日' : '-');
-                $('#contractorPaymentDayDisplay').text(contractor.payment_day ? contractor.payment_day + '日' : '-');
+        var totalMaterial = material1 + material2 + material3;
+        var totalCost = baseAmount + totalMaterial;
 
-                // 支払い情報がある場合は情報ボックスを表示
-                if (contractor.payment_cycle_display || contractor.closing_day || contractor.payment_day) {
-                    $('#contractorPaymentInfo').show();
-                } else {
-                    $('#contractorPaymentInfo').hide();
-                }
-            } else {
-                // 発注先が見つからない場合はクリア
-                $('#contractorPaymentCycleDisplay').text('-');
-                $('#contractorClosingDayDisplay').text('-');
-                $('#contractorPaymentDayDisplay').text('-');
-                $('#contractorPaymentInfo').hide();
-            }
+        // ラベル更新
+        if (billed > 0) {
+            $('#modalCostBaseLabel').text('請求金額');
         } else {
-            // 発注先が選択されていない場合はクリア
-            $('#contractorPaymentCycleDisplay').text('-');
-            $('#contractorClosingDayDisplay').text('-');
-            $('#contractorPaymentDayDisplay').text('-');
-            $('#contractorPaymentInfo').hide();
+            $('#modalCostBaseLabel').text('契約金額');
         }
+
+        // 金額を更新
+        $('#modalMaterialTotalAmount').text(totalMaterial.toLocaleString());
+        $('#modalTotalCostAmount').text(totalCost.toLocaleString());
+    }
+
+    // 金額フィールドの変更を監視
+    $('#subcontractMaterialCost1, #subcontractMaterialCost2, #subcontractMaterialCost3, #subcontractBilledAmount, #subcontractContractAmount').on('input', calculateModalTotalCost);
+
+    // モーダルが開いたときに初期計算
+    $('#subcontractModal').on('shown.bs.modal', function() {
+        calculateModalTotalCost();
     });
 });
 
@@ -9065,6 +9244,269 @@ function saveMaterialOrder() {
         }
     });
 }
+
+// ============================================
+// 下請け管理パネル
+// ============================================
+
+// 下請け管理パネルを開く
+window.openContractorManagementPanel = function() {
+    console.log('✅ openContractorManagementPanel called');
+
+    // モーダルを表示
+    const modal = new bootstrap.Modal(document.getElementById('contractorManagementModal'));
+    modal.show();
+
+    // 下請け業者一覧を読み込む
+    refreshContractorList();
+
+    // 検索機能を初期化
+    setTimeout(function() {
+        const searchInput = $('#contractorSearchInput');
+        if (searchInput.length) {
+            searchInput.off('input').on('input', function() {
+                const searchTerm = $(this).val().toLowerCase();
+                filterContractorList(searchTerm);
+            });
+        }
+    }, 100);
+};
+
+// 下請け業者一覧を更新
+window.refreshContractorList = function() {
+    console.log('✅ refreshContractorList called');
+
+    const tbody = $('#contractorTableBody');
+    tbody.html('<tr><td colspan="12" class="text-center text-muted">読み込み中...</td></tr>');
+
+    // すべての下請け業者を取得（Djangoテンプレートから）
+    const allContractors = contractorsData;
+
+    console.log('📋 下請け業者データ:', allContractors);
+    if (allContractors && allContractors.length > 0) {
+        console.log('📋 最初の下請け業者のデータ詳細:', allContractors[0]);
+    }
+
+    if (!allContractors || allContractors.length === 0) {
+        tbody.html('<tr><td colspan="12" class="text-center text-muted">下請け業者が登録されていません</td></tr>');
+        return;
+    }
+
+    let html = '';
+    allContractors.forEach(function(contractor) {
+        const statusBadge = contractor.is_active ?
+            '<span class="badge bg-success">有効</span>' :
+            '<span class="badge bg-secondary">無効</span>';
+
+        const contractorTypeText = contractor.contractor_type_display || '-';
+        const paymentCycleText = contractor.payment_cycle_display || '-';
+
+        // 締め日: null/undefinedをチェック
+        const closingDayText = (contractor.closing_day !== null && contractor.closing_day !== undefined)
+            ? `${contractor.closing_day}日` : '-';
+
+        // 支払月: null/undefinedをチェック
+        const paymentOffsetMonthsText = contractor.payment_offset_months_display || '-';
+
+        // 支払い日: null/undefinedをチェック
+        const paymentDayText = (contractor.payment_day !== null && contractor.payment_day !== undefined)
+            ? `${contractor.payment_day}日` : '-';
+
+        // 各業者のデータを確認
+        console.log(`  - ${contractor.name}: 種別=${contractor.contractor_type_display}, 締め日=${contractor.closing_day}, 支払月=${contractor.payment_offset_months_display}, 支払い日=${contractor.payment_day}`);
+
+        html += `
+            <tr>
+                <td><strong>${escapeHtml(contractor.name)}</strong></td>
+                <td>${contractorTypeText}</td>
+                <td>${escapeHtml(contractor.address || '-')}</td>
+                <td>${escapeHtml(contractor.phone || '-')}</td>
+                <td>${escapeHtml(contractor.contact_person || '-')}</td>
+                <td>${escapeHtml(contractor.specialties || '-')}</td>
+                <td class="text-center">${paymentCycleText}</td>
+                <td class="text-center">${closingDayText}</td>
+                <td class="text-center">${paymentOffsetMonthsText}</td>
+                <td class="text-center">${paymentDayText}</td>
+                <td class="text-center">${statusBadge}</td>
+                <td>
+                    <button class="btn btn-sm btn-success me-1" onclick="selectContractor(${contractor.id})" title="この下請け業者を選択">
+                        <i class="fas fa-check"></i> 選択
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary" onclick="editContractor(${contractor.id})" title="編集">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.html(html);
+};
+
+// 下請け業者を選択してメインフォームに適用
+window.selectContractor = function(contractorId) {
+    console.log('✅ selectContractor called', contractorId);
+
+    // モーダルを閉じる
+    const modal = bootstrap.Modal.getInstance(document.getElementById('contractorManagementModal'));
+    if (modal) modal.hide();
+
+    // 隠しフィールドに業者IDを設定
+    $('#subcontractContractor').val(contractorId);
+
+    // 選択された業者のデータを取得
+    const selectedContractor = contractorsData.find(c => c.id === contractorId);
+
+    if (selectedContractor) {
+        console.log('✅ 選択された下請け業者:', selectedContractor);
+
+        // 表示フィールドに業者名を設定
+        $('#selectedContractorDisplay').val(selectedContractor.name);
+
+        // 支払いサイクル情報を自動入力（既存の処理を再利用）
+        $('#contractorPaymentCycleDisplay').text(selectedContractor.payment_cycle_display || '-');
+        $('#contractorClosingDayDisplay').text(selectedContractor.closing_day ? selectedContractor.closing_day + '日' : '-');
+        $('#contractorPaymentDayDisplay').text(selectedContractor.payment_day ? selectedContractor.payment_day + '日' : '-');
+
+        // 支払い情報を表示
+        if (selectedContractor.payment_cycle || selectedContractor.closing_day || selectedContractor.payment_day) {
+            $('#contractorPaymentInfo').show();
+        } else {
+            $('#contractorPaymentInfo').hide();
+        }
+
+        // 成功メッセージ
+        if (typeof toastr !== 'undefined') {
+            toastr.success(`「${selectedContractor.name}」を選択しました`);
+        }
+    }
+};
+
+// 下請け業者編集（別ページへ遷移）
+window.editContractor = function(contractorId) {
+    // 現在のページURLをbackパラメータとして渡す
+    const currentUrl = encodeURIComponent(window.location.pathname);
+    window.location.href = `/orders/contractors/${contractorId}/edit/?back=${currentUrl}`;
+};
+
+// 下請け業者一覧をフィルタリング
+window.filterContractorList = function(searchTerm) {
+    console.log('🔍 Filtering contractors:', searchTerm);
+
+    const rows = $('#contractorTableBody tr');
+
+    if (!searchTerm || searchTerm.trim() === '') {
+        rows.show();
+        return;
+    }
+
+    rows.each(function() {
+        const row = $(this);
+        const contractorName = row.find('td:first strong').text().toLowerCase();
+        const contractorType = row.find('td:nth-child(2)').text().toLowerCase();
+        const address = row.find('td:nth-child(3)').text().toLowerCase();
+        const phone = row.find('td:nth-child(4)').text().toLowerCase();
+        const specialties = row.find('td:nth-child(6)').text().toLowerCase();
+
+        if (contractorName.includes(searchTerm) ||
+            contractorType.includes(searchTerm) ||
+            address.includes(searchTerm) ||
+            phone.includes(searchTerm) ||
+            specialties.includes(searchTerm)) {
+            row.show();
+        } else {
+            row.hide();
+        }
+    });
+
+    // 検索結果が0件の場合のメッセージ
+    const visibleRows = rows.filter(':visible').length;
+    if (visibleRows === 0) {
+        const tbody = $('#contractorTableBody');
+        if (tbody.find('.no-results-row').length === 0) {
+            tbody.append('<tr class="no-results-row"><td colspan="12" class="text-center text-muted py-4"><i class="fas fa-search me-2"></i>「' + escapeHtml(searchTerm) + '」に一致する下請け業者が見つかりませんでした</td></tr>');
+        }
+    } else {
+        $('#contractorTableBody .no-results-row').remove();
+    }
+};
+
+// 新規下請け業者追加（別ページへ遷移）
+window.addNewContractor = function() {
+    // 現在のページURLをbackパラメータとして渡す
+    const currentUrl = encodeURIComponent(window.location.pathname);
+    window.location.href = `/orders/contractors/new/?back=${currentUrl}`;
+};
+
+// HTMLエスケープ関数（既に定義されている場合はスキップ）
+if (typeof escapeHtml === 'undefined') {
+    window.escapeHtml = function(text) {
+        if (!text) return '';
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.toString().replace(/[&<>"']/g, function(m) { return map[m]; });
+    };
+}
 </script>
+
+<!-- 下請け管理パネルモーダル -->
+<div class="modal fade" id="contractorManagementModal" tabindex="-1" aria-labelledby="contractorManagementModalLabel" aria-hidden="true" style="z-index: 9999 !important;">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="contractorManagementModalLabel">
+                    <i class="fas fa-handshake"></i> 下請け管理
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">登録下請け業者一覧</h6>
+                    <div class="d-flex gap-2">
+                        <input type="text" id="contractorSearchInput" class="form-control form-control-sm" placeholder="業者名で検索..." style="width: 250px;">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="addNewContractor()">
+                            <i class="fas fa-plus"></i> 新規追加
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 下請け業者テーブル -->
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead class="table-light">
+                            <tr>
+                                <th>業者名</th>
+                                <th>業者種別</th>
+                                <th>住所</th>
+                                <th>電話番号</th>
+                                <th>担当者</th>
+                                <th>専門分野</th>
+                                <th class="text-center">支払いサイクル</th>
+                                <th class="text-center">締め日</th>
+                                <th class="text-center">支払月</th>
+                                <th class="text-center">支払い日</th>
+                                <th class="text-center">状態</th>
+                                <th style="width: 140px;">アクション</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contractorTableBody">
+                            <tr>
+                                <td colspan="12" class="text-center text-muted">読み込み中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% endblock %}

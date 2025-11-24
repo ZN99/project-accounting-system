@@ -17,6 +17,7 @@ from .views_cost import (
 from .views_ultimate import UltimateDashboardView
 from . import views_material
 from . import views_comment
+from .views_notification import NotificationListView
 from .views_cashflow import (
     CashFlowDashboardView,
     AccrualVsCashComparisonView,
@@ -111,6 +112,9 @@ urlpatterns = [
     path('login/', HeadquartersLoginView.as_view(), name='login'),
     path('logout/', HeadquartersLogoutView.as_view(), name='logout'),
     path('permission-denied/', PermissionDeniedView.as_view(), name='permission_denied'),
+
+    # 通知管理
+    path('notifications/', NotificationListView.as_view(), name='notifications'),
 
     # ユーザー・ロール管理
     path('users/', UserManagementDashboardView.as_view(), name='user_management'),

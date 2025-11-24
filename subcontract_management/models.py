@@ -180,6 +180,17 @@ class Contractor(models.Model):
         verbose_name='締日',
         help_text='毎月の締日（1-31）。例：月末締めの場合は31、20日締めの場合は20'
     )
+    payment_offset_months = models.IntegerField(
+        null=True, blank=True,
+        choices=[
+            (0, '当月'),
+            (1, '翌月'),
+            (2, '翌々月'),
+            (3, '3ヶ月後'),
+        ],
+        verbose_name='支払月',
+        help_text='締日から何ヶ月後に支払うか（0=当月、1=翌月、2=翌々月）'
+    )
     payment_day = models.IntegerField(
         null=True, blank=True,
         verbose_name='支払日',
