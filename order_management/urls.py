@@ -99,7 +99,9 @@ from .views_checklist import (
 from .views_file import (
     project_file_upload,
     project_file_download,
-    project_file_delete
+    project_file_delete,
+    step_file_upload_ajax,
+    step_file_delete_ajax
 )
 from .views_backup import (
     export_data,
@@ -275,6 +277,10 @@ urlpatterns = [
     path('projects/<int:project_pk>/files/upload/', project_file_upload, name='project_file_upload'),
     path('projects/<int:project_pk>/files/<int:file_pk>/download/', project_file_download, name='project_file_download'),
     path('projects/<int:project_pk>/files/<int:file_pk>/delete/', project_file_delete, name='project_file_delete'),
+
+    # ステップ固有のファイル管理（AJAX）
+    path('api/projects/<int:project_pk>/step-files/upload/', step_file_upload_ajax, name='step_file_upload_ajax'),
+    path('api/projects/<int:project_pk>/step-files/<int:file_pk>/delete/', step_file_delete_ajax, name='step_file_delete_ajax'),
 
     # データバックアップ・復元
     path('backup/export/', export_data, name='export_data'),

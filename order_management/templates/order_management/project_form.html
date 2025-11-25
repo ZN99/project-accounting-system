@@ -2029,6 +2029,9 @@ function handleFormSubmitSuccess() {
     // キャンセルボタンを「戻る」に変更
     cancelBtn.innerHTML = '<i class="fas fa-arrow-left"></i> 戻る';
 
+    // 保存されたフォーム値をクリア（送信成功なので不要）
+    clearSavedFormValues();
+
     // 少し待ってから元の状態に戻す
     setTimeout(() => {
         saveOriginalFormData(); // 新しい状態を初期値として保存
@@ -2252,6 +2255,9 @@ window.openBasicInfoContractorManagementPanel = function() {
 window.openAddImplementationModal = function() {
     console.log('✅ openAddImplementationModal called');
 
+    // モーダルを開く前にフォーム値を保存
+    saveFormValues();
+
     try {
         // 既存のモーダル背景を削除
         $('.modal-backdrop').remove();
@@ -2385,6 +2391,9 @@ window.refreshSalesStaffList = function() {
 
 window.openAddSalesStaffModal = function() {
     console.log('✅ openAddSalesStaffModal called');
+
+    // モーダルを開く前にフォーム値を保存
+    saveFormValues();
 
     // フォームをクリア/リセット
     $('#addSalesStaffForm')[0].reset();
@@ -3892,11 +3901,69 @@ function switchFormViewMode(mode) {
     localStorage.setItem('projectFormViewMode', mode);
 }
 
+// フォーム値を保存する関数（モーダル操作時の値保持用）
+function saveFormValues() {
+    const siteNameField = document.querySelector('input[name="site_name"]');
+    const siteAddressField = document.querySelector('input[name="site_address"]');
+
+    if (siteNameField && siteNameField.value) {
+        localStorage.setItem('project_form_site_name', siteNameField.value);
+    }
+    if (siteAddressField && siteAddressField.value) {
+        localStorage.setItem('project_form_site_address', siteAddressField.value);
+    }
+
+    console.log('📝 フォーム値を保存しました:', {
+        site_name: siteNameField?.value || '(空)',
+        site_address: siteAddressField?.value || '(空)'
+    });
+}
+
+// フォーム値を復元する関数
+function restoreFormValues() {
+    const savedSiteName = localStorage.getItem('project_form_site_name');
+    const savedSiteAddress = localStorage.getItem('project_form_site_address');
+
+    const siteNameField = document.querySelector('input[name="site_name"]');
+    const siteAddressField = document.querySelector('input[name="site_address"]');
+
+    // 現在の値が空の場合のみ復元
+    if (savedSiteName && siteNameField && !siteNameField.value) {
+        siteNameField.value = savedSiteName;
+        console.log('✅ site_name を復元しました:', savedSiteName);
+    }
+    if (savedSiteAddress && siteAddressField && !siteAddressField.value) {
+        siteAddressField.value = savedSiteAddress;
+        console.log('✅ site_address を復元しました:', savedSiteAddress);
+    }
+}
+
+// フォーム値をクリアする関数（フォーム送信成功時用）
+function clearSavedFormValues() {
+    localStorage.removeItem('project_form_site_name');
+    localStorage.removeItem('project_form_site_address');
+    console.log('🗑️ 保存されたフォーム値をクリアしました');
+}
+
 // ページ読み込み時に前回の表示モードを復元
 document.addEventListener('DOMContentLoaded', function() {
     const savedMode = localStorage.getItem('projectFormViewMode');
     if (savedMode === 'full') {
         switchFormViewMode('full');
+    }
+
+    // フォーム値を復元（ページリロード後）
+    restoreFormValues();
+
+    // フォーム入力時に自動保存
+    const siteNameField = document.querySelector('input[name="site_name"]');
+    const siteAddressField = document.querySelector('input[name="site_address"]');
+
+    if (siteNameField) {
+        siteNameField.addEventListener('input', saveFormValues);
+    }
+    if (siteAddressField) {
+        siteAddressField.addEventListener('input', saveFormValues);
     }
 
     // 元請会社選択時に支払いサイクル情報を自動コピー
@@ -3955,6 +4022,9 @@ document.addEventListener('DOMContentLoaded', function() {
 // 元請管理パネルを開く
 window.openClientCompanyManagementPanel = function() {
     console.log('✅ openClientCompanyManagementPanel called');
+
+    // モーダルを開く前にフォーム値を保存
+    saveFormValues();
 
     // モーダルを表示
     const modal = new bootstrap.Modal(document.getElementById('clientCompanyManagementModal'));
@@ -4474,6 +4544,9 @@ function escapeHtml(text) {
 // 元請会社新規作成モーダルを開く
 window.openClientCompanyCreateModal = function() {
     console.log('✅ openClientCompanyCreateModal called');
+
+    // モーダルを開く前にフォーム値を保存
+    saveFormValues();
 
     // フォームをリセット
     document.getElementById('clientCompanyCreateForm').reset();

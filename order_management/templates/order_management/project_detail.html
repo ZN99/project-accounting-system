@@ -284,9 +284,17 @@
     }
 
     .progress-step.expanded .progress-step-content {
-        display: block;
+        max-height: 5000px;
+        opacity: 1;
         border-color: #dee2e6;
         background: #fff;
+    }
+
+    .progress-step-content {
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-in-out, opacity 0.2s ease-in-out;
     }
 
     .progress-step {
@@ -2902,13 +2910,11 @@ $(document).ready(function() {
         const $clickedStep = $(this);
         const isCurrentlyExpanded = $clickedStep.hasClass('expanded');
 
-        // クリックされたステップをトグル
+        // クリックされたステップをトグル（CSS transitionで滑らかに展開）
         if (isCurrentlyExpanded) {
             $clickedStep.removeClass('expanded');
-            $clickedStep.find('.progress-step-content').slideUp(200);
         } else {
             $clickedStep.addClass('expanded');
-            $clickedStep.find('.progress-step-content').slideDown(200);
         }
     });
 
@@ -2918,9 +2924,8 @@ $(document).ready(function() {
     // Sortable機能を初期化（イベントハンドラー設定後）
     initializeSortable();
 
-    // 初期表示時に全てのステップを展開
+    // 初期表示時に全てのステップを展開（CSS transitionで制御）
     $('.progress-step').addClass('expanded');
-    $('.progress-step-content').show();
     // トグルボタンのテキストも更新（ボタンは削除されたのでコメントアウト）
     // $('#toggleAllSteps').find('i').removeClass('fa-expand-alt').addClass('fa-compress-alt');
     // $('#toggleButtonText').text('全て閉じる');

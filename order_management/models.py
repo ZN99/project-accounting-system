@@ -3049,6 +3049,13 @@ class ProjectFile(models.Model):
         auto_now_add=True,
         verbose_name='アップロード日時'
     )
+    related_step = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name='関連ステップ',
+        help_text='このファイルが関連するステップ（例：estimate, survey）'
+    )
 
     class Meta:
         verbose_name = '案件ファイル'

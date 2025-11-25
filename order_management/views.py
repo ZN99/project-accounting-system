@@ -536,12 +536,13 @@ def project_detail(request, pk):
     ordered_steps = []
     complex_step_fields = {}
 
-    # デフォルトプリセット（基本4ステップ - surveyは後から追加可能）
+    # デフォルトプリセット（基本5ステップ - 現調を追加）
     DEFAULT_STEPS = [
         {'step': 'attendance', 'order': 1},
-        {'step': 'estimate', 'order': 2},
-        {'step': 'construction_start', 'order': 3},
-        {'step': 'completion', 'order': 4},
+        {'step': 'survey', 'order': 2},
+        {'step': 'estimate', 'order': 3},
+        {'step': 'construction_start', 'order': 4},
+        {'step': 'completion', 'order': 5},
     ]
 
     if project.additional_items:
