@@ -2920,9 +2920,9 @@ class ClientCompany(models.Model):
         if project_count > 0:
             profit_margins = []
             for project in projects:
-                analysis = project.get_profit_analysis()
-                if analysis and analysis.get('profit_margin'):
-                    profit_margins.append(analysis['profit_margin'])
+                breakdown = project.get_revenue_breakdown()
+                if breakdown and breakdown.get('profit_margin'):
+                    profit_margins.append(breakdown['profit_margin'])
 
             if profit_margins:
                 avg_profit_margin = sum(profit_margins) / len(profit_margins)
