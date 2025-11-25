@@ -694,6 +694,32 @@
                         <h6 class="mb-1 fw-bold" style="color: #2c3e50;">{{ project.site_name }}</h6>
                         <small class="text-muted"><i class="fas fa-hashtag me-1"></i>{{ project.management_no }}</small>
 
+                        <!-- 元請名と支払いサイクル -->
+                        <div class="mt-1" style="font-size: 0.75rem; line-height: 1.4;">
+                            <div class="mb-1">
+                                <i class="fas fa-building me-1" style="font-size: 0.65rem; opacity: 0.7;"></i>
+                                <span class="text-muted" style="opacity: 0.8;">
+                                    {% if project.client_company %}
+                                        {{ project.client_company.company_name }}
+                                    {% else %}
+                                        {{ project.client_name|default:"-" }}
+                                    {% endif %}
+                                </span>
+                            </div>
+                            {% if project.client_company and project.client_company.payment_cycle %}
+                            <div class="text-muted" style="font-size: 0.7rem;">
+                                <i class="fas fa-calendar-check me-1" style="font-size: 0.6rem;"></i>
+                                {{ project.client_company.get_payment_cycle_display }}
+                                {% if project.client_company.closing_day %}
+                                    / 締{{ project.client_company.closing_day }}日
+                                {% endif %}
+                                {% if project.client_company.payment_day %}
+                                    払{{ project.client_company.payment_day }}日
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+
                         <!-- 売上内訳（一列表示） -->
                         {% with revenue=project.get_revenue_breakdown %}
                         <div class="mt-1" style="font-size: 0.75rem; line-height: 1.4;">
