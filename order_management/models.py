@@ -2907,15 +2907,25 @@ class ClientCompany(models.Model):
         stats = projects.aggregate(
             total_sales=Sum('order_amount'),
             avg_sales=Avg('order_amount'),
-            avg_profit_margin=Avg('profit_margin'),
             project_count=Count('id')
         )
 
         # None値を0に変換
         total_sales = stats['total_sales'] or Decimal('0')
         avg_sales = stats['avg_sales'] or Decimal('0')
-        avg_profit_margin = stats['avg_profit_margin'] or Decimal('0')
         project_count = stats['project_count'] or 0
+
+        # 利益率の平均を手動計算（フィールドではなくメソッドなので）
+        avg_profit_margin = Decimal('0')
+        if project_count > 0:
+            profit_margins = []
+            for project in projects:
+                analysis = project.get_profit_analysis()
+                if analysis and analysis.get('profit_margin'):
+                    profit_margins.append(analysis['profit_margin'])
+
+            if profit_margins:
+                avg_profit_margin = sum(profit_margins) / len(profit_margins)
 
         # レーダーチャート用データ（0-5のスケール）
         # 売上関連は金額に応じてスケーリング（要調整）
