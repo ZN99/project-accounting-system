@@ -2795,6 +2795,81 @@ class ClientCompany(models.Model):
     special_notes = models.TextField(blank=True, verbose_name='特記事項・運用ルール')
     is_active = models.BooleanField(default=True, verbose_name='有効')
 
+    # ① 基本情報 - 追加フィールド
+    invoice_submission_deadline = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name='請求書提出期限（日）',
+        help_text='毎月の請求書提出期限日（例：25日提出の場合は25）'
+    )
+    invoice_submission_notes = models.TextField(
+        blank=True,
+        verbose_name='請求書提出期限 補足説明',
+        help_text='例：毎月25日必着、月末必着など'
+    )
+
+    # ② 業務情報
+    work_types = models.ManyToManyField(
+        'WorkType',
+        blank=True,
+        related_name='client_companies',
+        verbose_name='対応可能な工事種別',
+        help_text='この元請から依頼される工事の種類を選択'
+    )
+    pricing_tier = models.TextField(
+        blank=True,
+        verbose_name='単価帯・共有単価表',
+        help_text='例：A単価表、B単価のみ共有、1式◯万円など'
+    )
+    site_rules = models.TextField(
+        blank=True,
+        verbose_name='現場ルール',
+        help_text='現場での注意事項やルールを箇条書きで入力'
+    )
+
+    # ③ 品質・コミュニケーション
+    trouble_tendencies = models.TextField(
+        blank=True,
+        verbose_name='トラブル傾向',
+        help_text='例：追加書類が多い、現場変更が急、指示内容が曖昧など'
+    )
+
+    WORK_EASE_CHOICES = [
+        (1, 'とても作業しにくい'),
+        (2, '作業しにくい'),
+        (3, '普通'),
+        (4, '作業しやすい'),
+        (5, 'とても作業しやすい'),
+    ]
+    work_ease_rating = models.IntegerField(
+        choices=WORK_EASE_CHOICES,
+        null=True,
+        blank=True,
+        verbose_name='作業のしやすさ',
+        help_text='現場での作業のしやすさを5段階で評価'
+    )
+    work_ease_notes = models.TextField(
+        blank=True,
+        verbose_name='作業のしやすさ 補足',
+        help_text='作業のしやすさに関する具体的な情報'
+    )
+
+    # ④ 評価・リスク・戦略
+    RATING_CHOICES = [
+        (1, '非常に低い'),
+        (2, '低い'),
+        (3, '普通'),
+        (4, '高い'),
+        (5, 'とても高い'),
+    ]
+    response_ease_rating = models.IntegerField(
+        choices=RATING_CHOICES,
+        null=True,
+        blank=True,
+        verbose_name='対応のしやすさ',
+        help_text='連絡対応や意思決定のスムーズさを5段階で評価'
+    )
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='登録日時')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新日時')
 
@@ -2815,6 +2890,113 @@ class ClientCompany(models.Model):
         return self.projects.filter(
             project_status__in=['施工日待ち', '進行中']
         ).count()
+
+    def get_statistics(self, start_date=None, end_date=None):
+        """元請サマリ統計を計算（期間指定可能）"""
+        from django.db.models import Sum, Avg, Count
+        from decimal import Decimal
+
+        # 対象案件を絞り込み
+        projects = self.projects.all()
+        if start_date:
+            projects = projects.filter(created_at__gte=start_date)
+        if end_date:
+            projects = projects.filter(created_at__lte=end_date)
+
+        # 基本集計
+        stats = projects.aggregate(
+            total_sales=Sum('order_amount'),
+            avg_sales=Avg('order_amount'),
+            avg_profit_margin=Avg('profit_margin'),
+            project_count=Count('id')
+        )
+
+        # None値を0に変換
+        total_sales = stats['total_sales'] or Decimal('0')
+        avg_sales = stats['avg_sales'] or Decimal('0')
+        avg_profit_margin = stats['avg_profit_margin'] or Decimal('0')
+        project_count = stats['project_count'] or 0
+
+        # レーダーチャート用データ（0-5のスケール）
+        # 売上関連は金額に応じてスケーリング（要調整）
+        total_sales_score = min(5, int(total_sales / 10000000)) if total_sales > 0 else 0  # 1000万円で1ポイント
+        avg_sales_score = min(5, int(avg_sales / 2000000)) if avg_sales > 0 else 0  # 200万円で1ポイント
+        profit_margin_score = min(5, int(avg_profit_margin / 5)) if avg_profit_margin > 0 else 0  # 5%で1ポイント
+
+        # 手動評価をスコアとして使用
+        response_ease_score = self.response_ease_rating or 0
+        work_ease_score = self.work_ease_rating or 0
+
+        return {
+            'total_sales': float(total_sales),
+            'avg_sales': float(avg_sales),
+            'avg_profit_margin': float(avg_profit_margin),
+            'project_count': project_count,
+            'total_sales_score': total_sales_score,
+            'avg_sales_score': avg_sales_score,
+            'profit_margin_score': profit_margin_score,
+            'response_ease_score': response_ease_score,
+            'work_ease_score': work_ease_score,
+        }
+
+
+class ContactPerson(models.Model):
+    """元請会社の担当者情報"""
+    client_company = models.ForeignKey(
+        ClientCompany,
+        on_delete=models.CASCADE,
+        related_name='contact_persons',
+        verbose_name='元請会社'
+    )
+    name = models.CharField(
+        max_length=100,
+        verbose_name='担当者名'
+    )
+    personality_notes = models.TextField(
+        blank=True,
+        verbose_name='性格・特徴',
+        help_text='担当者の性格や特徴、コミュニケーション時の注意点など'
+    )
+    is_primary = models.BooleanField(
+        default=False,
+        verbose_name='主担当',
+        help_text='主担当者の場合はチェック'
+    )
+    email = models.EmailField(
+        blank=True,
+        verbose_name='メールアドレス'
+    )
+    phone = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name='電話番号'
+    )
+    position = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='役職'
+    )
+    display_order = models.IntegerField(
+        default=0,
+        verbose_name='表示順'
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='登録日時'
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='更新日時'
+    )
+
+    class Meta:
+        verbose_name = '担当者'
+        verbose_name_plural = '担当者一覧'
+        ordering = ['-is_primary', 'display_order', 'name']
+
+    def __str__(self):
+        primary_mark = '★' if self.is_primary else ''
+        return f"{primary_mark}{self.name} ({self.client_company.company_name})"
 
 
 class WorkType(models.Model):

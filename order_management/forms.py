@@ -1,6 +1,6 @@
 from django import forms
 from django.utils import timezone
-from .models import Project, FixedCost, VariableCost, ClientCompany, ApprovalLog, ContractorReview, ChecklistTemplate, ProjectChecklist, ProjectFile, WorkType
+from .models import Project, FixedCost, VariableCost, ClientCompany, ApprovalLog, ContractorReview, ChecklistTemplate, ProjectChecklist, ProjectFile, WorkType, ContactPerson
 
 
 class ProjectForm(forms.ModelForm):
@@ -245,8 +245,17 @@ class ClientCompanyForm(forms.ModelForm):
     class Meta:
         model = ClientCompany
         fields = [
+            # 基本情報
             'company_name', 'contact_person', 'email', 'phone', 'address', 'website',
             'payment_cycle', 'closing_day', 'payment_day',
+            'invoice_submission_deadline', 'invoice_submission_notes',
+            # 業務情報
+            'work_types', 'pricing_tier', 'site_rules',
+            # 品質・コミュニケーション
+            'trouble_tendencies', 'work_ease_rating', 'work_ease_notes',
+            # 評価
+            'response_ease_rating',
+            # その他
             'default_key_handover_location', 'key_handover_notes',
             'completion_report_template', 'completion_report_notes',
             'special_notes', 'is_active'
@@ -316,6 +325,41 @@ class ClientCompanyForm(forms.ModelForm):
                 'placeholder': '特記事項・運用ルールなど'
             }),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            # 新フィールドのウィジェット
+            'invoice_submission_deadline': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': '25',
+                'min': '1',
+                'max': '31'
+            }),
+            'invoice_submission_notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': '例：毎月25日必着、月末必着など'
+            }),
+            'work_types': forms.CheckboxSelectMultiple(),
+            'pricing_tier': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': '例：A単価表、B単価のみ共有、1式◯万円など'
+            }),
+            'site_rules': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': '現場での注意事項やルールを箇条書きで入力'
+            }),
+            'trouble_tendencies': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': '例：追加書類が多い、現場変更が急、指示内容が曖昧など'
+            }),
+            'work_ease_rating': forms.Select(attrs={'class': 'form-select'}),
+            'work_ease_notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': '作業のしやすさに関する具体的な情報'
+            }),
+            'response_ease_rating': forms.Select(attrs={'class': 'form-select'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -346,6 +390,49 @@ class ClientCompanyFilterForm(forms.Form):
             'placeholder': '会社名で検索'
         })
     )
+
+
+class ContactPersonForm(forms.ModelForm):
+    """担当者情報フォーム"""
+
+    class Meta:
+        model = ContactPerson
+        fields = ['name', 'position', 'email', 'phone', 'personality_notes', 'is_primary', 'display_order']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '担当者名を入力'
+            }),
+            'position': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '役職を入力（例：営業部長）'
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'email@example.com'
+            }),
+            'phone': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '090-1234-5678'
+            }),
+            'personality_notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': '性格や特徴、コミュニケーション時の注意点など'
+            }),
+            'is_primary': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'display_order': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': '0'
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['name'].required = True
+        if not self.instance.pk:
+            self.fields['is_primary'].initial = False
+            self.fields['display_order'].initial = 0
 
 
 class ApprovalRequestForm(forms.ModelForm):

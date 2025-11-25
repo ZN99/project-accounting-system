@@ -71,6 +71,9 @@ class ClientCompanyDetailView(LoginRequiredMixin, DetailView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
+        from datetime import datetime, timedelta
+        import json
+
         context = super().get_context_data(**kwargs)
 
         # 関連案件
@@ -78,6 +81,50 @@ class ClientCompanyDetailView(LoginRequiredMixin, DetailView):
         context['recent_projects'] = company.projects.all().order_by('-created_at')[:10]
         context['total_projects'] = company.projects.count()
         context['active_projects'] = company.projects.exclude(project_status='完工').count()
+
+        # 担当者一覧
+        context['contact_persons'] = company.contact_persons.all()
+
+        # 期間フィルタ（GETパラメータから取得）
+        start_date = self.request.GET.get('start_date')
+        end_date = self.request.GET.get('end_date')
+
+        # デフォルトは全期間
+        start_date_obj = None
+        end_date_obj = None
+
+        if start_date:
+            try:
+                start_date_obj = datetime.strptime(start_date, '%Y-%m-%d')
+            except ValueError:
+                pass
+
+        if end_date:
+            try:
+                end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
+            except ValueError:
+                pass
+
+        # 統計計算
+        stats = company.get_statistics(start_date=start_date_obj, end_date=end_date_obj)
+        context['statistics'] = stats
+
+        # レーダーチャート用データ（JSON形式）
+        radar_data = {
+            'labels': ['累計売上', '平均売上', '平均利益率', '対応しやすさ', '作業しやすさ'],
+            'data': [
+                stats['total_sales_score'],
+                stats['avg_sales_score'],
+                stats['profit_margin_score'],
+                stats['response_ease_score'],
+                stats['work_ease_score'],
+            ]
+        }
+        context['radar_data_json'] = json.dumps(radar_data)
+
+        # フィルタ値を保持
+        context['start_date'] = start_date or ''
+        context['end_date'] = end_date or ''
 
         return context
 

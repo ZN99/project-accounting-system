@@ -5,11 +5,43 @@
 {% block title %}{{ company.company_name }} - 詳細{% endblock %}
 
 {% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
     .detail-container {
         background: #f8f9fa;
         min-height: 100vh;
         padding: 2rem 0;
+    }
+
+    .period-filter {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        margin-bottom: 2rem;
+    }
+
+    .radar-chart-container {
+        max-width: 500px;
+        margin: 2rem auto;
+    }
+
+    .contact-person-card {
+        background: #f8fafc;
+        border-left: 4px solid #3b82f6;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 0 0.5rem 0.5rem 0;
+    }
+
+    .contact-primary-badge {
+        background-color: #f59e0b;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
     }
 
     .detail-header {
@@ -145,6 +177,29 @@
     </div>
 
     <div class="container">
+        <!-- 期間フィルタ -->
+        <div class="period-filter">
+            <h6 class="mb-3"><i class="fas fa-calendar-alt me-2"></i>統計期間フィルタ</h6>
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label small">開始日</label>
+                    <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small">終了日</label>
+                    <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-filter me-1"></i>絞り込み
+                    </button>
+                    <a href="{% url 'order_management:client_company_detail' company.pk %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-redo me-1"></i>リセット
+                    </a>
+                </div>
+            </form>
+        </div>
+
         <!-- 統計 -->
         <div class="row mb-4">
             <div class="col-md-6">
@@ -157,6 +212,62 @@
                 <div class="stat-box">
                     <div class="stat-value">{{ active_projects|intcomma }}</div>
                     <div class="stat-label">進行中案件</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 元請サマリ レーダーチャート -->
+        <div class="info-card">
+            <div class="section-title">
+                <i class="fas fa-chart-radar me-2"></i>元請サマリ（レーダーチャート）
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="radar-chart-container">
+                        <canvas id="radarChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <th>累計売り上げ</th>
+                                <td class="text-end">¥{{ statistics.total_sales|floatformat:0|intcomma }}</td>
+                            </tr>
+                            <tr>
+                                <th>一件あたり平均売り上げ</th>
+                                <td class="text-end">¥{{ statistics.avg_sales|floatformat:0|intcomma }}</td>
+                            </tr>
+                            <tr>
+                                <th>平均粗利益率</th>
+                                <td class="text-end">{{ statistics.avg_profit_margin|floatformat:1 }}%</td>
+                            </tr>
+                            <tr>
+                                <th>対応のしやすさ</th>
+                                <td class="text-end">
+                                    {% if company.response_ease_rating %}
+                                        {{ company.get_response_ease_rating_display }}
+                                    {% else %}
+                                        <span class="text-muted">未評価</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>作業のしやすさ</th>
+                                <td class="text-end">
+                                    {% if company.work_ease_rating %}
+                                        {{ company.get_work_ease_rating_display }}
+                                    {% else %}
+                                        <span class="text-muted">未評価</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>対象案件数</th>
+                                <td class="text-end">{{ statistics.project_count }}件</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -212,7 +323,150 @@
                 </div>
             </div>
             {% endif %}
+
+            {% if company.invoice_submission_deadline %}
+            <div class="info-row">
+                <div class="info-label">請求書提出期限</div>
+                <div class="info-value">
+                    毎月{{ company.invoice_submission_deadline }}日
+                    {% if company.invoice_submission_notes %}
+                        <br><small class="text-muted">{{ company.invoice_submission_notes }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
         </div>
+
+        <!-- ② 業務情報 -->
+        <div class="info-card">
+            <div class="section-title">
+                <i class="fas fa-briefcase me-2"></i>② 業務情報 (Business Info)
+            </div>
+
+            {% if company.work_types.exists %}
+            <div class="info-row">
+                <div class="info-label">対応可能な工事種別</div>
+                <div class="info-value">
+                    {% for work_type in company.work_types.all %}
+                        <span class="badge bg-primary me-1">{{ work_type.name }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if company.pricing_tier %}
+            <div class="info-row">
+                <div class="info-label">単価帯・共有単価表</div>
+                <div class="info-value">{{ company.pricing_tier|linebreaksbr }}</div>
+            </div>
+            {% endif %}
+
+            {% if company.site_rules %}
+            <div class="info-row">
+                <div class="info-label">現場ルール</div>
+                <div class="info-value">{{ company.site_rules|linebreaksbr }}</div>
+            </div>
+            {% endif %}
+
+            {% if not company.work_types.exists and not company.pricing_tier and not company.site_rules %}
+            <p class="text-muted mb-0">設定されていません</p>
+            {% endif %}
+        </div>
+
+        <!-- ③ 品質・コミュニケーション -->
+        <div class="info-card">
+            <div class="section-title">
+                <i class="fas fa-comments me-2"></i>③ 品質・コミュニケーション (Quality/Communication)
+            </div>
+
+            {% if company.trouble_tendencies %}
+            <div class="info-row">
+                <div class="info-label">トラブル傾向</div>
+                <div class="info-value">{{ company.trouble_tendencies|linebreaksbr }}</div>
+            </div>
+            {% endif %}
+
+            {% if company.work_ease_rating %}
+            <div class="info-row">
+                <div class="info-label">作業のしやすさ</div>
+                <div class="info-value">
+                    <strong>{{ company.get_work_ease_rating_display }}</strong>
+                    {% if company.work_ease_notes %}
+                        <br><small class="text-muted">{{ company.work_ease_notes|linebreaksbr }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if not company.trouble_tendencies and not company.work_ease_rating %}
+            <p class="text-muted mb-0">設定されていません</p>
+            {% endif %}
+        </div>
+
+        <!-- ④ 評価・リスク・戦略 -->
+        <div class="info-card">
+            <div class="section-title">
+                <i class="fas fa-star me-2"></i>④ 評価・リスク・戦略 (Evaluation)
+            </div>
+
+            {% if company.response_ease_rating %}
+            <div class="info-row">
+                <div class="info-label">対応のしやすさ</div>
+                <div class="info-value">
+                    <strong>{{ company.get_response_ease_rating_display }}</strong>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">評価されていません</p>
+            {% endif %}
+        </div>
+
+        <!-- 担当者情報 -->
+        {% if contact_persons %}
+        <div class="info-card">
+            <div class="section-title">
+                <i class="fas fa-users me-2"></i>担当者情報
+            </div>
+
+            {% for person in contact_persons %}
+            <div class="contact-person-card">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h6 class="mb-1">
+                            {{ person.name }}
+                            {% if person.is_primary %}
+                                <span class="contact-primary-badge">主担当</span>
+                            {% endif %}
+                        </h6>
+                        {% if person.position %}
+                            <small class="text-muted">{{ person.position }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if person.email or person.phone %}
+                <div class="mb-2">
+                    {% if person.email %}
+                        <div><i class="fas fa-envelope me-2"></i><a href="mailto:{{ person.email }}">{{ person.email }}</a></div>
+                    {% endif %}
+                    {% if person.phone %}
+                        <div><i class="fas fa-phone me-2"></i><a href="tel:{{ person.phone }}">{{ person.phone }}</a></div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if person.personality_notes %}
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <strong>性格・特徴：</strong><br>
+                        {{ person.personality_notes|linebreaksbr }}
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
         <!-- 支払いサイクル設定 -->
         <div class="info-card">
@@ -348,4 +602,59 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // レーダーチャートの描画
+    const ctx = document.getElementById('radarChart');
+    if (ctx) {
+        const radarData = {{ radar_data_json|safe }};
+
+        new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: radarData.labels,
+                datasets: [{
+                    label: '{{ company.company_name }}',
+                    data: radarData.data,
+                    fill: true,
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                    borderColor: 'rgb(59, 130, 246)',
+                    pointBackgroundColor: 'rgb(59, 130, 246)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgb(59, 130, 246)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 5,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.parsed.r.toFixed(1) + ' / 5.0';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

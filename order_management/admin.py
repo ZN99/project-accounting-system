@@ -6,7 +6,7 @@ from .models import (
     Project, CashFlowTransaction, ForecastScenario,
     ProjectProgress, Report, SeasonalityIndex, UserProfile,
     Comment, Notification, CommentAttachment, ClientCompany, ContractorReview,
-    ApprovalLog, ChecklistTemplate, ProjectChecklist, ProjectFile, WorkType
+    ApprovalLog, ChecklistTemplate, ProjectChecklist, ProjectFile, WorkType, ContactPerson
 )
 from .user_roles import UserRole
 
@@ -517,9 +517,18 @@ class NotificationAdmin(admin.ModelAdmin):
 # Phase 8: 業務フロー最適化
 # =============================================================================
 
+class ContactPersonInline(admin.TabularInline):
+    """担当者情報インライン"""
+    model = ContactPerson
+    extra = 1
+    fields = ['name', 'position', 'email', 'phone', 'is_primary', 'display_order']
+    ordering = ['-is_primary', 'display_order', 'name']
+
+
 @admin.register(ClientCompany)
 class ClientCompanyAdmin(admin.ModelAdmin):
     """元請会社管理"""
+    inlines = [ContactPersonInline]
     list_display = [
         'company_name', 'contact_person', 'phone', 'email',
         'approval_threshold', 'is_active', 'get_total_projects',
@@ -529,20 +538,44 @@ class ClientCompanyAdmin(admin.ModelAdmin):
     search_fields = ['company_name', 'contact_person', 'email', 'phone']
 
     fieldsets = (
-        ('基本情報', {
-            'fields': ('company_name', 'contact_person', 'email', 'phone', 'address', 'is_active')
+        ('① 基本情報 (Basic Info)', {
+            'fields': (
+                'company_name', 'contact_person', 'email', 'phone', 'address', 'website',
+                'payment_cycle', 'closing_day', 'payment_day',
+                'invoice_submission_deadline', 'invoice_submission_notes',
+                'is_active'
+            )
+        }),
+        ('② 業務情報 (Business Info)', {
+            'fields': (
+                'work_types', 'pricing_tier', 'site_rules'
+            )
+        }),
+        ('③ 品質・コミュニケーション (Quality/Communication)', {
+            'fields': (
+                'trouble_tendencies', 'work_ease_rating', 'work_ease_notes'
+            )
+        }),
+        ('④ 評価・リスク・戦略 (Evaluation)', {
+            'fields': (
+                'response_ease_rating',
+            )
         }),
         ('鍵受け渡し設定', {
-            'fields': ('default_key_handover_location', 'key_handover_notes')
+            'fields': ('default_key_handover_location', 'key_handover_notes'),
+            'classes': ('collapse',)
         }),
         ('完了報告シート', {
-            'fields': ('completion_report_template', 'completion_report_notes')
+            'fields': ('completion_report_template', 'completion_report_notes'),
+            'classes': ('collapse',)
         }),
         ('承認設定', {
-            'fields': ('approval_threshold',)
+            'fields': ('approval_threshold',),
+            'classes': ('collapse',)
         }),
         ('運用ルール', {
-            'fields': ('special_notes',)
+            'fields': ('special_notes',),
+            'classes': ('collapse',)
         }),
         ('タイムスタンプ', {
             'fields': ('created_at', 'updated_at'),
@@ -570,6 +603,31 @@ class WorkTypeAdmin(admin.ModelAdmin):
     fieldsets = (
         ('基本情報', {
             'fields': ('name', 'description', 'display_order', 'is_active')
+        }),
+        ('タイムスタンプ', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    readonly_fields = ['created_at', 'updated_at']
+
+
+@admin.register(ContactPerson)
+class ContactPersonAdmin(admin.ModelAdmin):
+    """担当者管理"""
+    list_display = ['name', 'client_company', 'position', 'email', 'phone', 'is_primary', 'display_order']
+    list_filter = ['is_primary', 'client_company', 'created_at']
+    search_fields = ['name', 'client_company__company_name', 'email', 'phone', 'position']
+    list_editable = ['is_primary', 'display_order']
+    ordering = ['client_company', '-is_primary', 'display_order', 'name']
+
+    fieldsets = (
+        ('基本情報', {
+            'fields': ('client_company', 'name', 'position', 'email', 'phone', 'is_primary', 'display_order')
+        }),
+        ('性格・特徴', {
+            'fields': ('personality_notes',)
         }),
         ('タイムスタンプ', {
             'fields': ('created_at', 'updated_at'),
