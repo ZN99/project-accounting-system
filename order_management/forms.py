@@ -1,9 +1,16 @@
 from django import forms
 from django.utils import timezone
-from .models import Project, FixedCost, VariableCost, ClientCompany, ApprovalLog, ContractorReview, ChecklistTemplate, ProjectChecklist, ProjectFile
+from .models import Project, FixedCost, VariableCost, ClientCompany, ApprovalLog, ContractorReview, ChecklistTemplate, ProjectChecklist, ProjectFile, WorkType
 
 
 class ProjectForm(forms.ModelForm):
+    work_type = forms.ChoiceField(
+        choices=[],  # __init__で設定
+        required=True,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='工事種別'
+    )
+
     class Meta:
         model = Project
         exclude = [
@@ -82,6 +89,12 @@ class ProjectForm(forms.ModelForm):
             self.fields['client_company'].queryset = ClientCompany.objects.filter(is_active=True).order_by('company_name')
             self.fields['client_company'].empty_label = "選択してください（任意）"
             self.fields['client_company'].required = False
+
+        # 工事種別選択肢
+        if 'work_type' in self.fields:
+            self.fields['work_type'].choices = [('', '工事種別を選択してください')] + [
+                (wt.name, wt.name) for wt in WorkType.objects.filter(is_active=True).order_by('display_order', 'name')
+            ]
 
         # 諸経費金額は必須でない
         if 'expense_amount_1' in self.fields:

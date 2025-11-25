@@ -6,7 +6,7 @@ from .models import (
     Project, CashFlowTransaction, ForecastScenario,
     ProjectProgress, Report, SeasonalityIndex, UserProfile,
     Comment, Notification, CommentAttachment, ClientCompany, ContractorReview,
-    ApprovalLog, ChecklistTemplate, ProjectChecklist, ProjectFile
+    ApprovalLog, ChecklistTemplate, ProjectChecklist, ProjectFile, WorkType
 )
 from .user_roles import UserRole
 
@@ -556,6 +556,28 @@ class ClientCompanyAdmin(admin.ModelAdmin):
     def get_total_projects(self, obj):
         return obj.get_total_projects()
     get_total_projects.short_description = '総案件数'
+
+
+@admin.register(WorkType)
+class WorkTypeAdmin(admin.ModelAdmin):
+    """工事種別管理"""
+    list_display = ['name', 'description', 'display_order', 'is_active', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['name', 'description']
+    list_editable = ['display_order', 'is_active']
+    ordering = ['display_order', 'name']
+
+    fieldsets = (
+        ('基本情報', {
+            'fields': ('name', 'description', 'display_order', 'is_active')
+        }),
+        ('タイムスタンプ', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    readonly_fields = ['created_at', 'updated_at']
 
 
 @admin.register(ContractorReview)

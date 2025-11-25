@@ -383,6 +383,7 @@
                         <th>現場名</th>
                         <th>現場住所</th>
                         <th>元請名</th>
+                        <th>支払いサイクル</th>
                         <th>案件担当</th>
                         <th>施工種別</th>
                         <th>案件進捗</th>
@@ -405,7 +406,28 @@
                         <td style="max-width: 200px;">
                             <small class="text-muted">{{ project.site_address|default:"-" }}</small>
                         </td>
-                        <td>{{ project.client_name|default:"-" }}</td>
+                        <td>
+                            {% if project.client_company %}
+                                {{ project.client_company.company_name }}
+                            {% else %}
+                                {{ project.client_name|default:"-" }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if project.client_company %}
+                                <small>
+                                    {{ project.client_company.get_payment_cycle_display|default:"-" }}
+                                    {% if project.client_company.closing_day %}
+                                        <br>締: {{ project.client_company.closing_day }}日
+                                    {% endif %}
+                                    {% if project.client_company.payment_day %}
+                                        <br>払: {{ project.client_company.payment_day }}日
+                                    {% endif %}
+                                </small>
+                            {% else %}
+                                <small class="text-muted">-</small>
+                            {% endif %}
+                        </td>
                         <td>{{ project.project_manager|default:"-" }}</td>
                         <td>{{ project.work_type|default:"-" }}</td>
                         <td>
@@ -472,7 +494,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="9" class="text-center text-muted">案件データがありません</td>
+                        <td colspan="10" class="text-center text-muted">案件データがありません</td>
                     </tr>
                     {% endfor %}
                 </tbody>

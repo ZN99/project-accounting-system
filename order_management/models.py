@@ -2817,6 +2817,43 @@ class ClientCompany(models.Model):
         ).count()
 
 
+class WorkType(models.Model):
+    """工事種別マスター"""
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name='工事種別名'
+    )
+    description = models.TextField(
+        blank=True,
+        verbose_name='説明'
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name='有効'
+    )
+    display_order = models.IntegerField(
+        default=0,
+        verbose_name='表示順'
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='登録日時'
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='更新日時'
+    )
+
+    class Meta:
+        verbose_name = '工事種別'
+        verbose_name_plural = '工事種別一覧'
+        ordering = ['display_order', 'name']
+
+    def __str__(self):
+        return self.name
+
+
 class ContractorReview(models.Model):
     """職人評価 - Phase 8"""
     contractor = models.ForeignKey(
