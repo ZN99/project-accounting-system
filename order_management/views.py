@@ -651,6 +651,17 @@ def project_detail(request, pk):
         'address': c.address,
     } for c in client_companies])
 
+    # 見積もりステップのファイルを取得
+    estimate_files = project.files.filter(related_step='estimate').order_by('-uploaded_at')
+    estimate_files_json = json.dumps([{
+        'id': f.id,
+        'file_name': f.file_name,
+        'file_size': f.get_file_size_display(),
+        'file_type': f.file_type,
+        'uploaded_at': f.uploaded_at.strftime('%Y-%m-%d %H:%M') if f.uploaded_at else '',
+        'uploaded_by': f.uploaded_by.username if f.uploaded_by else '不明'
+    } for f in estimate_files])
+
     return render(request, 'order_management/project_detail.html', {
         'project': project,
         'subcontracts': subcontracts,
@@ -674,6 +685,8 @@ def project_detail(request, pk):
         'dynamic_steps_json': json.dumps(dynamic_steps),
         'complex_step_fields': complex_step_fields,
         'complex_step_fields_json': json.dumps(complex_step_fields),
+        'estimate_files': estimate_files,
+        'estimate_files_json': estimate_files_json,
         # ステップ別下請け情報
         'attendance_subcontracts': attendance_subcontracts,
         'survey_subcontracts': survey_subcontracts,

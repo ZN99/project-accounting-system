@@ -3390,6 +3390,169 @@ $(document).ready(function() {
 
     // 初期状態の設定は initializeSteps() の後で行われます（3882-3887行目）
 
+    // ============================================
+    // 見積もりファイルアップロード機能
+    // ============================================
+
+    // 見積もりファイルデータ（テンプレートから取得）
+    let estimateFilesData = {{ estimate_files_json|safe }};
+
+    // 見積もりファイルリストを読み込む
+    function loadEstimateFiles() {
+        renderEstimateFiles(estimateFilesData);
+    }
+
+    // 見積もりファイルリストをレンダリング
+    function renderEstimateFiles(files) {
+        const container = $('.estimate-files-list');
+        if (!container.length) return;
+
+        if (files.length === 0) {
+            container.html('<small class="text-muted">アップロードされたファイルはありません</small>');
+            return;
+        }
+
+        let html = '<div class="list-group list-group-flush">';
+        files.forEach(file => {
+            const fileIcon = getFileIcon(file.file_type);
+            html += `
+                <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-0" data-file-id="${file.id}">
+                    <div class="d-flex align-items-center flex-grow-1">
+                        <i class="${fileIcon} me-2"></i>
+                        <div class="flex-grow-1">
+                            <div class="small fw-bold">${file.file_name}</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">
+                                ${file.file_size} • ${file.uploaded_at}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <a href="{% url 'order_management:project_file_download' project.pk 0 %}".replace('/0/', '/${file.id}/')
+                           class="btn btn-outline-primary btn-sm" title="ダウンロード">
+                            <i class="fas fa-download"></i>
+                        </a>
+                        <button type="button" class="btn btn-outline-danger btn-sm delete-estimate-file-btn"
+                                data-file-id="${file.id}" title="削除">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        container.html(html);
+    }
+
+    // ファイルタイプに応じたアイコンを取得
+    function getFileIcon(fileType) {
+        if (fileType.includes('pdf')) return 'fas fa-file-pdf text-danger';
+        if (fileType.includes('excel') || fileType.includes('spreadsheet')) return 'fas fa-file-excel text-success';
+        if (fileType.includes('word') || fileType.includes('document')) return 'fas fa-file-word text-primary';
+        if (fileType.includes('image')) return 'fas fa-file-image text-info';
+        return 'fas fa-file';
+    }
+
+    // ファイル選択ボタンクリック
+    $(document).on('click', '.upload-estimate-file-btn', function() {
+        $(this).closest('.estimate-files-section').find('.estimate-file-input').click();
+    });
+
+    // ファイルが選択されたらアップロード
+    $(document).on('change', '.estimate-file-input', function() {
+        const fileInput = this;
+        const file = fileInput.files[0];
+
+        if (!file) return;
+
+        // ファイルサイズチェック (10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            if (typeof toastr !== 'undefined') {
+                toastr.error('ファイルサイズは10MB以下にしてください');
+            } else {
+                alert('ファイルサイズは10MB以下にしてください');
+            }
+            fileInput.value = '';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('related_step', 'estimate');
+        formData.append('description', '見積もり書類');
+
+        const uploadBtn = $(fileInput).closest('.estimate-files-section').find('.upload-estimate-file-btn');
+        uploadBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>アップロード中...');
+
+        $.ajax({
+            url: '{% url "order_management:step_file_upload_ajax" project.pk %}',
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success('ファイルをアップロードしました');
+                    }
+                    // ファイルリストを更新
+                    estimateFilesData.unshift(response.file);  // 先頭に追加
+                    renderEstimateFiles(estimateFilesData);
+                }
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON?.error || 'アップロードに失敗しました';
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(error);
+                } else {
+                    alert(error);
+                }
+            },
+            complete: function() {
+                uploadBtn.prop('disabled', false).html('<i class="fas fa-upload me-1"></i>ファイルを選択');
+                fileInput.value = '';
+            }
+        });
+    });
+
+    // ファイル削除
+    $(document).on('click', '.delete-estimate-file-btn', function() {
+        if (!confirm('このファイルを削除しますか？')) return;
+
+        const fileId = $(this).data('file-id');
+        const fileItem = $(this).closest('.list-group-item');
+
+        $.ajax({
+            url: '{% url "order_management:step_file_delete_ajax" project.pk 0 %}'.replace('/0/', `/${fileId}/`),
+            method: 'POST',
+            success: function(response) {
+                if (response.success) {
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success(response.message);
+                    }
+                    // リストから削除
+                    fileItem.fadeOut(300, function() {
+                        $(this).remove();
+                        // ファイルが0件になったらメッセージ表示
+                        if ($('.estimate-files-list .list-group-item').length === 0) {
+                            $('.estimate-files-list').html('<small class="text-muted">アップロードされたファイルはありません</small>');
+                        }
+                    });
+
+                    // データも更新
+                    estimateFilesData = estimateFilesData.filter(f => f.id !== fileId);
+                }
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON?.error || '削除に失敗しました';
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(error);
+                } else {
+                    alert(error);
+                }
+            }
+        });
+    });
+
     // 契約日の変更を監視
     $(document).on('change', 'input[name="contract_date"]', function() {
         var step = $('.progress-step[data-step="contract"]');
@@ -5201,12 +5364,33 @@ $(document).ready(function() {
                             </div>
                         </div>
                     </div>
-                    <div class="form-check">
+                    <div class="form-check mb-3">
                         <input class="form-check-input" type="checkbox" name="estimate_not_required"
                                id="estimateNotRequired" ${projectData.estimate_not_required ? 'checked' : ''}>
                         <label class="form-check-label" for="estimateNotRequired">
                             <i class="fas fa-times me-1"></i>見積書不要
                         </label>
+                    </div>
+
+                    <!-- ファイルアップロード -->
+                    <div class="estimate-files-section">
+                        <label class="form-label d-flex align-items-center">
+                            <i class="fas fa-paperclip me-2"></i>見積もり書類
+                        </label>
+                        <div class="mb-2">
+                            <input type="file" class="form-control form-control-sm estimate-file-input"
+                                   accept=".pdf,.xlsx,.xls,.docx,.doc,.jpg,.jpeg,.png"
+                                   style="display: none;">
+                            <button type="button" class="btn btn-sm btn-outline-primary upload-estimate-file-btn">
+                                <i class="fas fa-upload me-1"></i>ファイルを選択
+                            </button>
+                            <small class="text-muted d-block mt-1">
+                                PDF, Excel, Word, 画像 (最大10MB)
+                            </small>
+                        </div>
+                        <div class="estimate-files-list">
+                            <!-- ファイルリストがここに表示されます -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -7148,6 +7332,9 @@ $(document).ready(function() {
             loadAvailableSteps();
             // フォームフィールドの初期値に基づいてステップ状態を同期
             syncFormFieldsToSteps();
+
+            // 見積もりファイルリストを読み込み
+            setTimeout(loadEstimateFiles, 500);  // ステップ生成完了を待つ
 
             // 初期状態で編集要素を表示（editMode = true - 常に編集モード）
             console.log('Setting initial edit mode state (ON - always enabled)');
