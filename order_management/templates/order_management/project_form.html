@@ -314,7 +314,7 @@
 
     /* 全体表示モードでのタブパネルのスタイル */
     #projectFormTabsContent .tab-pane {
-        transition: all 0.3s ease;
+        /* アニメーション無効化 */
     }
 
     #projectFormTabsContent.full-view-mode .tab-pane {
@@ -366,7 +366,7 @@
                 </div>
             </div>
             <div class="card-body p-0">
-                <form method="post">
+                <form method="post" id="projectForm">
                     {% csrf_token %}
 
                     <!-- タブナビゲーション -->
@@ -401,7 +401,7 @@
                     <!-- タブコンテンツ -->
                     <div class="tab-content p-4" id="projectFormTabsContent">
                         <!-- 基本情報タブ -->
-                        <div class="tab-pane fade show active" id="basic" role="tabpanel" data-section-title="📋 基本情報">
+                        <div class="tab-pane show active" id="basic" role="tabpanel" data-section-title="📋 基本情報">
                             <div class="form-section mb-4">
                         <div class="section-header">
                             <h5><i class="fas fa-info-circle me-2"></i>基本情報</h5>
@@ -418,7 +418,12 @@
                                     <label for="{{ form.work_type.id_for_label }}" class="form-label">
                                         種別 <span class="text-danger">*</span>
                                     </label>
-                                    {{ form.work_type }}
+                                    <div class="d-flex gap-2">
+                                        {{ form.work_type }}
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openWorkTypeManagementModal()" title="工事種別を管理">
+                                            <i class="fas fa-tools"></i> 種別管理
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                             <div class="mb-3">
@@ -525,7 +530,7 @@
                         <!-- 基本情報タブ終了 -->
 
                         <!-- 受注・見積・請求タブ -->
-                        <div class="tab-pane fade" id="order" role="tabpanel" data-section-title="💰 受注・見積・請求">
+                        <div class="tab-pane" id="order" role="tabpanel" data-section-title="💰 受注・見積・請求">
                             <div class="form-section mb-4">
                         <div class="section-header">
                             <h5><i class="fas fa-file-invoice-dollar me-2"></i>受注・見積・請求</h5>
@@ -688,7 +693,7 @@
                         <!-- 受注・見積・請求タブ終了 -->
 
                         <!-- スケジュールタブ -->
-                        <div class="tab-pane fade" id="schedule" role="tabpanel" data-section-title="📅 スケジュール">
+                        <div class="tab-pane" id="schedule" role="tabpanel" data-section-title="📅 スケジュール">
                             <div class="form-section mb-4">
                         <div class="section-header">
                             <h5><i class="fas fa-calendar-alt me-2"></i>スケジュール</h5>
@@ -732,7 +737,7 @@
                         <!-- スケジュールタブ終了 -->
 
                         <!-- 業者・担当タブ -->
-                        <div class="tab-pane fade" id="staff" role="tabpanel" data-section-title="👥 業者・担当">
+                        <div class="tab-pane" id="staff" role="tabpanel" data-section-title="👥 業者・担当">
                             <div class="form-section mb-4">
                         <div class="section-header">
                             <h5><i class="fas fa-users me-2"></i>実施体制・業者情報</h5>
@@ -765,7 +770,7 @@
                         <!-- 業者・担当タブ終了 -->
 
                         <!-- 備考タブ -->
-                        <div class="tab-pane fade" id="notes" role="tabpanel" data-section-title="📝 備考">
+                        <div class="tab-pane" id="notes" role="tabpanel" data-section-title="📝 備考">
                             <div class="form-section mb-4">
                         <div class="section-header">
                             <h5><i class="fas fa-sticky-note me-2"></i>備考</h5>
@@ -2089,13 +2094,13 @@ $(document).ready(function() {
     });
 
     // フォームフィールドの変更を監視（project_status以外）
-    $('form').on('input change', 'input, select:not([name="project_status"]), textarea', function() {
+    $('#projectForm').on('input change', 'input, select:not([name="project_status"]), textarea', function() {
         console.log('Form field changed:', $(this).attr('name'), $(this).val());
         updateButtonText();
     });
 
     // フォーム送信時の処理
-    $('form').on('submit', function(e) {
+    $('#projectForm').on('submit', function(e) {
         e.preventDefault(); // デフォルトの送信を防ぐ
 
         const form = this;
@@ -2369,17 +2374,14 @@ window.refreshSalesStaffList = function() {
         const specialties = staff.specialties || '-';
 
         html += `
-            <tr>
+            <tr style="cursor: pointer;" onclick="selectSalesStaff(${staff.id})" onmouseover="this.style.backgroundColor='#f8f9fa'" onmouseout="this.style.backgroundColor=''">
                 <td><strong>${staff.name}</strong></td>
                 <td>${departmentDisplay}</td>
                 <td>${specialties}</td>
                 <td>${statusBadge}</td>
-                <td>
-                    <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="editSalesStaff(${staff.id})" title="編集">
+                <td onclick="event.stopPropagation()">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="editSalesStaff(${staff.id})" title="編集">
                         <i class="fas fa-edit"></i>
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteSalesStaff(${staff.id}, '${staff.name}')" title="削除">
-                        <i class="fas fa-trash"></i>
                     </button>
                 </td>
             </tr>
@@ -2387,6 +2389,24 @@ window.refreshSalesStaffList = function() {
     });
 
     tbody.html(html);
+};
+
+// 営業担当者を選択してメインフォームに適用
+window.selectSalesStaff = function(staffId) {
+    console.log('✅ selectSalesStaff called', staffId);
+
+    // モーダルを閉じる
+    const modalElement = document.getElementById('salesStaffManagementModal');
+    if (modalElement) {
+        $(modalElement).removeClass('show').css('display', 'none');
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open').css('overflow', '');
+    }
+
+    // ドロップダウンで営業担当者を選択
+    $('#salesManagerSelect').val(staffId);
+
+    console.log('✅ 営業担当者を選択しました:', staffId);
 };
 
 window.openAddSalesStaffModal = function() {
@@ -4095,7 +4115,7 @@ window.refreshClientCompanyList = function() {
         console.log(`  - ${company.company_name}: 締め日=${company.closing_day}, 支払い日=${company.payment_day}`);
 
         html += `
-            <tr>
+            <tr style="cursor: pointer;" onclick="selectClientCompany(${company.id})" onmouseover="this.style.backgroundColor='#f8f9fa'" onmouseout="this.style.backgroundColor=''">
                 <td><strong>${escapeHtml(company.company_name)}</strong></td>
                 <td>${escapeHtml(company.address || '-')}</td>
                 <td>${escapeHtml(company.phone || '-')}</td>
@@ -4104,10 +4124,7 @@ window.refreshClientCompanyList = function() {
                 <td class="text-center">${closingDayText}</td>
                 <td class="text-center">${paymentDayText}</td>
                 <td class="text-center">${statusBadge}</td>
-                <td>
-                    <button class="btn btn-sm btn-success me-1" onclick="selectClientCompany(${company.id})" title="この元請会社を選択">
-                        <i class="fas fa-check"></i> 選択
-                    </button>
+                <td onclick="event.stopPropagation()">
                     <button class="btn btn-sm btn-outline-primary" onclick="editClientCompany(${company.id})" title="編集">
                         <i class="fas fa-edit"></i>
                     </button>
@@ -4332,6 +4349,102 @@ function escapeHtml(text) {
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 工事種別管理モーダル -->
+<div class="modal fade" id="workTypeManagementModal" tabindex="-1" aria-labelledby="workTypeManagementModalLabel" aria-hidden="true" style="z-index: 10000 !important;">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                <h5 class="modal-title" id="workTypeManagementModalLabel">
+                    <i class="fas fa-tools me-2"></i>工事種別管理
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <!-- 既存の工事種別一覧 -->
+                <div class="mb-4">
+                    <h6 class="border-bottom pb-2 mb-3">
+                        <i class="fas fa-list me-2"></i>登録済み工事種別
+                    </h6>
+                    <div id="workTypeList" class="mb-3">
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-spinner fa-spin me-2"></i>読み込み中...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 新規追加フォーム -->
+                <div class="border-top pt-4">
+                    <h6 class="border-bottom pb-2 mb-3">
+                        <i class="fas fa-plus-circle me-2"></i>新しい工事種別を追加
+                    </h6>
+                    <form id="workTypeForm">
+                        {% csrf_token %}
+                        <input type="hidden" id="workTypeId" name="id" value="">
+
+                        <div class="mb-3">
+                            <label for="workTypeName" class="form-label">
+                                種別名 <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="workTypeName" name="name" required maxlength="100">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="workTypeDescription" class="form-label">説明</label>
+                            <textarea class="form-control" id="workTypeDescription" name="description" rows="2"></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success" id="workTypeSubmitBtn">
+                                <i class="fas fa-save me-2"></i>保存する
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="workTypeCancelBtn" style="display: none;" onclick="cancelWorkTypeEdit()">
+                                <i class="fas fa-times me-2"></i>編集をキャンセル
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- エラーメッセージ表示エリア -->
+                    <div id="workTypeError" class="alert alert-danger mt-3" style="display: none;"></div>
+                    <div id="workTypeSuccess" class="alert alert-success mt-3" style="display: none;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 工事種別削除確認モーダル -->
+<div class="modal fade" id="workTypeDeleteConfirmModal" tabindex="-1" aria-hidden="true" style="z-index: 10050 !important;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle me-2"></i>削除の確認
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">工事種別「<strong id="deleteWorkTypeName"></strong>」を削除してもよろしいですか？</p>
+                <div class="alert alert-warning mb-0">
+                    <i class="fas fa-info-circle me-2"></i>案件で使用されている場合は削除できません。
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>キャンセル
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteWorkTypeBtn">
+                    <i class="fas fa-trash me-2"></i>削除する
+                </button>
             </div>
         </div>
     </div>
@@ -4654,6 +4767,317 @@ window.submitNewClientCompany = function() {
         }
     });
 };
+
+// ===== 工事種別管理モーダル =====
+// モーダルを開く
+window.openWorkTypeManagementModal = function() {
+    console.log('✅ openWorkTypeManagementModal called');
+
+    // モーダルを表示
+    const modal = new bootstrap.Modal(document.getElementById('workTypeManagementModal'));
+    modal.show();
+
+    // 工事種別一覧を読み込み
+    loadWorkTypeList();
+};
+
+// 工事種別一覧を読み込み
+function loadWorkTypeList() {
+    $.ajax({
+        url: '{% url "order_management:work_type_list_ajax" %}',
+        type: 'GET',
+        success: function(response) {
+            if (response.success) {
+                renderWorkTypeList(response.work_types);
+            } else {
+                $('#workTypeList').html('<div class="alert alert-danger">読み込みに失敗しました</div>');
+            }
+        },
+        error: function() {
+            $('#workTypeList').html('<div class="alert alert-danger">読み込みに失敗しました</div>');
+        }
+    });
+}
+
+// 工事種別一覧を描画
+function renderWorkTypeList(workTypes) {
+    if (workTypes.length === 0) {
+        $('#workTypeList').html('<div class="text-muted text-center py-3">登録済みの工事種別はありません</div>');
+        return;
+    }
+
+    let html = '<div class="list-group">';
+    workTypes.forEach(function(workType, index) {
+        const escapedName = $('<div>').text(workType.name).html();
+        const escapedDesc = $('<div>').text(workType.description || '').html();
+
+        html += `
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">
+                            <i class="fas fa-tools me-2"></i>${escapedName}
+                        </h6>
+                        ${workType.description ? `<p class="mb-1 small text-muted">${escapedDesc}</p>` : ''}
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-secondary" onclick="moveWorkType(${workType.id}, 'up')" ${index === 0 ? 'disabled' : ''} title="上へ移動">
+                            <i class="fas fa-arrow-up"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="moveWorkType(${workType.id}, 'down')" ${index === workTypes.length - 1 ? 'disabled' : ''} title="下へ移動">
+                            <i class="fas fa-arrow-down"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-primary"
+                                data-id="${workType.id}"
+                                data-name="${escapedName}"
+                                data-description="${escapedDesc}"
+                                onclick="editWorkTypeFromButton(this)"
+                                title="編集">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-danger"
+                                data-id="${workType.id}"
+                                data-name="${escapedName}"
+                                onclick="deleteWorkTypeFromButton(this)"
+                                title="削除">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+
+    $('#workTypeList').html(html);
+}
+
+// ボタンから工事種別を編集（data属性を使用）
+window.editWorkTypeFromButton = function(button) {
+    const id = $(button).data('id');
+    const name = $(button).data('name');
+    const description = $(button).data('description');
+    editWorkType(id, name, description);
+};
+
+// 工事種別を編集
+window.editWorkType = function(id, name, description) {
+    console.log('✅ editWorkType called:', id, name);
+
+    // フォームに値をセット
+    $('#workTypeId').val(id);
+    $('#workTypeName').val(name);
+    $('#workTypeDescription').val(description);
+
+    // ボタンを編集モードに
+    $('#workTypeSubmitBtn').html('<i class="fas fa-save me-2"></i>更新する');
+    $('#workTypeCancelBtn').show();
+
+    // フォーム位置にスクロール
+    $('#workTypeForm')[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+// 編集をキャンセル
+window.cancelWorkTypeEdit = function() {
+    // フォームをリセット
+    $('#workTypeForm')[0].reset();
+    $('#workTypeId').val('');
+
+    // ボタンを新規作成モードに
+    $('#workTypeSubmitBtn').html('<i class="fas fa-save me-2"></i>保存する');
+    $('#workTypeCancelBtn').hide();
+
+    // メッセージを非表示
+    $('#workTypeError').hide();
+    $('#workTypeSuccess').hide();
+};
+
+// ボタンから工事種別を削除（data属性を使用）
+window.deleteWorkTypeFromButton = function(button) {
+    const id = $(button).data('id');
+    const name = $(button).data('name');
+    deleteWorkType(id, name);
+};
+
+// 工事種別を削除
+window.deleteWorkType = function(id, name) {
+    // モーダルに情報をセット
+    $('#deleteWorkTypeName').text(name);
+
+    // 削除確認モーダルを表示
+    const modal = new bootstrap.Modal(document.getElementById('workTypeDeleteConfirmModal'));
+    modal.show();
+
+    // backdropのz-indexを調整（モーダル表示後に実行）
+    setTimeout(function() {
+        $('.modal-backdrop').last().css('z-index', 10049);
+    }, 10);
+
+    // 削除ボタンのクリックイベント（既存のハンドラを削除してから新しいものを追加）
+    $('#confirmDeleteWorkTypeBtn').off('click').on('click', function() {
+        // ボタンを無効化
+        $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>削除中...');
+
+        $.ajax({
+            url: '{% url "order_management:work_type_delete_ajax" %}',
+            type: 'POST',
+            data: {
+                id: id,
+                csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.success) {
+                    // モーダルを閉じる
+                    modal.hide();
+
+                    $('#workTypeSuccess').html('<i class="fas fa-check-circle me-2"></i>' + response.message).show();
+                    setTimeout(function() { $('#workTypeSuccess').hide(); }, 3000);
+
+                    // 一覧を再読み込み
+                    loadWorkTypeList();
+
+                    // ドロップダウンを更新
+                    refreshWorkTypeDropdown();
+                } else {
+                    // モーダルを閉じる
+                    modal.hide();
+
+                    $('#workTypeError').html('<i class="fas fa-exclamation-circle me-2"></i>' + response.error).show();
+                }
+            },
+            error: function(xhr) {
+                // モーダルを閉じる
+                modal.hide();
+
+                $('#workTypeError').html('<i class="fas fa-exclamation-circle me-2"></i>' + (xhr.responseJSON?.error || 'エラーが発生しました')).show();
+            },
+            complete: function() {
+                // ボタンを元に戻す
+                $('#confirmDeleteWorkTypeBtn').prop('disabled', false).html('<i class="fas fa-trash me-2"></i>削除する');
+            }
+        });
+    });
+};
+
+// 工事種別を並び替え
+window.moveWorkType = function(id, direction) {
+    $.ajax({
+        url: '{% url "order_management:work_type_reorder_ajax" %}',
+        type: 'POST',
+        data: {
+            id: id,
+            direction: direction,
+            csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+        },
+        success: function(response) {
+            if (response.success) {
+                // 一覧を再読み込み
+                loadWorkTypeList();
+
+                // ドロップダウンを更新
+                refreshWorkTypeDropdown();
+            } else {
+                $('#workTypeError').html('<i class="fas fa-exclamation-circle me-2"></i>' + response.error).show();
+            }
+        },
+        error: function(xhr) {
+            $('#workTypeError').html('<i class="fas fa-exclamation-circle me-2"></i>' + (xhr.responseJSON?.error || 'エラーが発生しました')).show();
+        }
+    });
+};
+
+// フォーム送信
+$('#workTypeForm').on('submit', function(e) {
+    e.preventDefault();
+
+    const workTypeId = $('#workTypeId').val();
+    const isUpdate = workTypeId !== '';
+    const url = isUpdate
+        ? '{% url "order_management:work_type_update_ajax" %}'
+        : '{% url "order_management:work_type_create_ajax" %}';
+
+    // メッセージを非表示
+    $('#workTypeError').hide();
+    $('#workTypeSuccess').hide();
+
+    // ボタンを無効化
+    const submitBtn = $('#workTypeSubmitBtn');
+    submitBtn.prop('disabled', true);
+    submitBtn.html('<i class="fas fa-spinner fa-spin me-2"></i>保存中...');
+
+    // データを準備
+    const formData = {
+        name: $('#workTypeName').val(),
+        description: $('#workTypeDescription').val(),
+        csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+    };
+
+    if (isUpdate) {
+        formData.id = workTypeId;
+    }
+
+    $.ajax({
+        url: url,
+        type: 'POST',
+        data: formData,
+        success: function(response) {
+            if (response.success) {
+                const message = isUpdate ? '工事種別を更新しました' : '工事種別を追加しました';
+                $('#workTypeSuccess').html('<i class="fas fa-check-circle me-2"></i>' + message).show();
+                setTimeout(function() { $('#workTypeSuccess').hide(); }, 3000);
+
+                // フォームをリセット
+                cancelWorkTypeEdit();
+
+                // 一覧を再読み込み
+                loadWorkTypeList();
+
+                // ドロップダウンを更新
+                refreshWorkTypeDropdown(response.work_type.id);
+            } else {
+                $('#workTypeError').html('<i class="fas fa-exclamation-circle me-2"></i>' + response.error).show();
+            }
+        },
+        error: function(xhr) {
+            $('#workTypeError').html('<i class="fas fa-exclamation-circle me-2"></i>' + (xhr.responseJSON?.error || 'エラーが発生しました')).show();
+        },
+        complete: function() {
+            // ボタンを有効化
+            submitBtn.prop('disabled', false);
+            const buttonText = isUpdate ? '更新する' : '保存する';
+            submitBtn.html('<i class="fas fa-save me-2"></i>' + buttonText);
+        }
+    });
+});
+
+// 工事種別ドロップダウンを更新
+function refreshWorkTypeDropdown(selectedId) {
+    $.ajax({
+        url: '{% url "order_management:work_type_list_ajax" %}',
+        type: 'GET',
+        success: function(response) {
+            if (response.success) {
+                const select = $('[name="work_type"]');
+                const currentValue = selectedId || select.val();
+
+                // ドロップダウンを再構築
+                select.empty();
+                select.append('<option value="">-- 工事種別を選択してください --</option>');
+
+                // 工事種別を追加（表示順で既にソートされている）
+                response.work_types.forEach(function(workType) {
+                    const option = new Option(workType.name, workType.name);
+                    select.append(option);
+                });
+
+                // 選択状態を復元
+                if (currentValue) {
+                    select.val(currentValue);
+                }
+            }
+        }
+    });
+}
 </script>
 
 {% endblock %}

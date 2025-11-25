@@ -246,7 +246,7 @@ class ClientCompanyForm(forms.ModelForm):
         model = ClientCompany
         fields = [
             # 基本情報
-            'company_name', 'contact_person', 'email', 'phone', 'address', 'website',
+            'company_name', 'address',
             'payment_cycle', 'closing_day', 'payment_day',
             'invoice_submission_deadline', 'invoice_submission_notes',
             # 業務情報
@@ -254,7 +254,7 @@ class ClientCompanyForm(forms.ModelForm):
             # 品質・コミュニケーション
             'trouble_tendencies', 'work_ease_rating', 'work_ease_notes',
             # 評価
-            'response_ease_rating',
+            'response_ease_rating', 'response_ease_notes',
             # その他
             'default_key_handover_location', 'key_handover_notes',
             'completion_report_template', 'completion_report_notes',
@@ -265,26 +265,10 @@ class ClientCompanyForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': '会社名を入力'
             }),
-            'contact_person': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': '担当者名を入力'
-            }),
-            'email': forms.EmailInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'email@example.com'
-            }),
-            'phone': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': '03-1234-5678'
-            }),
             'address': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 2,
                 'placeholder': '住所を入力'
-            }),
-            'website': forms.URLInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'https://example.com'
             }),
             'payment_cycle': forms.Select(attrs={
                 'class': 'form-select'
@@ -360,6 +344,11 @@ class ClientCompanyForm(forms.ModelForm):
                 'placeholder': '作業のしやすさに関する具体的な情報'
             }),
             'response_ease_rating': forms.Select(attrs={'class': 'form-select'}),
+            'response_ease_notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': '対応のしやすさに関する具体的な情報'
+            }),
         }
 
     def __init__(self, *args, **kwargs):
@@ -368,12 +357,6 @@ class ClientCompanyForm(forms.ModelForm):
         if not self.instance.pk:
             self.fields['is_active'].initial = True
             self.fields['payment_cycle'].initial = 'monthly'
-
-    def clean_email(self):
-        email = self.cleaned_data.get('email')
-        if email and '@' not in email:
-            raise forms.ValidationError('正しいメールアドレスを入力してください。')
-        return email
 
 
 class ClientCompanyFilterForm(forms.Form):

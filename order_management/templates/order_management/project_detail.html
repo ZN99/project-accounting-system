@@ -510,6 +510,18 @@
 {% endblock %}
 
 {% block content %}
+<!-- 保存状態バナー -->
+<div id="savingStatusBanner" class="alert alert-info alert-dismissible fade show d-none" role="alert" style="position: fixed; top: 60px; right: 20px; z-index: 10000; min-width: 300px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    <div class="d-flex align-items-center">
+        <div id="savingStatusIcon" class="me-2">
+            <i class="fas fa-spinner fa-spin"></i>
+        </div>
+        <div id="savingStatusText">
+            保存中...
+        </div>
+    </div>
+</div>
+
 <!-- 新しい1ブロック目: 案件ヘッダー（横長、100px高さ） -->
 <div class="row mb-3">
     <div class="col-12">
@@ -1698,6 +1710,47 @@
     </div>
 </div>
 
+<!-- 汎用エラーモーダル -->
+<div class="modal fade" id="genericErrorModal" tabindex="-1" aria-labelledby="genericErrorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="genericErrorModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i><span id="genericErrorModalTitle">エラー</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="genericErrorModalMessage">エラーが発生しました</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 汎用確認モーダル -->
+<div class="modal fade" id="genericConfirmModal" tabindex="-1" aria-labelledby="genericConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="genericConfirmModalLabel">
+                    <i class="fas fa-question-circle me-2"></i><span id="genericConfirmModalTitle">確認</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="genericConfirmModalMessage">この操作を実行しますか？</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-primary" id="genericConfirmModalOkBtn">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ステップ削除確認モーダル -->
 <div class="modal fade" id="stepDeleteModal" tabindex="-1" aria-labelledby="stepDeleteModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -2712,21 +2765,82 @@ $(document).ready(function() {
         }
     });
 
-    // 個別ステップ保存ボタンのクリックイベント
-    $(document).on('click', '.save-step-btn', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
+    // 保存状態管理関数
+    let saveTimeout = null;
+    function showSavingStatus(status) {
+        const banner = $('#savingStatusBanner');
+        const icon = $('#savingStatusIcon');
+        const text = $('#savingStatusText');
 
-        const stepKey = $(this).data('step');
-        const stepElement = $(`.progress-step[data-step="${stepKey}"]`);
+        banner.removeClass('d-none alert-info alert-success alert-warning');
 
-        if (stepElement.length === 0) {
-            console.error('Step element not found:', stepKey);
-            return;
+        if (status === 'saving') {
+            banner.addClass('alert-info');
+            icon.html('<i class="fas fa-spinner fa-spin"></i>');
+            text.text('保存中...');
+        } else if (status === 'saved') {
+            banner.addClass('alert-success');
+            icon.html('<i class="fas fa-check-circle"></i>');
+            text.text('保存しました');
+            // 2秒後に非表示
+            setTimeout(() => {
+                banner.addClass('d-none');
+            }, 2000);
+        } else if (status === 'error') {
+            banner.addClass('alert-warning');
+            icon.html('<i class="fas fa-exclamation-triangle"></i>');
+            text.text('保存に失敗しました');
+        }
+    }
+
+    // 汎用エラーモーダル表示関数（showErrorModal()の代わり）
+    function showErrorModal(message, title = 'エラー') {
+        $('#genericErrorModalTitle').text(title);
+        $('#genericErrorModalMessage').text(message);
+        const modal = new bootstrap.Modal(document.getElementById('genericErrorModal'));
+        modal.show();
+    }
+
+    // 汎用確認モーダル表示関数（confirm()の代わり）
+    // 使用例: showConfirmModal('削除しますか？', function() { /* OKの処理 */ });
+    function showConfirmModal(message, onConfirm, title = '確認') {
+        $('#genericConfirmModalTitle').text(title);
+        $('#genericConfirmModalMessage').text(message);
+        const modal = new bootstrap.Modal(document.getElementById('genericConfirmModal'));
+
+        // 既存のイベントリスナーを削除
+        $('#genericConfirmModalOkBtn').off('click');
+
+        // 新しいイベントリスナーを追加
+        $('#genericConfirmModalOkBtn').on('click', function() {
+            modal.hide();
+            if (typeof onConfirm === 'function') {
+                onConfirm();
+            }
+        });
+
+        modal.show();
+    }
+
+    // 動的ステップのフィールド保存関数
+    function saveStepField(stepKey, stepElement) {
+        // 既存の保存タイマーをクリア
+        if (saveTimeout) {
+            clearTimeout(saveTimeout);
         }
 
-        // このステップのフィールドを収集
-        const dynamicFields = {};
+        // 500msのデバウンス（連続入力を待つ）
+        saveTimeout = setTimeout(() => {
+            showSavingStatus('saving');
+
+            if (stepElement.length === 0) {
+                console.error('Step element not found:', stepKey);
+                showSavingStatus('error');
+                return;
+            }
+
+            // このステップのフィールドを収集
+            const dynamicFields = {};
         stepElement.find('input, select, textarea').each(function() {
             const fieldElement = $(this);
             const fieldName = fieldElement.attr('name');
@@ -2783,7 +2897,7 @@ $(document).ready(function() {
                     // if (typeof toastr !== 'undefined') {
                     //     toastr.success(response.message || `${stepKey}ステップを保存しました`);
                     // } else {
-                    //     alert(`${stepKey}ステップを保存しました`);
+                    //     showErrorModal(`${stepKey}ステップを保存しました`);
                     // }
                     // 進捗状況を更新
                     updateProgressTimeline();
@@ -2793,7 +2907,7 @@ $(document).ready(function() {
                     if (typeof toastr !== 'undefined') {
                         toastr.error(response.message || '保存に失敗しました');
                     } else {
-                        alert('保存に失敗しました');
+                        showErrorModal('保存に失敗しました');
                     }
                 }
             },
@@ -2821,11 +2935,12 @@ $(document).ready(function() {
                 if (typeof toastr !== 'undefined') {
                     toastr.error(errorMessage);
                 } else {
-                    alert(errorMessage);
+                    showErrorModal(errorMessage);
                 }
             }
         });
-    });
+        }, 500);
+    }
 
     // 初期部材費項目を1つ追加
     addMaterialItem();
@@ -3129,6 +3244,9 @@ $(document).ready(function() {
     // 汎用フィールドの変更を監視（動的に追加されるステップも含む）
     // _dateで終わるフィールド（estimate_issued_date, contract_date, dynamic_field_*は除外）
     $(document).on('change', 'input[name$="_date"]:not([name="estimate_issued_date"]):not([name="contract_date"]):not([name^="dynamic_field_"]), input[name$="_completed"]:not([name^="dynamic_field_"]), select[name="invoice_issued"]', function() {
+        // 保存状態を表示
+        showSavingStatus('saving');
+
         // データベースに保存（汎用）
         var fieldName = $(this).attr('name');
         var fieldValue;
@@ -3157,6 +3275,9 @@ $(document).ready(function() {
                 if (response && response.success) {
                     console.log(fieldName + 'を保存しました:', fieldValue);
 
+                    // 保存成功を表示
+                    showSavingStatus('saved');
+
                     // projectDataを更新
                     projectData[fieldName] = fieldValue;
 
@@ -3165,6 +3286,7 @@ $(document).ready(function() {
                     updateProgressStatus();
                 } else {
                     console.error('保存失敗:', response);
+                    showSavingStatus('error');
                     if (typeof toastr !== 'undefined') {
                         toastr.error(response.message || fieldName + 'の保存に失敗しました');
                     }
@@ -3178,6 +3300,9 @@ $(document).ready(function() {
                     responseText: xhr.responseText,
                     statusCode: xhr.status
                 });
+
+                // 保存エラーを表示
+                showSavingStatus('error');
 
                 let errorMessage = fieldName + 'の保存中にエラーが発生しました';
                 if (xhr.responseJSON && xhr.responseJSON.message) {
@@ -3210,6 +3335,9 @@ $(document).ready(function() {
         console.log('見積書不要チェック:', notRequiredChecked);
         console.log('入力された日付:', dateValue);
 
+        // 保存状態を表示
+        showSavingStatus('saving');
+
         // データベースに保存
         console.log('AJAX保存を開始します - URL:', '{% url "order_management:update_progress" project.pk %}');
         $.ajax({
@@ -3228,6 +3356,9 @@ $(document).ready(function() {
                 if (response && response.success) {
                     console.log('✓ 見積書発行日の保存に成功しました');
                     console.log('保存された日付:', dateValue);
+
+                    // 保存成功を表示
+                    showSavingStatus('saved');
 
                     // projectDataを更新
                     projectData.estimate_issued_date = dateValue;
@@ -3253,10 +3384,11 @@ $(document).ready(function() {
                     updateAllStepStatuses();
                 } else {
                     console.error('保存失敗:', response);
+                    showSavingStatus('error');
                     if (typeof toastr !== 'undefined') {
                         toastr.error(response.message || '見積書発行日の保存に失敗しました');
                     } else {
-                        alert('見積書発行日の保存に失敗しました');
+                        showErrorModal('見積書発行日の保存に失敗しました');
                     }
                 }
             },
@@ -3267,6 +3399,9 @@ $(document).ready(function() {
                     responseText: xhr.responseText,
                     statusCode: xhr.status
                 });
+
+                // 保存エラーを表示
+                showSavingStatus('error');
 
                 let errorMessage = '見積書発行日の保存中にエラーが発生しました';
                 if (xhr.responseJSON && xhr.responseJSON.message) {
@@ -3284,7 +3419,7 @@ $(document).ready(function() {
                 if (typeof toastr !== 'undefined') {
                     toastr.error(errorMessage);
                 } else {
-                    alert(errorMessage);
+                    showErrorModal(errorMessage);
                 }
             }
         });
@@ -3350,7 +3485,7 @@ $(document).ready(function() {
                     if (typeof toastr !== 'undefined') {
                         toastr.error(response.message || '見積書不要フラグの保存に失敗しました');
                     } else {
-                        alert('見積書不要フラグの保存に失敗しました');
+                        showErrorModal('見積書不要フラグの保存に失敗しました');
                     }
                 }
             },
@@ -3378,7 +3513,7 @@ $(document).ready(function() {
                 if (typeof toastr !== 'undefined') {
                     toastr.error(errorMessage);
                 } else {
-                    alert(errorMessage);
+                    showErrorModal(errorMessage);
                 }
             }
         });
@@ -3469,7 +3604,7 @@ $(document).ready(function() {
             if (typeof toastr !== 'undefined') {
                 toastr.error('ファイルサイズは10MB以下にしてください');
             } else {
-                alert('ファイルサイズは10MB以下にしてください');
+                showErrorModal('ファイルサイズは10MB以下にしてください');
             }
             fileInput.value = '';
             return;
@@ -3479,6 +3614,7 @@ $(document).ready(function() {
         formData.append('file', file);
         formData.append('related_step', 'estimate');
         formData.append('description', '見積もり書類');
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
 
         const uploadBtn = $(fileInput).closest('.estimate-files-section').find('.upload-estimate-file-btn');
         uploadBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>アップロード中...');
@@ -3504,7 +3640,7 @@ $(document).ready(function() {
                 if (typeof toastr !== 'undefined') {
                     toastr.error(error);
                 } else {
-                    alert(error);
+                    showErrorModal(error);
                 }
             },
             complete: function() {
@@ -3516,10 +3652,10 @@ $(document).ready(function() {
 
     // ファイル削除
     $(document).on('click', '.delete-estimate-file-btn', function() {
-        if (!confirm('このファイルを削除しますか？')) return;
-
         const fileId = $(this).data('file-id');
         const fileItem = $(this).closest('.list-group-item');
+
+        showConfirmModal('このファイルを削除しますか？', function() {
 
         $.ajax({
             url: '{% url "order_management:step_file_delete_ajax" project.pk 0 %}'.replace('/0/', `/${fileId}/`),
@@ -3547,10 +3683,11 @@ $(document).ready(function() {
                 if (typeof toastr !== 'undefined') {
                     toastr.error(error);
                 } else {
-                    alert(error);
+                    showErrorModal(error);
                 }
             }
         });
+        }); // showConfirmModal callback閉じ括弧
     });
 
     // 契約日の変更を監視
@@ -3603,7 +3740,7 @@ $(document).ready(function() {
                     if (typeof toastr !== 'undefined') {
                         toastr.error(response.message || '契約日の保存に失敗しました');
                     } else {
-                        alert('契約日の保存に失敗しました');
+                        showErrorModal('契約日の保存に失敗しました');
                     }
                 }
             },
@@ -3631,7 +3768,7 @@ $(document).ready(function() {
                 if (typeof toastr !== 'undefined') {
                     toastr.error(errorMessage);
                 } else {
-                    alert(errorMessage);
+                    showErrorModal(errorMessage);
                 }
             }
         });
@@ -3798,7 +3935,7 @@ $(document).ready(function() {
                     if (typeof toastr !== 'undefined') {
                         toastr.success('完了報告ファイルをアップロードしました');
                     } else {
-                        alert('完了報告ファイルをアップロードしました');
+                        showErrorModal('完了報告ファイルをアップロードしました');
                     }
                     // ページをリロードして最新の状態を表示
                     setTimeout(function() {
@@ -3809,7 +3946,7 @@ $(document).ready(function() {
                     if (typeof toastr !== 'undefined') {
                         toastr.error(response.message || 'ファイルのアップロードに失敗しました');
                     } else {
-                        alert('ファイルのアップロードに失敗しました');
+                        showErrorModal('ファイルのアップロードに失敗しました');
                     }
                 }
             },
@@ -3818,7 +3955,7 @@ $(document).ready(function() {
                 if (typeof toastr !== 'undefined') {
                     toastr.error('ファイルのアップロードに失敗しました: ' + error);
                 } else {
-                    alert('ファイルのアップロードに失敗しました: ' + error);
+                    showErrorModal('ファイルのアップロードに失敗しました: ' + error);
                 }
             }
         });
@@ -3884,6 +4021,9 @@ $(document).ready(function() {
         const stepKey = fieldName.replace(/^dynamic_field_/, '').split('_')[0];
         const $step = $(`.progress-step[data-step="${stepKey}"]`);
 
+        // 保存状態を表示
+        showSavingStatus('saving');
+
         // データベースに保存（複合ステップフィールド）
         const fieldValue = $(this).is(':checkbox') ? $(this).is(':checked') : $(this).val();
         const data = {
@@ -3903,6 +4043,9 @@ $(document).ready(function() {
                 // レスポンスの検証
                 if (response && response.success) {
                     console.log('複合ステップフィールドを保存しました:', fieldName, fieldValue);
+
+                    // 保存成功を表示
+                    showSavingStatus('saved');
 
                     // 保存成功後にUIを更新
                     if ($step.length > 0) {
@@ -3933,6 +4076,7 @@ $(document).ready(function() {
                     }
                 } else {
                     console.error('保存失敗:', response);
+                    showSavingStatus('error');
                     if (typeof toastr !== 'undefined') {
                         toastr.error(response.message || '複合ステップフィールドの保存に失敗しました');
                     }
@@ -3946,6 +4090,9 @@ $(document).ready(function() {
                     responseText: xhr.responseText,
                     statusCode: xhr.status
                 });
+
+                // 保存エラーを表示
+                showSavingStatus('error');
 
                 let errorMessage = '複合ステップフィールドの保存中にエラーが発生しました';
                 if (xhr.responseJSON && xhr.responseJSON.message) {
@@ -4743,7 +4890,7 @@ $(document).ready(function() {
 
         // 確認のため一時停止（本番では削除してください）
         // e.preventDefault();
-        // alert(`${dynamicFields.length} 個のdynamic_field_を送信します。コンソールを確認してください。`);
+        // showErrorModal(`${dynamicFields.length} 個のdynamic_field_を送信します。コンソールを確認してください。`);
     });
 
     // 複合ステップのフィールドデータを収集してフォームに追加
@@ -5310,11 +5457,6 @@ $(document).ready(function() {
                 ${statusHtml}
                 <div class="progress-step-content">
                     ${fieldHtml}
-                    <div class="mt-3">
-                        <button type="button" class="btn btn-primary btn-sm save-step-btn" data-step="${stepKey}">
-                            <i class="fas fa-save me-1"></i>保存
-                        </button>
-                    </div>
                 </div>
             </div>
         `;
@@ -5467,6 +5609,9 @@ $(document).ready(function() {
                         <i class="fas fa-info-circle me-1"></i>調査が未スケジュールです
                     </div>
                     {% endif %}
+
+                    <!-- 現調担当者の表示 -->
+                    ${generateStepSubcontractCardHtml('survey')}
                 </div>
             </div>
         `;
@@ -5712,7 +5857,7 @@ $(document).ready(function() {
                 {
                     name: 'assignees',
                     label: '担当者',
-                    type: 'staff_multiple',
+                    type: 'staff_select_list',
                     required: false
                 },
                 {
@@ -5916,20 +6061,13 @@ $(document).ready(function() {
             chosenClass: 'sortable-chosen',
             dragClass: 'sortable-drag',
             onStart: function (evt) {
-                // ドラッグ開始時にコンテンツを非表示
-                $('.progress-step-content').hide();
+                // ドラッグ開始時は現在の表示状態を維持（何もしない）
             },
             onEnd: function (evt) {
                 // ドラッグ終了時の処理
                 console.log('ステップ順序変更:', evt.oldIndex, '->', evt.newIndex);
 
-                // ドラッグ後も全て展開状態を維持
-                setTimeout(() => {
-                    $('.progress-step').addClass('expanded');
-                    $('.progress-step-content').show();
-                }, 100);
-
-                // 順序をサーバーに保存
+                // 現在の表示状態を維持したまま順序をサーバーに保存
                 saveStepOrder();
                 saveStepsToServer();
             }
@@ -6023,7 +6161,7 @@ $(document).ready(function() {
         //     if (typeof toastr !== 'undefined') {
         //         toastr.warning('ステップ編集モードに入ってからステップを追加してください。');
         //     } else {
-        //         alert('ステップ編集モードに入ってからステップを追加してください。');
+        //         showErrorModal('ステップ編集モードに入ってからステップを追加してください。');
         //     }
         //     return;
         // }
@@ -6033,7 +6171,7 @@ $(document).ready(function() {
             if (typeof toastr !== 'undefined') {
                 toastr.error('ステップデータが見つかりません。');
             } else {
-                alert('ステップデータが見つかりません。');
+                showErrorModal('ステップデータが見つかりません。');
             }
             return;
         }
@@ -6046,7 +6184,7 @@ $(document).ready(function() {
                 if (typeof toastr !== 'undefined') {
                     toastr.info(`${stepData.name}は既に追加されています。`);
                 } else {
-                    alert(`${stepData.name}は既に追加されています。`);
+                    showErrorModal(`${stepData.name}は既に追加されています。`);
                 }
                 return;
             }
@@ -6068,13 +6206,13 @@ $(document).ready(function() {
                         // 成功時：ページをリロードして新しいステップを表示
                         location.reload();
                     } else {
-                        alert('ステップの追加に失敗しました: ' + data.error);
+                        showErrorModal('ステップの追加に失敗しました: ' + data.error);
                         $btn.prop('disabled', false).html('<i class="fas fa-plus"></i> 追加');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('エラーが発生しました');
+                    showErrorModal('エラーが発生しました');
                     $btn.prop('disabled', false).html('<i class="fas fa-plus"></i> 追加');
                 });
             } else {
@@ -6119,7 +6257,7 @@ $(document).ready(function() {
                     // if (typeof toastr !== 'undefined') {
                     //     toastr.success(`${stepData.name}を追加しました。「編集完了」ボタンをクリックして保存してください。`);
                     // } else {
-                    //     alert(`${stepData.name}を追加しました。「編集完了」ボタンをクリックして保存してください。`);
+                    //     showErrorModal(`${stepData.name}を追加しました。「編集完了」ボタンをクリックして保存してください。`);
                     // }
                 } else {
                     addStepToProgress(stepData);
@@ -6394,15 +6532,10 @@ $(document).ready(function() {
                         <i class="fas fa-minus"></i>
                     </button>
                 </div>
-                <div class="progress-step-date">未完了</div>
+                <div class="progress-step-date"><span class="badge bg-secondary">未完了</span></div>
                 <div class="progress-step-content">
                     ${fieldHtml}
                     ${additionalCardHtml}
-                    <div class="mt-3">
-                        <button type="button" class="btn btn-primary btn-sm save-step-btn" data-step="${stepData.key}">
-                            <i class="fas fa-save me-1"></i>保存
-                        </button>
-                    </div>
                 </div>
             </div>
         `;
@@ -6414,11 +6547,18 @@ $(document).ready(function() {
 
         // 請求書発行の前に挿入
         const invoiceStep = $('.progress-step[data-step="invoice"]');
+        let $newStep;
         if (invoiceStep.length > 0) {
             invoiceStep.before(stepHtml);
+            $newStep = invoiceStep.prev('.progress-step');
         } else {
             $('#activeSteps').append(stepHtml);
+            $newStep = $('#activeSteps .progress-step').last();
         }
+
+        // 新しく追加されたステップを展開状態にする
+        $newStep.addClass('expanded');
+        $newStep.find('.progress-step-content').show();
 
         // Sortableを再初期化（DOMの更新を待つため少し遅延）
         setTimeout(() => {
@@ -6436,7 +6576,7 @@ $(document).ready(function() {
         // if (typeof toastr !== 'undefined') {
         //     toastr.success(`${stepData.name}を追加しました。「編集完了」ボタンをクリックして保存してください。`);
         // } else {
-        //     alert(`${stepData.name}を追加しました。「編集完了」ボタンをクリックして保存してください。`);
+        //     showErrorModal(`${stepData.name}を追加しました。「編集完了」ボタンをクリックして保存してください。`);
         // }
     }
 
@@ -7052,24 +7192,50 @@ $(document).ready(function() {
 
             const hourlyRateDisplay = staff.hourly_rate ? `¥${staff.hourly_rate}/時間` : '-';
             tbody.append(`
-                <tr data-staff-id="${staff.id}">
-                    <td>${staff.name}</td>
+                <tr data-staff-id="${staff.id}" style="cursor: pointer;" onclick="selectStaff('${staff.id}')" onmouseover="this.style.backgroundColor='#f8f9fa'" onmouseout="this.style.backgroundColor=''">
+                    <td><strong>${staff.name}</strong></td>
                     <td>${staff.department}</td>
                     <td>${hourlyRateDisplay}</td>
                     <td>${staff.specialties || '-'}</td>
                     <td>${statusBadge}</td>
-                    <td>
+                    <td onclick="event.stopPropagation()">
                         <button type="button" class="btn btn-outline-primary btn-sm" onclick="editStaff('${staff.id}')">
-                            <i class="fas fa-edit"></i> 編集
-                        </button>
-                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteStaff('${staff.id}')">
-                            <i class="fas fa-trash"></i> 削除
+                            <i class="fas fa-edit"></i>
                         </button>
                     </td>
                 </tr>
             `);
         });
     }
+
+    // 担当者を選択してドロップダウンに反映
+    window.selectStaff = function(staffId) {
+        console.log('✅ selectStaff called', staffId);
+
+        // モーダルを閉じる
+        const modalElement = document.getElementById('staffManagementModal');
+        if (modalElement) {
+            $(modalElement).removeClass('show').css('display', 'none');
+            $('.modal-backdrop').remove();
+            $('body').removeClass('modal-open').css('overflow', '');
+        }
+
+        // 最後にフォーカスされていた担当者選択フィールドを探す
+        const lastFocusedSelect = $('.staff-select-container select').last();
+        if (lastFocusedSelect.length > 0) {
+            lastFocusedSelect.val(staffId);
+            console.log('✅ 担当者を選択しました:', staffId);
+        } else {
+            // フォーカスされたフィールドがない場合は、すべてのstaff_select_listフィールドの最初の空欄を埋める
+            $('.staff-select-container select').each(function() {
+                if (!$(this).val()) {
+                    $(this).val(staffId);
+                    console.log('✅ 担当者を選択しました（空欄に）:', staffId);
+                    return false; // break
+                }
+            });
+        }
+    };
 
     // スタッフ追加
     window.addNewStaff = function() {
@@ -7100,7 +7266,22 @@ $(document).ready(function() {
         const staff = staffMaster.find(s => s.id === staffId);
         if (!staff) return;
 
-        if (confirm(`「${staff.name}」を削除しますか？`)) {
+        // モーダルに担当者名を設定
+        $('#deleteStaffName').text(staff.name);
+
+        // モーダルを表示
+        const modal = new bootstrap.Modal(document.getElementById('staffDeleteConfirmModal'));
+        modal.show();
+
+        // backdrop z-indexを調整
+        setTimeout(function() {
+            $('.modal-backdrop').last().css('z-index', 10049);
+        }, 10);
+
+        // 確認ボタンのイベントハンドラを設定
+        $('#confirmDeleteStaffBtn').off('click').on('click', function() {
+            $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>削除中...');
+
             $.ajax({
                 url: `/orders/api/staff/${staffId}/`,
                 method: 'DELETE',
@@ -7113,6 +7294,7 @@ $(document).ready(function() {
                         staffMaster = staffMaster.filter(s => s.id !== staffId);
                         refreshStaffList();
                         updateStaffSelects();
+                        modal.hide();
                         if (typeof toastr !== 'undefined') {
                             toastr.success('担当者を削除しました');
                         }
@@ -7121,7 +7303,7 @@ $(document).ready(function() {
                         if (typeof toastr !== 'undefined') {
                             toastr.error(response.error || '削除に失敗しました');
                         } else {
-                            alert('削除に失敗しました: ' + (response.error || ''));
+                            showErrorModal('削除に失敗しました: ' + (response.error || ''));
                         }
                     }
                 },
@@ -7148,12 +7330,13 @@ $(document).ready(function() {
 
                     if (typeof toastr !== 'undefined') {
                         toastr.error(errorMessage);
-                    } else {
-                        alert(errorMessage);
                     }
+                },
+                complete: function() {
+                    $('#confirmDeleteStaffBtn').prop('disabled', false).html('<i class="fas fa-trash me-2"></i>削除する');
                 }
             });
-        }
+        });
     };
 
     // スタッフ保存
@@ -7167,7 +7350,7 @@ $(document).ready(function() {
         const active = $('#staffActive').is(':checked');
 
         if (!name) {
-            alert('担当者名を入力してください。');
+            showErrorModal('担当者名を入力してください。');
             return;
         }
 
@@ -7208,7 +7391,7 @@ $(document).ready(function() {
                         if (typeof toastr !== 'undefined') {
                             toastr.error(response.error || '更新に失敗しました');
                         } else {
-                            alert('更新に失敗しました: ' + (response.error || ''));
+                            showErrorModal('更新に失敗しました: ' + (response.error || ''));
                         }
                     }
                 },
@@ -7236,7 +7419,7 @@ $(document).ready(function() {
                     if (typeof toastr !== 'undefined') {
                         toastr.error(errorMessage);
                     } else {
-                        alert(errorMessage);
+                        showErrorModal(errorMessage);
                     }
                 }
             });
@@ -7265,7 +7448,7 @@ $(document).ready(function() {
                         if (typeof toastr !== 'undefined') {
                             toastr.error(response.error || '追加に失敗しました');
                         } else {
-                            alert('追加に失敗しました: ' + (response.error || ''));
+                            showErrorModal('追加に失敗しました: ' + (response.error || ''));
                         }
                     }
                 },
@@ -7293,7 +7476,7 @@ $(document).ready(function() {
                     if (typeof toastr !== 'undefined') {
                         toastr.error(errorMessage);
                     } else {
-                        alert(errorMessage);
+                        showErrorModal(errorMessage);
                     }
                 }
             });
@@ -7400,7 +7583,7 @@ $(document).ready(function() {
         const commentText = $('#newCommentText').val().trim();
 
         if (!commentText) {
-            alert('コメントを入力してください');
+            showErrorModal('コメントを入力してください');
             return;
         }
 
@@ -7421,11 +7604,11 @@ $(document).ready(function() {
                     // コメント一覧を再読み込み
                     loadDetailedComments();
                 } else {
-                    alert('コメントの保存に失敗しました: ' + (data.error || '不明なエラー'));
+                    showErrorModal('コメントの保存に失敗しました: ' + (data.error || '不明なエラー'));
                 }
             },
             error: function(xhr) {
-                alert('コメントの保存に失敗しました');
+                showErrorModal('コメントの保存に失敗しました');
                 console.error(xhr);
             }
         });
@@ -7434,11 +7617,11 @@ $(document).ready(function() {
 
 // ファイル削除確認 - Phase 5
 function confirmFileDelete(fileId, fileName) {
-    if (confirm(`ファイル「${fileName}」を削除してもよろしいですか？\n\nこの操作は取り消せません。`)) {
+    showConfirmModal(`ファイル「${fileName}」を削除してもよろしいですか？\n\nこの操作は取り消せません。`, function() {
         const form = document.getElementById('fileDeleteForm');
         form.action = `/orders/projects/${projectId}/files/${fileId}/delete/`;
         form.submit();
-    }
+    });
 }
 </script>
 
@@ -7526,6 +7709,32 @@ function confirmFileDelete(fileId, fileName) {
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
                 <button type="button" class="btn btn-primary" onclick="saveStaff()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 担当者削除確認モーダル -->
+<div class="modal fade" id="staffDeleteConfirmModal" tabindex="-1" style="z-index: 10050 !important;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle me-2"></i>削除の確認
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>担当者「<strong id="deleteStaffName"></strong>」を削除してもよろしいですか？</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle me-2"></i>この操作は取り消せません。
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteStaffBtn">
+                    <i class="fas fa-trash me-2"></i>削除する
+                </button>
             </div>
         </div>
     </div>
@@ -8401,14 +8610,14 @@ function postComment() {
     const files = filesInput.files;
 
     if (!content) {
-        alert('コメント内容を入力してください');
+        showErrorModal('コメント内容を入力してください');
         return;
     }
 
     // ファイルサイズチェック（10MB制限）
     for (let file of files) {
         if (file.size > 10 * 1024 * 1024) {
-            alert(`ファイル "${file.name}" が10MBを超えています`);
+            showErrorModal(`ファイル "${file.name}" が10MBを超えています`);
             return;
         }
     }
@@ -8448,12 +8657,12 @@ function postComment() {
             // 成功メッセージ
             showToast('コメントを投稿しました', 'success');
         } else {
-            alert('エラー: ' + (data.error || 'コメントの投稿に失敗しました'));
+            showErrorModal('エラー: ' + (data.error || 'コメントの投稿に失敗しました'));
         }
     })
     .catch(error => {
         console.error('コメント投稿エラー:', error);
-        alert('コメントの投稿に失敗しました');
+        showErrorModal('コメントの投稿に失敗しました');
     });
 }
 
@@ -8541,11 +8750,11 @@ document.getElementById('comment-content').addEventListener('keydown', function(
 
 // ファイル削除確認 - Phase 5
 function confirmFileDelete(fileId, fileName) {
-    if (confirm(`ファイル「${fileName}」を削除してもよろしいですか？\n\nこの操作は取り消せません。`)) {
+    showConfirmModal(`ファイル「${fileName}」を削除してもよろしいですか？\n\nこの操作は取り消せません。`, function() {
         const form = document.getElementById('fileDeleteForm');
         form.action = `/orders/projects/${projectId}/files/${fileId}/delete/`;
         form.submit();
-    }
+    });
 }
 
 // 受注ヨミの変更を自動保存（案件詳細画面）
@@ -8602,7 +8811,7 @@ $(document).on('change', '.order-forecast-select-detail', function(e) {
                 if (typeof toastr !== 'undefined') {
                     toastr.error(response.error || '保存に失敗しました');
                 } else {
-                    alert('保存に失敗しました: ' + (response.error || '不明なエラー'));
+                    showErrorModal('保存に失敗しました: ' + (response.error || '不明なエラー'));
                 }
                 location.reload();
             }
@@ -8631,7 +8840,7 @@ $(document).on('change', '.order-forecast-select-detail', function(e) {
             if (typeof toastr !== 'undefined') {
                 toastr.error(errorMessage);
             } else {
-                alert(errorMessage);
+                showErrorModal(errorMessage);
             }
             location.reload();
         },
@@ -8805,7 +9014,7 @@ function saveField(button) {
                 if (typeof toastr !== 'undefined') {
                     toastr.error(response.error || '保存に失敗しました');
                 } else {
-                    alert(response.error || '保存に失敗しました');
+                    showErrorModal(response.error || '保存に失敗しました');
                 }
             }
         },
@@ -8814,7 +9023,7 @@ function saveField(button) {
             if (typeof toastr !== 'undefined') {
                 toastr.error(errorMsg);
             } else {
-                alert(errorMsg);
+                showErrorModal(errorMsg);
             }
             console.error('Save error:', xhr);
         }
@@ -9177,7 +9386,7 @@ function saveSubcontract() {
         // 現在の工程の金額を取得
         const currentStepAmount = $('#currentStepAmount').val();
         if (!currentStepAmount || currentStepAmount <= 0) {
-            alert('メイン工程の契約金額を入力してください');
+            showErrorModal('メイン工程の契約金額を入力してください');
             return;
         }
 
@@ -9188,7 +9397,7 @@ function saveSubcontract() {
             const stepKey = $(this).data('step');
             const amount = $(this).val();
             if (!amount || amount <= 0) {
-                alert(`${$(this).prev('label').text().replace(/（.*）/, '')}の契約金額を入力してください`);
+                showErrorModal(`${$(this).prev('label').text().replace(/（.*）/, '')}の契約金額を入力してください`);
                 hasError = true;
                 return false;
             }
@@ -9283,7 +9492,7 @@ function saveSubcontract() {
             if (typeof toastr !== 'undefined') {
                 toastr.error(errorMessage);
             } else {
-                alert(errorMessage);
+                showErrorModal(errorMessage);
             }
 
             // ボタンを元に戻す
@@ -9473,7 +9682,7 @@ function saveMaterialOrder() {
             if (typeof toastr !== 'undefined') {
                 toastr.error(errorMessage);
             } else {
-                alert(errorMessage);
+                showErrorModal(errorMessage);
             }
 
             // ボタンを元に戻す
@@ -9554,7 +9763,7 @@ window.refreshContractorList = function() {
         console.log(`  - ${contractor.name}: 種別=${contractor.contractor_type_display}, 締め日=${contractor.closing_day}, 支払月=${contractor.payment_offset_months_display}, 支払い日=${contractor.payment_day}`);
 
         html += `
-            <tr>
+            <tr style="cursor: pointer;" onclick="selectContractor(${contractor.id})" onmouseover="this.style.backgroundColor='#f8f9fa'" onmouseout="this.style.backgroundColor=''">
                 <td><strong>${escapeHtml(contractor.name)}</strong></td>
                 <td>${contractorTypeText}</td>
                 <td>${escapeHtml(contractor.address || '-')}</td>
@@ -9566,10 +9775,7 @@ window.refreshContractorList = function() {
                 <td class="text-center">${paymentOffsetMonthsText}</td>
                 <td class="text-center">${paymentDayText}</td>
                 <td class="text-center">${statusBadge}</td>
-                <td>
-                    <button class="btn btn-sm btn-success me-1" onclick="selectContractor(${contractor.id})" title="この下請け業者を選択">
-                        <i class="fas fa-check"></i> 選択
-                    </button>
+                <td onclick="event.stopPropagation()">
                     <button class="btn btn-sm btn-outline-primary" onclick="editContractor(${contractor.id})" title="編集">
                         <i class="fas fa-edit"></i>
                     </button>

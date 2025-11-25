@@ -1,0 +1,229 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load l10n %}
+
+{% block title %}評価基準設定{% endblock %}
+
+{% block extra_css %}
+<style>
+    .settings-container {
+        background: #f8f9fa;
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .settings-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 4px 20px rgba(71,85,105,0.08);
+        border: 1px solid #e2e8f0;
+        margin-bottom: 2rem;
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #374151;
+        border-bottom: 2px solid #3b82f6;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .criteria-group {
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e5e7eb;
+    }
+
+    .score-input-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1rem;
+        gap: 1rem;
+    }
+
+    .score-label {
+        width: 80px;
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    .input-with-unit {
+        display: flex;
+        align-items: center;
+        flex: 1;
+    }
+
+    .input-with-unit input {
+        flex: 1;
+    }
+
+    .input-unit {
+        margin-left: 0.5rem;
+        color: #6b7280;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-sliders-h me-3"></i>レーダーチャート評価基準設定
+            </h1>
+            <a href="{% url 'order_management:client_company_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>元請会社一覧に戻る
+            </a>
+        </div>
+
+        <div class="settings-card">
+            <div class="alert alert-info mb-4">
+                <i class="fas fa-info-circle me-2"></i>
+                ここで設定した基準値は、元請会社詳細ページのレーダーチャートのスコア計算に使用されます。
+            </div>
+
+            {% localize off %}
+            <form method="post">
+                {% csrf_token %}
+
+                <!-- 累計売上基準 -->
+                <div class="criteria-group">
+                    <h5 class="mb-3 text-primary">
+                        <i class="fas fa-yen-sign me-2"></i>累計売り上げスコア基準
+                    </h5>
+                    <div class="score-input-row">
+                        <span class="score-label">5点基準</span>
+                        <div class="input-with-unit">
+                            <input type="number" class="form-control" name="total_sales_score_5"
+                                   value="{{ criteria.total_sales_score_5 }}" required min="0" step="100000">
+                            <span class="input-unit">円以上</span>
+                        </div>
+                    </div>
+                    <div class="score-input-row">
+                        <span class="score-label">4点基準</span>
+                        <div class="input-with-unit">
+                            <input type="number" class="form-control" name="total_sales_score_4"
+                                   value="{{ criteria.total_sales_score_4 }}" required min="0" step="100000">
+                            <span class="input-unit">円以上</span>
+                        </div>
+                    </div>
+                    <div class="score-input-row">
+                        <span class="score-label">3点基準</span>
+                        <div class="input-with-unit">
+                            <input type="number" class="form-control" name="total_sales_score_3"
+                                   value="{{ criteria.total_sales_score_3 }}" required min="0" step="100000">
+                            <span class="input-unit">円以上</span>
+                        </div>
+                    </div>
+                    <div class="score-input-row">
+                        <span class="score-label">2点基準</span>
+                        <div class="input-with-unit">
+                            <input type="number" class="form-control" name="total_sales_score_2"
+                                   value="{{ criteria.total_sales_score_2 }}" required min="0" step="100000">
+                            <span class="input-unit">円以上</span>
+                        </div>
+                    </div>
+                    <small class="text-muted">※ 2点基準未満は1点となります</small>
+                </div>
+
+                <!-- 平均売上基準 -->
+                <div class="criteria-group">
+                    <h5 class="mb-3 text-primary">
+                        <i class="fas fa-chart-line me-2"></i>平均売り上げスコア基準
+                    </h5>
+                    <div class="score-input-row">
+                        <span class="score-label">5点基準</span>
+                        <div class="input-with-unit">
+                            <input type="number" class="form-control" name="avg_sales_score_5"
+                                   value="{{ criteria.avg_sales_score_5 }}" required min="0" step="10000">
+                            <span class="input-unit">円以上</span>
+                        </div>
+                    </div>
+                    <div class="score-input-row">
+                        <span class="score-label">4点基準</span>
+                        <div class="input-with-unit">
+                            <input type="number" class="form-control" name="avg_sales_score_4"
+                                   value="{{ criteria.avg_sales_score_4 }}" required min="0" step="10000">
+                            <span class="input-unit">円以上</span>
+                        </div>
+                    </div>
+                    <div class="score-input-row">
+                        <span class="score-label">3点基準</span>
+                        <div class="input-with-unit">
+                            <input type="number" class="form-control" name="avg_sales_score_3"
+                                   value="{{ criteria.avg_sales_score_3 }}" required min="0" step="10000">
+                            <span class="input-unit">円以上</span>
+                        </div>
+                    </div>
+                    <div class="score-input-row">
+                        <span class="score-label">2点基準</span>
+                        <div class="input-with-unit">
+                            <input type="number" class="form-control" name="avg_sales_score_2"
+                                   value="{{ criteria.avg_sales_score_2 }}" required min="0" step="10000">
+                            <span class="input-unit">円以上</span>
+                        </div>
+                    </div>
+                    <small class="text-muted">※ 2点基準未満は1点となります</small>
+                </div>
+
+                <!-- 平均粗利益率基準 -->
+                <div class="criteria-group">
+                    <h5 class="mb-3 text-primary">
+                        <i class="fas fa-percentage me-2"></i>平均粗利益率スコア基準
+                    </h5>
+                    <div class="score-input-row">
+                        <span class="score-label">5点基準</span>
+                        <div class="input-with-unit">
+                            <input type="number" class="form-control" name="profit_margin_score_5"
+                                   value="{{ criteria.profit_margin_score_5 }}" required min="0" max="100" step="0.1">
+                            <span class="input-unit">% 以上</span>
+                        </div>
+                    </div>
+                    <div class="score-input-row">
+                        <span class="score-label">4点基準</span>
+                        <div class="input-with-unit">
+                            <input type="number" class="form-control" name="profit_margin_score_4"
+                                   value="{{ criteria.profit_margin_score_4 }}" required min="0" max="100" step="0.1">
+                            <span class="input-unit">% 以上</span>
+                        </div>
+                    </div>
+                    <div class="score-input-row">
+                        <span class="score-label">3点基準</span>
+                        <div class="input-with-unit">
+                            <input type="number" class="form-control" name="profit_margin_score_3"
+                                   value="{{ criteria.profit_margin_score_3 }}" required min="0" max="100" step="0.1">
+                            <span class="input-unit">% 以上</span>
+                        </div>
+                    </div>
+                    <div class="score-input-row">
+                        <span class="score-label">2点基準</span>
+                        <div class="input-with-unit">
+                            <input type="number" class="form-control" name="profit_margin_score_2"
+                                   value="{{ criteria.profit_margin_score_2 }}" required min="0" max="100" step="0.1">
+                            <span class="input-unit">% 以上</span>
+                        </div>
+                    </div>
+                    <small class="text-muted">※ 2点基準未満は1点となります</small>
+                </div>
+
+                <div class="text-end">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save me-2"></i>保存
+                    </button>
+                </div>
+            </form>
+            {% endlocalize %}
+        </div>
+
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>注意:</strong> 対応のしやすさと作業のしやすさの評価基準は変更できません。これらは元請会社編集画面で直接設定した値が使用されます。
+        </div>
+    </div>
+</div>
+{% endblock %}

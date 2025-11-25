@@ -192,9 +192,8 @@
                     <thead>
                         <tr>
                             <th>会社名</th>
-                            <th>担当者</th>
+                            <th>主担当者</th>
                             <th>連絡先</th>
-                            <th>ホームページ</th>
                             <th>支払サイクル</th>
                             <th>関連案件数</th>
                             <th>ステータス</th>
@@ -207,26 +206,34 @@
                             <td>
                                 <strong>{{ company.company_name }}</strong>
                             </td>
-                            <td>{{ company.contact_person|default:"—" }}</td>
                             <td>
-                                {% if company.phone %}
-                                    <div><i class="fas fa-phone me-1"></i>{{ company.phone }}</div>
-                                {% endif %}
-                                {% if company.email %}
-                                    <div><i class="fas fa-envelope me-1"></i>{{ company.email }}</div>
-                                {% endif %}
-                                {% if not company.phone and not company.email %}
-                                    —
-                                {% endif %}
+                                {% with primary_contact=company.contact_persons.all|dictsort:"is_primary"|last %}
+                                    {% if primary_contact %}
+                                        {{ primary_contact.name }}
+                                        {% if primary_contact.position %}
+                                            <br><small class="text-muted">{{ primary_contact.position }}</small>
+                                        {% endif %}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                {% endwith %}
                             </td>
                             <td>
-                                {% if company.website %}
-                                    <a href="{{ company.website }}" target="_blank" rel="noopener noreferrer">
-                                        <i class="fas fa-external-link-alt me-1"></i>サイト
-                                    </a>
-                                {% else %}
-                                    —
-                                {% endif %}
+                                {% with primary_contact=company.contact_persons.all|dictsort:"is_primary"|last %}
+                                    {% if primary_contact %}
+                                        {% if primary_contact.phone %}
+                                            <div><i class="fas fa-phone me-1"></i>{{ primary_contact.phone }}</div>
+                                        {% endif %}
+                                        {% if primary_contact.email %}
+                                            <div><i class="fas fa-envelope me-1"></i>{{ primary_contact.email }}</div>
+                                        {% endif %}
+                                        {% if not primary_contact.phone and not primary_contact.email %}
+                                            —
+                                        {% endif %}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                {% endwith %}
                             </td>
                             <td>
                                 {% if company.payment_cycle %}

@@ -91,6 +91,13 @@
         color: #ef4444;
         font-size: 0.875rem;
     }
+
+    .contact-person-card {
+        background: #f8fafc;
+        border-left: 4px solid #3b82f6;
+        padding: 1rem;
+        border-radius: 0 0.5rem 0.5rem 0;
+    }
 </style>
 {% endblock %}
 
@@ -135,36 +142,12 @@
                         </div>
 
                         <div class="row">
-                            <div class="col-md-8 mb-3">
+                            <div class="col-md-12 mb-3">
                                 <label for="{{ form.company_name.id_for_label }}" class="form-label required">
                                     会社名
                                 </label>
                                 {{ form.company_name }}
                                 {{ form.company_name.errors }}
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="{{ form.contact_person.id_for_label }}" class="form-label">
-                                    担当者名
-                                </label>
-                                {{ form.contact_person }}
-                                {{ form.contact_person.errors }}
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.email.id_for_label }}" class="form-label">
-                                    メールアドレス
-                                </label>
-                                {{ form.email }}
-                                {{ form.email.errors }}
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="{{ form.phone.id_for_label }}" class="form-label">
-                                    電話番号
-                                </label>
-                                {{ form.phone }}
-                                {{ form.phone.errors }}
                             </div>
                         </div>
 
@@ -176,13 +159,23 @@
                             {{ form.address.errors }}
                         </div>
 
-                        <div class="mb-3">
-                            <label for="{{ form.website.id_for_label }}" class="form-label">
-                                ホームページ
-                            </label>
-                            {{ form.website }}
-                            <div class="help-text">会社のウェブサイトURL（例：https://example.com）</div>
-                            {{ form.website.errors }}
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.invoice_submission_deadline.id_for_label }}" class="form-label">
+                                    請求書提出期限（日）
+                                </label>
+                                {{ form.invoice_submission_deadline }}
+                                <div class="help-text">毎月の請求書提出期限日（例：25日提出の場合は25）</div>
+                                {{ form.invoice_submission_deadline.errors }}
+                            </div>
+                            <div class="col-md-8 mb-3">
+                                <label for="{{ form.invoice_submission_notes.id_for_label }}" class="form-label">
+                                    請求書提出期限 補足説明
+                                </label>
+                                {{ form.invoice_submission_notes }}
+                                <div class="help-text">例：毎月25日必着、月末必着など</div>
+                                {{ form.invoice_submission_notes.errors }}
+                            </div>
                         </div>
 
                         <!-- 支払いサイクル設定 -->
@@ -265,6 +258,95 @@
                             {{ form.completion_report_notes.errors }}
                         </div>
 
+                        <!-- 業務情報 -->
+                        <div class="section-title">
+                            <i class="fas fa-briefcase me-2"></i>業務情報
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                対応可能な工事種別
+                            </label>
+                            <div class="d-flex gap-2">
+                                {{ form.work_types }}
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openWorkTypeManagementModal()" title="工事種別を管理">
+                                    <i class="fas fa-tools"></i> 種別管理
+                                </button>
+                            </div>
+                            <div class="help-text">この元請から依頼される工事の種類を選択</div>
+                            {{ form.work_types.errors }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.pricing_tier.id_for_label }}" class="form-label">
+                                単価帯・共有単価表
+                            </label>
+                            {{ form.pricing_tier }}
+                            <div class="help-text">例：A単価表、B単価のみ共有、1式◯万円など</div>
+                            {{ form.pricing_tier.errors }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.site_rules.id_for_label }}" class="form-label">
+                                現場ルール
+                            </label>
+                            {{ form.site_rules }}
+                            <div class="help-text">現場での注意事項やルールを箇条書きで入力</div>
+                            {{ form.site_rules.errors }}
+                        </div>
+
+                        <!-- 品質・コミュニケーション -->
+                        <div class="section-title">
+                            <i class="fas fa-comments me-2"></i>品質・コミュニケーション
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.trouble_tendencies.id_for_label }}" class="form-label">
+                                トラブル傾向
+                            </label>
+                            {{ form.trouble_tendencies }}
+                            <div class="help-text">例：追加書類が多い、現場変更が急、指示内容が曖昧など</div>
+                            {{ form.trouble_tendencies.errors }}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.response_ease_rating.id_for_label }}" class="form-label">
+                                    対応のしやすさ
+                                </label>
+                                {{ form.response_ease_rating }}
+                                <div class="help-text">連絡対応や意思決定のスムーズさを5段階で評価</div>
+                                {{ form.response_ease_rating.errors }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.response_ease_notes.id_for_label }}" class="form-label">
+                                    対応のしやすさ 補足
+                                </label>
+                                {{ form.response_ease_notes }}
+                                <div class="help-text">対応のしやすさに関する具体的な情報</div>
+                                {{ form.response_ease_notes.errors }}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.work_ease_rating.id_for_label }}" class="form-label">
+                                    作業のしやすさ
+                                </label>
+                                {{ form.work_ease_rating }}
+                                <div class="help-text">現場での作業のしやすさを5段階で評価</div>
+                                {{ form.work_ease_rating.errors }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.work_ease_notes.id_for_label }}" class="form-label">
+                                    作業のしやすさ 補足
+                                </label>
+                                {{ form.work_ease_notes }}
+                                <div class="help-text">作業のしやすさに関する具体的な情報</div>
+                                {{ form.work_ease_notes.errors }}
+                            </div>
+                        </div>
+
                         <!-- 運用ルール -->
                         <div class="section-title">
                             <i class="fas fa-clipboard-list me-2"></i>運用ルール・特記事項
@@ -298,8 +380,549 @@
                         </div>
                     </form>
                 </div>
+
+                <!-- 担当者情報（編集時のみ表示） -->
+                {% if object %}
+                <div class="form-card mt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="section-title mb-0">
+                            <i class="fas fa-users me-2"></i>担当者情報
+                        </div>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="openContactPersonModal()">
+                            <i class="fas fa-plus me-1"></i>担当者追加
+                        </button>
+                    </div>
+
+                    <div id="contactPersonsList">
+                        {% if object.contact_persons.all %}
+                            {% for person in object.contact_persons.all %}
+                            <div class="contact-person-card mb-3"
+                                 data-person-id="{{ person.id }}"
+                                 data-person-name="{{ person.name }}"
+                                 data-person-position="{{ person.position|default:'' }}"
+                                 data-person-email="{{ person.email|default:'' }}"
+                                 data-person-phone="{{ person.phone|default:'' }}"
+                                 data-person-notes="{{ person.personality_notes|default:'' }}"
+                                 data-person-isprimary="{{ person.is_primary|yesno:'true,false' }}">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <h6 class="mb-1">
+                                            {{ person.name }}
+                                            {% if person.is_primary %}
+                                                <span class="badge bg-warning text-dark">主担当</span>
+                                            {% endif %}
+                                        </h6>
+                                        {% if person.position %}
+                                            <small class="text-muted">{{ person.position }}</small>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="editContactPerson({{ person.id }})">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteContactPerson({{ person.id }}, '{{ person.name|escapejs }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {% if person.email or person.phone %}
+                                <div class="mb-2">
+                                    {% if person.email %}
+                                        <div><i class="fas fa-envelope me-2"></i>{{ person.email }}</div>
+                                    {% endif %}
+                                    {% if person.phone %}
+                                        <div><i class="fas fa-phone me-2"></i>{{ person.phone }}</div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+
+                                {% if person.personality_notes %}
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <strong>性格・特徴：</strong><br>
+                                        {{ person.personality_notes|linebreaksbr }}
+                                    </small>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted mb-0">担当者が登録されていません</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
             </div>
         </div>
     </div>
 </div>
+
+<!-- 担当者追加・編集モーダル（編集時のみ） -->
+{% if object %}
+<div class="modal fade" id="contactPersonModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="contactPersonModalLabel">
+                    <i class="fas fa-user me-2"></i><span id="contactPersonModalTitle">担当者追加</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="contactPersonForm">
+                    <input type="hidden" id="contactPersonId" name="id">
+                    <input type="hidden" id="contactPersonClientCompanyId" name="client_company_id" value="{{ object.id }}">
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="contactPersonName" class="form-label">担当者名 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="contactPersonName" name="name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="contactPersonPosition" class="form-label">役職</label>
+                            <input type="text" class="form-control" id="contactPersonPosition" name="position">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="contactPersonEmail" class="form-label">メールアドレス</label>
+                            <input type="email" class="form-control" id="contactPersonEmail" name="email">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="contactPersonPhone" class="form-label">電話番号</label>
+                            <input type="tel" class="form-control" id="contactPersonPhone" name="phone">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="contactPersonPersonalityNotes" class="form-label">性格・特徴（備考）</label>
+                        <textarea class="form-control" id="contactPersonPersonalityNotes" name="personality_notes" rows="3"></textarea>
+                        <small class="text-muted">担当者の性格や特徴、コミュニケーション時の注意点など</small>
+                    </div>
+
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="contactPersonIsPrimary" name="is_primary">
+                        <label class="form-check-label" for="contactPersonIsPrimary">
+                            主担当として設定
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>キャンセル
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveContactPerson()">
+                    <i class="fas fa-save me-1"></i>保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 担当者管理関数
+let contactPersonModal;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const modalElement = document.getElementById('contactPersonModal');
+    if (modalElement) {
+        contactPersonModal = new bootstrap.Modal(modalElement);
+    }
+});
+
+function openContactPersonModal() {
+    const form = document.getElementById('contactPersonForm');
+    if (!form) {
+        console.error('Form not found');
+        return;
+    }
+
+    form.reset();
+    document.getElementById('contactPersonId').value = '';
+    document.getElementById('contactPersonModalTitle').textContent = '担当者追加';
+
+    if (contactPersonModal) {
+        contactPersonModal.show();
+    }
+}
+
+function editContactPerson(personId) {
+    const personCard = document.querySelector(`[data-person-id="${personId}"]`);
+    if (!personCard) {
+        alert('担当者情報が見つかりません');
+        return;
+    }
+
+    if (!contactPersonModal) {
+        alert('モーダルが初期化されていません');
+        return;
+    }
+
+    const nameField = document.getElementById('contactPersonName');
+    const positionField = document.getElementById('contactPersonPosition');
+    const emailField = document.getElementById('contactPersonEmail');
+    const phoneField = document.getElementById('contactPersonPhone');
+    const notesField = document.getElementById('contactPersonPersonalityNotes');
+    const primaryField = document.getElementById('contactPersonIsPrimary');
+
+    if (!nameField) {
+        console.error('Form fields not found');
+        return;
+    }
+
+    document.getElementById('contactPersonId').value = personId;
+    nameField.value = personCard.dataset.personName || '';
+    positionField.value = personCard.dataset.personPosition || '';
+    emailField.value = personCard.dataset.personEmail || '';
+    phoneField.value = personCard.dataset.personPhone || '';
+    notesField.value = personCard.dataset.personNotes || '';
+    primaryField.checked = personCard.dataset.personIsprimary === 'true';
+    document.getElementById('contactPersonModalTitle').textContent = '担当者編集';
+    contactPersonModal.show();
+}
+
+function saveContactPerson() {
+    const form = document.getElementById('contactPersonForm');
+    if (!form) {
+        console.error('Form not found');
+        return;
+    }
+
+    const formData = new FormData(form);
+    const isPrimaryField = document.getElementById('contactPersonIsPrimary');
+    if (isPrimaryField) {
+        formData.set('is_primary', isPrimaryField.checked);
+    }
+
+    const personId = document.getElementById('contactPersonId').value;
+    const url = personId
+        ? '{% url "order_management:contact_person_update_ajax" %}'
+        : '{% url "order_management:contact_person_create_ajax" %}';
+
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch(url, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (contactPersonModal) {
+                contactPersonModal.hide();
+            }
+            window.location.reload();
+        } else {
+            alert(data.error || '保存に失敗しました');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('保存中にエラーが発生しました');
+    });
+}
+
+function deleteContactPerson(personId, personName) {
+    if (!confirm(`担当者「${personName}」を削除しますか？`)) {
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('id', personId);
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch('{% url "order_management:contact_person_delete_ajax" %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error || '削除に失敗しました');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('削除中にエラーが発生しました');
+    });
+}
+
+// ===== 工事種別管理モーダル =====
+// モーダルを開く
+window.openWorkTypeManagementModal = function() {
+    const modal = new bootstrap.Modal(document.getElementById('workTypeManagementModal'));
+    modal.show();
+
+    // 工事種別一覧を読み込み
+    loadWorkTypeList();
+};
+
+// 工事種別一覧を読み込み
+function loadWorkTypeList() {
+    $.ajax({
+        url: '{% url "order_management:work_type_list_ajax" %}',
+        type: 'GET',
+        success: function(response) {
+            if (response.success) {
+                renderWorkTypeList(response.work_types);
+            } else {
+                $('#workTypeList').html('<div class="alert alert-danger">読み込みに失敗しました</div>');
+            }
+        },
+        error: function() {
+            $('#workTypeList').html('<div class="alert alert-danger">読み込みに失敗しました</div>');
+        }
+    });
+}
+
+// 工事種別一覧を描画
+function renderWorkTypeList(workTypes) {
+    if (workTypes.length === 0) {
+        $('#workTypeList').html('<div class="text-muted text-center py-3">登録済みの工事種別はありません</div>');
+        return;
+    }
+
+    let html = '<div class="list-group">';
+    workTypes.forEach(function(workType) {
+        html += `
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>${workType.name}</strong>
+                    ${workType.description ? '<br><small class="text-muted">' + workType.description + '</small>' : ''}
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-sm btn-outline-primary"
+                            data-id="${workType.id}" data-name="${workType.name}" data-description="${workType.description || ''}"
+                            onclick="editWorkTypeFromButton(this)">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger"
+                            data-id="${workType.id}" data-name="${workType.name}"
+                            onclick="deleteWorkTypeFromButton(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    $('#workTypeList').html(html);
+}
+
+// 工事種別を編集
+window.editWorkTypeFromButton = function(button) {
+    const id = $(button).data('id');
+    const name = $(button).data('name');
+    const description = $(button).data('description');
+
+    $('#workTypeId').val(id);
+    $('#workTypeName').val(name);
+    $('#workTypeDescription').val(description);
+    $('#workTypeSubmitBtn').html('<i class="fas fa-save me-2"></i>更新する');
+    $('#workTypeCancelBtn').show();
+    $('#workTypeError').hide();
+    $('#workTypeSuccess').hide();
+};
+
+// 編集をキャンセル
+window.cancelWorkTypeEdit = function() {
+    $('#workTypeId').val('');
+    $('#workTypeName').val('');
+    $('#workTypeDescription').val('');
+    $('#workTypeSubmitBtn').html('<i class="fas fa-save me-2"></i>保存する');
+    $('#workTypeCancelBtn').hide();
+    $('#workTypeError').hide();
+    $('#workTypeSuccess').hide();
+};
+
+// 工事種別を削除
+window.deleteWorkTypeFromButton = function(button) {
+    const id = $(button).data('id');
+    const name = $(button).data('name');
+
+    $('#deleteWorkTypeName').text(name);
+    const deleteModal = new bootstrap.Modal(document.getElementById('workTypeDeleteConfirmModal'));
+    deleteModal.show();
+
+    $('#confirmDeleteWorkTypeBtn').off('click').on('click', function() {
+        $.ajax({
+            url: '{% url "order_management:work_type_delete_ajax" %}',
+            type: 'POST',
+            data: {
+                id: id,
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            success: function(response) {
+                if (response.success) {
+                    deleteModal.hide();
+                    loadWorkTypeList();
+                    updateWorkTypesDropdown();
+                } else {
+                    alert(response.error || '削除に失敗しました');
+                }
+            },
+            error: function() {
+                alert('削除中にエラーが発生しました');
+            }
+        });
+    });
+};
+
+// フォーム送信
+$(document).on('submit', '#workTypeForm', function(e) {
+    e.preventDefault();
+
+    const formData = $(this).serialize();
+    const isUpdate = $('#workTypeId').val() !== '';
+
+    $.ajax({
+        url: '{% url "order_management:work_type_create_ajax" %}',
+        type: 'POST',
+        data: formData,
+        success: function(response) {
+            if (response.success) {
+                const message = isUpdate ? '工事種別を更新しました' : '工事種別を追加しました';
+                $('#workTypeSuccess').html('<i class="fas fa-check-circle me-2"></i>' + message).show();
+                setTimeout(function() { $('#workTypeSuccess').hide(); }, 3000);
+
+                cancelWorkTypeEdit();
+                loadWorkTypeList();
+                updateWorkTypesDropdown();
+            } else {
+                $('#workTypeError').text(response.error || '保存に失敗しました').show();
+            }
+        },
+        error: function() {
+            $('#workTypeError').text('保存中にエラーが発生しました').show();
+        }
+    });
+});
+
+// 工事種別ドロップダウンを更新
+function updateWorkTypesDropdown() {
+    $.ajax({
+        url: '{% url "order_management:work_type_list_ajax" %}',
+        type: 'GET',
+        success: function(response) {
+            if (response.success) {
+                const select = $('#id_work_types');
+                const selectedValues = select.val() || [];
+                select.empty();
+
+                response.work_types.forEach(function(workType) {
+                    const option = new Option(workType.name, workType.id);
+                    if (selectedValues.includes(String(workType.id))) {
+                        option.selected = true;
+                    }
+                    select.append(option);
+                });
+            }
+        }
+    });
+}
+</script>
+{% endif %}
+
+<!-- 工事種別管理モーダル -->
+<div class="modal fade" id="workTypeManagementModal" tabindex="-1" aria-labelledby="workTypeManagementModalLabel" aria-hidden="true" style="z-index: 10000 !important;">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                <h5 class="modal-title" id="workTypeManagementModalLabel">
+                    <i class="fas fa-tools me-2"></i>工事種別管理
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <!-- 既存の工事種別一覧 -->
+                <div class="mb-4">
+                    <h6 class="border-bottom pb-2 mb-3">
+                        <i class="fas fa-list me-2"></i>登録済み工事種別
+                    </h6>
+                    <div id="workTypeList" class="mb-3">
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-spinner fa-spin me-2"></i>読み込み中...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 新規追加フォーム -->
+                <div class="border-top pt-4">
+                    <h6 class="border-bottom pb-2 mb-3">
+                        <i class="fas fa-plus-circle me-2"></i>新しい工事種別を追加
+                    </h6>
+                    <form id="workTypeForm">
+                        {% csrf_token %}
+                        <input type="hidden" id="workTypeId" name="id" value="">
+
+                        <div class="mb-3">
+                            <label for="workTypeName" class="form-label">
+                                種別名 <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="workTypeName" name="name" required maxlength="100">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="workTypeDescription" class="form-label">説明</label>
+                            <textarea class="form-control" id="workTypeDescription" name="description" rows="2"></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success" id="workTypeSubmitBtn">
+                                <i class="fas fa-save me-2"></i>保存する
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="workTypeCancelBtn" style="display: none;" onclick="cancelWorkTypeEdit()">
+                                <i class="fas fa-times me-2"></i>編集をキャンセル
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- エラーメッセージ表示エリア -->
+                    <div id="workTypeError" class="alert alert-danger mt-3" style="display: none;"></div>
+                    <div id="workTypeSuccess" class="alert alert-success mt-3" style="display: none;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 工事種別削除確認モーダル -->
+<div class="modal fade" id="workTypeDeleteConfirmModal" tabindex="-1" aria-hidden="true" style="z-index: 10050 !important;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle me-2"></i>削除の確認
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">工事種別「<strong id="deleteWorkTypeName"></strong>」を削除してもよろしいですか？</p>
+                <div class="alert alert-warning mb-0">
+                    <i class="fas fa-info-circle me-2"></i>案件で使用されている場合は削除できません。
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>キャンセル
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteWorkTypeBtn">
+                    <i class="fas fa-trash me-2"></i>削除する
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}

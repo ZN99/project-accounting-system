@@ -23,8 +23,8 @@
     }
 
     .radar-chart-container {
-        max-width: 500px;
-        margin: 2rem auto;
+        max-width: 400px;
+        margin: 0 auto;
     }
 
     .contact-person-card {
@@ -144,6 +144,42 @@
         font-size: 0.875rem;
         color: #6b7280;
     }
+
+    .summary-section {
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1.25rem;
+        height: 100%;
+    }
+
+    .summary-section h6 {
+        font-size: 0.95rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #3b82f6;
+    }
+
+    .summary-section .info-row {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .summary-section .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .summary-section .info-label {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #6b7280;
+        margin-bottom: 0.25rem;
+    }
+
+    .summary-section .info-value {
+        font-size: 0.9rem;
+        color: #1f2937;
+    }
 </style>
 {% endblock %}
 
@@ -177,101 +213,6 @@
     </div>
 
     <div class="container">
-        <!-- 期間フィルタ -->
-        <div class="period-filter">
-            <h6 class="mb-3"><i class="fas fa-calendar-alt me-2"></i>統計期間フィルタ</h6>
-            <form method="get" class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label small">開始日</label>
-                    <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label small">終了日</label>
-                    <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
-                </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary me-2">
-                        <i class="fas fa-filter me-1"></i>絞り込み
-                    </button>
-                    <a href="{% url 'order_management:client_company_detail' company.pk %}" class="btn btn-outline-secondary">
-                        <i class="fas fa-redo me-1"></i>リセット
-                    </a>
-                </div>
-            </form>
-        </div>
-
-        <!-- 統計 -->
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <div class="stat-box">
-                    <div class="stat-value">{{ total_projects|intcomma }}</div>
-                    <div class="stat-label">総案件数</div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="stat-box">
-                    <div class="stat-value">{{ active_projects|intcomma }}</div>
-                    <div class="stat-label">進行中案件</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 元請サマリ レーダーチャート -->
-        <div class="info-card">
-            <div class="section-title">
-                <i class="fas fa-chart-radar me-2"></i>元請サマリ（レーダーチャート）
-            </div>
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="radar-chart-container">
-                        <canvas id="radarChart"></canvas>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <table class="table table-sm">
-                        <tbody>
-                            <tr>
-                                <th>累計売り上げ</th>
-                                <td class="text-end">¥{{ statistics.total_sales|floatformat:0|intcomma }}</td>
-                            </tr>
-                            <tr>
-                                <th>一件あたり平均売り上げ</th>
-                                <td class="text-end">¥{{ statistics.avg_sales|floatformat:0|intcomma }}</td>
-                            </tr>
-                            <tr>
-                                <th>平均粗利益率</th>
-                                <td class="text-end">{{ statistics.avg_profit_margin|floatformat:1 }}%</td>
-                            </tr>
-                            <tr>
-                                <th>対応のしやすさ</th>
-                                <td class="text-end">
-                                    {% if company.response_ease_rating %}
-                                        {{ company.get_response_ease_rating_display }}
-                                    {% else %}
-                                        <span class="text-muted">未評価</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            <tr>
-                                <th>作業のしやすさ</th>
-                                <td class="text-end">
-                                    {% if company.work_ease_rating %}
-                                        {{ company.get_work_ease_rating_display }}
-                                    {% else %}
-                                        <span class="text-muted">未評価</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            <tr>
-                                <th>対象案件数</th>
-                                <td class="text-end">{{ statistics.project_count }}件</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
         <!-- 基本情報 -->
         <div class="info-card">
             <div class="section-title">
@@ -337,136 +278,267 @@
             {% endif %}
         </div>
 
-        <!-- ② 業務情報 -->
+        <!-- 元請サマリ レーダーチャート -->
         <div class="info-card">
-            <div class="section-title">
-                <i class="fas fa-briefcase me-2"></i>② 業務情報 (Business Info)
-            </div>
-
-            {% if company.work_types.exists %}
-            <div class="info-row">
-                <div class="info-label">対応可能な工事種別</div>
-                <div class="info-value">
-                    {% for work_type in company.work_types.all %}
-                        <span class="badge bg-primary me-1">{{ work_type.name }}</span>
-                    {% endfor %}
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="section-title mb-0">
+                    <i class="fas fa-chart-radar me-2"></i>元請サマリ（レーダーチャート）
                 </div>
-            </div>
-            {% endif %}
-
-            {% if company.pricing_tier %}
-            <div class="info-row">
-                <div class="info-label">単価帯・共有単価表</div>
-                <div class="info-value">{{ company.pricing_tier|linebreaksbr }}</div>
-            </div>
-            {% endif %}
-
-            {% if company.site_rules %}
-            <div class="info-row">
-                <div class="info-label">現場ルール</div>
-                <div class="info-value">{{ company.site_rules|linebreaksbr }}</div>
-            </div>
-            {% endif %}
-
-            {% if not company.work_types.exists and not company.pricing_tier and not company.site_rules %}
-            <p class="text-muted mb-0">設定されていません</p>
-            {% endif %}
-        </div>
-
-        <!-- ③ 品質・コミュニケーション -->
-        <div class="info-card">
-            <div class="section-title">
-                <i class="fas fa-comments me-2"></i>③ 品質・コミュニケーション (Quality/Communication)
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="showRatingCriteriaModal()">
+                    <i class="fas fa-question-circle me-1"></i>評価基準を見る
+                </button>
             </div>
 
-            {% if company.trouble_tendencies %}
-            <div class="info-row">
-                <div class="info-label">トラブル傾向</div>
-                <div class="info-value">{{ company.trouble_tendencies|linebreaksbr }}</div>
-            </div>
-            {% endif %}
-
-            {% if company.work_ease_rating %}
-            <div class="info-row">
-                <div class="info-label">作業のしやすさ</div>
-                <div class="info-value">
-                    <strong>{{ company.get_work_ease_rating_display }}</strong>
-                    {% if company.work_ease_notes %}
-                        <br><small class="text-muted">{{ company.work_ease_notes|linebreaksbr }}</small>
-                    {% endif %}
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="radar-chart-container">
+                        <canvas id="radarChart"></canvas>
+                    </div>
                 </div>
-            </div>
-            {% endif %}
-
-            {% if not company.trouble_tendencies and not company.work_ease_rating %}
-            <p class="text-muted mb-0">設定されていません</p>
-            {% endif %}
-        </div>
-
-        <!-- ④ 評価・リスク・戦略 -->
-        <div class="info-card">
-            <div class="section-title">
-                <i class="fas fa-star me-2"></i>④ 評価・リスク・戦略 (Evaluation)
-            </div>
-
-            {% if company.response_ease_rating %}
-            <div class="info-row">
-                <div class="info-label">対応のしやすさ</div>
-                <div class="info-value">
-                    <strong>{{ company.get_response_ease_rating_display }}</strong>
-                </div>
-            </div>
-            {% else %}
-            <p class="text-muted mb-0">評価されていません</p>
-            {% endif %}
-        </div>
-
-        <!-- 担当者情報 -->
-        {% if contact_persons %}
-        <div class="info-card">
-            <div class="section-title">
-                <i class="fas fa-users me-2"></i>担当者情報
-            </div>
-
-            {% for person in contact_persons %}
-            <div class="contact-person-card">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <div>
-                        <h6 class="mb-1">
-                            {{ person.name }}
-                            {% if person.is_primary %}
-                                <span class="contact-primary-badge">主担当</span>
-                            {% endif %}
+                <div class="col-md-6">
+                    <div class="summary-section">
+                        <h6 class="fw-bold text-primary">
+                            <i class="fas fa-star me-2"></i>評価
                         </h6>
-                        {% if person.position %}
-                            <small class="text-muted">{{ person.position }}</small>
+
+                        <!-- 期間フィルタ -->
+                        <div class="mb-3 pb-3 border-bottom">
+                            <div class="mb-2 small text-muted">統計期間フィルタ</div>
+
+                            <!-- プリセットボタン -->
+                            <div class="mb-2">
+                                <div class="d-flex flex-wrap gap-1">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setPeriodPreset('this_month')">今月</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setPeriodPreset('last_month')">先月</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setPeriodPreset('last_3_months')">3ヶ月</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setPeriodPreset('last_6_months')">6ヶ月</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setPeriodPreset('this_year')">今年</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setPeriodPreset('last_year')">昨年</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setPeriodPreset('all')">全期間</button>
+                                </div>
+                            </div>
+
+                            <form method="get" class="row g-2" id="periodFilterForm">
+                                <div class="col-5">
+                                    <input type="date" name="start_date" id="start_date" class="form-control form-control-sm" value="{{ start_date }}" placeholder="開始日">
+                                </div>
+                                <div class="col-5">
+                                    <input type="date" name="end_date" id="end_date" class="form-control form-control-sm" value="{{ end_date }}" placeholder="終了日">
+                                </div>
+                                <div class="col-2">
+                                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                                        <i class="fas fa-filter"></i>
+                                    </button>
+                                </div>
+                            </form>
+
+                            {% if start_date or end_date %}
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    {% if start_date %}{{ start_date }}{% else %}開始{% endif %}
+                                    〜
+                                    {% if end_date %}{{ end_date }}{% else %}現在{% endif %}
+                                    <a href="{% url 'order_management:client_company_detail' company.pk %}" class="ms-1 text-decoration-none">
+                                        <i class="fas fa-times-circle"></i>
+                                    </a>
+                                </small>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="info-row">
+                            <div class="info-label">累計売り上げ</div>
+                            <div class="info-value">¥{{ statistics.total_sales|floatformat:0|intcomma }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">一件あたり平均売り上げ</div>
+                            <div class="info-value">¥{{ statistics.avg_sales|floatformat:0|intcomma }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">平均粗利益率</div>
+                            <div class="info-value">{{ statistics.avg_profit_margin|floatformat:1 }}%</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">対象案件数</div>
+                            <div class="info-value">{{ statistics.project_count }}件</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">進行中案件</div>
+                            <div class="info-value">{{ active_projects }}件</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 詳細情報グリッド -->
+            <div class="row mt-4">
+                <!-- 業務情報 -->
+                <div class="col-md-6 mb-3">
+                    <div class="summary-section">
+                        <h6 class="fw-bold text-primary">
+                            <i class="fas fa-briefcase me-2"></i>業務情報
+                        </h6>
+
+                        {% if company.work_types.exists %}
+                        <div class="info-row">
+                            <div class="info-label">工事種別</div>
+                            <div class="info-value">
+                                {% for work_type in company.work_types.all %}
+                                    <span class="badge bg-primary me-1">{{ work_type.name }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if company.pricing_tier %}
+                        <div class="info-row">
+                            <div class="info-label">単価表</div>
+                            <div class="info-value">{{ company.pricing_tier|truncatechars:50 }}</div>
+                        </div>
+                        {% endif %}
+
+                        {% if company.site_rules %}
+                        <div class="info-row">
+                            <div class="info-label">現場ルール</div>
+                            <div class="info-value">{{ company.site_rules|truncatechars:50 }}</div>
+                        </div>
+                        {% endif %}
+
+                        {% if not company.work_types.exists and not company.pricing_tier and not company.site_rules %}
+                        <p class="text-muted mb-0 small">設定されていません</p>
                         {% endif %}
                     </div>
                 </div>
 
-                {% if person.email or person.phone %}
-                <div class="mb-2">
-                    {% if person.email %}
-                        <div><i class="fas fa-envelope me-2"></i><a href="mailto:{{ person.email }}">{{ person.email }}</a></div>
-                    {% endif %}
-                    {% if person.phone %}
-                        <div><i class="fas fa-phone me-2"></i><a href="tel:{{ person.phone }}">{{ person.phone }}</a></div>
-                    {% endif %}
-                </div>
-                {% endif %}
+                <!-- 品質・コミュニケーション -->
+                <div class="col-md-6 mb-3">
+                    <div class="summary-section">
+                        <h6 class="fw-bold text-primary">
+                            <i class="fas fa-comments me-2"></i>品質・コミュニケーション
+                        </h6>
 
-                {% if person.personality_notes %}
-                <div class="mt-2">
-                    <small class="text-muted">
-                        <strong>性格・特徴：</strong><br>
-                        {{ person.personality_notes|linebreaksbr }}
-                    </small>
+                        {% if company.trouble_tendencies %}
+                        <div class="info-row">
+                            <div class="info-label">トラブル傾向</div>
+                            <div class="info-value">{{ company.trouble_tendencies|truncatechars:50 }}</div>
+                        </div>
+                        {% endif %}
+
+                        {% if company.response_ease_rating %}
+                        <div class="info-row">
+                            <div class="info-label">対応のしやすさ</div>
+                            <div class="info-value">{{ company.get_response_ease_rating_display }}</div>
+                        </div>
+                        {% endif %}
+
+                        {% if company.work_ease_rating %}
+                        <div class="info-row">
+                            <div class="info-label">作業のしやすさ</div>
+                            <div class="info-value">
+                                {{ company.get_work_ease_rating_display }}
+                                {% if company.work_ease_notes %}
+                                    <br><small class="text-muted">{{ company.work_ease_notes|truncatechars:40 }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if not company.trouble_tendencies and not company.response_ease_rating and not company.work_ease_rating %}
+                        <p class="text-muted mb-0 small">設定されていません</p>
+                        {% endif %}
+                    </div>
                 </div>
+
+                <!-- 運用ルール・特記事項 -->
+                <div class="col-md-6 mb-3">
+                    <div class="summary-section">
+                        <h6 class="fw-bold text-primary">
+                            <i class="fas fa-clipboard-list me-2"></i>運用ルール・特記事項
+                        </h6>
+
+                        {% if company.special_notes %}
+                        <div class="info-row">
+                            <div class="info-value">{{ company.special_notes|truncatechars:100 }}</div>
+                        </div>
+                        {% else %}
+                        <p class="text-muted mb-0 small">設定されていません</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 担当者情報 -->
+        <div class="info-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="section-title mb-0">
+                    <i class="fas fa-users me-2"></i>担当者情報
+                </div>
+                <button type="button" class="btn btn-sm btn-primary" onclick="openContactPersonModal()">
+                    <i class="fas fa-plus me-1"></i>担当者追加
+                </button>
+            </div>
+
+            <div id="contactPersonsList">
+                {% if contact_persons %}
+                    {% for person in contact_persons %}
+                    <div class="contact-person-card"
+                         data-person-id="{{ person.id }}"
+                         data-person-name="{{ person.name }}"
+                         data-person-position="{{ person.position|default:'' }}"
+                         data-person-email="{{ person.email|default:'' }}"
+                         data-person-phone="{{ person.phone|default:'' }}"
+                         data-person-notes="{{ person.personality_notes|default:'' }}"
+                         data-person-isprimary="{{ person.is_primary|yesno:'true,false' }}">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="mb-1">
+                                    {{ person.name }}
+                                    {% if person.is_primary %}
+                                        <span class="contact-primary-badge">主担当</span>
+                                    {% endif %}
+                                </h6>
+                                {% if person.position %}
+                                    <small class="text-muted">{{ person.position }}</small>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="editContactPerson({{ person.id }})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteContactPerson({{ person.id }}, '{{ person.name|escapejs }}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        {% if person.email or person.phone %}
+                        <div class="mb-2">
+                            {% if person.email %}
+                                <div><i class="fas fa-envelope me-2"></i><a href="mailto:{{ person.email }}">{{ person.email }}</a></div>
+                            {% endif %}
+                            {% if person.phone %}
+                                <div><i class="fas fa-phone me-2"></i><a href="tel:{{ person.phone }}">{{ person.phone }}</a></div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        {% if person.personality_notes %}
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <strong>性格・特徴：</strong><br>
+                                {{ person.personality_notes|linebreaksbr }}
+                            </small>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted mb-0">担当者が登録されていません</p>
                 {% endif %}
             </div>
-            {% endfor %}
         </div>
-        {% endif %}
 
         <!-- 支払いサイクル設定 -->
         <div class="info-card">
@@ -558,48 +630,358 @@
             {% endif %}
         </div>
 
-        <!-- 運用ルール -->
-        {% if company.special_notes %}
+        <!-- 案件一覧 -->
         <div class="info-card">
-            <div class="section-title">
-                <i class="fas fa-clipboard-list me-2"></i>運用ルール・特記事項
-            </div>
-            <div class="info-value">{{ company.special_notes|linebreaksbr }}</div>
-        </div>
-        {% endif %}
-
-        <!-- 最近の案件 -->
-        {% if recent_projects %}
-        <div class="info-card">
-            <div class="section-title">
-                <i class="fas fa-project-diagram me-2"></i>最近の案件（最新10件）
-            </div>
-
-            {% for project in recent_projects %}
-            <div class="project-item">
-                <h6>
-                    <a href="{% url 'order_management:project_detail' project.pk %}">
-                        {{ project.site_name }}
-                    </a>
-                </h6>
-                <div class="project-meta">
-                    <span class="me-3">
-                        <i class="fas fa-calendar me-1"></i>
-                        {{ project.work_start_date|date:"Y/m/d" }}
-                    </span>
-                    <span class="me-3">
-                        <i class="fas fa-yen-sign me-1"></i>
-                        ¥{{ project.order_amount|intcomma }}
-                    </span>
-                    <span>
-                        <i class="fas fa-tasks me-1"></i>
-                        {{ project.get_project_status_display }}
-                    </span>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="section-title mb-0">
+                    <i class="fas fa-project-diagram me-2"></i>案件一覧
+                </div>
+                <div class="d-flex align-items-center">
+                    <label class="me-2 mb-0" style="white-space: nowrap;">表示件数:</label>
+                    <select class="form-select form-select-sm" style="width: auto;" onchange="changePerPage(this.value)">
+                        <option value="10" {% if per_page == 10 %}selected{% endif %}>10件</option>
+                        <option value="25" {% if per_page == 25 %}selected{% endif %}>25件</option>
+                        <option value="50" {% if per_page == 50 %}selected{% endif %}>50件</option>
+                        <option value="100" {% if per_page == 100 %}selected{% endif %}>100件</option>
+                    </select>
                 </div>
             </div>
-            {% endfor %}
+
+            {% if projects_page %}
+                {% for project in projects_page %}
+                <div class="project-item">
+                    <h6>
+                        <a href="{% url 'order_management:project_detail' project.pk %}">
+                            {{ project.site_name }}
+                        </a>
+                    </h6>
+                    <div class="project-meta">
+                        <span class="me-3">
+                            <i class="fas fa-calendar me-1"></i>
+                            {{ project.work_start_date|date:"Y/m/d"|default:"未設定" }}
+                        </span>
+                        <span class="me-3">
+                            <i class="fas fa-yen-sign me-1"></i>
+                            ¥{{ project.order_amount|intcomma }}
+                        </span>
+                        <span>
+                            <i class="fas fa-tasks me-1"></i>
+                            {{ project.get_project_status_display }}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- ページネーション -->
+                {% if projects_page.paginator.num_pages > 1 %}
+                <nav aria-label="案件ページネーション" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        <!-- 最初のページ -->
+                        {% if projects_page.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1&per_page={{ per_page }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">
+                                <i class="fas fa-angle-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ projects_page.previous_page_number }}&per_page={{ per_page }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link"><i class="fas fa-angle-double-left"></i></span>
+                        </li>
+                        <li class="page-item disabled">
+                            <span class="page-link"><i class="fas fa-angle-left"></i></span>
+                        </li>
+                        {% endif %}
+
+                        <!-- ページ番号 -->
+                        {% for num in projects_page.paginator.page_range %}
+                            {% if projects_page.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                            {% elif num > projects_page.number|add:'-3' and num < projects_page.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}&per_page={{ per_page }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">{{ num }}</a>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        <!-- 最後のページ -->
+                        {% if projects_page.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ projects_page.next_page_number }}&per_page={{ per_page }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ projects_page.paginator.num_pages }}&per_page={{ per_page }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">
+                                <i class="fas fa-angle-double-right"></i>
+                            </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link"><i class="fas fa-angle-right"></i></span>
+                        </li>
+                        <li class="page-item disabled">
+                            <span class="page-link"><i class="fas fa-angle-double-right"></i></span>
+                        </li>
+                        {% endif %}
+                    </ul>
+
+                    <div class="text-center text-muted small">
+                        {{ projects_page.start_index }}〜{{ projects_page.end_index }}件を表示（全{{ projects_page.paginator.count }}件中）
+                    </div>
+                </nav>
+                {% endif %}
+            {% else %}
+                <p class="text-muted mb-0">案件がありません</p>
+            {% endif %}
         </div>
-        {% endif %}
+    </div>
+</div>
+
+<!-- 担当者追加・編集モーダル -->
+<div class="modal fade" id="contactPersonModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="contactPersonModalLabel">
+                    <i class="fas fa-user me-2"></i><span id="contactPersonModalTitle">担当者追加</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="contactPersonForm">
+                    <input type="hidden" id="contactPersonId" name="id">
+                    <input type="hidden" id="contactPersonClientCompanyId" name="client_company_id" value="{{ company.id }}">
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="contactPersonName" class="form-label">担当者名 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="contactPersonName" name="name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="contactPersonPosition" class="form-label">役職</label>
+                            <input type="text" class="form-control" id="contactPersonPosition" name="position">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="contactPersonEmail" class="form-label">メールアドレス</label>
+                            <input type="email" class="form-control" id="contactPersonEmail" name="email">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="contactPersonPhone" class="form-label">電話番号</label>
+                            <input type="tel" class="form-control" id="contactPersonPhone" name="phone">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="contactPersonPersonalityNotes" class="form-label">性格・特徴（備考）</label>
+                        <textarea class="form-control" id="contactPersonPersonalityNotes" name="personality_notes" rows="3"></textarea>
+                        <small class="text-muted">担当者の性格や特徴、コミュニケーション時の注意点など</small>
+                    </div>
+
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="contactPersonIsPrimary" name="is_primary">
+                        <label class="form-check-label" for="contactPersonIsPrimary">
+                            主担当として設定
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>キャンセル
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveContactPerson()">
+                    <i class="fas fa-save me-1"></i>保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 汎用エラーモーダル -->
+<div class="modal fade" id="genericErrorModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="genericErrorModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i><span id="genericErrorModalTitle">エラー</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="genericErrorModalMessage">エラーが発生しました</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 汎用確認モーダル -->
+<div class="modal fade" id="genericConfirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="genericConfirmModalLabel">
+                    <i class="fas fa-question-circle me-2"></i><span id="genericConfirmModalTitle">確認</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="genericConfirmModalMessage">この操作を実行しますか？</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-primary" id="genericConfirmModalOkBtn">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 評価基準説明モーダル -->
+<div class="modal fade" id="ratingCriteriaModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle me-2"></i>レーダーチャート評価基準
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-4">
+                    <h6 class="fw-bold text-primary mb-3">
+                        <i class="fas fa-yen-sign me-2"></i>累計売り上げスコア
+                    </h6>
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 15%">スコア</th>
+                                <th>基準</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="text-center">5点</td><td>¥{{ rating_criteria.total_sales_score_5|floatformat:0 }}以上</td></tr>
+                            <tr><td class="text-center">4点</td><td>¥{{ rating_criteria.total_sales_score_4|floatformat:0 }}以上</td></tr>
+                            <tr><td class="text-center">3点</td><td>¥{{ rating_criteria.total_sales_score_3|floatformat:0 }}以上</td></tr>
+                            <tr><td class="text-center">2点</td><td>¥{{ rating_criteria.total_sales_score_2|floatformat:0 }}以上</td></tr>
+                            <tr><td class="text-center">1点</td><td>¥{{ rating_criteria.total_sales_score_2|floatformat:0 }}未満</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mb-4">
+                    <h6 class="fw-bold text-primary mb-3">
+                        <i class="fas fa-chart-line me-2"></i>平均売り上げスコア
+                    </h6>
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 15%">スコア</th>
+                                <th>基準</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="text-center">5点</td><td>¥{{ rating_criteria.avg_sales_score_5|floatformat:0 }}以上</td></tr>
+                            <tr><td class="text-center">4点</td><td>¥{{ rating_criteria.avg_sales_score_4|floatformat:0 }}以上</td></tr>
+                            <tr><td class="text-center">3点</td><td>¥{{ rating_criteria.avg_sales_score_3|floatformat:0 }}以上</td></tr>
+                            <tr><td class="text-center">2点</td><td>¥{{ rating_criteria.avg_sales_score_2|floatformat:0 }}以上</td></tr>
+                            <tr><td class="text-center">1点</td><td>¥{{ rating_criteria.avg_sales_score_2|floatformat:0 }}未満</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mb-4">
+                    <h6 class="fw-bold text-primary mb-3">
+                        <i class="fas fa-percentage me-2"></i>平均粗利益率スコア
+                    </h6>
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 15%">スコア</th>
+                                <th>基準</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="text-center">5点</td><td>{{ rating_criteria.profit_margin_score_5|floatformat:1 }}%以上</td></tr>
+                            <tr><td class="text-center">4点</td><td>{{ rating_criteria.profit_margin_score_4|floatformat:1 }}%以上</td></tr>
+                            <tr><td class="text-center">3点</td><td>{{ rating_criteria.profit_margin_score_3|floatformat:1 }}%以上</td></tr>
+                            <tr><td class="text-center">2点</td><td>{{ rating_criteria.profit_margin_score_2|floatformat:1 }}%以上</td></tr>
+                            <tr><td class="text-center">1点</td><td>{{ rating_criteria.profit_margin_score_2|floatformat:1 }}%未満</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mb-4">
+                    <h6 class="fw-bold text-primary mb-3">
+                        <i class="fas fa-handshake me-2"></i>対応のしやすさ
+                    </h6>
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 15%">スコア</th>
+                                <th>基準</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="text-center">5点</td><td>とても高い - レスポンスが非常に早く、意思決定がスムーズ</td></tr>
+                            <tr><td class="text-center">4点</td><td>高い - レスポンスが早く、コミュニケーションが円滑</td></tr>
+                            <tr><td class="text-center">3点</td><td>普通 - 標準的な対応</td></tr>
+                            <tr><td class="text-center">2点</td><td>低い - レスポンスが遅い、意思決定に時間がかかる</td></tr>
+                            <tr><td class="text-center">1点</td><td>とても低い - 連絡が取りにくい、対応が困難</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mb-4">
+                    <h6 class="fw-bold text-primary mb-3">
+                        <i class="fas fa-tools me-2"></i>作業のしやすさ
+                    </h6>
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 15%">スコア</th>
+                                <th>基準</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="text-center">5点</td><td>とても作業しやすい - 指示が明確、トラブルなし</td></tr>
+                            <tr><td class="text-center">4点</td><td>作業しやすい - 概ね問題なく作業が進む</td></tr>
+                            <tr><td class="text-center">3点</td><td>普通 - 標準的な作業環境</td></tr>
+                            <tr><td class="text-center">2点</td><td>作業しにくい - 指示が不明確、トラブルが多い</td></tr>
+                            <tr><td class="text-center">1点</td><td>とても作業しにくい - 頻繁に問題が発生する</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="alert alert-info mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>注意:</strong> これらの基準は自動計算されます。累計売り上げ、平均売り上げ、平均粗利益率は期間フィルタの影響を受けます。対応のしやすさと作業のしやすさは元請会社編集画面で設定した評価値が反映されます。
+                </div>
+
+                <div class="alert alert-warning mb-0 mt-2">
+                    <i class="fas fa-cog me-2"></i>
+                    <strong>累計売上・平均売上・平均粗利益率の基準値を変更する場合:</strong>
+                    <a href="{% url 'order_management:rating_criteria' %}" class="alert-link" target="_blank">評価基準設定ページ</a>から変更できます。
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="{% url 'order_management:rating_criteria' %}" class="btn btn-outline-primary" target="_blank">
+                    <i class="fas fa-cog me-1"></i>評価基準を変更
+                </a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -656,5 +1038,263 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// 担当者管理関数
+let contactPersonModal;
+let currentContactPersonData = {};
+
+document.addEventListener('DOMContentLoaded', function() {
+    const modalElement = document.getElementById('contactPersonModal');
+    if (modalElement) {
+        contactPersonModal = new bootstrap.Modal(modalElement);
+    }
+});
+
+function openContactPersonModal() {
+    const form = document.getElementById('contactPersonForm');
+    if (!form) {
+        console.error('Form not found');
+        return;
+    }
+
+    // フォームをリセット
+    form.reset();
+    document.getElementById('contactPersonId').value = '';
+    document.getElementById('contactPersonModalTitle').textContent = '担当者追加';
+    currentContactPersonData = {};
+
+    if (contactPersonModal) {
+        contactPersonModal.show();
+    }
+}
+
+function editContactPerson(personId) {
+    // 担当者データを取得してフォームに設定
+    const personCard = document.querySelector(`[data-person-id="${personId}"]`);
+    if (!personCard) {
+        showErrorModal('担当者情報が見つかりません');
+        return;
+    }
+
+    if (!contactPersonModal) {
+        showErrorModal('モーダルが初期化されていません');
+        return;
+    }
+
+    const nameField = document.getElementById('contactPersonName');
+    const positionField = document.getElementById('contactPersonPosition');
+    const emailField = document.getElementById('contactPersonEmail');
+    const phoneField = document.getElementById('contactPersonPhone');
+    const notesField = document.getElementById('contactPersonPersonalityNotes');
+    const primaryField = document.getElementById('contactPersonIsPrimary');
+
+    if (!nameField) {
+        console.error('Form fields not found');
+        return;
+    }
+
+    // DOMからデータを取得
+    document.getElementById('contactPersonId').value = personId;
+    nameField.value = personCard.dataset.personName || '';
+    positionField.value = personCard.dataset.personPosition || '';
+    emailField.value = personCard.dataset.personEmail || '';
+    phoneField.value = personCard.dataset.personPhone || '';
+    notesField.value = personCard.dataset.personNotes || '';
+    primaryField.checked = personCard.dataset.personIsprimary === 'true';
+    document.getElementById('contactPersonModalTitle').textContent = '担当者編集';
+    contactPersonModal.show();
+}
+
+function saveContactPerson() {
+    const form = document.getElementById('contactPersonForm');
+    if (!form) {
+        console.error('Form not found');
+        return;
+    }
+
+    const formData = new FormData(form);
+
+    // is_primaryの値をtrue/falseに変換
+    const isPrimaryField = document.getElementById('contactPersonIsPrimary');
+    if (isPrimaryField) {
+        formData.set('is_primary', isPrimaryField.checked);
+    }
+
+    const personId = document.getElementById('contactPersonId').value;
+    const url = personId
+        ? '{% url "order_management:contact_person_update_ajax" %}'
+        : '{% url "order_management:contact_person_create_ajax" %}';
+
+    // CSRFトークンを追加
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch(url, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (contactPersonModal) {
+                contactPersonModal.hide();
+            }
+            // ページをリロードして最新の担当者リストを表示
+            window.location.reload();
+        } else {
+            showErrorModal(data.error || '保存に失敗しました');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showErrorModal('保存中にエラーが発生しました');
+    });
+}
+
+function deleteContactPerson(personId, personName) {
+    showConfirmModal(
+        `担当者「${personName}」を削除しますか？`,
+        function() {
+            const formData = new FormData();
+            formData.append('id', personId);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            fetch('{% url "order_management:contact_person_delete_ajax" %}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // ページをリロードして最新の担当者リストを表示
+                    window.location.reload();
+                } else {
+                    showErrorModal(data.error || '削除に失敗しました');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showErrorModal('削除中にエラーが発生しました');
+            });
+        }
+    );
+}
+
+// エラーモーダル表示関数（project_detail.htmlと同じ実装を使用）
+function showErrorModal(message, title = 'エラー') {
+    // モーダルがない場合は簡易的にalertで表示
+    if (!document.getElementById('genericErrorModal')) {
+        alert(`${title}: ${message}`);
+        return;
+    }
+    $('#genericErrorModalTitle').text(title);
+    $('#genericErrorModalMessage').text(message);
+    const modal = new bootstrap.Modal(document.getElementById('genericErrorModal'));
+    modal.show();
+}
+
+// 確認モーダル表示関数
+function showConfirmModal(message, onConfirm, title = '確認') {
+    // モーダルがない場合は簡易的にconfirmで表示
+    if (!document.getElementById('genericConfirmModal')) {
+        if (confirm(`${title}: ${message}`)) {
+            onConfirm();
+        }
+        return;
+    }
+    $('#genericConfirmModalTitle').text(title);
+    $('#genericConfirmModalMessage').text(message);
+    const modal = new bootstrap.Modal(document.getElementById('genericConfirmModal'));
+
+    $('#genericConfirmModalOkBtn').off('click');
+
+    $('#genericConfirmModalOkBtn').on('click', function() {
+        modal.hide();
+        if (typeof onConfirm === 'function') {
+            onConfirm();
+        }
+    });
+
+    modal.show();
+}
+
+// 表示件数変更関数
+function changePerPage(perPage) {
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('per_page', perPage);
+    urlParams.set('page', '1'); // 最初のページに戻る
+    window.location.search = urlParams.toString();
+}
+
+// 評価基準モーダル表示関数
+function showRatingCriteriaModal() {
+    const modalElement = document.getElementById('ratingCriteriaModal');
+    if (modalElement) {
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    }
+}
+
+// 期間プリセット設定関数
+function setPeriodPreset(preset) {
+    const today = new Date();
+    let startDate = '';
+    let endDate = '';
+
+    switch(preset) {
+        case 'this_month':
+            // 今月の初日から今日まで
+            startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            endDate = today;
+            break;
+
+        case 'last_month':
+            // 先月の初日から末日まで
+            startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+            break;
+
+        case 'last_3_months':
+            // 3ヶ月前の初日から今日まで
+            startDate = new Date(today.getFullYear(), today.getMonth() - 3, 1);
+            endDate = today;
+            break;
+
+        case 'last_6_months':
+            // 6ヶ月前の初日から今日まで
+            startDate = new Date(today.getFullYear(), today.getMonth() - 6, 1);
+            endDate = today;
+            break;
+
+        case 'this_year':
+            // 今年の1月1日から今日まで
+            startDate = new Date(today.getFullYear(), 0, 1);
+            endDate = today;
+            break;
+
+        case 'last_year':
+            // 昨年の1月1日から12月31日まで
+            startDate = new Date(today.getFullYear() - 1, 0, 1);
+            endDate = new Date(today.getFullYear() - 1, 11, 31);
+            break;
+
+        case 'all':
+            // 全期間（開始日・終了日なし）
+            window.location.href = '{% url "order_management:client_company_detail" company.pk %}';
+            return;
+    }
+
+    // 日付をYYYY-MM-DD形式に変換
+    const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    // フォームに値を設定して送信
+    document.getElementById('start_date').value = formatDate(startDate);
+    document.getElementById('end_date').value = formatDate(endDate);
+    document.getElementById('periodFilterForm').submit();
+}
 </script>
 {% endblock %}

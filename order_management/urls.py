@@ -77,7 +77,21 @@ from .views_client_company import (
     ClientCompanyDeleteView,
     client_company_api,
     client_company_list_ajax,
-    client_company_create_ajax
+    client_company_create_ajax,
+    contact_person_create_ajax,
+    contact_person_update_ajax,
+    contact_person_delete_ajax
+)
+from .views_work_type import (
+    work_type_list_ajax,
+    work_type_create_ajax,
+    work_type_update_ajax,
+    work_type_delete_ajax,
+    work_type_reorder_ajax
+)
+from .views_rating_criteria import (
+    rating_criteria_view,
+    rating_criteria_update_ajax
 )
 from .views_approval import (
     ApprovalListView,
@@ -251,6 +265,22 @@ urlpatterns = [
     path('api/client-companies/<int:company_id>/', client_company_api, name='client_company_api'),
     path('api/client-companies/list-ajax/', client_company_list_ajax, name='client_company_list_ajax'),
     path('api/client-companies/create-ajax/', client_company_create_ajax, name='client_company_create_ajax'),
+
+    # 担当者管理 AJAX
+    path('api/contact-persons/create-ajax/', contact_person_create_ajax, name='contact_person_create_ajax'),
+    path('api/contact-persons/update-ajax/', contact_person_update_ajax, name='contact_person_update_ajax'),
+    path('api/contact-persons/delete-ajax/', contact_person_delete_ajax, name='contact_person_delete_ajax'),
+
+    # 工事種別管理 AJAX
+    path('api/work-types/list-ajax/', work_type_list_ajax, name='work_type_list_ajax'),
+    path('api/work-types/create-ajax/', work_type_create_ajax, name='work_type_create_ajax'),
+    path('api/work-types/update-ajax/', work_type_update_ajax, name='work_type_update_ajax'),
+    path('api/work-types/delete-ajax/', work_type_delete_ajax, name='work_type_delete_ajax'),
+    path('api/work-types/reorder-ajax/', work_type_reorder_ajax, name='work_type_reorder_ajax'),
+
+    # 評価基準マスター
+    path('settings/rating-criteria/', rating_criteria_view, name='rating_criteria'),
+    path('api/rating-criteria/update-ajax/', rating_criteria_update_ajax, name='rating_criteria_update_ajax'),
 
     # 承認フロー - Phase 8
     path('approvals/', ApprovalListView.as_view(), name='approval_list'),

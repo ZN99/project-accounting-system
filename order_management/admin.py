@@ -530,17 +530,17 @@ class ClientCompanyAdmin(admin.ModelAdmin):
     """元請会社管理"""
     inlines = [ContactPersonInline]
     list_display = [
-        'company_name', 'contact_person', 'phone', 'email',
+        'company_name', 'get_primary_contact', 'get_contact_info',
         'approval_threshold', 'is_active', 'get_total_projects',
         'created_at'
     ]
     list_filter = ['is_active', 'created_at']
-    search_fields = ['company_name', 'contact_person', 'email', 'phone']
+    search_fields = ['company_name', 'contact_persons__name', 'contact_persons__email', 'contact_persons__phone']
 
     fieldsets = (
         ('① 基本情報 (Basic Info)', {
             'fields': (
-                'company_name', 'contact_person', 'email', 'phone', 'address', 'website',
+                'company_name', 'address',
                 'payment_cycle', 'closing_day', 'payment_day',
                 'invoice_submission_deadline', 'invoice_submission_notes',
                 'is_active'
@@ -558,7 +558,7 @@ class ClientCompanyAdmin(admin.ModelAdmin):
         }),
         ('④ 評価・リスク・戦略 (Evaluation)', {
             'fields': (
-                'response_ease_rating',
+                'response_ease_rating', 'response_ease_notes',
             )
         }),
         ('鍵受け渡し設定', {
@@ -585,6 +585,29 @@ class ClientCompanyAdmin(admin.ModelAdmin):
 
     readonly_fields = ['created_at', 'updated_at']
     list_editable = ['is_active']
+
+    def get_primary_contact(self, obj):
+        """主担当者名を取得"""
+        primary = obj.contact_persons.filter(is_primary=True).first()
+        if not primary:
+            primary = obj.contact_persons.first()
+        return primary.name if primary else '—'
+    get_primary_contact.short_description = '主担当者'
+
+    def get_contact_info(self, obj):
+        """連絡先情報を取得"""
+        primary = obj.contact_persons.filter(is_primary=True).first()
+        if not primary:
+            primary = obj.contact_persons.first()
+        if primary:
+            info = []
+            if primary.phone:
+                info.append(primary.phone)
+            if primary.email:
+                info.append(primary.email)
+            return ' / '.join(info) if info else '—'
+        return '—'
+    get_contact_info.short_description = '連絡先'
 
     def get_total_projects(self, obj):
         return obj.get_total_projects()

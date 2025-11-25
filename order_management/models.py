@@ -2736,11 +2736,7 @@ class Notification(models.Model):
 class ClientCompany(models.Model):
     """元請会社マスター - Phase 8"""
     company_name = models.CharField(max_length=200, unique=True, verbose_name='会社名')
-    contact_person = models.CharField(max_length=100, blank=True, verbose_name='担当者名')
-    email = models.EmailField(blank=True, verbose_name='メールアドレス')
-    phone = models.CharField(max_length=20, blank=True, verbose_name='電話番号')
     address = models.TextField(blank=True, verbose_name='住所')
-    website = models.URLField(blank=True, verbose_name='ホームページ', help_text='会社のウェブサイトURL')
 
     # 鍵受け渡しデフォルト設定
     default_key_handover_location = models.TextField(blank=True, verbose_name='鍵受け渡し場所（デフォルト）')
@@ -2869,6 +2865,11 @@ class ClientCompany(models.Model):
         verbose_name='対応のしやすさ',
         help_text='連絡対応や意思決定のスムーズさを5段階で評価'
     )
+    response_ease_notes = models.TextField(
+        blank=True,
+        verbose_name='対応のしやすさ 補足',
+        help_text='対応のしやすさに関する具体的な情報'
+    )
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='登録日時')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新日時')
@@ -2928,10 +2929,50 @@ class ClientCompany(models.Model):
                 avg_profit_margin = sum(profit_margins) / len(profit_margins)
 
         # レーダーチャート用データ（0-5のスケール）
-        # 売上関連は金額に応じてスケーリング（要調整）
-        total_sales_score = min(5, int(total_sales / 10000000)) if total_sales > 0 else 0  # 1000万円で1ポイント
-        avg_sales_score = min(5, int(avg_sales / 2000000)) if avg_sales > 0 else 0  # 200万円で1ポイント
-        profit_margin_score = min(5, int(avg_profit_margin / 5)) if avg_profit_margin > 0 else 0  # 5%で1ポイント
+        # 評価基準マスターから基準値を取得
+        criteria = RatingCriteria.get_criteria()
+
+        # 累計売上スコア計算
+        if total_sales >= criteria.total_sales_score_5:
+            total_sales_score = 5
+        elif total_sales >= criteria.total_sales_score_4:
+            total_sales_score = 4
+        elif total_sales >= criteria.total_sales_score_3:
+            total_sales_score = 3
+        elif total_sales >= criteria.total_sales_score_2:
+            total_sales_score = 2
+        elif total_sales > 0:
+            total_sales_score = 1
+        else:
+            total_sales_score = 0
+
+        # 平均売上スコア計算
+        if avg_sales >= criteria.avg_sales_score_5:
+            avg_sales_score = 5
+        elif avg_sales >= criteria.avg_sales_score_4:
+            avg_sales_score = 4
+        elif avg_sales >= criteria.avg_sales_score_3:
+            avg_sales_score = 3
+        elif avg_sales >= criteria.avg_sales_score_2:
+            avg_sales_score = 2
+        elif avg_sales > 0:
+            avg_sales_score = 1
+        else:
+            avg_sales_score = 0
+
+        # 平均粗利益率スコア計算
+        if avg_profit_margin >= criteria.profit_margin_score_5:
+            profit_margin_score = 5
+        elif avg_profit_margin >= criteria.profit_margin_score_4:
+            profit_margin_score = 4
+        elif avg_profit_margin >= criteria.profit_margin_score_3:
+            profit_margin_score = 3
+        elif avg_profit_margin >= criteria.profit_margin_score_2:
+            profit_margin_score = 2
+        elif avg_profit_margin > 0:
+            profit_margin_score = 1
+        else:
+            profit_margin_score = 0
 
         # 手動評価をスコアとして使用
         response_ease_score = self.response_ease_rating or 0
@@ -3302,3 +3343,89 @@ class ProjectFile(models.Model):
                 return f"{size:.1f} {unit}"
             size /= 1024.0
         return f"{size:.1f} TB"
+
+
+class RatingCriteria(models.Model):
+    """レーダーチャート評価基準マスター
+
+    累計売上、平均売上、平均粗利益率のスコア基準を管理
+    シングルトンモデル（1レコードのみ）
+    """
+    # 累計売上スコア基準（円）
+    total_sales_score_5 = models.DecimalField(
+        max_digits=12, decimal_places=0, default=10000000,
+        verbose_name='累計売上5点基準', help_text='この金額以上で5点'
+    )
+    total_sales_score_4 = models.DecimalField(
+        max_digits=12, decimal_places=0, default=5000000,
+        verbose_name='累計売上4点基準', help_text='この金額以上で4点'
+    )
+    total_sales_score_3 = models.DecimalField(
+        max_digits=12, decimal_places=0, default=1000000,
+        verbose_name='累計売上3点基準', help_text='この金額以上で3点'
+    )
+    total_sales_score_2 = models.DecimalField(
+        max_digits=12, decimal_places=0, default=500000,
+        verbose_name='累計売上2点基準', help_text='この金額以上で2点'
+    )
+
+    # 平均売上スコア基準（円）
+    avg_sales_score_5 = models.DecimalField(
+        max_digits=12, decimal_places=0, default=1000000,
+        verbose_name='平均売上5点基準', help_text='この金額以上で5点'
+    )
+    avg_sales_score_4 = models.DecimalField(
+        max_digits=12, decimal_places=0, default=500000,
+        verbose_name='平均売上4点基準', help_text='この金額以上で4点'
+    )
+    avg_sales_score_3 = models.DecimalField(
+        max_digits=12, decimal_places=0, default=300000,
+        verbose_name='平均売上3点基準', help_text='この金額以上で3点'
+    )
+    avg_sales_score_2 = models.DecimalField(
+        max_digits=12, decimal_places=0, default=100000,
+        verbose_name='平均売上2点基準', help_text='この金額以上で2点'
+    )
+
+    # 平均粗利益率スコア基準（%）
+    profit_margin_score_5 = models.DecimalField(
+        max_digits=5, decimal_places=2, default=40.0,
+        verbose_name='平均粗利益率5点基準', help_text='この%以上で5点'
+    )
+    profit_margin_score_4 = models.DecimalField(
+        max_digits=5, decimal_places=2, default=30.0,
+        verbose_name='平均粗利益率4点基準', help_text='この%以上で4点'
+    )
+    profit_margin_score_3 = models.DecimalField(
+        max_digits=5, decimal_places=2, default=20.0,
+        verbose_name='平均粗利益率3点基準', help_text='この%以上で3点'
+    )
+    profit_margin_score_2 = models.DecimalField(
+        max_digits=5, decimal_places=2, default=10.0,
+        verbose_name='平均粗利益率2点基準', help_text='この%以上で2点'
+    )
+
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新日時')
+    updated_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        verbose_name='更新者'
+    )
+
+    class Meta:
+        db_table = 'rating_criteria'
+        verbose_name = '評価基準'
+        verbose_name_plural = '評価基準'
+
+    def __str__(self):
+        return '評価基準設定'
+
+    @classmethod
+    def get_criteria(cls):
+        """評価基準を取得（シングルトン）"""
+        criteria, created = cls.objects.get_or_create(pk=1)
+        return criteria
+
+    def save(self, *args, **kwargs):
+        """シングルトンを保証"""
+        self.pk = 1
+        super().save(*args, **kwargs)
