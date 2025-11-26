@@ -398,7 +398,7 @@ def project_create(request):
 
     # フォーム表示用のデータを準備
     from .models import ClientCompany
-    client_companies = ClientCompany.objects.filter(is_active=True).order_by('company_name')
+    client_companies = ClientCompany.objects.prefetch_related('contact_persons').filter(is_active=True).order_by('company_name')
     contractors = Contractor.objects.filter(is_active=True)  # 協力会社（作業者追加用）
     internal_workers = InternalWorker.objects.filter(is_active=True)
 
@@ -422,12 +422,19 @@ def project_create(request):
     }
 
     # client_companiesをJSON形式でシリアライズ
+    def get_primary_contact(company):
+        """主担当者を取得するヘルパー関数"""
+        primary = company.contact_persons.filter(is_primary=True).first()
+        if not primary:
+            primary = company.contact_persons.first()
+        return primary
+
     client_companies_json = json.dumps([{
         'id': c.id,
         'company_name': c.company_name,
         'address': c.address or '',
-        'phone': c.phone or '',
-        'contact_person': c.contact_person or '',
+        'phone': get_primary_contact(c).phone if get_primary_contact(c) else '',
+        'contact_person': get_primary_contact(c).name if get_primary_contact(c) else '',
         'payment_cycle': c.payment_cycle or '',
         'payment_cycle_label': payment_cycle_labels.get(c.payment_cycle, c.payment_cycle) if c.payment_cycle else '',
         'closing_day': c.closing_day,
@@ -1387,7 +1394,7 @@ def project_update(request, pk):
     # フォーム表示用のデータを準備
     from .models import ClientCompany
     from subcontract_management.models import InternalWorker
-    client_companies = ClientCompany.objects.filter(is_active=True).order_by('company_name')
+    client_companies = ClientCompany.objects.prefetch_related('contact_persons').filter(is_active=True).order_by('company_name')
     contractors = Contractor.objects.filter(is_active=True)  # 協力会社（作業者追加用）
     internal_workers = InternalWorker.objects.filter(is_active=True)
 
@@ -1411,12 +1418,19 @@ def project_update(request, pk):
     }
 
     # client_companiesをJSON形式でシリアライズ
+    def get_primary_contact(company):
+        """主担当者を取得するヘルパー関数"""
+        primary = company.contact_persons.filter(is_primary=True).first()
+        if not primary:
+            primary = company.contact_persons.first()
+        return primary
+
     client_companies_json = json.dumps([{
         'id': c.id,
         'company_name': c.company_name,
         'address': c.address or '',
-        'phone': c.phone or '',
-        'contact_person': c.contact_person or '',
+        'phone': get_primary_contact(c).phone if get_primary_contact(c) else '',
+        'contact_person': get_primary_contact(c).name if get_primary_contact(c) else '',
         'payment_cycle': c.payment_cycle or '',
         'payment_cycle_label': payment_cycle_labels.get(c.payment_cycle, c.payment_cycle) if c.payment_cycle else '',
         'closing_day': c.closing_day,
