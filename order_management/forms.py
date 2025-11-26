@@ -247,7 +247,7 @@ class ClientCompanyForm(forms.ModelForm):
         fields = [
             # 基本情報
             'company_name', 'address',
-            'payment_cycle', 'closing_day', 'payment_day',
+            'payment_cycle', 'closing_day', 'payment_day', 'payment_offset_months',
             'invoice_submission_deadline', 'invoice_submission_notes',
             # 業務情報
             'work_types', 'pricing_tier', 'site_rules',
@@ -284,6 +284,9 @@ class ClientCompanyForm(forms.ModelForm):
                 'placeholder': '25',
                 'min': '1',
                 'max': '31'
+            }),
+            'payment_offset_months': forms.Select(attrs={
+                'class': 'form-select'
             }),
             'default_key_handover_location': forms.Textarea(attrs={
                 'class': 'form-control',

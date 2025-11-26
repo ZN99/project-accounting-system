@@ -541,7 +541,7 @@ class ClientCompanyAdmin(admin.ModelAdmin):
         ('① 基本情報 (Basic Info)', {
             'fields': (
                 'company_name', 'address',
-                'payment_cycle', 'closing_day', 'payment_day',
+                'payment_cycle', 'closing_day', 'payment_day', 'payment_offset_months',
                 'invoice_submission_deadline', 'invoice_submission_notes',
                 'is_active'
             )

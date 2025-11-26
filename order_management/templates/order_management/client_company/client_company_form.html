@@ -188,14 +188,14 @@
                         </div>
 
                         <div class="row">
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
                                 <label for="{{ form.payment_cycle.id_for_label }}" class="form-label">
                                     支払サイクル
                                 </label>
                                 {{ form.payment_cycle }}
                                 {{ form.payment_cycle.errors }}
                             </div>
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
                                 <label for="{{ form.closing_day.id_for_label }}" class="form-label">
                                     締め日
                                 </label>
@@ -203,7 +203,15 @@
                                 <div class="help-text">月末締めの場合は31、20日締めの場合は20</div>
                                 {{ form.closing_day.errors }}
                             </div>
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
+                                <label for="{{ form.payment_offset_months.id_for_label }}" class="form-label">
+                                    支払月
+                                </label>
+                                {{ form.payment_offset_months }}
+                                <div class="help-text">締日から何ヶ月後に支払うか</div>
+                                {{ form.payment_offset_months.errors }}
+                            </div>
+                            <div class="col-md-3 mb-3">
                                 <label for="{{ form.payment_day.id_for_label }}" class="form-label">
                                     支払日
                                 </label>

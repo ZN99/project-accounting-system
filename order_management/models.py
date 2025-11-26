@@ -2777,6 +2777,18 @@ class ClientCompany(models.Model):
         verbose_name='支払日',
         help_text='毎月の支払日（1-31）。例：25日払いの場合は25'
     )
+    payment_offset_months = models.IntegerField(
+        null=True,
+        blank=True,
+        choices=[
+            (0, '当月'),
+            (1, '翌月'),
+            (2, '翌々月'),
+            (3, '3ヶ月後'),
+        ],
+        verbose_name='支払月',
+        help_text='締日から何ヶ月後に支払うか（0=当月、1=翌月、2=翌々月）'
+    )
 
     # 承認設定
     approval_threshold = models.DecimalField(

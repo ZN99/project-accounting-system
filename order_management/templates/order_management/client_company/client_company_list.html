@@ -238,10 +238,11 @@
                             <td>
                                 {% if company.payment_cycle %}
                                     {{ company.get_payment_cycle_display }}
-                                    {% if company.closing_day or company.payment_day %}
+                                    {% if company.closing_day or company.payment_offset_months or company.payment_day %}
                                         <br>
                                         <small class="text-muted">
                                             {% if company.closing_day %}締{{ company.closing_day }}日{% endif %}
+                                            {% if company.payment_offset_months is not None %}{{ company.get_payment_offset_months_display }}{% endif %}
                                             {% if company.payment_day %}払{{ company.payment_day }}日{% endif %}
                                         </small>
                                     {% endif %}
