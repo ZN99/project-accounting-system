@@ -1,6 +1,6 @@
 {% extends "order_management/base.html" %}
 {% load humanize %}
-{# Cache buster: 2025-11-28-17:20-debug #}
+{# Cache buster: 2025-11-28-17:28-alert-test #}
 {% block title %}{{ title }} - 建築派遣管理システム{% endblock %}
 
 {% block extra_css %}
@@ -2001,8 +2001,13 @@ function handleFormSubmitSuccess() {
     }, 2000);
 }
 
+// 即座に実行（デバッグ用）
+console.log('[IMMEDIATE] Script block executing at:', new Date().toISOString());
+alert('JavaScript読み込み成功！');
+
 $(document).ready(function() {
     console.log('[DEBUG] Document ready fired');
+    alert('$(document).ready 実行！');
 
     // 少し待ってから初期化（フォームが完全にロードされるまで）
     setTimeout(function() {
@@ -2019,21 +2024,33 @@ $(document).ready(function() {
         // フォーム全体の変更を監視（編集モードの場合のみ）
         const isEdit = {{ project|yesno:"true,false" }};
         console.log('[DEBUG] isEdit =', isEdit);
+        alert('isEdit = ' + isEdit); // デバッグ用
+
         if (isEdit) {
             console.log('Setting up form change listeners for edit mode');
 
-            // イベント委譲を使ってより確実に監視
-            $(document).on('input change', 'form input, form select, form textarea', function(e) {
+            // フォーム要素を直接取得してイベントリスナーを追加
+            const $form = $('form');
+            const inputCount = $form.find('input, select, textarea').length;
+            alert('イベントリスナー設定完了\nフォーム要素数: ' + inputCount); // デバッグ用
+
+            // フォーム内の全要素に直接イベントリスナーを設定
+            $form.find('input, select, textarea').on('input change', function(e) {
                 const fieldName = $(this).attr('name') || 'unnamed';
                 console.log('Form field changed:', fieldName, 'value:', $(this).val());
+                alert('フィールド変更検知: ' + fieldName); // デバッグ用
 
                 // 少し遅延させてから更新（連続した変更をまとめる）
                 clearTimeout(window.formChangeTimeout);
                 window.formChangeTimeout = setTimeout(function() {
                     console.log('Calling updateButtonText after field change');
+                    const hasChanges = checkFormChanges();
+                    alert('updateButtonText実行\nhasChanges = ' + hasChanges); // デバッグ用
                     updateButtonText();
                 }, 100);
             });
+        } else {
+            alert('編集モードではありません'); // デバッグ用
         }
     }, 100);
 
@@ -2065,7 +2082,8 @@ $(document).ready(function() {
                 if (response.success) {
                     // 初期値を更新（保存済みとしてマーク）
                     originalFormData['project_status'] = newValue;
-                    updateButtonText();
+                    // updateButtonText()は呼ばない（全体の変更検知に任せる）
+                    toastr.success('受注ヨミを更新しました');
                 } else {
                     toastr.error('保存に失敗しました: ' + (response.error || '不明なエラー'));
                 }
