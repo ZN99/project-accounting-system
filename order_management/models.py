@@ -508,7 +508,8 @@ class Project(models.Model):
 
         # 着工日待ち状態でAヨミに自動変更（NGでない場合のみ）
         # 注意：新規作成時（self.pkがNone）は自動変更しない
-        if self.pk and self.construction_status == 'waiting' and self.project_status not in ['受注確定', 'A', 'NG']:
+        # 注意：明示的に設定されたproject_status（ネタ、B、C、受注確定、A、NG）は変更しない
+        if self.pk and self.construction_status == 'waiting' and self.project_status not in ['ネタ', 'B', 'C', '受注確定', 'A', 'NG']:
             # 着工日待ち（職人が決まった状態）ならAヨミに自動変更
             self.project_status = 'A'
 
