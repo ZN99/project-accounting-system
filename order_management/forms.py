@@ -53,6 +53,7 @@ class ProjectForm(forms.ModelForm):
                 'min': '1',
                 'max': '31'
             }),
+            'payment_offset_months': forms.Select(attrs={'class': 'form-select'}),
             'payment_day': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'placeholder': '25',

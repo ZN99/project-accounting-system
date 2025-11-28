@@ -445,6 +445,7 @@
                                                     data-address="{{ company.address }}"
                                                     data-payment-cycle="{{ company.payment_cycle }}"
                                                     data-closing-day="{{ company.closing_day|default:'' }}"
+                                                    data-payment-offset-months="{{ company.payment_offset_months|default:'' }}"
                                                     data-payment-day="{{ company.payment_day|default:'' }}">
                                                 {{ company.company_name }}{% if company.address %} - {{ company.address }}{% endif %}
                                             </option>
@@ -582,7 +583,7 @@
                                 </div>
                                 <div class="col-md-3 mb-3">
                                     <label for="{{ form.order_amount.id_for_label }}" class="form-label">
-                                        受注金額(税込) <span class="text-danger">*</span>
+                                        受注金額 <span class="text-danger">*</span>
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text">¥</span>
@@ -591,7 +592,7 @@
                                 </div>
                                 <div class="col-md-3 mb-3">
                                     <label for="{{ form.parking_fee.id_for_label }}" class="form-label">
-                                        駐車場代(税込)
+                                        駐車場代
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text">¥</span>
@@ -660,14 +661,21 @@
                                     </label>
                                     {{ form.payment_cycle }}
                                 </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
                                     <label for="{{ form.closing_day.id_for_label }}" class="form-label">
                                         締め日
                                     </label>
                                     {{ form.closing_day }}
                                     <small class="text-muted">月末締めの場合は31</small>
                                 </div>
-                                <div class="col-md-4 mb-3">
+                                <div class="col-md-3 mb-3">
+                                    <label for="{{ form.payment_offset_months.id_for_label }}" class="form-label">
+                                        支払月
+                                    </label>
+                                    {{ form.payment_offset_months }}
+                                    <small class="text-muted">締日から何ヶ月後に支払うか</small>
+                                </div>
+                                <div class="col-md-2 mb-3">
                                     <label for="{{ form.payment_day.id_for_label }}" class="form-label">
                                         支払日
                                     </label>
@@ -856,78 +864,20 @@
                 <div id="modalContractorForm" class="implementation-form">
                     <h6 class="text-primary border-bottom pb-2 mb-3">外注先詳細情報</h6>
 
-                    <!-- 工事業者情報 -->
+                    <!-- 外注先選択 -->
                     <div class="mb-3">
-                        <label class="form-label">工事業者選択方法 <span class="text-danger">*</span></label>
-                        <div class="mb-2">
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="modal_contractor_input_type" id="modalExistingContractor" value="existing" checked>
-                                <label class="form-check-label" for="modalExistingContractor">
-                                    既存から選択
-                                </label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="modal_contractor_input_type" id="modalNewContractor" value="new">
-                                <label class="form-check-label" for="modalNewContractor">
-                                    新規入力
-                                </label>
-                            </div>
-                        </div>
-                        <!-- 既存業者選択 -->
-                        <div id="modalExistingContractorDiv">
-                            <select name="modal_existing_contractor_id" class="form-select" id="modalContractorSelect">
-                                <option value="">-- 業者を選択してください --</option>
-                                {% for contractor in contractors %}
-                                <option value="{{ contractor.id }}" data-name="{{ contractor.name }}" data-address="{{ contractor.address }}">
-                                    {{ contractor.name }} {% if contractor.address %}({{ contractor.address }}){% endif %}
-                                </option>
-                                {% endfor %}
-                            </select>
-                            <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="openContractorManagementPanel()">
-                                <i class="fas fa-building"></i> 工事業者管理
-                            </button>
-                        </div>
-                        <!-- 新規業者入力 -->
-                        <div id="modalNewContractorDiv" style="display: none;">
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">元請名 <span class="text-danger">*</span></label>
-                                    <input type="text" name="modal_new_client_name" class="form-control" placeholder="例: 田中工務店" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">業種</label>
-                                    <select name="modal_new_contractor_type" class="form-select">
-                                        <option value="">-- 業種を選択 --</option>
-                                        <option value="construction">建設業</option>
-                                        <option value="electrical">電気工事業</option>
-                                        <option value="plumbing">管工事業</option>
-                                        <option value="painting">塗装業</option>
-                                        <option value="interior">内装業</option>
-                                        <option value="other">その他</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="row mb-3">
-                                <div class="col-md-12">
-                                    <label class="form-label">住所</label>
-                                    <input type="text" name="modal_new_client_address" class="form-control" placeholder="例: 東京都港区六本木1-2-3">
-                                </div>
-                            </div>
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">電話番号</label>
-                                    <input type="tel" name="modal_new_contractor_phone" class="form-control" placeholder="例: 03-1234-5678">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">担当者名</label>
-                                    <input type="text" name="modal_new_contractor_contact" class="form-control" placeholder="例: 田中太郎">
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">専門分野</label>
-                                <input type="text" name="modal_new_contractor_specialties" class="form-control" placeholder="例: 外壁塗装、防水工事">
-                            </div>
-                        </div>
+                        <label class="form-label">外注先 <span class="text-danger">*</span></label>
+                        <select name="modal_existing_contractor_id" class="form-select" id="modalContractorSelect">
+                            <option value="">-- 外注先を選択してください --</option>
+                            {% for contractor in contractors %}
+                            <option value="{{ contractor.id }}" data-name="{{ contractor.name }}" data-address="{{ contractor.address }}">
+                                {{ contractor.name }} {% if contractor.address %}({{ contractor.address }}){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="openContractorManagementPanel()">
+                            <i class="fas fa-building"></i> 外注先管理
+                        </button>
                     </div>
 
                     <!-- 作業内容 -->
@@ -2485,10 +2435,21 @@ window.addNewSalesStaff = function(staffData) {
                 // リストを更新
                 refreshSalesStaffList();
 
-                // ドロップダウンも更新（ページリロード）
-                setTimeout(function() {
-                    location.reload();
-                }, 1000);
+                // ドロップダウンに新しい営業担当者を追加（ページリロードなし）
+                const newStaffId = response.staff_id;
+                const newOption = $('<option></option>')
+                    .val(newStaffId)
+                    .text(staffData.name)
+                    .data('name', staffData.name)
+                    .data('department', staffData.department)
+                    .data('hourly-rate', staffData.hourly_rate);
+
+                $('#salesManagerSelect').append(newOption);
+
+                // 新しく追加した営業担当者を自動選択
+                $('#salesManagerSelect').val(newStaffId).trigger('change');
+
+                console.log('✅ 営業担当者を追加し、自動選択しました');
             } else {
                 toastr.error(response.message || '追加に失敗しました');
             }
@@ -3600,21 +3561,7 @@ window.removeImplementationItem = function(itemId) {
     $(`[data-item-id="${itemId}"]`).remove();
 };
 
-// 業者選択方法の切り替え
-window.toggleContractorInputType = function() {
-    const inputType = $('input[name="modal_contractor_input_type"]:checked').val();
-    console.log('業者選択方法切り替え:', inputType);
-
-    if (inputType === 'existing') {
-        $('#modalExistingContractorDiv').show();
-        $('#modalNewContractorDiv').hide();
-        console.log('既存業者選択表示');
-    } else {
-        $('#modalExistingContractorDiv').hide();
-        $('#modalNewContractorDiv').show();
-        console.log('新規業者入力表示');
-    }
-};
+// 業者選択方法の切り替え（削除済み - シンプルな外注先選択のみに変更）
 
 // 社内担当者選択方法の切り替え
 window.toggleInternalInputType = function() {
@@ -5078,6 +5025,41 @@ function refreshWorkTypeDropdown(selectedId) {
         }
     });
 }
+
+// 元請会社選択時に支払いサイクル情報を自動入力
+$('#clientCompanySelect').on('change', function() {
+    const selectedOption = $(this).find('option:selected');
+
+    if (selectedOption.val()) {
+        // data属性から値を取得
+        const paymentCycle = selectedOption.data('payment-cycle') || '';
+        const closingDay = selectedOption.data('closing-day') || '';
+        const paymentOffsetMonths = selectedOption.data('payment-offset-months');
+        const paymentDay = selectedOption.data('payment-day') || '';
+
+        // フォームに値を設定
+        $('[name="payment_cycle"]').val(paymentCycle);
+        $('[name="closing_day"]').val(closingDay);
+        $('[name="payment_offset_months"]').val(paymentOffsetMonths !== undefined && paymentOffsetMonths !== '' ? paymentOffsetMonths : '');
+        $('[name="payment_day"]').val(paymentDay);
+
+        // 元請名と住所も自動入力
+        const companyName = selectedOption.data('name') || '';
+        const companyAddress = selectedOption.data('address') || '';
+        $('[name="client_name"]').val(companyName);
+        $('[name="client_address"]').val(companyAddress);
+
+        console.log('✅ 元請会社の支払いサイクル情報を自動入力しました');
+    } else {
+        // 選択を解除した場合はクリア
+        $('[name="payment_cycle"]').val('');
+        $('[name="closing_day"]').val('');
+        $('[name="payment_offset_months"]').val('');
+        $('[name="payment_day"]').val('');
+        $('[name="client_name"]').val('');
+        $('[name="client_address"]').val('');
+    }
+});
 </script>
 
 {% endblock %}

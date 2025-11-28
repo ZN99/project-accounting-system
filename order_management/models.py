@@ -122,6 +122,7 @@ class Project(models.Model):
             ('scheduled', '予定済み'),
             ('in_progress', '調査中'),
             ('completed', '完了'),
+            ('cancelled', 'キャンセル'),
         ],
         default='not_required',
         verbose_name='現地調査ステータス'
@@ -145,6 +146,7 @@ class Project(models.Model):
             ('waiting', '立ち会い待ち'),
             ('in_progress', '立ち会い中'),
             ('completed', '完了'),
+            ('cancelled', 'キャンセル'),
         ],
         default='waiting',
         verbose_name='立ち会いステータス'
@@ -172,6 +174,7 @@ class Project(models.Model):
             ('issued', '見積もり書発行'),
             ('under_review', '見積もり審査中'),
             ('approved', '承認'),
+            ('cancelled', 'キャンセル'),
         ],
         default='not_issued',
         verbose_name='見積もりステータス'
@@ -184,6 +187,7 @@ class Project(models.Model):
             ('waiting', '着工日待ち'),
             ('in_progress', '工事中'),
             ('completed', '完工'),
+            ('cancelled', 'キャンセル'),
         ],
         default='waiting',
         verbose_name='工事ステータス'
@@ -295,6 +299,18 @@ class Project(models.Model):
         blank=True,
         verbose_name='締め日',
         help_text='月末締めの場合は31、20日締めの場合は20'
+    )
+    payment_offset_months = models.IntegerField(
+        null=True,
+        blank=True,
+        choices=[
+            (0, '当月'),
+            (1, '翌月'),
+            (2, '翌々月'),
+            (3, '3ヶ月後'),
+        ],
+        verbose_name='支払月',
+        help_text='締日から何ヶ月後に支払うか（0=当月、1=翌月、2=翌々月）'
     )
     payment_day = models.IntegerField(
         null=True,
@@ -468,8 +484,20 @@ class Project(models.Model):
         # Phase 8: 優先度スコア計算
         self.priority_score = self._calculate_priority_score()
 
-        # 着工日待ち状態でAヨミに自動変更
-        if self.construction_status == 'waiting' and self.project_status not in ['受注確定', 'A']:
+        # NGステータス時の進捗自動キャンセル処理
+        if self.project_status == 'NG':
+            # 各進捗ステータスをキャンセル状態に設定
+            if self.witness_status not in ['completed', 'cancelled']:
+                self.witness_status = 'cancelled'
+            if self.survey_status not in ['completed', 'cancelled', 'not_required']:
+                self.survey_status = 'cancelled'
+            if self.estimate_status not in ['approved', 'cancelled', 'not_issued']:
+                self.estimate_status = 'cancelled'
+            if self.construction_status not in ['completed', 'cancelled']:
+                self.construction_status = 'cancelled'
+
+        # 着工日待ち状態でAヨミに自動変更（NGでない場合のみ）
+        if self.construction_status == 'waiting' and self.project_status not in ['受注確定', 'A', 'NG']:
             # 着工日待ち（職人が決まった状態）ならAヨミに自動変更
             self.project_status = 'A'
 
