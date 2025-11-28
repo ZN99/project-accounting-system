@@ -647,6 +647,57 @@
                 </div>
             </div>
 
+
+            <!-- 期間フィルタ -->
+            <div class="mb-3 pb-3 border-bottom">
+                <div class="mb-2"><strong>期間絞り込み:</strong></div>
+                
+                <!-- プリセットボタン -->
+                <div class="mb-2">
+                    <div class="d-flex flex-wrap gap-1">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setProjectListPeriodPreset('this_month')">今月</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setProjectListPeriodPreset('last_month')">先月</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setProjectListPeriodPreset('last_3_months')">3ヶ月</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setProjectListPeriodPreset('last_6_months')">6ヶ月</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setProjectListPeriodPreset('this_year')">今年</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setProjectListPeriodPreset('last_year')">昨年</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setProjectListPeriodPreset('all')">全期間</button>
+                    </div>
+                </div>
+
+                <form method="get" class="row g-2" id="projectListPeriodFilterForm">
+                    <div class="col-md-4">
+                        <input type="date" name="start_date" id="project_start_date" class="form-control form-control-sm" value="{{ start_date }}" placeholder="開始日">
+                    </div>
+                    <div class="col-md-4">
+                        <input type="date" name="end_date" id="project_end_date" class="form-control form-control-sm" value="{{ end_date }}" placeholder="終了日">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                            <i class="fas fa-filter"></i> 絞り込み
+                        </button>
+                    </div>
+                    <div class="col-md-2">
+                        {% if start_date or end_date %}
+                        <a href="{% url 'order_management:client_company_detail' company.pk %}" class="btn btn-outline-secondary btn-sm w-100">
+                            <i class="fas fa-times"></i> クリア
+                        </a>
+                        {% endif %}
+                    </div>
+                </form>
+
+                {% if start_date or end_date %}
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        フィルタ中: {% if start_date %}{{ start_date }}{% else %}開始{% endif %}
+                        〜
+                        {% if end_date %}{{ end_date }}{% else %}現在{% endif %}
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+
             {% if projects_page %}
                 {% for project in projects_page %}
                 <div class="project-item">
@@ -657,8 +708,8 @@
                     </h6>
                     <div class="project-meta">
                         <span class="me-3">
-                            <i class="fas fa-calendar me-1"></i>
-                            {{ project.work_start_date|date:"Y/m/d"|default:"未設定" }}
+                            <i class="fas fa-clock me-1"></i>登録: 
+                            {{ project.created_at|date:"Y/m/d H:i"|default:"未設定" }}
                         </span>
                         <span class="me-3">
                             <i class="fas fa-yen-sign me-1"></i>
@@ -1295,6 +1346,60 @@ function setPeriodPreset(preset) {
     document.getElementById('start_date').value = formatDate(startDate);
     document.getElementById('end_date').value = formatDate(endDate);
     document.getElementById('periodFilterForm').submit();
+}
+
+// 案件一覧期間プリセット設定関数
+function setProjectListPeriodPreset(preset) {
+    const today = new Date();
+    let startDate = '';
+    let endDate = '';
+
+    switch(preset) {
+        case 'this_month':
+            startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            endDate = today;
+            break;
+
+        case 'last_month':
+            startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+            break;
+
+        case 'last_3_months':
+            startDate = new Date(today.getFullYear(), today.getMonth() - 3, 1);
+            endDate = today;
+            break;
+
+        case 'last_6_months':
+            startDate = new Date(today.getFullYear(), today.getMonth() - 6, 1);
+            endDate = today;
+            break;
+
+        case 'this_year':
+            startDate = new Date(today.getFullYear(), 0, 1);
+            endDate = today;
+            break;
+
+        case 'last_year':
+            startDate = new Date(today.getFullYear() - 1, 0, 1);
+            endDate = new Date(today.getFullYear() - 1, 11, 31);
+            break;
+
+        case 'all':
+            window.location.href = '{% url "order_management:client_company_detail" company.pk %}';
+            return;
+    }
+
+    const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    document.getElementById('project_start_date').value = formatDate(startDate);
+    document.getElementById('project_end_date').value = formatDate(endDate);
+    document.getElementById('projectListPeriodFilterForm').submit();
 }
 </script>
 {% endblock %}

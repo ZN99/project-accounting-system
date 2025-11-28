@@ -247,7 +247,7 @@ class ClientCompanyForm(forms.ModelForm):
         model = ClientCompany
         fields = [
             # 基本情報
-            'company_name', 'address',
+            'company_name', 'address', 'managed_units',
             'payment_cycle', 'closing_day', 'payment_day', 'payment_offset_months',
             'invoice_submission_deadline', 'invoice_submission_notes',
             # 業務情報

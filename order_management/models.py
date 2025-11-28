@@ -2775,6 +2775,12 @@ class ClientCompany(models.Model):
     """元請会社マスター - Phase 8"""
     company_name = models.CharField(max_length=200, unique=True, verbose_name='会社名')
     address = models.TextField(blank=True, verbose_name='住所')
+    managed_units = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name='管理戸数',
+        help_text='元請会社が管理している戸数'
+    )
 
     # 鍵受け渡しデフォルト設定
     default_key_handover_location = models.TextField(blank=True, verbose_name='鍵受け渡し場所（デフォルト）')

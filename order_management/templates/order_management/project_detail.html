@@ -1294,7 +1294,7 @@
                                 <div style="flex: 1;">
                                     <div style="font-size: 0.75rem; font-weight: bold;">
                                         {{ subcontract.contractor.name }}
-                                        <span class="badge bg-info ms-1" style="font-size: 0.6rem;">{{ subcontract.get_step_display }}</span>
+                                        <span class="badge bg-light text-dark border ms-1" style="font-size: 0.6rem;">{{ subcontract.get_step_display }}</span>
                                     </div>
                                 </div>
                                 <span class="badge bg-{{ subcontract.get_payment_status_color }}" style="font-size: 0.6rem;">
@@ -6390,7 +6390,7 @@ $(document).ready(function() {
                             <div style="flex: 1;">
                                 <div style="font-size: 0.75rem; font-weight: bold;">
                                     ${sub.contractor_name}
-                                    <span class="badge bg-info ms-1" style="font-size: 0.6rem;">${stepNames[stepKey]}</span>
+                                    <span class="badge bg-light text-dark border ms-1" style="font-size: 0.6rem;">${stepNames[stepKey]}</span>
                                 </div>
                             </div>
                             <span class="badge bg-${sub.payment_status_color}" style="font-size: 0.6rem;">
