@@ -88,6 +88,13 @@
     #salesStaffManagementModal {
         z-index: 9999 !important;
     }
+    /* 新規営業スタッフ追加モーダル（親モーダルの上に表示） */
+    #addSalesStaffModal {
+        z-index: 10050 !important;
+    }
+    #addSalesStaffModal + .modal-backdrop {
+        z-index: 10040 !important;
+    }
     #craftsmanManagementModal {
         z-index: 9999 !important;
     }
@@ -2383,7 +2390,19 @@ window.openAddSalesStaffModal = function() {
     $('#addSalesStaffForm')[0].reset();
 
     // モーダルを表示
-    const modal = new bootstrap.Modal(document.getElementById('addSalesStaffModal'));
+    const modalElement = document.getElementById('addSalesStaffModal');
+    const modal = new bootstrap.Modal(modalElement);
+
+    // モーダルが表示された後、backdropのz-indexを調整
+    modalElement.addEventListener('shown.bs.modal', function() {
+        // 最後に追加されたbackdrop（このモーダルのbackdrop）のz-indexを調整
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        if (backdrops.length > 0) {
+            const lastBackdrop = backdrops[backdrops.length - 1];
+            lastBackdrop.style.zIndex = '10040';
+        }
+    }, { once: true });
+
     modal.show();
 };
 
