@@ -2018,11 +2018,8 @@ $(document).ready(function() {
         const projectId = {{ project.pk|default:"null" }};
         const newValue = $(this).val();
 
-        console.log('受注ヨミ変更:', newValue, 'projectId:', projectId);
-
         // 新規作成の場合は、フォーム送信時に値が含まれるのでここでは何もしない
         if (!projectId) {
-            console.log('新規作成のため、受注ヨミはフォーム送信時に保存されます');
             updateButtonText(); // ボタンテキストは更新
             return;
         }
@@ -2042,7 +2039,6 @@ $(document).ready(function() {
             },
             success: function(response) {
                 if (response.success) {
-                    console.log('受注ヨミを更新しました:', newValue);
                     // 初期値を更新（保存済みとしてマーク）
                     originalFormData['project_status'] = newValue;
                     updateButtonText();
@@ -2050,8 +2046,7 @@ $(document).ready(function() {
                     toastr.error('保存に失敗しました: ' + (response.error || '不明なエラー'));
                 }
             },
-            error: function(xhr, status, error) {
-                console.error('保存エラー:', error);
+            error: function() {
                 toastr.error('保存に失敗しました');
             }
         });
@@ -2070,12 +2065,6 @@ $(document).ready(function() {
         const form = this;
         const submitBtn = document.getElementById('submitBtn');
         const formData = new FormData(form);
-
-        // デバッグ: project_statusの値を確認
-        const projectStatusValue = formData.get('project_status');
-        console.log('=== フォーム送信 ===');
-        console.log('project_status value:', projectStatusValue);
-        console.log('All formData keys:', Array.from(formData.keys()));
 
         // 送信中の表示
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 更新中...';

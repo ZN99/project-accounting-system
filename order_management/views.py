@@ -264,18 +264,11 @@ def project_list(request):
 def project_create(request):
     """案件新規作成"""
     from subcontract_management.models import InternalWorker, Subcontract
-    import logging
-    logger = logging.getLogger(__name__)
 
     if request.method == 'POST':
-        # デバッグ: project_statusの値を確認
-        logger.info(f"POST data - project_status: {request.POST.get('project_status')}")
-        logger.info(f"POST data keys: {list(request.POST.keys())}")
-
         form = ProjectForm(request.POST)
         if form.is_valid():
             project = form.save()
-            logger.info(f"Project saved - project_status: {project.project_status}")
 
             # 営業担当者（sales_manager）をproject_managerに保存
             sales_manager_id = request.POST.get('sales_manager')
@@ -394,8 +387,6 @@ def project_create(request):
             return redirect('order_management:project_detail', pk=project.pk)
         else:
             # フォームバリデーションエラー - AJAX の場合
-            logger.error(f"Form validation errors: {form.errors}")
-            logger.error(f"POST data for debugging: {dict(request.POST)}")
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
                     'success': False,

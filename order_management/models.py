@@ -507,7 +507,8 @@ class Project(models.Model):
                 self.construction_status = 'cancelled'
 
         # 着工日待ち状態でAヨミに自動変更（NGでない場合のみ）
-        if self.construction_status == 'waiting' and self.project_status not in ['受注確定', 'A', 'NG']:
+        # 注意：新規作成時（self.pkがNone）は自動変更しない
+        if self.pk and self.construction_status == 'waiting' and self.project_status not in ['受注確定', 'A', 'NG']:
             # 着工日待ち（職人が決まった状態）ならAヨミに自動変更
             self.project_status = 'A'
 
