@@ -4591,6 +4591,16 @@ $(document).ready(function() {
     function updateOverallProgressBar(completedSteps, totalSteps, percentage, phase, color) {
         console.log(`📊 Updating overall progress bar: ${completedSteps}/${totalSteps} = ${percentage}% | Phase: ${phase} (${color})`);
 
+        // NG案件の場合は特別表示
+        if (phase === 'NG') {
+            $('#overallProgressBar').css('width', '100%');
+            $('#overallProgressText').text('NG');
+            $('#overallProgressBar').removeClass('bg-danger bg-warning bg-info bg-success bg-verified').addClass('bg-secondary');
+            $('#overallPhase').text('NG').removeClass().addClass('badge bg-secondary').css('font-size', '0.6rem');
+            $('#overallStepCount').text(''); // カウント非表示
+            return;
+        }
+
         // プログレスバーの幅を更新
         $('#overallProgressBar').css('width', `${percentage}%`);
 
@@ -4619,9 +4629,10 @@ $(document).ready(function() {
     }
 
     function updateProgressStatus() {
-        // NG案件の場合は進捗更新をスキップ
-        if (projectStatus === 'ng') {
-            console.log('NG案件のため、進捗更新をスキップします');
+        // NG案件の場合は特別表示
+        if (projectStatus === 'NG') {
+            console.log('NG案件のため、NG表示を設定します');
+            updateOverallProgressBar(0, 5, 0, 'NG', 'secondary');
             return;
         }
 
