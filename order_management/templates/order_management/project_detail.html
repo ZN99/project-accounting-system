@@ -7672,7 +7672,7 @@ $(document).ready(function() {
             url: `/orders/api/projects/{{ project.pk }}/comments/`,
             method: 'GET',
             success: function(data) {
-                displayComments(data.comments || []);
+                displayDetailedComments(data.comments || []);
             },
             error: function() {
                 console.error('コメントの読み込みに失敗しました');
@@ -7680,8 +7680,8 @@ $(document).ready(function() {
         });
     }
 
-    // コメント一覧を表示
-    function displayComments(comments) {
+    // 案件進捗コメント一覧を表示
+    function displayDetailedComments(comments) {
         const $commentsList = $('#commentsList');
         $commentsList.empty();
 
