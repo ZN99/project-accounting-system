@@ -1,6 +1,6 @@
 {% extends "order_management/base.html" %}
 {% load humanize %}
-{# Cache buster: 2025-11-28-17:10-function-restored #}
+{# Cache buster: 2025-11-28-17:20-debug #}
 {% block title %}{{ title }} - 建築派遣管理システム{% endblock %}
 
 {% block extra_css %}
@@ -2002,8 +2002,12 @@ function handleFormSubmitSuccess() {
 }
 
 $(document).ready(function() {
+    console.log('[DEBUG] Document ready fired');
+
     // 少し待ってから初期化（フォームが完全にロードされるまで）
     setTimeout(function() {
+        console.log('[DEBUG] Timeout callback executing');
+
         // 初期値を保存
         saveOriginalFormData();
 
@@ -2014,6 +2018,7 @@ $(document).ready(function() {
 
         // フォーム全体の変更を監視（編集モードの場合のみ）
         const isEdit = {{ project|yesno:"true,false" }};
+        console.log('[DEBUG] isEdit =', isEdit);
         if (isEdit) {
             console.log('Setting up form change listeners for edit mode');
 
