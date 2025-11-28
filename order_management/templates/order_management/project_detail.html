@@ -2,7 +2,7 @@
 {% load humanize %}
 {% load role_tags %}
 {% load custom_filters %}
-{# ✅ VERSION_20251129_013730_CORRECT_SERVER #}
+{# ✅ VERSION_20251129_014800_DEBUG_LOGS #}
 
 {% block title %}{{ project.site_name }} - 建築派遣管理システム{% endblock %}
 
@@ -8660,15 +8660,22 @@ function escapeHtml(text) {
 
 // コメントを投稿
 function postComment() {
+    console.log('[DEBUG] postComment() called');
     const content = document.getElementById('comment-content').value.trim();
     const isImportant = document.getElementById('comment-important').checked;
     const filesInput = document.getElementById('comment-files');
     const files = filesInput.files;
 
+    console.log('[DEBUG] Content:', content);
+    console.log('[DEBUG] Project ID:', projectId);
+
     if (!content) {
+        console.log('[DEBUG] No content - showing error');
         showErrorModal('コメント内容を入力してください');
         return;
     }
+
+    console.log('[DEBUG] Preparing to send request...');
 
     // ファイルサイズチェック（10MB制限）
     for (let file of files) {
