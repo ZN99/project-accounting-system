@@ -7738,6 +7738,16 @@ $(document).ready(function() {
             }
         });
     });
+
+    // コメント入力欄でEnterキーを押しても投稿されないようにする
+    $('#newCommentText').on('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            // Enterキーのみの場合は何もしない（改行させない）
+            e.preventDefault();
+            return false;
+        }
+        // Shift+Enterの場合は通常通り改行される
+    });
 });
 
 // ファイル削除確認 - Phase 5
@@ -9973,6 +9983,18 @@ if (typeof escapeHtml === 'undefined') {
         return text.toString().replace(/[&<>"']/g, function(m) { return map[m]; });
     };
 }
+
+// コメント入力欄でEnterキーを押しても投稿されないようにする（#comment-content用）
+$(document).ready(function() {
+    $('#comment-content').on('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            // Enterキーのみの場合は何もしない（改行させない）
+            e.preventDefault();
+            return false;
+        }
+        // Shift+Enterの場合は通常通り改行される
+    });
+});
 </script>
 
 <!-- 下請け管理パネルモーダル -->
