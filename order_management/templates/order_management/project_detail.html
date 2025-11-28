@@ -1061,9 +1061,9 @@
     </div>
 </div>
 
-<!-- 1カラム: プロジェクト段階管理 -->
+<!-- 1カラム: プロジェクト段階管理 & コメント -->
 <div class="row mb-4">
-    <div class="col-12">
+    <div class="col-md-8">
         <div class="card shadow-sm">
             <div class="card-header bg-gradient-primary text-white py-1">
                 <div class="d-flex justify-content-between align-items-center">
@@ -1163,6 +1163,76 @@
                         <i class="fas fa-save"></i> 進捗更新
                     </button>
                 </form>
+            </div>
+        </div>
+    </div>
+    <!-- 右側: 案件コメント・チャット -->
+    <div class="col-md-4">
+        <div class="card shadow-sm" style="height: 100%;">
+            <div class="card-header bg-primary text-white py-1">
+                <h6 class="mb-0" style="font-size: 0.85rem; line-height: 1.4;">
+                    <i class="fas fa-comments me-2"></i>案件コメント
+                </h6>
+            </div>
+            <div class="card-body p-2">
+                <!-- コメント一覧 -->
+                <div id="comments-container" class="mb-3" style="max-height: 400px; overflow-y: auto;">
+                    <!-- コメントはJavaScriptで動的に読み込み -->
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-spinner fa-spin fa-2x"></i>
+                        <p class="mt-2" style="font-size: 0.75rem;">コメントを読み込み中...</p>
+                    </div>
+                </div>
+
+                <!-- コメント投稿フォーム -->
+                <div class="comment-form">
+                    <form id="comment-form" onsubmit="return false;">
+                        <div class="mb-2">
+                            <textarea
+                                id="comment-content"
+                                class="form-control form-control-sm"
+                                rows="3"
+                                placeholder="コメントを入力..."
+                                required
+                                style="font-size: 0.75rem;"
+                            ></textarea>
+                        </div>
+
+                        <!-- ファイルアップロードセクション -->
+                        <div class="mb-2">
+                            <label class="form-label" style="font-size: 0.75rem;">
+                                <i class="fas fa-paperclip me-1"></i>ファイル添付
+                            </label>
+                            <input
+                                type="file"
+                                class="form-control form-control-sm"
+                                id="comment-files"
+                                multiple
+                                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                                style="font-size: 0.7rem;"
+                            >
+                            <small class="form-text text-muted" style="font-size: 0.65rem;">
+                                最大10MB/ファイル
+                            </small>
+                            <!-- 選択したファイルのプレビュー -->
+                            <div id="file-preview" class="mt-1"></div>
+                        </div>
+
+                        <div class="form-check mb-2">
+                            <input
+                                type="checkbox"
+                                class="form-check-input"
+                                id="comment-important"
+                            >
+                            <label class="form-check-label" for="comment-important" style="font-size: 0.75rem;">
+                                <i class="fas fa-exclamation-triangle text-warning"></i> 重要
+                            </label>
+                        </div>
+                        <button type="button" class="btn btn-primary btn-sm w-100" onclick="postComment()" style="font-size: 0.75rem;">
+                            <i class="fas fa-paper-plane me-1"></i>投稿
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -8304,78 +8374,6 @@ function confirmFileDelete(fileId, fileName) {
 <form id="fileDeleteForm" method="post" style="display: none;">
     {% csrf_token %}
 </form>
-
-<!-- 案件チャット・コメントセクション -->
-<div class="container mt-5 mb-5">
-    <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">
-                <i class="fas fa-comments me-2"></i>案件コメント・チャット
-            </h5>
-        </div>
-        <div class="card-body">
-            <!-- コメント一覧 -->
-            <div id="comments-container" class="mb-4" style="max-height: 500px; overflow-y: auto;">
-                <!-- コメントはJavaScriptで動的に読み込み -->
-                <div class="text-center text-muted py-5">
-                    <i class="fas fa-spinner fa-spin fa-2x"></i>
-                    <p class="mt-2">コメントを読み込み中...</p>
-                </div>
-            </div>
-
-            <!-- コメント投稿フォーム -->
-            <div class="comment-form">
-                <form id="comment-form" onsubmit="return false;">
-                    <div class="mb-3">
-                        <textarea
-                            id="comment-content"
-                            class="form-control"
-                            rows="3"
-                            placeholder="コメントを入力してください... (@ユーザー名 でメンションできます)"
-                            required
-                        ></textarea>
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> @ユーザー名 でメンションすると、そのユーザーに通知が送られます
-                        </small>
-                    </div>
-
-                    <!-- ファイルアップロードセクション -->
-                    <div class="mb-3">
-                        <label class="form-label">
-                            <i class="fas fa-paperclip me-1"></i>ファイルを添付 (複数選択可)
-                        </label>
-                        <input
-                            type="file"
-                            class="form-control"
-                            id="comment-files"
-                            multiple
-                            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-                        >
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> 画像、PDF、Office文書に対応（最大10MB/ファイル）
-                        </small>
-                        <!-- 選択したファイルのプレビュー -->
-                        <div id="file-preview" class="mt-2"></div>
-                    </div>
-
-                    <div class="form-check mb-3">
-                        <input
-                            type="checkbox"
-                            class="form-check-input"
-                            id="comment-important"
-                        >
-                        <label class="form-check-label" for="comment-important">
-                            <i class="fas fa-exclamation-triangle text-warning"></i> 重要なコメントとしてマークする
-                        </label>
-                    </div>
-                    <button type="button" class="btn btn-primary" onclick="postComment()">
-                        <i class="fas fa-paper-plane me-2"></i>コメントを投稿
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
 
 <style>
 /* チャットUIのスタイル */
