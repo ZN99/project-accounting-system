@@ -2,6 +2,7 @@
 {% load humanize %}
 {% load role_tags %}
 {% load custom_filters %}
+{# CACHE_BUST_20251129_010730_ENTER_KEY_FIX #}
 
 {% block title %}{{ project.site_name }} - 建築派遣管理システム{% endblock %}
 
@@ -7741,13 +7742,17 @@ $(document).ready(function() {
 
     // コメント入力欄でEnterキーを押しても投稿されないようにする
     $('#newCommentText').on('keydown', function(e) {
+        console.log('[newCommentText] Key pressed:', e.key, 'shiftKey:', e.shiftKey);
         if (e.key === 'Enter' && !e.shiftKey) {
+            console.log('[newCommentText] Enter key blocked - preventing default');
             // Enterキーのみの場合は何もしない（改行させない）
             e.preventDefault();
+            e.stopPropagation();
             return false;
         }
         // Shift+Enterの場合は通常通り改行される
     });
+    console.log('[DEBUG] Enter key prevention set up for #newCommentText');
 });
 
 // ファイル削除確認 - Phase 5
@@ -9987,13 +9992,17 @@ if (typeof escapeHtml === 'undefined') {
 // コメント入力欄でEnterキーを押しても投稿されないようにする（#comment-content用）
 $(document).ready(function() {
     $('#comment-content').on('keydown', function(e) {
+        console.log('[comment-content] Key pressed:', e.key, 'shiftKey:', e.shiftKey);
         if (e.key === 'Enter' && !e.shiftKey) {
+            console.log('[comment-content] Enter key blocked - preventing default');
             // Enterキーのみの場合は何もしない（改行させない）
             e.preventDefault();
+            e.stopPropagation();
             return false;
         }
         // Shift+Enterの場合は通常通り改行される
     });
+    console.log('[DEBUG] Enter key prevention set up for #comment-content');
 });
 </script>
 
