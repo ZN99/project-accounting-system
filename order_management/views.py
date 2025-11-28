@@ -717,6 +717,8 @@ def update_progress(request, pk):
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.POST.get('ajax_save')
 
         estimate_issued_date = request.POST.get('estimate_issued_date')
+        estimate_notes = request.POST.get('estimate_notes')
+        contractor_estimate_amount = request.POST.get('contractor_estimate_amount')
         contract_date = request.POST.get('contract_date')
         work_start_date = request.POST.get('work_start_date')
         work_end_date = request.POST.get('work_end_date')
@@ -748,6 +750,12 @@ def update_progress(request, pk):
         project.work_start_completed = work_start_completed == 'on'
         project.work_end_completed = work_end_completed == 'on'
         project.estimate_not_required = estimate_not_required == 'on'
+
+        # 見積もり関連テキストフィールドの更新
+        if estimate_notes is not None:
+            project.estimate_notes = estimate_notes
+        if contractor_estimate_amount is not None:
+            project.contractor_estimate_amount = contractor_estimate_amount
 
         # 見積書不要の場合は見積書発行日をクリア
         if project.estimate_not_required:
@@ -790,7 +798,7 @@ def update_progress(request, pk):
         step_order = []
 
         # 動的ステップのデータを収集
-        basic_fields = ['estimate_issued_date', 'contract_date', 'work_start_date', 'work_end_date', 'work_start_completed', 'work_end_completed', 'estimate_not_required', 'invoice_issued']
+        basic_fields = ['estimate_issued_date', 'estimate_notes', 'contractor_estimate_amount', 'contract_date', 'work_start_date', 'work_end_date', 'work_start_completed', 'work_end_completed', 'estimate_not_required', 'invoice_issued']
 
         # 複合ステップのフィールドデータを処理
         # 既存のcomplex_step_fieldsを取得（マージするため）

@@ -1079,6 +1079,17 @@
 
                     <!-- 全体プログレスバー -->
                     <div class="mb-3">
+                        {% if project.project_status == 'ng' %}
+                        <!-- NG案件の場合はキャンセル済を表示 -->
+                        <div class="d-flex justify-content-center align-items-center" style="padding: 2rem 1rem;">
+                            <div class="text-center">
+                                <i class="fas fa-ban text-danger" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                                <h5 class="text-danger mb-0">キャンセル済</h5>
+                                <small class="text-muted d-block mt-2" style="font-size: 0.75rem;">この案件はキャンセルされました</small>
+                            </div>
+                        </div>
+                        {% else %}
+                        <!-- 通常の進捗表示 -->
                         <div class="d-flex justify-content-between align-items-center mb-1">
                             <small class="text-muted" style="font-size: 0.7rem;">
                                 <i class="fas fa-chart-line me-1"></i>進捗
@@ -1103,6 +1114,7 @@
                                 <i class="fas fa-forward me-1" style="font-size: 0.55rem;"></i><strong>Next Step:</strong><br><span id="overallNextStep">-</span>
                             </small>
                         </div>
+                        {% endif %}
                     </div>
 
                     <!-- プロジェクト段階（全て展開） -->
@@ -1813,6 +1825,7 @@
 // グローバル変数の初期化
 var editMode = true; // 常に編集モードをON
 var sortable = null;
+var projectStatus = '{{ project.project_status }}'; // 案件ステータス
 
 // ステップ編集モードの切り替え（グローバル関数）
 function toggleEditMode() {
@@ -1865,7 +1878,8 @@ function toggleEditMode() {
                 }
 
                 // 基本フィールド（estimate, contract, work_start, work_end, invoice）
-                const isBasicField = ['estimate_issued_date', 'estimate_not_required', 'contract_date',
+                const isBasicField = ['estimate_issued_date', 'estimate_not_required', 'estimate_notes',
+                                     'contractor_estimate_amount', 'contract_date',
                                      'work_start_date', 'work_start_completed', 'work_end_date',
                                      'work_end_completed', 'invoice_issued'].includes(fieldName);
 
@@ -4535,6 +4549,12 @@ $(document).ready(function() {
     }
 
     function updateProgressStatus() {
+        // NG案件の場合は進捗更新をスキップ
+        if (projectStatus === 'ng') {
+            console.log('NG案件のため、進捗更新をスキップします');
+            return;
+        }
+
         // 右側のステップから直接完了状況を取得
         const allSteps = [];
 
@@ -4984,6 +5004,8 @@ $(document).ready(function() {
     const projectData = {
         estimate_issued_date: '{{ project.estimate_issued_date|date:"Y-m-d"|default:"" }}' || '',
         estimate_not_required: {% if project.estimate_not_required %}true{% else %}false{% endif %},
+        estimate_notes: `{{ project.estimate_notes|escapejs }}`,
+        contractor_estimate_amount: `{{ project.contractor_estimate_amount|escapejs }}`,
         contract_date: '{{ project.contract_date|date:"Y-m-d"|default:"" }}' || '',
         work_start_date: '{{ project.work_start_date|date:"Y-m-d"|default:"" }}' || '',
         work_start_completed: {% if project.work_start_completed %}true{% else %}false{% endif %},
@@ -5512,6 +5534,28 @@ $(document).ready(function() {
                         <label class="form-check-label" for="estimateNotRequired">
                             <i class="fas fa-times me-1"></i>見積書不要
                         </label>
+                    </div>
+
+                    <!-- 下請業者見積金額 -->
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <i class="fas fa-yen-sign me-1"></i>下請業者見積金額
+                        </label>
+                        <textarea name="contractor_estimate_amount" class="form-control contractor-estimate-amount-input"
+                                  rows="3" placeholder="下請業者の見積金額をフリーテキストで入力"
+                                  ${projectData.estimate_not_required ? 'disabled' : ''}>${projectData.contractor_estimate_amount || ''}</textarea>
+                        <small class="text-muted">下請業者の見積金額や内訳を自由に入力できます</small>
+                    </div>
+
+                    <!-- 備考 -->
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <i class="fas fa-comment me-1"></i>備考
+                        </label>
+                        <textarea name="estimate_notes" class="form-control estimate-notes-input"
+                                  rows="3" placeholder="見積もりに関する備考やメモを入力"
+                                  ${projectData.estimate_not_required ? 'disabled' : ''}>${projectData.estimate_notes || ''}</textarea>
+                        <small class="text-muted">見積もりに関するメモや特記事項を入力できます</small>
                     </div>
 
                     <!-- ファイルアップロード -->
