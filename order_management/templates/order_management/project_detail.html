@@ -2,7 +2,7 @@
 {% load humanize %}
 {% load role_tags %}
 {% load custom_filters %}
-{# ✅ VERSION_20251129_014800_DEBUG_LOGS #}
+{# ✅ COMMENT_SYSTEM_V2.0_20251129_020500 #}
 
 {% block title %}{{ project.site_name }} - 建築派遣管理システム{% endblock %}
 
@@ -8545,19 +8545,22 @@ function confirmFileDelete(fileId, fileName) {
 </style>
 
 <script>
-// コメント機能のJavaScript
+// コメント機能のJavaScript v2.0 - 2025-11-29
+console.log('=== Comment System v2.0 Loaded ===');
 const projectId = {{ project.id }};
 
 // ページ読み込み時にコメントを取得
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('[INIT] Loading comments for project:', projectId);
     loadComments();
 });
 
 // コメント一覧を読み込み
 function loadComments() {
+    console.log('[loadComments] Fetching comments...');
     fetch(`/orders/api/projects/${projectId}/comments/`)
         .then(response => {
-            // レスポンスのContent-Typeをチェック
+            console.log('[loadComments] Response received:', response.status);
             const contentType = response.headers.get('content-type');
             if (!contentType || !contentType.includes('application/json')) {
                 throw new Error('JSONレスポンスが期待されましたが、別の形式が返されました');
@@ -8565,15 +8568,16 @@ function loadComments() {
             return response.json();
         })
         .then(data => {
+            console.log('[loadComments] Data received:', data);
+            console.log('[loadComments] Comments count:', data.comments.length);
             displayComments(data.comments);
         })
         .catch(error => {
-            console.error('コメント取得エラー:', error);
-            // コメント機能が未実装の可能性があるため、エラーを非表示にする
+            console.error('[loadComments] Error:', error);
             document.getElementById('comments-container').innerHTML = `
                 <div class="text-center text-muted py-3">
                     <i class="fas fa-comment-slash fa-2x mb-2"></i>
-                    <p class="small">コメント機能は現在準備中です</p>
+                    <p class="small">コメントの読み込みに失敗しました</p>
                 </div>
             `;
         });
@@ -8581,9 +8585,16 @@ function loadComments() {
 
 // コメントを表示
 function displayComments(comments) {
+    console.log('[displayComments] Displaying comments:', comments.length);
     const container = document.getElementById('comments-container');
 
-    if (comments.length === 0) {
+    if (!container) {
+        console.error('[displayComments] Container not found!');
+        return;
+    }
+
+    if (!comments || comments.length === 0) {
+        console.log('[displayComments] No comments to display');
         container.innerHTML = `
             <div class="text-center text-muted py-5">
                 <i class="fas fa-comment-slash fa-3x mb-3"></i>
@@ -8595,7 +8606,8 @@ function displayComments(comments) {
     }
 
     let html = '';
-    comments.forEach(comment => {
+    comments.forEach((comment, index) => {
+        console.log(`[displayComments] Processing comment ${index + 1}:`, comment);
         const importantClass = comment.is_important ? 'important' : '';
         const importantBadge = comment.is_important ?
             '<span class="comment-important-badge"><i class="fas fa-exclamation-triangle"></i> 重要</span>' : '';
@@ -8639,53 +8651,58 @@ function displayComments(comments) {
         `;
     });
 
+    console.log('[displayComments] Setting innerHTML with', comments.length, 'comments');
     container.innerHTML = html;
-
-    // 最新のコメントにスクロール
     container.scrollTop = container.scrollHeight;
+    console.log('[displayComments] Display complete');
 }
 
-// コメント内容をフォーマット（@メンションをハイライト）
+// コメント内容をフォーマット（改行とメンションを処理）
 function formatCommentContent(content) {
     const escaped = escapeHtml(content);
-    return escaped.replace(/@(\w+)/g, '<strong class="text-primary">@$1</strong>');
+    // 改行を<br>に変換
+    const withBreaks = escaped.replace(/\r\n/g, '<br>').replace(/\n/g, '<br>');
+    // @メンションをハイライト
+    return withBreaks.replace(/@(\w+)/g, '<strong class="text-primary">@$1</strong>');
 }
 
 // HTMLエスケープ
 function escapeHtml(text) {
+    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-// コメントを投稿
+// コメントを投稿 v2.0
 function postComment() {
-    console.log('[DEBUG] postComment() called');
+    console.log('[postComment] === START ===');
+    console.log('[postComment] Project ID:', projectId);
+
     const content = document.getElementById('comment-content').value.trim();
     const isImportant = document.getElementById('comment-important').checked;
     const filesInput = document.getElementById('comment-files');
-    const files = filesInput.files;
+    const files = filesInput ? filesInput.files : [];
 
-    console.log('[DEBUG] Content:', content);
-    console.log('[DEBUG] Project ID:', projectId);
+    console.log('[postComment] Content:', content);
+    console.log('[postComment] Is Important:', isImportant);
+    console.log('[postComment] Files:', files.length);
 
     if (!content) {
-        console.log('[DEBUG] No content - showing error');
-        showErrorModal('コメント内容を入力してください');
+        console.log('[postComment] No content - showing error');
+        alert('コメント内容を入力してください');
         return;
     }
-
-    console.log('[DEBUG] Preparing to send request...');
 
     // ファイルサイズチェック（10MB制限）
     for (let file of files) {
         if (file.size > 10 * 1024 * 1024) {
-            showErrorModal(`ファイル "${file.name}" が10MBを超えています`);
+            alert(`ファイル "${file.name}" が10MBを超えています`);
             return;
         }
     }
 
-    // CSRFトークンを取得（Cookieから取得）
+    // CSRFトークンを取得
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -8701,6 +8718,7 @@ function postComment() {
         return cookieValue;
     }
     const csrftoken = getCookie('csrftoken');
+    console.log('[postComment] CSRF Token:', csrftoken ? 'Found' : 'Not found');
 
     // FormDataを使ってファイルとテキストを送信
     const formData = new FormData();
@@ -8710,8 +8728,10 @@ function postComment() {
     // ファイルを追加
     for (let file of files) {
         formData.append('files', file);
+        console.log('[postComment] Added file:', file.name);
     }
 
+    console.log('[postComment] Sending POST request...');
     fetch(`/orders/api/projects/${projectId}/comments/post/`, {
         method: 'POST',
         headers: {
@@ -8720,36 +8740,45 @@ function postComment() {
         body: formData
     })
     .then(response => {
-        console.log('Response status:', response.status);
+        console.log('[postComment] Response status:', response.status);
         if (!response.ok) {
             return response.text().then(text => {
-                console.error('Error response:', text);
-                throw new Error(`HTTPエラー: ${response.status} - ${text}`);
+                console.error('[postComment] Error response:', text);
+                throw new Error(`HTTPエラー: ${response.status}`);
             });
         }
         return response.json();
     })
     .then(data => {
-        console.log('Success response:', data);
+        console.log('[postComment] Response data:', data);
         if (data.success) {
+            console.log('[postComment] Success! Clearing form...');
             // フォームをリセット
             document.getElementById('comment-content').value = '';
             document.getElementById('comment-important').checked = false;
-            filesInput.value = '';
-            document.getElementById('file-preview').innerHTML = '';
+            if (filesInput) {
+                filesInput.value = '';
+            }
+            const filePreview = document.getElementById('file-preview');
+            if (filePreview) {
+                filePreview.innerHTML = '';
+            }
 
             // コメント一覧を再読み込み
+            console.log('[postComment] Reloading comments...');
             loadComments();
 
             // 成功メッセージ
-            showToast('コメントを投稿しました', 'success');
+            alert('コメントを投稿しました');
+            console.log('[postComment] === COMPLETE ===');
         } else {
-            showErrorModal('エラー: ' + (data.error || 'コメントの投稿に失敗しました'));
+            console.error('[postComment] Server returned failure:', data.error);
+            alert('エラー: ' + (data.error || 'コメントの投稿に失敗しました'));
         }
     })
     .catch(error => {
-        console.error('コメント投稿エラー:', error);
-        showErrorModal('コメントの保存に失敗しました: ' + error.message);
+        console.error('[postComment] Catch error:', error);
+        alert('コメントの保存に失敗しました: ' + error.message);
     });
 }
 
