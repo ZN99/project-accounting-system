@@ -1,6 +1,6 @@
 {% extends "order_management/base.html" %}
 {% load humanize %}
-{# Cache buster: 2025-11-28-17:05-fixed #}
+{# Cache buster: 2025-11-28-17:10-function-restored #}
 {% block title %}{{ title }} - 建築派遣管理システム{% endblock %}
 
 {% block extra_css %}
@@ -3655,7 +3655,21 @@ window.removeImplementationItem = function(itemId) {
     $(`[data-item-id="${itemId}"]`).remove();
 };
 
-// 業者選択方法の切り替え（削除済み - シンプルな外注先選択のみに変更）
+// 業者選択方法の切り替え
+window.toggleContractorInputType = function() {
+    const inputType = $('input[name="modal_contractor_input_type"]:checked').val();
+    console.log('業者選択方法切り替え:', inputType);
+
+    if (inputType === 'existing') {
+        $('#modalExistingContractorDiv').show();
+        $('#modalNewContractorDiv').hide();
+        console.log('既存業者選択表示');
+    } else {
+        $('#modalExistingContractorDiv').hide();
+        $('#modalNewContractorDiv').show();
+        console.log('新規業者入力表示');
+    }
+};
 
 // 社内担当者選択方法の切り替え
 window.toggleInternalInputType = function() {
