@@ -2374,10 +2374,50 @@ window.selectSalesStaff = function(staffId) {
         }
     }
 
-    // ドロップダウンで営業担当者を選択
-    $('#salesManagerSelect').val(staffId);
+    // ドロップダウンに選択しようとしているIDが存在するか確認
+    const selectElement = $('#salesManagerSelect');
+    const existingOption = selectElement.find(`option[value="${staffId}"]`);
 
-    console.log('✅ 営業担当者を選択しました:', staffId);
+    if (existingOption.length === 0) {
+        // 存在しない場合、APIから最新データを取得して追加
+        console.log('⚠️ ドロップダウンに営業担当者が存在しないため、取得中...', staffId);
+
+        $.ajax({
+            url: '{% url "order_management:staff_api" %}',
+            method: 'GET',
+            success: function(response) {
+                if (response.success && response.workers) {
+                    // 選択しようとしている営業担当者を探す
+                    const staff = response.workers.find(w => w.id == staffId);
+                    if (staff) {
+                        // ドロップダウンに追加
+                        const newOption = $('<option></option>')
+                            .val(staff.id)
+                            .text(staff.name)
+                            .data('name', staff.name)
+                            .data('department', staff.department)
+                            .data('hourly-rate', staff.hourly_rate);
+
+                        selectElement.append(newOption);
+                        selectElement.val(staffId).trigger('change');
+
+                        console.log('✅ 営業担当者を追加して選択しました:', staff.name);
+                    } else {
+                        console.error('❌ 営業担当者が見つかりませんでした:', staffId);
+                        toastr.error('営業担当者が見つかりませんでした');
+                    }
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('❌ 営業担当者データの取得に失敗:', error);
+                toastr.error('営業担当者の取得に失敗しました');
+            }
+        });
+    } else {
+        // 既に存在する場合は通常通り選択
+        selectElement.val(staffId).trigger('change');
+        console.log('✅ 営業担当者を選択しました:', staffId);
+    }
 };
 
 window.openAddSalesStaffModal = function() {
