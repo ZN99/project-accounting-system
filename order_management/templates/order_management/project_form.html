@@ -2020,6 +2020,47 @@ $(document).ready(function() {
         }
     }, 100);
 
+    // 受注ヨミの変更を処理（NG時の進捗キャンセル処理のため）
+    $('select[name="project_status"]').on('change', function(e) {
+        const projectId = {{ project.pk|default:"null" }};
+        const newValue = $(this).val();
+
+        // 新規作成の場合は何もしない
+        if (!projectId) {
+            return;
+        }
+
+        // 編集モードの場合、NGに変更した時のみ即座にAJAX保存
+        // （進捗ステータスのキャンセル処理を実行するため）
+        if (newValue === 'NG') {
+            const csrfToken = $('[name=csrfmiddlewaretoken]').val();
+
+            $.ajax({
+                url: '/orders/' + projectId + '/update-forecast/',
+                method: 'POST',
+                data: {
+                    project_status: newValue,
+                    csrfmiddlewaretoken: csrfToken
+                },
+                success: function(response) {
+                    if (response.success) {
+                        // 初期値を更新
+                        originalFormData['project_status'] = newValue;
+                        // 他のフィールドに変更があるかチェックしてボタンを更新
+                        updateButtonText();
+                        toastr.warning('NGに設定し、関連する進捗をキャンセルしました');
+                    } else {
+                        toastr.error('保存に失敗しました: ' + (response.error || '不明なエラー'));
+                    }
+                },
+                error: function() {
+                    toastr.error('保存に失敗しました');
+                }
+            });
+        }
+        // NG以外の場合は、通常のフォーム送信で保存
+    });
+
     // フォーム送信時の処理
     $('#projectForm').on('submit', function(e) {
         e.preventDefault(); // デフォルトの送信を防ぐ
