@@ -2,7 +2,7 @@
 {% load humanize %}
 {% load role_tags %}
 {% load custom_filters %}
-{# CACHE_BUST_20251129_010730_ENTER_KEY_FIX #}
+{# ✅ VERSION_20251129_013730_CORRECT_SERVER #}
 
 {% block title %}{{ project.site_name }} - 建築派遣管理システム{% endblock %}
 
@@ -7740,19 +7740,7 @@ $(document).ready(function() {
         });
     });
 
-    // コメント入力欄でEnterキーを押しても投稿されないようにする
-    $('#newCommentText').on('keydown', function(e) {
-        console.log('[newCommentText] Key pressed:', e.key, 'shiftKey:', e.shiftKey);
-        if (e.key === 'Enter' && !e.shiftKey) {
-            console.log('[newCommentText] Enter key blocked - preventing default');
-            // Enterキーのみの場合は何もしない（改行させない）
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-        }
-        // Shift+Enterの場合は通常通り改行される
-    });
-    console.log('[DEBUG] Enter key prevention set up for #newCommentText');
+    // #newCommentText は type="button" なので、Enterで自動投稿されない（設定不要）
 });
 
 // ファイル削除確認 - Phase 5
@@ -8832,13 +8820,8 @@ document.getElementById('comment-files').addEventListener('change', function(e) 
     }
 });
 
-// エンターキーでの送信（Shift+Enterで改行）
-document.getElementById('comment-content').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        postComment();
-    }
-});
+// Enterキーでの自動投稿を無効化（改行を許可）
+// ボタンクリックでのみ投稿する
 
 // ファイル削除確認 - Phase 5
 function confirmFileDelete(fileId, fileName) {
@@ -9989,21 +9972,7 @@ if (typeof escapeHtml === 'undefined') {
     };
 }
 
-// コメント入力欄でEnterキーを押しても投稿されないようにする（#comment-content用）
-$(document).ready(function() {
-    $('#comment-content').on('keydown', function(e) {
-        console.log('[comment-content] Key pressed:', e.key, 'shiftKey:', e.shiftKey);
-        if (e.key === 'Enter' && !e.shiftKey) {
-            console.log('[comment-content] Enter key blocked - preventing default');
-            // Enterキーのみの場合は何もしない（改行させない）
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-        }
-        // Shift+Enterの場合は通常通り改行される
-    });
-    console.log('[DEBUG] Enter key prevention set up for #comment-content');
-});
+// #comment-content は Enterキーで改行され、ボタンクリックでのみ投稿される（設定不要）
 </script>
 
 <!-- 下請け管理パネルモーダル -->
