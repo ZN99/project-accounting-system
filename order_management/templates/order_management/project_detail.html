@@ -8686,8 +8686,18 @@ function postComment() {
         },
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            return response.text().then(text => {
+                console.error('Error response:', text);
+                throw new Error(`HTTPエラー: ${response.status} - ${text}`);
+            });
+        }
+        return response.json();
+    })
     .then(data => {
+        console.log('Success response:', data);
         if (data.success) {
             // フォームをリセット
             document.getElementById('comment-content').value = '';
@@ -8706,7 +8716,7 @@ function postComment() {
     })
     .catch(error => {
         console.error('コメント投稿エラー:', error);
-        showErrorModal('コメントの投稿に失敗しました');
+        showErrorModal('コメントの保存に失敗しました: ' + error.message);
     });
 }
 
