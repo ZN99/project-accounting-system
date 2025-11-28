@@ -2011,6 +2011,19 @@ $(document).ready(function() {
         updateButtonText();
 
         console.log('Form initialization completed');
+
+        // フォーム全体の変更を監視（編集モードの場合のみ）
+        const isEdit = {{ project|yesno:"true,false" }};
+        if (isEdit) {
+            // フォームのすべてのinput, select, textareaを監視
+            $('form input, form select, form textarea').on('input change', function() {
+                // 少し遅延させてから更新（連続した変更をまとめる）
+                clearTimeout(window.formChangeTimeout);
+                window.formChangeTimeout = setTimeout(function() {
+                    updateButtonText();
+                }, 100);
+            });
+        }
     }, 100);
 
     // 受注ヨミの変更を特別に処理
