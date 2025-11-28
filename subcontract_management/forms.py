@@ -105,7 +105,7 @@ class SubcontractForm(forms.ModelForm):
         self.fields['contractor'].queryset = Contractor.objects.filter(is_active=True)
 
         # 必須項目の設定
-        required_fields = ['contractor', 'contract_amount']
+        required_fields = ['contractor']
         for field_name in required_fields:
             if field_name in self.fields:
                 self.fields[field_name].required = True
@@ -122,4 +122,5 @@ class SubcontractForm(forms.ModelForm):
 
         # フィールドラベルの設定
         self.fields['billed_amount'].help_text = '実際に請求された金額を入力してください（任意）'
-        self.fields['contract_amount'].help_text = '当初の契約金額を入力してください'
+        self.fields['contract_amount'].help_text = '発注金額を入力してください（任意）'
+        self.fields['contract_amount'].required = False

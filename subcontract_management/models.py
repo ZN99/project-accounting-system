@@ -353,7 +353,7 @@ class Subcontract(models.Model):
 
     # 金額管理
     contract_amount = models.DecimalField(
-        max_digits=10, decimal_places=0, verbose_name='依頼金額'
+        max_digits=10, decimal_places=0, null=True, blank=True, verbose_name='発注金額'
     )
     billed_amount = models.DecimalField(
         max_digits=10, decimal_places=0, default=0, null=True, blank=True, verbose_name='被請求額'

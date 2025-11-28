@@ -179,6 +179,16 @@ class Project(models.Model):
         default='not_issued',
         verbose_name='見積もりステータス'
     )
+    estimate_notes = models.TextField(
+        blank=True,
+        verbose_name='見積もり備考',
+        help_text='見積もりに関する備考・メモ'
+    )
+    contractor_estimate_amount = models.TextField(
+        blank=True,
+        verbose_name='下請業者見積金額',
+        help_text='下請業者の見積金額（フリーテキスト）'
+    )
 
     # 着工ステータス拡張 - Phase 11 追加
     construction_status = models.CharField(
