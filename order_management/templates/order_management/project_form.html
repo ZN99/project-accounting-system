@@ -1,6 +1,6 @@
 {% extends "order_management/base.html" %}
 {% load humanize %}
-
+{# Cache buster: 2025-11-28-17:05-fixed #}
 {% block title %}{{ title }} - 建築派遣管理システム{% endblock %}
 
 {% block extra_css %}
@@ -2015,11 +2015,17 @@ $(document).ready(function() {
         // フォーム全体の変更を監視（編集モードの場合のみ）
         const isEdit = {{ project|yesno:"true,false" }};
         if (isEdit) {
-            // フォームのすべてのinput, select, textareaを監視
-            $('form input, form select, form textarea').on('input change', function() {
+            console.log('Setting up form change listeners for edit mode');
+
+            // イベント委譲を使ってより確実に監視
+            $(document).on('input change', 'form input, form select, form textarea', function(e) {
+                const fieldName = $(this).attr('name') || 'unnamed';
+                console.log('Form field changed:', fieldName, 'value:', $(this).val());
+
                 // 少し遅延させてから更新（連続した変更をまとめる）
                 clearTimeout(window.formChangeTimeout);
                 window.formChangeTimeout = setTimeout(function() {
+                    console.log('Calling updateButtonText after field change');
                     updateButtonText();
                 }, 100);
             });
