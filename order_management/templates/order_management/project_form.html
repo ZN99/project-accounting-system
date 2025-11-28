@@ -4090,7 +4090,7 @@ window.refreshClientCompanyList = function() {
     console.log('✅ refreshClientCompanyList called');
 
     const tbody = $('#clientCompanyTableBody');
-    tbody.html('<tr><td colspan="9" class="text-center text-muted"><i class="fas fa-spinner fa-spin me-2"></i>読み込み中...</td></tr>');
+    tbody.html('<tr><td colspan="10" class="text-center text-muted"><i class="fas fa-spinner fa-spin me-2"></i>読み込み中...</td></tr>');
 
     // AJAXで最新の元請会社一覧を取得
     $.ajax({
@@ -4098,7 +4098,7 @@ window.refreshClientCompanyList = function() {
         type: 'GET',
         success: function(response) {
             if (!response.success || !response.companies) {
-                tbody.html('<tr><td colspan="9" class="text-center text-danger">データの取得に失敗しました</td></tr>');
+                tbody.html('<tr><td colspan="10" class="text-center text-danger">データの取得に失敗しました</td></tr>');
                 return;
             }
 
@@ -4111,7 +4111,7 @@ window.refreshClientCompanyList = function() {
     }
 
     if (!allClientCompanies || allClientCompanies.length === 0) {
-        tbody.html('<tr><td colspan="9" class="text-center text-muted">元請会社が登録されていません</td></tr>');
+        tbody.html('<tr><td colspan="10" class="text-center text-muted">元請会社が登録されていません</td></tr>');
         return;
     }
 
@@ -4127,12 +4127,15 @@ window.refreshClientCompanyList = function() {
         const closingDayText = (company.closing_day !== null && company.closing_day !== undefined)
             ? `${company.closing_day}日` : '-';
 
+        // 支払月: payment_offset_monthsの値を表示
+        const paymentOffsetMonthsText = company.payment_offset_months_label || '-';
+
         // 支払い日: null/undefinedをチェック（0は無効な値なので除外）
         const paymentDayText = (company.payment_day !== null && company.payment_day !== undefined)
             ? `${company.payment_day}日` : '-';
 
         // デバッグ: 各会社のデータを確認
-        console.log(`  - ${company.company_name}: 締め日=${company.closing_day}, 支払い日=${company.payment_day}`);
+        console.log(`  - ${company.company_name}: 締め日=${company.closing_day}, 支払月=${company.payment_offset_months}, 支払い日=${company.payment_day}`);
 
         html += `
             <tr style="cursor: pointer;" onclick="selectClientCompany(${company.id})" onmouseover="this.style.backgroundColor='#f8f9fa'" onmouseout="this.style.backgroundColor=''">
@@ -4142,6 +4145,7 @@ window.refreshClientCompanyList = function() {
                 <td>${escapeHtml(company.contact_person || '-')}</td>
                 <td class="text-center">${paymentCycleText}</td>
                 <td class="text-center">${closingDayText}</td>
+                <td class="text-center">${paymentOffsetMonthsText}</td>
                 <td class="text-center">${paymentDayText}</td>
                 <td class="text-center">${statusBadge}</td>
                 <td onclick="event.stopPropagation()">
@@ -4157,7 +4161,7 @@ window.refreshClientCompanyList = function() {
         },
         error: function(xhr, status, error) {
             console.error('❌ 元請会社一覧取得エラー:', error);
-            tbody.html('<tr><td colspan="9" class="text-center text-danger">データの取得に失敗しました: ' + error + '</td></tr>');
+            tbody.html('<tr><td colspan="10" class="text-center text-danger">データの取得に失敗しました: ' + error + '</td></tr>');
         }
     });
 };
@@ -4261,7 +4265,7 @@ window.filterClientCompanyList = function(searchTerm) {
     if (visibleRows === 0) {
         const tbody = $('#clientCompanyTableBody');
         if (tbody.find('.no-results-row').length === 0) {
-            tbody.append('<tr class="no-results-row"><td colspan="9" class="text-center text-muted py-4"><i class="fas fa-search me-2"></i>「' + escapeHtml(searchTerm) + '」に一致する元請会社が見つかりませんでした</td></tr>');
+            tbody.append('<tr class="no-results-row"><td colspan="10" class="text-center text-muted py-4"><i class="fas fa-search me-2"></i>「' + escapeHtml(searchTerm) + '」に一致する元請会社が見つかりませんでした</td></tr>');
         }
     } else {
         $('#clientCompanyTableBody .no-results-row').remove();
@@ -4354,6 +4358,7 @@ function escapeHtml(text) {
                                 <th>担当者</th>
                                 <th class="text-center">支払いサイクル</th>
                                 <th class="text-center">締め日</th>
+                                <th class="text-center">支払月</th>
                                 <th class="text-center">支払い日</th>
                                 <th class="text-center">状態</th>
                                 <th style="width: 140px;">アクション</th>
@@ -4361,7 +4366,7 @@ function escapeHtml(text) {
                         </thead>
                         <tbody id="clientCompanyTableBody">
                             <tr>
-                                <td colspan="9" class="text-center text-muted">読み込み中...</td>
+                                <td colspan="10" class="text-center text-muted">読み込み中...</td>
                             </tr>
                         </tbody>
                     </table>
