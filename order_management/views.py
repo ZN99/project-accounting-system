@@ -1604,7 +1604,22 @@ def staff_api(request, staff_id=None):
     if not InternalWorker:
         return JsonResponse({'error': 'InternalWorker model not available'}, status=400)
 
-    if request.method == 'POST':
+    if request.method == 'GET':
+        # 社内担当者一覧取得
+        workers = InternalWorker.objects.filter(is_active=True).order_by('name')
+        worker_list = []
+        for worker in workers:
+            worker_list.append({
+                'id': worker.id,
+                'name': worker.name,
+                'department': worker.department,
+                'hourly_rate': float(worker.hourly_rate) if worker.hourly_rate else 0,
+                'specialties': worker.specialties or '',
+                'is_active': worker.is_active
+            })
+        return JsonResponse({'success': True, 'workers': worker_list})
+
+    elif request.method == 'POST':
         # 新規作成
         data = json.loads(request.body)
 

@@ -1287,7 +1287,7 @@
 </div>
 
 <!-- 営業担当者管理モーダル -->
-<div class="modal fade" id="salesStaffManagementModal" tabindex="-1" aria-labelledby="salesStaffManagementModalLabel" aria-hidden="true" style="z-index: 9999 !important;">
+<div class="modal fade" id="salesStaffManagementModal" tabindex="-1" aria-labelledby="salesStaffManagementModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
@@ -1365,7 +1365,7 @@
 </div>
 
 <!-- 新規営業スタッフ追加モーダル -->
-<div class="modal fade" id="addSalesStaffModal" tabindex="-1" aria-labelledby="addSalesStaffModalLabel" aria-hidden="true" style="z-index: 10000 !important;">
+<div class="modal fade" id="addSalesStaffModal" tabindex="-1" aria-labelledby="addSalesStaffModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -2271,17 +2271,15 @@ window.openSalesStaffManagementPanel = function() {
     console.log('✅ openSalesStaffManagementPanel called');
 
     try {
-        // 既存のモーダル背景を削除
-        $('.modal-backdrop').remove();
-
         // モーダル要素を取得
-        const modal = $('#salesStaffManagementModal');
-        if (modal.length > 0) {
-            // バックグラウンドスクロールを防ぐ
-            $('body').addClass('modal-open').css('overflow', 'hidden');
-
-            modal.css('display', 'block').addClass('show');
-            $('body').append('<div class="modal-backdrop fade show"></div>');
+        const modalElement = document.getElementById('salesStaffManagementModal');
+        if (modalElement) {
+            // Bootstrap Modal APIを使用してモーダルを表示
+            const modal = new bootstrap.Modal(modalElement, {
+                backdrop: true,
+                keyboard: true
+            });
+            modal.show();
 
             // 営業スタッフリストを更新
             refreshSalesStaffList();
@@ -2303,54 +2301,70 @@ window.refreshSalesStaffList = function() {
     const tbody = $('#salesStaffTableBody');
     tbody.html('<tr><td colspan="5" class="text-center text-muted">読み込み中...</td></tr>');
 
-    // 営業担当者（department が sales または marketing）のデータを取得
-    const allInternalWorkers = {{ internal_workers_json|safe }};
-    const salesStaff = allInternalWorkers.filter(worker =>
-        worker.department === 'sales' || worker.department === 'marketing'
-    );
+    // AJAXで最新の営業担当者データを取得
+    $.ajax({
+        url: '{% url "order_management:staff_api" %}',
+        method: 'GET',
+        success: function(response) {
+            if (response.success && response.workers) {
+                // 営業担当者（department が sales または marketing）のみフィルタ
+                const salesStaff = response.workers.filter(worker =>
+                    worker.department === 'sales' || worker.department === 'marketing'
+                );
 
-    if (salesStaff.length === 0) {
-        tbody.html('<tr><td colspan="5" class="text-center text-muted">営業担当者が登録されていません</td></tr>');
-        return;
-    }
+                if (salesStaff.length === 0) {
+                    tbody.html('<tr><td colspan="5" class="text-center text-muted">営業担当者が登録されていません</td></tr>');
+                    return;
+                }
 
-    let html = '';
-    salesStaff.forEach(function(staff) {
-        const departmentDisplay = staff.department === 'sales' ? '営業部' :
-                                 staff.department === 'marketing' ? 'マーケティング部' : staff.department;
-        const statusBadge = staff.is_active ?
-            '<span class="badge bg-success">有効</span>' :
-            '<span class="badge bg-secondary">無効</span>';
-        const specialties = staff.specialties || '-';
+                let html = '';
+                salesStaff.forEach(function(staff) {
+                    const departmentDisplay = staff.department === 'sales' ? '営業部' :
+                                             staff.department === 'marketing' ? 'マーケティング部' : staff.department;
+                    const statusBadge = staff.is_active ?
+                        '<span class="badge bg-success">有効</span>' :
+                        '<span class="badge bg-secondary">無効</span>';
+                    const specialties = staff.specialties || '-';
 
-        html += `
-            <tr style="cursor: pointer;" onclick="selectSalesStaff(${staff.id})" onmouseover="this.style.backgroundColor='#f8f9fa'" onmouseout="this.style.backgroundColor=''">
-                <td><strong>${staff.name}</strong></td>
-                <td>${departmentDisplay}</td>
-                <td>${specialties}</td>
-                <td>${statusBadge}</td>
-                <td onclick="event.stopPropagation()">
-                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="editSalesStaff(${staff.id})" title="編集">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
+                    html += `
+                        <tr style="cursor: pointer;" onclick="selectSalesStaff(${staff.id})" onmouseover="this.style.backgroundColor='#f8f9fa'" onmouseout="this.style.backgroundColor=''">
+                            <td><strong>${staff.name}</strong></td>
+                            <td>${departmentDisplay}</td>
+                            <td>${specialties}</td>
+                            <td>${statusBadge}</td>
+                            <td onclick="event.stopPropagation()">
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="editSalesStaff(${staff.id})" title="編集">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                tbody.html(html);
+                console.log('✅ 営業担当者リストを更新しました:', salesStaff.length + '件');
+            } else {
+                tbody.html('<tr><td colspan="5" class="text-center text-danger">データの取得に失敗しました</td></tr>');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('❌ 営業担当者データの取得に失敗:', error);
+            tbody.html('<tr><td colspan="5" class="text-center text-danger">エラーが発生しました</td></tr>');
+        }
     });
-
-    tbody.html(html);
 };
 
 // 営業担当者を選択してメインフォームに適用
 window.selectSalesStaff = function(staffId) {
     console.log('✅ selectSalesStaff called', staffId);
 
-    // モーダルを閉じる
+    // モーダルを閉じる（Bootstrap Modal APIを使用）
     const modalElement = document.getElementById('salesStaffManagementModal');
     if (modalElement) {
-        $(modalElement).removeClass('show').css('display', 'none');
-        $('.modal-backdrop').remove();
-        $('body').removeClass('modal-open').css('overflow', '');
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        if (modal) {
+            modal.hide();
+        }
     }
 
     // ドロップダウンで営業担当者を選択
