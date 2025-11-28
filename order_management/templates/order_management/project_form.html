@@ -1,6 +1,5 @@
 {% extends "order_management/base.html" %}
 {% load humanize %}
-{# Cache buster: 2025-11-28-17:28-alert-test #}
 {% block title %}{{ title }} - 建築派遣管理システム{% endblock %}
 
 {% block extra_css %}
@@ -1927,14 +1926,9 @@ function checkFormChanges() {
     const currentFormData = new FormData(form);
     let hasChanges = false;
 
-    // デバッグ用
-    console.log('Original form data:', originalFormData);
-    console.log('Current form data:', Object.fromEntries(currentFormData.entries()));
-
     // 現在の値と初期値を比較
     for (let [key, value] of currentFormData.entries()) {
         if (originalFormData[key] !== value) {
-            console.log(`Field changed: ${key} = "${originalFormData[key]}" → "${value}"`);
             hasChanges = true;
             break;
         }
@@ -1944,7 +1938,6 @@ function checkFormChanges() {
     if (!hasChanges) {
         for (let key in originalFormData) {
             if (!currentFormData.has(key)) {
-                console.log(`Field removed: ${key}`);
                 hasChanges = true;
                 break;
             }
@@ -1963,12 +1956,11 @@ function updateButtonText() {
     if (!isEdit) return; // 新規作成の場合は変更しない
 
     const hasChanges = checkFormChanges();
-    console.log('Form changes detected:', hasChanges); // デバッグ用
 
     if (hasChanges) {
         submitBtn.innerHTML = '<i class="fas fa-save"></i> 案件を更新';
         submitBtn.className = 'btn btn-warning btn-lg me-3';
-        submitBtn.disabled = false; // 確実に有効化
+        submitBtn.disabled = false;
         formChanged = true;
     } else {
         submitBtn.innerHTML = '<i class="fas fa-check"></i> 保存済み';
@@ -2001,56 +1993,30 @@ function handleFormSubmitSuccess() {
     }, 2000);
 }
 
-// 即座に実行（デバッグ用）
-console.log('[IMMEDIATE] Script block executing at:', new Date().toISOString());
-alert('JavaScript読み込み成功！');
-
 $(document).ready(function() {
-    console.log('[DEBUG] Document ready fired');
-    alert('$(document).ready 実行！');
-
     // 少し待ってから初期化（フォームが完全にロードされるまで）
     setTimeout(function() {
-        console.log('[DEBUG] Timeout callback executing');
-
         // 初期値を保存
         saveOriginalFormData();
 
         // 初期状態でボタンを更新
         updateButtonText();
 
-        console.log('Form initialization completed');
-
         // フォーム全体の変更を監視（編集モードの場合のみ）
         const isEdit = {{ project|yesno:"true,false" }};
-        console.log('[DEBUG] isEdit =', isEdit);
-        alert('isEdit = ' + isEdit); // デバッグ用
 
         if (isEdit) {
-            console.log('Setting up form change listeners for edit mode');
-
             // フォーム要素を直接取得してイベントリスナーを追加
             const $form = $('form');
-            const inputCount = $form.find('input, select, textarea').length;
-            alert('イベントリスナー設定完了\nフォーム要素数: ' + inputCount); // デバッグ用
 
             // フォーム内の全要素に直接イベントリスナーを設定
             $form.find('input, select, textarea').on('input change', function(e) {
-                const fieldName = $(this).attr('name') || 'unnamed';
-                console.log('Form field changed:', fieldName, 'value:', $(this).val());
-                alert('フィールド変更検知: ' + fieldName); // デバッグ用
-
                 // 少し遅延させてから更新（連続した変更をまとめる）
                 clearTimeout(window.formChangeTimeout);
                 window.formChangeTimeout = setTimeout(function() {
-                    console.log('Calling updateButtonText after field change');
-                    const hasChanges = checkFormChanges();
-                    alert('updateButtonText実行\nhasChanges = ' + hasChanges); // デバッグ用
                     updateButtonText();
                 }, 100);
             });
-        } else {
-            alert('編集モードではありません'); // デバッグ用
         }
     }, 100);
 
@@ -2096,7 +2062,6 @@ $(document).ready(function() {
 
     // フォームフィールドの変更を監視（project_status以外）
     $('#projectForm').on('input change', 'input, select:not([name="project_status"]), textarea', function() {
-        console.log('Form field changed:', $(this).attr('name'), $(this).val());
         updateButtonText();
     });
 
@@ -2122,21 +2087,16 @@ $(document).ready(function() {
             }
         })
         .then(response => {
-            console.log('Response status:', response.status);
-            console.log('Response headers:', response.headers.get('content-type'));
-
             // レスポンスがJSONでない場合の処理
             const contentType = response.headers.get('content-type');
             if (!contentType || !contentType.includes('application/json')) {
                 return response.text().then(text => {
-                    console.log('Non-JSON response:', text.substring(0, 500));
                     throw new Error('サーバーから予期しないレスポンスが返されました。');
                 });
             }
             return response.json();
         })
         .then(data => {
-            console.log('Response data:', data);
             if (data.success) {
                 // 成功時の処理
                 handleFormSubmitSuccess();
