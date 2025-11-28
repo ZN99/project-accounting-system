@@ -1,6 +1,5 @@
 {% extends "order_management/base.html" %}
 {% load humanize %}
-{# CACHE_BUST_20251128_145930 #}
 {% block title %}{{ title }} - 建築派遣管理システム{% endblock %}
 
 {% block extra_css %}
@@ -2020,45 +2019,6 @@ $(document).ready(function() {
             });
         }
     }, 100);
-
-    // 受注ヨミの変更を特別に処理
-    $('select[name="project_status"]').on('change', function(e) {
-        const projectId = {{ project.pk|default:"null" }};
-        const newValue = $(this).val();
-
-        // 新規作成の場合は、フォーム送信時に値が含まれるのでここでは何もしない
-        if (!projectId) {
-            updateButtonText(); // ボタンテキストは更新
-            return;
-        }
-
-        // 編集モードの場合は即座にAJAX更新
-        const csrfToken = $('[name=csrfmiddlewaretoken]').val();
-
-        // update_forecastエンドポイントを使用
-        $.ajax({
-            url: '/orders/' + projectId + '/update-forecast/',
-            method: 'POST',
-            data: {
-                project_status: newValue,
-                csrfmiddlewaretoken: csrfToken
-            },
-            success: function(response) {
-                if (response.success) {
-                    // 初期値を更新（保存済みとしてマーク）
-                    originalFormData['project_status'] = newValue;
-                    // 他のフィールドに変更があるかチェックしてボタンを更新
-                    updateButtonText();
-                    toastr.success('受注ヨミを更新しました');
-                } else {
-                    toastr.error('保存に失敗しました: ' + (response.error || '不明なエラー'));
-                }
-            },
-            error: function() {
-                toastr.error('保存に失敗しました');
-            }
-        });
-    });
 
     // フォーム送信時の処理
     $('#projectForm').on('submit', function(e) {
