@@ -1144,6 +1144,13 @@ class Project(models.Model):
         - warning (黄色): 予定日のみ入力されている（着工日待ちの場合）
         - secondary (グレー): 何も入力されていない
         """
+        # NGステータスの場合は特別扱い
+        if self.project_status == 'NG':
+            return {
+                'stage': 'NG',
+                'color': 'secondary'
+            }
+
         return {
             'stage': self.current_stage,
             'color': self.current_stage_color
