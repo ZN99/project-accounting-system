@@ -1,5 +1,6 @@
 {% extends "order_management/base.html" %}
 {% load humanize %}
+{# CACHE_BUST_20251128_145930 #}
 {% block title %}{{ title }} - 建築派遣管理システム{% endblock %}
 
 {% block extra_css %}
@@ -2032,8 +2033,6 @@ $(document).ready(function() {
         }
 
         // 編集モードの場合は即座にAJAX更新
-        e.stopPropagation(); // 通常の変更イベントを防ぐ
-
         const csrfToken = $('[name=csrfmiddlewaretoken]').val();
 
         // update_forecastエンドポイントを使用
@@ -2048,7 +2047,8 @@ $(document).ready(function() {
                 if (response.success) {
                     // 初期値を更新（保存済みとしてマーク）
                     originalFormData['project_status'] = newValue;
-                    // updateButtonText()は呼ばない（全体の変更検知に任せる）
+                    // 他のフィールドに変更があるかチェックしてボタンを更新
+                    updateButtonText();
                     toastr.success('受注ヨミを更新しました');
                 } else {
                     toastr.error('保存に失敗しました: ' + (response.error || '不明なエラー'));
@@ -2058,11 +2058,6 @@ $(document).ready(function() {
                 toastr.error('保存に失敗しました');
             }
         });
-    });
-
-    // フォームフィールドの変更を監視（project_status以外）
-    $('#projectForm').on('input change', 'input, select:not([name="project_status"]), textarea', function() {
-        updateButtonText();
     });
 
     // フォーム送信時の処理
