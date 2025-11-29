@@ -8392,8 +8392,10 @@ function confirmFileDelete(fileId, fileName) {
 <style>
 /* チャットUIのスタイル */
 .comment-item {
+    position: relative;
     border-left: 3px solid #dee2e6;
     padding: 15px;
+    padding-right: 50px;
     margin-bottom: 15px;
     background: #f8f9fa;
     border-radius: 8px;
@@ -8555,10 +8557,12 @@ function confirmFileDelete(fileId, fileName) {
 }
 
 .comment-actions {
+    position: absolute;
+    top: 10px;
+    right: 10px;
     display: flex;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
-    margin-top: 6px;
 }
 
 .reply-button,
@@ -8686,8 +8690,9 @@ function renderComment(comment, isReply) {
     let repliesHtml = '';
     if (comment.replies && comment.replies.length > 0) {
         replyToggleHtml = `
-            <button class="btn btn-link text-muted p-0 toggle-replies" data-comment-id="${comment.id}">
-                <i class="fas fa-chevron-down" style="font-size: 0.65rem;"></i> <span style="font-size: 0.7rem;">${comment.reply_count}件</span>
+            <button class="btn btn-link text-muted p-0 toggle-replies" data-comment-id="${comment.id}" title="${comment.reply_count}件の返信">
+                <i class="fas fa-chevron-down" style="font-size: 0.8rem;"></i>
+                <span style="font-size: 0.65rem;">${comment.reply_count}</span>
             </button>
         `;
 
@@ -8718,8 +8723,8 @@ function renderComment(comment, isReply) {
             ${attachmentsHtml}
             <div class="comment-actions">
                 ${replyToggleHtml}
-                <button class="btn btn-link text-muted p-0 reply-button" data-comment-id="${comment.id}" data-author="${escapeHtml(comment.author)}">
-                    <i class="fas fa-reply" style="font-size: 0.7rem;"></i> 返信
+                <button class="btn btn-link text-muted p-0 reply-button" data-comment-id="${comment.id}" data-author="${escapeHtml(comment.author)}" title="返信">
+                    <i class="fas fa-reply" style="font-size: 0.9rem;"></i>
                 </button>
             </div>
             <div class="reply-form-container" id="reply-form-${comment.id}" style="display: none;"></div>
