@@ -532,7 +532,7 @@
                 <div class="flex-grow-1 overflow-hidden" style="min-width: 0;">
                     <div class="d-flex align-items-center mb-1">
                         <h5 class="mb-0 me-2 text-truncate" style="font-size: 1rem; max-width: 60%;"><i class="fas fa-building me-1" style="font-size: 0.9rem;"></i>{{ project.site_name }}</h5>
-                        <span class="badge {% if project.project_status == '受注確定' %}bg-success{% elif project.project_status == 'A' %}bg-danger{% elif project.project_status == 'B' %}bg-warning text-dark{% elif project.project_status == 'NG' %}bg-secondary{% else %}text-dark{% endif %}"
+                        <span class="badge project-status-badge {% if project.project_status == '受注確定' %}bg-success{% elif project.project_status == 'A' %}bg-danger{% elif project.project_status == 'B' %}bg-warning text-dark{% elif project.project_status == 'NG' %}bg-secondary{% else %}text-dark{% endif %}"
                               style="{% if project.project_status == 'ネタ' %}background-color: #e9d5ff;{% endif %} cursor: help; font-size: 0.7rem;"
                               title="{% if project.project_status == '受注確定' %}正式に契約が決定した案件。施工準備・実施段階{% elif project.project_status == 'A' %}受注確度【高】見積提出済みで、契約の意向が強く確認できている案件{% elif project.project_status == 'B' %}受注確度【中】見積提出済みだが、他社との競合や不確定要素がある案件{% elif project.project_status == 'NG' %}失注または取り下げた案件。他社受注や予算不成立など{% else %}初期段階の見込み案件。元請からの問い合わせや引き合いがあった段階{% endif %}">
                             {{ project.get_project_status_display }}
@@ -9094,22 +9094,41 @@ $(document).on('change', '.order-forecast-select-detail', function(e) {
                 select.css('border-color', '#28a745');
 
                 // ヘッダーバッジも更新
-                var badge = $('.badge[title="受注ヨミ（営業見込み度）"]');
+                var badge = $('.project-status-badge');
                 if (badge.length) {
-                    // バッジの色を変更
-                    badge.removeClass('bg-primary bg-success bg-info bg-warning bg-secondary text-dark');
+                    // バッジの色とスタイルを変更
+                    badge.removeClass('bg-primary bg-success bg-danger bg-info bg-warning bg-secondary text-dark');
+                    badge.css('background-color', ''); // カスタム背景色をクリア
+
                     if (newValue === '受注確定') {
-                        badge.addClass('bg-primary');
-                    } else if (newValue === 'A') {
                         badge.addClass('bg-success');
+                    } else if (newValue === 'A') {
+                        badge.addClass('bg-danger');
                     } else if (newValue === 'B') {
-                        badge.addClass('bg-info');
+                        badge.addClass('bg-warning text-dark');
                     } else if (newValue === 'NG') {
                         badge.addClass('bg-secondary');
+                    } else if (newValue === 'ネタ') {
+                        badge.addClass('text-dark');
+                        badge.css('background-color', '#e9d5ff');
                     } else {
-                        badge.addClass('bg-warning text-dark');
+                        badge.addClass('bg-info');
                     }
-                    badge.text('受注ヨミ: ' + newValue);
+
+                    // バッジのテキストを更新（get_project_status_display相当）
+                    var displayText = newValue;
+                    if (newValue === '受注確定') {
+                        displayText = '受注確定';
+                    } else if (newValue === 'A') {
+                        displayText = 'A';
+                    } else if (newValue === 'B') {
+                        displayText = 'B';
+                    } else if (newValue === 'NG') {
+                        displayText = 'NG';
+                    } else if (newValue === 'ネタ') {
+                        displayText = 'ネタ';
+                    }
+                    badge.text(displayText);
                 }
 
                 // 1秒後に緑の枠線を消す
