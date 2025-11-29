@@ -8542,6 +8542,56 @@ function confirmFileDelete(fileId, fileName) {
     margin-bottom: 5px;
     color: #0d6efd;
 }
+
+/* スレッド表示のスタイル */
+.comment-reply {
+    margin-left: 40px;
+    margin-top: 10px;
+    border-left-width: 2px;
+}
+
+.comment-replies {
+    transition: all 0.3s ease;
+}
+
+.comment-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #dee2e6;
+}
+
+.reply-button,
+.toggle-replies {
+    font-size: 0.85em;
+    transition: color 0.2s;
+}
+
+.reply-button:hover,
+.toggle-replies:hover {
+    color: #0d6efd !important;
+    text-decoration: none;
+}
+
+.reply-form {
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.toggle-replies i {
+    transition: transform 0.3s ease;
+}
 </style>
 
 <script>
@@ -8577,7 +8627,7 @@ function loadComments() {
         });
 }
 
-// コメントを表示
+// コメントを表示（スレッド対応）
 function displayComments(comments) {
     const container = document.getElementById('comments-container');
 
@@ -8598,52 +8648,84 @@ function displayComments(comments) {
     }
 
     let html = '';
-    comments.forEach((comment, index) => {
-        const importantClass = comment.is_important ? 'important' : '';
-        const importantBadge = comment.is_important ?
-            '<span class="comment-important-badge"><i class="fas fa-exclamation-triangle"></i> 重要</span>' : '';
-
-        // 添付ファイルのHTML生成
-        let attachmentsHtml = '';
-        if (comment.attachments && comment.attachments.length > 0) {
-            attachmentsHtml = '<div class="comment-attachments mt-2">';
-            comment.attachments.forEach(attachment => {
-                const icon = getFileIcon(attachment);
-                attachmentsHtml += `
-                    <div class="attachment-item">
-                        <a href="${attachment.file_url}" target="_blank" class="attachment-link">
-                            <i class="${icon}"></i>
-                            <span class="attachment-name">${escapeHtml(attachment.file_name)}</span>
-                            <span class="attachment-size">(${attachment.file_size})</span>
-                        </a>
-                        ${attachment.is_image ? `<div class="mt-2"><img src="${attachment.file_url}" class="attachment-preview" onclick="openImageModal('${attachment.file_url}', '${escapeHtml(attachment.file_name)}')"></div>` : ''}
-                    </div>
-                `;
-            });
-            attachmentsHtml += '</div>';
-        }
-
-        html += `
-            <div class="comment-item ${importantClass}">
-                <div class="comment-header">
-                    <span class="comment-author">
-                        <i class="fas fa-user-circle"></i> ${escapeHtml(comment.author)}
-                    </span>
-                    <span class="comment-date">
-                        <i class="far fa-clock"></i> ${comment.created_at}
-                    </span>
-                    ${importantBadge}
-                </div>
-                <div class="comment-content">
-                    ${formatCommentContent(comment.content)}
-                </div>
-                ${attachmentsHtml}
-            </div>
-        `;
+    comments.forEach((comment) => {
+        html += renderComment(comment, false);
     });
 
     container.innerHTML = html;
-    container.scrollTop = container.scrollHeight;
+}
+
+// 1つのコメントをHTMLに変換（スレッド対応）
+function renderComment(comment, isReply) {
+    const importantClass = comment.is_important ? 'important' : '';
+    const importantBadge = comment.is_important ?
+        '<span class="comment-important-badge"><i class="fas fa-exclamation-triangle"></i> 重要</span>' : '';
+
+    // 添付ファイルのHTML生成
+    let attachmentsHtml = '';
+    if (comment.attachments && comment.attachments.length > 0) {
+        attachmentsHtml = '<div class="comment-attachments mt-2">';
+        comment.attachments.forEach(attachment => {
+            const icon = getFileIcon(attachment);
+            attachmentsHtml += `
+                <div class="attachment-item">
+                    <a href="${attachment.file_url}" target="_blank" class="attachment-link">
+                        <i class="${icon}"></i>
+                        <span class="attachment-name">${escapeHtml(attachment.file_name)}</span>
+                        <span class="attachment-size">(${attachment.file_size})</span>
+                    </a>
+                    ${attachment.is_image ? `<div class="mt-2"><img src="${attachment.file_url}" class="attachment-preview" onclick="openImageModal('${attachment.file_url}', '${escapeHtml(attachment.file_name)}')"></div>` : ''}
+                </div>
+            `;
+        });
+        attachmentsHtml += '</div>';
+    }
+
+    // 返信の折りたたみボタンとカウント
+    let replyToggleHtml = '';
+    let repliesHtml = '';
+    if (comment.replies && comment.replies.length > 0) {
+        replyToggleHtml = `
+            <button class="btn btn-sm btn-link text-muted p-0 me-2 toggle-replies" data-comment-id="${comment.id}">
+                <i class="fas fa-chevron-down"></i> ${comment.reply_count}件の返信
+            </button>
+        `;
+
+        // 返信を表示（デフォルトで表示）
+        repliesHtml = `<div class="comment-replies" data-parent-id="${comment.id}">`;
+        comment.replies.forEach(reply => {
+            repliesHtml += renderComment(reply, true);
+        });
+        repliesHtml += '</div>';
+    }
+
+    const replyClass = isReply ? 'comment-reply' : '';
+
+    return `
+        <div class="comment-item ${importantClass} ${replyClass}" data-comment-id="${comment.id}">
+            <div class="comment-header">
+                <span class="comment-author">
+                    <i class="fas fa-user-circle"></i> ${escapeHtml(comment.author)}
+                </span>
+                <span class="comment-date">
+                    <i class="far fa-clock"></i> ${comment.created_at}
+                </span>
+                ${importantBadge}
+            </div>
+            <div class="comment-content">
+                ${formatCommentContent(comment.content)}
+            </div>
+            ${attachmentsHtml}
+            <div class="comment-actions mt-2">
+                ${replyToggleHtml}
+                <button class="btn btn-sm btn-link text-muted p-0 reply-button" data-comment-id="${comment.id}" data-author="${escapeHtml(comment.author)}">
+                    <i class="fas fa-reply"></i> 返信
+                </button>
+            </div>
+            <div class="reply-form-container" id="reply-form-${comment.id}" style="display: none;"></div>
+            ${repliesHtml}
+        </div>
+    `;
 }
 
 // コメント内容をフォーマット（改行とメンションを処理）
@@ -8821,6 +8903,157 @@ document.getElementById('comment-files').addEventListener('change', function(e) 
         preview.appendChild(fileItem);
     }
 });
+
+// 返信ボタンのイベントリスナー（イベント委譲）
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.reply-button')) {
+        const button = e.target.closest('.reply-button');
+        const commentId = button.dataset.commentId;
+        const authorName = button.dataset.author;
+        showReplyForm(commentId, authorName);
+    }
+});
+
+// 折りたたみボタンのイベントリスナー（イベント委譲）
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.toggle-replies')) {
+        const button = e.target.closest('.toggle-replies');
+        const commentId = button.dataset.commentId;
+        toggleReplies(commentId, button);
+    }
+});
+
+// 返信フォームを表示
+function showReplyForm(commentId, authorName) {
+    // 他の返信フォームを閉じる
+    document.querySelectorAll('.reply-form-container').forEach(container => {
+        container.style.display = 'none';
+        container.innerHTML = '';
+    });
+
+    // 返信フォームのHTML
+    const replyFormHtml = `
+        <div class="reply-form mt-3 p-3 bg-light rounded">
+            <div class="mb-2 text-muted small">
+                <i class="fas fa-reply"></i> @${authorName} への返信
+            </div>
+            <textarea
+                class="form-control mb-2"
+                id="reply-content-${commentId}"
+                rows="2"
+                placeholder="返信を入力..."></textarea>
+            <div class="d-flex justify-content-end gap-2">
+                <button class="btn btn-sm btn-secondary cancel-reply" data-comment-id="${commentId}">
+                    キャンセル
+                </button>
+                <button class="btn btn-sm btn-primary post-reply" data-comment-id="${commentId}">
+                    返信を投稿
+                </button>
+            </div>
+        </div>
+    `;
+
+    const container = document.getElementById(`reply-form-${commentId}`);
+    container.innerHTML = replyFormHtml;
+    container.style.display = 'block';
+
+    // フォーカス
+    document.getElementById(`reply-content-${commentId}`).focus();
+}
+
+// 返信フォームをキャンセル（イベント委譲）
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.cancel-reply')) {
+        const button = e.target.closest('.cancel-reply');
+        const commentId = button.dataset.commentId;
+        const container = document.getElementById(`reply-form-${commentId}`);
+        container.style.display = 'none';
+        container.innerHTML = '';
+    }
+});
+
+// 返信を投稿（イベント委譲）
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.post-reply')) {
+        const button = e.target.closest('.post-reply');
+        const commentId = button.dataset.commentId;
+        const content = document.getElementById(`reply-content-${commentId}`).value.trim();
+
+        if (!content) return;
+
+        postCommentReply(commentId, content);
+    }
+});
+
+// 返信を投稿する関数
+function postCommentReply(parentCommentId, content) {
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    const formData = new FormData();
+    formData.append('content', content);
+    formData.append('is_important', false);
+    formData.append('parent_comment_id', parentCommentId);
+
+    fetch(`/orders/api/projects/${projectId}/comments/post/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken
+        },
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => {
+                console.error('[postCommentReply] Error response:', text);
+                throw new Error(`HTTPエラー: ${response.status}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // 返信フォームを閉じる
+            const container = document.getElementById(`reply-form-${parentCommentId}`);
+            container.style.display = 'none';
+            container.innerHTML = '';
+
+            // コメント一覧を再読み込み
+            loadComments();
+        } else {
+            console.error('[postCommentReply] Server returned failure:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('[postCommentReply] Catch error:', error);
+    });
+}
+
+// 返信の折りたたみトグル
+function toggleReplies(commentId, button) {
+    const repliesContainer = document.querySelector(`.comment-replies[data-parent-id="${commentId}"]`);
+
+    if (repliesContainer.style.display === 'none') {
+        repliesContainer.style.display = 'block';
+        button.querySelector('i').className = 'fas fa-chevron-down';
+    } else {
+        repliesContainer.style.display = 'none';
+        button.querySelector('i').className = 'fas fa-chevron-right';
+    }
+}
 
 // Enterキーでの自動投稿を無効化（改行を許可）
 // ボタンクリックでのみ投稿する

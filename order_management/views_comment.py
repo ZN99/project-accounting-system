@@ -13,7 +13,7 @@ import json
 @login_required
 @require_POST
 def post_comment(request, project_id):
-    """コメントを投稿（ファイル添付対応）"""
+    """コメントを投稿（ファイル添付対応、スレッド対応）"""
     project = get_object_or_404(Project, pk=project_id)
 
     try:
@@ -21,23 +21,34 @@ def post_comment(request, project_id):
         if request.content_type and 'multipart/form-data' in request.content_type:
             content = request.POST.get('content', '').strip()
             is_important = request.POST.get('is_important') == 'true'
+            parent_comment_id = request.POST.get('parent_comment_id')
             files = request.FILES.getlist('files')
         # JSONの場合（ファイルなし）
         else:
             data = json.loads(request.body)
             content = data.get('content', '').strip()
             is_important = data.get('is_important', False)
+            parent_comment_id = data.get('parent_comment_id')
             files = []
 
         if not content:
             return JsonResponse({'error': 'コメント内容を入力してください'}, status=400)
+
+        # 親コメントの取得（返信の場合）
+        parent_comment = None
+        if parent_comment_id:
+            try:
+                parent_comment = Comment.objects.get(pk=parent_comment_id, project=project)
+            except Comment.DoesNotExist:
+                return JsonResponse({'error': '返信先のコメントが見つかりません'}, status=404)
 
         # コメントを作成
         comment = Comment.objects.create(
             project=project,
             author=request.user,
             content=content,
-            is_important=is_important
+            is_important=is_important,
+            parent_comment=parent_comment
         )
 
         # ファイルがある場合は添付ファイルを作成
@@ -80,12 +91,11 @@ def post_comment(request, project_id):
 @login_required
 @require_GET
 def get_comments(request, project_id):
-    """案件のコメント一覧を取得（添付ファイル情報含む）"""
+    """案件のコメント一覧を取得（スレッド構造、添付ファイル情報含む）"""
     project = get_object_or_404(Project, pk=project_id)
-    comments = project.comments.select_related('author').prefetch_related('attachments').all()
 
-    comments_data = []
-    for comment in comments:
+    def format_comment(comment):
+        """コメントをJSONフォーマットに変換"""
         # 添付ファイル情報を取得
         attachments_data = []
         for attachment in comment.attachments.all():
@@ -99,14 +109,28 @@ def get_comments(request, project_id):
                 'is_pdf': attachment.is_pdf(),
             })
 
-        comments_data.append({
+        # 返信を取得（古い順に表示）
+        replies_data = []
+        for reply in comment.replies.select_related('author').prefetch_related('attachments').order_by('created_at'):
+            replies_data.append(format_comment(reply))
+
+        return {
             'id': comment.id,
             'author': comment.author.username,
             'content': comment.content,
             'is_important': comment.is_important,
             'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M'),
             'attachments': attachments_data,
-        })
+            'replies': replies_data,
+            'reply_count': len(replies_data),
+        }
+
+    # 親コメントのみを取得（返信ではないコメント）- 古い順に表示
+    parent_comments = project.comments.filter(parent_comment__isnull=True).select_related('author').prefetch_related('attachments').order_by('created_at')
+
+    comments_data = []
+    for comment in parent_comments:
+        comments_data.append(format_comment(comment))
 
     return JsonResponse({
         'comments': comments_data

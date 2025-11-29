@@ -2693,6 +2693,7 @@ class Comment(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='comments', verbose_name="案件")
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comments', verbose_name="投稿者")
     content = models.TextField(verbose_name="コメント内容")
+    parent_comment = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies', verbose_name="返信先コメント")
     mentioned_users = models.ManyToManyField(User, related_name='mentioned_in_comments', blank=True, verbose_name="メンションユーザー")
     is_important = models.BooleanField(default=False, verbose_name="重要フラグ")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="投稿日時")
