@@ -1177,7 +1177,7 @@
             </div>
             <div class="card-body p-2">
                 <!-- コメント一覧 -->
-                <div id="comments-container" class="mb-3" style="max-height: 400px; overflow-y: auto;">
+                <div id="comments-container" class="mb-3">
                     <!-- コメントはJavaScriptで動的に読み込み -->
                     <div class="text-center text-muted py-5">
                         <i class="fas fa-spinner fa-spin fa-2x"></i>
@@ -8556,15 +8556,15 @@ function confirmFileDelete(fileId, fileName) {
 
 .comment-actions {
     display: flex;
-    gap: 10px;
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px solid #dee2e6;
+    gap: 8px;
+    align-items: center;
+    margin-top: 6px;
 }
 
 .reply-button,
 .toggle-replies {
-    font-size: 0.85em;
+    font-size: 0.7rem;
+    padding: 2px 4px;
     transition: color 0.2s;
 }
 
@@ -8686,8 +8686,8 @@ function renderComment(comment, isReply) {
     let repliesHtml = '';
     if (comment.replies && comment.replies.length > 0) {
         replyToggleHtml = `
-            <button class="btn btn-sm btn-link text-muted p-0 me-2 toggle-replies" data-comment-id="${comment.id}">
-                <i class="fas fa-chevron-down"></i> ${comment.reply_count}件の返信
+            <button class="btn btn-link text-muted p-0 toggle-replies" data-comment-id="${comment.id}">
+                <i class="fas fa-chevron-down" style="font-size: 0.65rem;"></i> <span style="font-size: 0.7rem;">${comment.reply_count}件</span>
             </button>
         `;
 
@@ -8716,10 +8716,10 @@ function renderComment(comment, isReply) {
                 ${formatCommentContent(comment.content)}
             </div>
             ${attachmentsHtml}
-            <div class="comment-actions mt-2">
+            <div class="comment-actions">
                 ${replyToggleHtml}
-                <button class="btn btn-sm btn-link text-muted p-0 reply-button" data-comment-id="${comment.id}" data-author="${escapeHtml(comment.author)}">
-                    <i class="fas fa-reply"></i> 返信
+                <button class="btn btn-link text-muted p-0 reply-button" data-comment-id="${comment.id}" data-author="${escapeHtml(comment.author)}">
+                    <i class="fas fa-reply" style="font-size: 0.7rem;"></i> 返信
                 </button>
             </div>
             <div class="reply-form-container" id="reply-form-${comment.id}" style="display: none;"></div>
