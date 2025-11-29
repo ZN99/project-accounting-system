@@ -78,7 +78,7 @@ def post_comment(request, project_id):
                 'author': comment.author.username,
                 'content': comment.content,
                 'is_important': comment.is_important,
-                'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M'),
+                'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                 'attachments': attachments_data,
             }
         })
@@ -122,8 +122,8 @@ def get_comments(request, project_id):
             'author': comment.author.username,
             'content': comment.content,
             'is_important': comment.is_important,
-            'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M'),
-            'updated_at': comment.updated_at.strftime('%Y-%m-%d %H:%M'),
+            'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'updated_at': comment.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
             'is_edited': is_edited,
             'attachments': attachments_data,
             'replies': replies_data,
@@ -228,7 +228,7 @@ def edit_comment(request, comment_id):
             'comment': {
                 'id': comment.id,
                 'content': comment.content,
-                'updated_at': comment.updated_at.strftime('%Y-%m-%d %H:%M'),
+                'updated_at': comment.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
             }
         })
     except Exception as e:
