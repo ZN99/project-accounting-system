@@ -414,26 +414,29 @@ class SeasonalityIndexAdmin(admin.ModelAdmin):
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
     """ユーザープロファイル管理"""
-    list_display = ["user", "get_roles_display", "created_at", "updated_at"]
-    list_filter = []
+    list_display = ["user", "get_initials", "avatar_background_color", "has_avatar"]
+    list_filter = ["avatar_background_color"]
     search_fields = ["user__username", "user__first_name", "user__last_name"]
-    
+
     fieldsets = (
         ("基本情報", {
-            "fields": ("user", "roles")
+            "fields": ("user",)
         }),
-        ("タイムスタンプ", {
-            "fields": ("created_at", "updated_at"),
-            "classes": ("collapse",)
+        ("アバター設定", {
+            "fields": ("avatar", "avatar_background_color")
         }),
     )
-    
-    readonly_fields = ["created_at", "updated_at"]
-    
-    def get_roles_display(self, obj):
-        """ロールの表示"""
-        return ", ".join(obj.get_roles_display()) if obj.roles else "ロールなし"
-    get_roles_display.short_description = "ロール"
+
+    def get_initials(self, obj):
+        """イニシャルの表示"""
+        return obj.get_initials()
+    get_initials.short_description = "イニシャル"
+
+    def has_avatar(self, obj):
+        """アバター画像の有無"""
+        return bool(obj.avatar)
+    has_avatar.short_description = "画像あり"
+    has_avatar.boolean = True
 
 
 class CommentAttachmentInline(admin.TabularInline):

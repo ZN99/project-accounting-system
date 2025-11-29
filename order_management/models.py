@@ -3495,3 +3495,63 @@ class RatingCriteria(models.Model):
         """シングルトンを保証"""
         self.pk = 1
         super().save(*args, **kwargs)
+
+
+class UserProfile(models.Model):
+    """ユーザープロファイル"""
+
+    # 背景色の選択肢
+    BACKGROUND_COLOR_CHOICES = [
+        ('#007bff', 'ブルー'),
+        ('#6c757d', 'グレー'),
+        ('#28a745', 'グリーン'),
+        ('#dc3545', 'レッド'),
+        ('#ffc107', 'イエロー'),
+        ('#17a2b8', 'シアン'),
+        ('#6f42c1', 'パープル'),
+        ('#fd7e14', 'オレンジ'),
+        ('#e83e8c', 'ピンク'),
+        ('#20c997', 'ティール'),
+    ]
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile', verbose_name='ユーザー')
+    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True, verbose_name='プロフィール画像')
+    avatar_background_color = models.CharField(
+        max_length=7,
+        choices=BACKGROUND_COLOR_CHOICES,
+        default='#007bff',
+        verbose_name='アバター背景色'
+    )
+
+    class Meta:
+        db_table = 'user_profile'
+        verbose_name = 'ユーザープロファイル'
+        verbose_name_plural = 'ユーザープロファイル'
+
+    def __str__(self):
+        return f'{self.user.username}のプロファイル'
+
+    def get_initials(self):
+        """ユーザーのイニシャルを取得"""
+        if self.user.first_name and self.user.last_name:
+            return f'{self.user.first_name[0]}{self.user.last_name[0]}'.upper()
+        elif self.user.first_name:
+            return self.user.first_name[:2].upper()
+        elif self.user.last_name:
+            return self.user.last_name[:2].upper()
+        else:
+            return self.user.username[:2].upper()
+
+    def get_avatar_data(self):
+        """アバター表示用のデータを取得"""
+        if self.avatar:
+            return {
+                'type': 'image',
+                'url': self.avatar.url,
+            }
+        else:
+            return {
+                'type': 'initials',
+                'initials': self.get_initials(),
+                'background_color': self.avatar_background_color,
+            }

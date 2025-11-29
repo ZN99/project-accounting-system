@@ -1138,28 +1138,6 @@
                         <input type="hidden" name="step_order" id="stepOrderInput" value="">
                     </div>
 
-                    <!-- 詳細コメント欄 -->
-                    <div class="mb-1">
-                        <label class="form-label fw-bold mb-1" style="font-size: 0.75rem; line-height: 1.2;"><i class="fas fa-comment-alt me-1"></i>詳細コメント</label>
-
-                        <!-- コメント一覧 -->
-                        <div id="commentsList" class="mb-2">
-                            <!-- コメントはJavaScriptで動的に表示 -->
-                        </div>
-
-                        <!-- 新規コメント入力 -->
-                        <div class="mb-1">
-                            <textarea class="form-control" id="newCommentText" rows="2" style="font-size: 0.7rem; padding: 0.25rem 0.4rem; line-height: 1.3;"
-                                      placeholder="新しいコメントを入力してください..."></textarea>
-                            <small class="text-muted" style="font-size: 0.65rem; line-height: 1.2;">コメントは日時とユーザー名付きで保存されます</small>
-                        </div>
-
-                        <!-- コメント保存ボタン -->
-                        <button type="button" class="btn btn-sm btn-outline-primary" id="saveCommentBtn" style="font-size: 0.7rem; padding: 0.25rem 0.5rem;">
-                            <i class="fas fa-plus me-1"></i>コメント追加
-                        </button>
-                    </div>
-
                     <button type="submit" class="btn btn-primary btn-sm" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">
                         <i class="fas fa-save"></i> 進捗更新
                     </button>
@@ -5146,9 +5124,6 @@ $(document).ready(function() {
                 // 予定日超過チェックを実行
                 checkOverdueSteps();
 
-                // 詳細コメントを読み込んで表示
-                loadDetailedComments();
-
                 // 見積書不要チェックボックスの初期化（DOM要素が生成された後）
                 console.log('見積書不要チェックボックスの要素数（初期化後）:', $('#estimateNotRequired').length);
                 console.log('見積書不要チェックボックスの初期状態（初期化後）:', $('#estimateNotRequired').is(':checked'));
@@ -7664,83 +7639,6 @@ $(document).ready(function() {
             console.log('Step initialization complete');
         }, 100);
     });
-
-    // 詳細コメント関連の処理
-    // コメント一覧を読み込んで表示
-    function loadDetailedComments() {
-        $.ajax({
-            url: `/orders/api/projects/{{ project.pk }}/comments/`,
-            method: 'GET',
-            success: function(data) {
-                displayDetailedComments(data.comments || []);
-            },
-            error: function() {
-                console.error('コメントの読み込みに失敗しました');
-            }
-        });
-    }
-
-    // 案件進捗コメント一覧を表示
-    function displayDetailedComments(comments) {
-        const $commentsList = $('#commentsList');
-        $commentsList.empty();
-
-        if (comments.length === 0) {
-            $commentsList.html('<p class="text-muted" style="font-size: 0.7rem; padding: 0.5rem;">コメントはまだありません</p>');
-            return;
-        }
-
-        comments.forEach(function(comment) {
-            const commentHtml = `
-                <div class="comment-item mb-1 p-2" style="border-left: 3px solid #007bff; background-color: #f8f9fa; font-size: 0.7rem;">
-                    <div class="d-flex justify-content-between mb-1">
-                        <strong style="font-size: 0.7rem;">${comment.user}</strong>
-                        <small class="text-muted" style="font-size: 0.65rem;">${comment.timestamp}</small>
-                    </div>
-                    <p class="mb-0" style="font-size: 0.7rem; line-height: 1.3; white-space: pre-wrap;">${comment.comment}</p>
-                </div>
-            `;
-            $commentsList.append(commentHtml);
-        });
-    }
-
-    // コメント追加ボタンのクリックイベント
-    $('#saveCommentBtn').on('click', function() {
-        const commentText = $('#newCommentText').val().trim();
-
-        if (!commentText) {
-            showErrorModal('コメントを入力してください');
-            return;
-        }
-
-        $.ajax({
-            url: `/orders/api/projects/{{ project.pk }}/comments/`,
-            method: 'POST',
-            data: JSON.stringify({
-                comment: commentText
-            }),
-            contentType: 'application/json',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
-            success: function(data) {
-                if (data.success) {
-                    // コメント入力欄をクリア
-                    $('#newCommentText').val('');
-                    // コメント一覧を再読み込み
-                    loadDetailedComments();
-                } else {
-                    showErrorModal('コメントの保存に失敗しました: ' + (data.error || '不明なエラー'));
-                }
-            },
-            error: function(xhr) {
-                showErrorModal('コメントの保存に失敗しました');
-                console.error(xhr);
-            }
-        });
-    });
-
-    // #newCommentText は type="button" なので、Enterで自動投稿されない（設定不要）
 });
 
 // ファイル削除確認 - Phase 5
@@ -8412,6 +8310,38 @@ function confirmFileDelete(fileId, fileName) {
     background: #fff3cd;
 }
 
+/* ユーザーアバターのスタイル */
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: white;
+    flex-shrink: 0;
+}
+
+.user-avatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.user-avatar.initials {
+    background: #007bff;
+}
+
+.comment-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
 .comment-author {
     font-weight: 600;
     color: #0d6efd;
@@ -8665,6 +8595,20 @@ function renderComment(comment, isReply) {
     const importantBadge = comment.is_important ?
         '<span class="comment-important-badge"><i class="fas fa-exclamation-triangle"></i> 重要</span>' : '';
 
+    // アバターのHTML生成
+    let avatarHtml = '';
+    if (comment.avatar) {
+        if (comment.avatar.type === 'image') {
+            avatarHtml = `<div class="user-avatar"><img src="${comment.avatar.url}" alt="${escapeHtml(comment.author)}"></div>`;
+        } else {
+            avatarHtml = `<div class="user-avatar initials" style="background-color: ${comment.avatar.background_color}">${comment.avatar.initials}</div>`;
+        }
+    } else {
+        // フォールバック: アバターデータがない場合
+        const initials = comment.author.substring(0, 2).toUpperCase();
+        avatarHtml = `<div class="user-avatar initials" style="background-color: #007bff">${initials}</div>`;
+    }
+
     // 添付ファイルのHTML生成
     let attachmentsHtml = '';
     if (comment.attachments && comment.attachments.length > 0) {
@@ -8715,14 +8659,19 @@ function renderComment(comment, isReply) {
     return `
         <div class="comment-item ${importantClass} ${replyClass}" data-comment-id="${comment.id}">
             <div class="comment-header">
-                <span class="comment-author">
-                    <i class="fas fa-user-circle"></i> ${escapeHtml(comment.author)}
-                </span>
-                <span class="comment-date">
-                    <i class="far fa-clock"></i> ${comment.created_at}
-                </span>
-                ${editedBadge}
-                ${importantBadge}
+                ${avatarHtml}
+                <div style="flex: 1;">
+                    <div>
+                        <span class="comment-author">
+                            ${escapeHtml(comment.author)}
+                        </span>
+                        <span class="comment-date">
+                            <i class="far fa-clock"></i> ${comment.created_at}
+                        </span>
+                        ${editedBadge}
+                        ${importantBadge}
+                    </div>
+                </div>
             </div>
             <div class="comment-content">
                 ${formatCommentContent(comment.content)}

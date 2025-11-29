@@ -71,11 +71,20 @@ def post_comment(request, project_id):
                 'is_pdf': attachment.is_pdf(),
             })
 
+        # ユーザーのアバター情報を取得
+        avatar_data = {'type': 'initials', 'initials': request.user.username[:2].upper(), 'background_color': '#007bff'}
+        try:
+            if hasattr(request.user, 'profile'):
+                avatar_data = request.user.profile.get_avatar_data()
+        except:
+            pass
+
         return JsonResponse({
             'success': True,
             'comment': {
                 'id': comment.id,
                 'author': comment.author.username,
+                'avatar': avatar_data,
                 'content': comment.content,
                 'is_important': comment.is_important,
                 'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
@@ -117,9 +126,18 @@ def get_comments(request, project_id):
         # 編集済みかどうかをチェック（作成時刻と更新時刻が異なる場合）
         is_edited = comment.created_at != comment.updated_at
 
+        # ユーザーのアバター情報を取得
+        avatar_data = {'type': 'initials', 'initials': comment.author.username[:2].upper(), 'background_color': '#007bff'}
+        try:
+            if hasattr(comment.author, 'profile'):
+                avatar_data = comment.author.profile.get_avatar_data()
+        except:
+            pass
+
         return {
             'id': comment.id,
             'author': comment.author.username,
+            'avatar': avatar_data,
             'content': comment.content,
             'is_important': comment.is_important,
             'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
