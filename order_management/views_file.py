@@ -140,9 +140,9 @@ def step_file_upload_ajax(request, project_pk):
             'success': True,
             'file': {
                 'id': project_file.id,
-                'name': project_file.file_name,
-                'size': project_file.get_file_size_display(),
-                'type': project_file.file_type,
+                'file_name': project_file.file_name,
+                'file_size': project_file.get_file_size_display(),
+                'file_type': project_file.file_type,
                 'uploaded_at': project_file.uploaded_at.strftime('%Y-%m-%d %H:%M'),
                 'uploaded_by': project_file.uploaded_by.username if project_file.uploaded_by else '不明'
             }

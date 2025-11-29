@@ -165,8 +165,8 @@
             width: 36px;
             height: 36px;
             border-radius: 50%;
-            background-color: white;
-            color: var(--primary-color);
+            background-color: #007bff;
+            color: white;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -297,16 +297,27 @@
                     <!-- ユーザードロップダウン -->
                     <div class="dropdown">
                         <a class="d-flex align-items-center text-decoration-none dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <div class="user-avatar">
-                                {% if user.first_name %}{{ user.first_name|slice:":1" }}{% else %}U{% endif %}
-                            </div>
+                            {% if user.profile %}
+                                {% if user.profile.avatar %}
+                                    <div class="user-avatar">
+                                        <img src="{{ user.profile.avatar.url }}" alt="アバター" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+                                    </div>
+                                {% else %}
+                                    <div class="user-avatar" style="background-color: {{ user.profile.avatar_background_color }}">
+                                        {{ user.profile.get_initials }}
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                <div class="user-avatar" style="background-color: #007bff">
+                                    {{ user.username|slice:":2"|upper }}
+                                </div>
+                            {% endif %}
                             <span class="user-name ms-2">
                                 {% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}
                             </span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>プロフィール</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>設定</a></li>
+                            <li><a class="dropdown-item" href="{% url 'order_management:profile_settings' %}"><i class="fas fa-user me-2"></i>プロフィール設定</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{% url 'order_management:logout' %}"><i class="fas fa-sign-out-alt me-2"></i>ログアウト</a></li>
                         </ul>

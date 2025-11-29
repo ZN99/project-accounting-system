@@ -602,7 +602,7 @@
         <div class="card shadow-sm">
             <div class="card-header bg-gradient-primary text-white d-flex justify-content-between align-items-center py-1" style="cursor: pointer;" onclick="toggleDetailInfo()">
                 <div class="d-flex align-items-center">
-                    <h6 class="mb-0" style="font-size: 0.85rem; line-height: 1.4;">
+                    <h6 class="mb-0" style="font-size: 1.1rem; line-height: 1.4;">
                         <i class="fas fa-info-circle me-2"></i>案件詳細情報
                     </h6>
                     <i class="fas fa-chevron-down ms-2" id="detailInfoToggleIcon" style="font-size: 0.75rem; transition: transform 0.3s ease;"></i>
@@ -1073,7 +1073,7 @@
         <div class="card shadow-sm">
             <div class="card-header bg-gradient-primary text-white py-1">
                 <div class="d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0" style="font-size: 0.85rem; line-height: 1.4;"><i class="fas fa-cog"></i> プロジェクト段階管理</h6>
+                    <h6 class="mb-0" style="font-size: 1.1rem; line-height: 1.4;"><i class="fas fa-cog"></i> プロジェクト段階管理</h6>
                     <button type="button" class="btn btn-sm btn-light" id="toggleAllSteps" style="font-size: 0.65rem; padding: 0.2rem 0.4rem;">
                         <i class="fas fa-compress-alt"></i> <span id="toggleButtonText">全部閉じる</span>
                     </button>
@@ -1110,14 +1110,10 @@
                             </div>
                         </div>
 
-                        <!-- Next Action & Next Step -->
+                        <!-- Next Action -->
                         <div class="mt-1">
                             <small class="text-muted d-block" style="font-size: 0.65rem; line-height: 1.2;">
                                 <i class="fas fa-arrow-right me-1" style="font-size: 0.6rem;"></i><strong>Next Action:</strong><br><span id="overallNextAction">-</span>
-                            </small>
-
-                            <small class="text-secondary d-block" style="font-size: 0.6rem; line-height: 1.1; margin-top: 0.3rem;">
-                                <i class="fas fa-forward me-1" style="font-size: 0.55rem;"></i><strong>Next Step:</strong><br><span id="overallNextStep">-</span>
                             </small>
                         </div>
                         {% endif %}
@@ -1154,7 +1150,7 @@
     <div class="col-md-4">
         <div class="card shadow-sm" style="height: 100%;">
             <div class="card-header bg-primary text-white py-1">
-                <h6 class="mb-0" style="font-size: 0.85rem; line-height: 1.4;">
+                <h6 class="mb-0" style="font-size: 1.1rem; line-height: 1.4;">
                     <i class="fas fa-comments me-2"></i>案件コメント
                 </h6>
             </div>
@@ -1228,7 +1224,7 @@
     <div class="col-md-6">
         <div class="card border-info shadow-sm" style="height: 100%;">
             <div class="card-header bg-info text-white py-1">
-                <h6 class="mb-0" style="font-size: 0.85rem; line-height: 1.4;"><i class="fas fa-calculator"></i> 経理情報</h6>
+                <h6 class="mb-0" style="font-size: 1.1rem; line-height: 1.4;"><i class="fas fa-calculator"></i> 経理情報</h6>
             </div>
             <div class="card-body p-2">
                 <!-- 視覚的利益分析チャート（コンパクト版） -->
@@ -1341,7 +1337,7 @@
         <div class="card border-primary shadow-sm mb-2">
             <div class="card-header bg-primary text-white py-1">
                 <div class="d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0" style="font-size: 0.85rem; line-height: 1.4;">
+                    <h6 class="mb-0" style="font-size: 1.1rem; line-height: 1.4;">
                         <i class="fas fa-file-contract"></i> 下請け手配状況
                         <span class="badge bg-light text-dark ms-2">{{ subcontracts|length }}件</span>
                     </h6>
@@ -1395,7 +1391,7 @@
         <div class="card border-warning shadow-sm">
             <div class="card-header bg-warning text-white py-1">
                 <div class="d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0" style="font-size: 0.85rem; line-height: 1.4;">
+                    <h6 class="mb-0" style="font-size: 1.1rem; line-height: 1.4;">
                         <i class="fas fa-box-open"></i> 資材発注状況
                         <span class="badge bg-light text-dark ms-2">{{ project.material_orders.count }}件</span>
                     </h6>
@@ -1800,9 +1796,9 @@
 <div class="modal fade" id="genericConfirmModal" tabindex="-1" aria-labelledby="genericConfirmModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
+            <div class="modal-header text-white" id="genericConfirmModalHeader">
                 <h5 class="modal-title" id="genericConfirmModalLabel">
-                    <i class="fas fa-question-circle me-2"></i><span id="genericConfirmModalTitle">確認</span>
+                    <i class="me-2" id="genericConfirmModalIcon"></i><span id="genericConfirmModalTitle">確認</span>
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -1811,7 +1807,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
-                <button type="button" class="btn btn-primary" id="genericConfirmModalOkBtn">OK</button>
+                <button type="button" id="genericConfirmModalOkBtn">OK</button>
             </div>
         </div>
     </div>
@@ -2022,6 +2018,52 @@ function toggleEditMode() {
     if (sortable) {
         sortable.option("disabled", !editMode);
     }
+}
+
+// 汎用エラーモーダル表示関数（グローバルスコープ）
+function showErrorModal(message, title = 'エラー') {
+    $('#genericErrorModalTitle').text(title);
+    $('#genericErrorModalMessage').text(message);
+    const modal = new bootstrap.Modal(document.getElementById('genericErrorModal'));
+    modal.show();
+}
+
+// 汎用確認モーダル表示関数（グローバルスコープ）
+// 使用例: showConfirmModal('削除しますか？', function() { /* OKの処理 */ });
+function showConfirmModal(message, onConfirm, title = '確認') {
+    $('#genericConfirmModalTitle').text(title);
+    $('#genericConfirmModalMessage').text(message);
+
+    // タイトルに「削除」が含まれている場合は赤（danger）スタイルを適用
+    const isDanger = title.includes('削除');
+    const header = $('#genericConfirmModalHeader');
+    const icon = $('#genericConfirmModalIcon');
+    const okBtn = $('#genericConfirmModalOkBtn');
+
+    if (isDanger) {
+        header.removeClass('bg-primary').addClass('bg-danger');
+        icon.removeClass('fa-question-circle').addClass('fas fa-exclamation-triangle');
+        okBtn.removeClass('btn-primary').addClass('btn btn-danger');
+    } else {
+        header.removeClass('bg-danger').addClass('bg-primary');
+        icon.removeClass('fa-exclamation-triangle').addClass('fas fa-question-circle');
+        okBtn.removeClass('btn-danger').addClass('btn btn-primary');
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('genericConfirmModal'));
+
+    // 既存のイベントリスナーを削除
+    okBtn.off('click');
+
+    // 新しいイベントリスナーを追加
+    okBtn.on('click', function() {
+        modal.hide();
+        if (typeof onConfirm === 'function') {
+            onConfirm();
+        }
+    });
+
+    modal.show();
 }
 
 $(document).ready(function() {
@@ -2861,35 +2903,6 @@ $(document).ready(function() {
         }
     }
 
-    // 汎用エラーモーダル表示関数（showErrorModal()の代わり）
-    function showErrorModal(message, title = 'エラー') {
-        $('#genericErrorModalTitle').text(title);
-        $('#genericErrorModalMessage').text(message);
-        const modal = new bootstrap.Modal(document.getElementById('genericErrorModal'));
-        modal.show();
-    }
-
-    // 汎用確認モーダル表示関数（confirm()の代わり）
-    // 使用例: showConfirmModal('削除しますか？', function() { /* OKの処理 */ });
-    function showConfirmModal(message, onConfirm, title = '確認') {
-        $('#genericConfirmModalTitle').text(title);
-        $('#genericConfirmModalMessage').text(message);
-        const modal = new bootstrap.Modal(document.getElementById('genericConfirmModal'));
-
-        // 既存のイベントリスナーを削除
-        $('#genericConfirmModalOkBtn').off('click');
-
-        // 新しいイベントリスナーを追加
-        $('#genericConfirmModalOkBtn').on('click', function() {
-            modal.hide();
-            if (typeof onConfirm === 'function') {
-                onConfirm();
-            }
-        });
-
-        modal.show();
-    }
-
     // 動的ステップのフィールド保存関数
     function saveStepField(stepKey, stepElement) {
         // 既存の保存タイマーをクリア
@@ -3648,6 +3661,7 @@ $(document).ready(function() {
 
     // ファイルタイプに応じたアイコンを取得
     function getFileIcon(fileType) {
+        if (!fileType) return 'fas fa-file';
         if (fileType.includes('pdf')) return 'fas fa-file-pdf text-danger';
         if (fileType.includes('excel') || fileType.includes('spreadsheet')) return 'fas fa-file-excel text-success';
         if (fileType.includes('word') || fileType.includes('document')) return 'fas fa-file-word text-primary';
@@ -3682,7 +3696,6 @@ $(document).ready(function() {
         formData.append('file', file);
         formData.append('related_step', 'estimate');
         formData.append('description', '見積もり書類');
-        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
 
         const uploadBtn = $(fileInput).closest('.estimate-files-section').find('.upload-estimate-file-btn');
         uploadBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>アップロード中...');
@@ -3693,6 +3706,10 @@ $(document).ready(function() {
             data: formData,
             processData: false,
             contentType: false,
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
             success: function(response) {
                 if (response.success) {
                     if (typeof toastr !== 'undefined') {
@@ -3728,6 +3745,10 @@ $(document).ready(function() {
         $.ajax({
             url: '{% url "order_management:step_file_delete_ajax" project.pk 0 %}'.replace('/0/', `/${fileId}/`),
             method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
             success: function(response) {
                 if (response.success) {
                     if (typeof toastr !== 'undefined') {
@@ -4386,18 +4407,15 @@ $(document).ready(function() {
     }
 
     // 進捗状況バーとフェーズを更新する関数
-    // 次のアクションとNEXTステップを更新する関数（動的ステップ管理対応）
+    // 次のアクションを更新する関数（動的ステップ管理対応）
     function updateNextActionAndStep(phase, allSteps) {
         let nextAction = '完了';
-        let nextStep = '-';
 
         // 全てのステップ要素を取得（表示順序順）
         const stepElements = $('#activeSteps .progress-step');
 
         // 未完了の最初のステップを見つける
         let currentIncompleteStep = null;
-        let nextIncompleteStep = null;
-        let foundCurrent = false;
 
         stepElements.each(function() {
             const $step = $(this);
@@ -4419,21 +4437,13 @@ $(document).ready(function() {
                 }
             }
 
-            if (!isCompleted) {
-                if (!foundCurrent) {
-                    currentIncompleteStep = {
-                        element: $step,
-                        name: stepName,
-                        key: stepKey
-                    };
-                    foundCurrent = true;
-                } else if (!nextIncompleteStep) {
-                    nextIncompleteStep = {
-                        element: $step,
-                        name: stepName,
-                        key: stepKey
-                    };
-                }
+            // 最初の未完了ステップのみを探す
+            if (!isCompleted && !currentIncompleteStep) {
+                currentIncompleteStep = {
+                    element: $step,
+                    name: stepName,
+                    key: stepKey
+                };
             }
         });
 
@@ -4488,72 +4498,16 @@ $(document).ready(function() {
                 nextAction = `${stepName}：入力してください`;
             }
 
-            // NEXTステップを設定（nextIncompleteStepについても同じロジックでアクションを判定）
-            if (nextIncompleteStep) {
-                const $nextStep = nextIncompleteStep.element;
-                const nextStepName = nextIncompleteStep.name;
-
-                // Next Stepの予定日フィールドを確認
-                const nextScheduledDateInput = $nextStep.find('input[name*="scheduled_date"]');
-                const nextActualDateInput = $nextStep.find('input[name*="actual_date"]');
-                const nextCompletedCheckbox = $nextStep.find('input[type="checkbox"][name*="completed"]');
-
-                const nextHasScheduledDate = nextScheduledDateInput.length > 0 && nextScheduledDateInput.val();
-                const nextHasActualDate = nextActualDateInput.length > 0 && nextActualDateInput.val();
-                const nextIsChecked = nextCompletedCheckbox.length > 0 && nextCompletedCheckbox.is(':checked');
-
-                // Next Stepのアクションを判定
-                if (nextCompletedCheckbox.length > 0 && !nextIsChecked) {
-                    // チェックボックスがある場合
-                    if (nextHasActualDate) {
-                        nextStep = `${nextStepName}：完了チェックボックスをチェックしてください`;
-                    } else if (nextHasScheduledDate) {
-                        // 予定日が過去か未来かをチェック
-                        const nextScheduledDate = nextScheduledDateInput.val();
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        const nextScheduledDateObj = new Date(nextScheduledDate);
-
-                        if (nextScheduledDateObj < today) {
-                            // 予定日が過去の場合は完了と見なす
-                            nextStep = `${nextStepName}：完了`;
-                        } else {
-                            // 予定日が未来の場合は待機中
-                            nextStep = `${nextStepName}：予定日待ち（${nextScheduledDate}）`;
-                        }
-                    } else {
-                        nextStep = `${nextStepName}：予定日を入力してください`;
-                    }
-                } else if (nextActualDateInput.length > 0 && !nextHasActualDate) {
-                    // 実施日フィールドがある場合
-                    if (nextHasScheduledDate) {
-                        nextStep = `${nextStepName}：実施日を入力してください`;
-                    } else {
-                        nextStep = `${nextStepName}：予定日を入力してください`;
-                    }
-                } else if (nextScheduledDateInput.length > 0 && !nextHasScheduledDate) {
-                    // 予定日のみの場合
-                    nextStep = `${nextStepName}：予定日を入力してください`;
-                } else {
-                    // その他のフィールドタイプ
-                    nextStep = `${nextStepName}：入力してください`;
-                }
-            } else {
-                nextStep = '完了';
-            }
         }
 
         // UIを更新（バッジ形式でフォーマット）
         $('#nextActionText').html(formatNextActionWithBadge(nextAction));
-        $('#nextStepText').html(formatNextActionWithBadge(nextStep));
 
-        // プロジェクト段階管理カード内のNext Action/Stepも更新
+        // プロジェクト段階管理カード内のNext Actionも更新
         $('#overallNextAction').html(formatNextActionWithBadge(nextAction));
-        $('#overallNextStep').html(formatNextActionWithBadge(nextStep));
 
         console.log('📌 Next Action updated:', {
             action: nextAction,
-            step: nextStep,
             currentStep: currentIncompleteStep ? currentIncompleteStep.name : 'none'
         });
     }
@@ -8698,9 +8652,9 @@ function renderComment(comment, isReply) {
                     </button>
                 ` : ''}
             </div>
-            <div class="reply-form-container" id="reply-form-${comment.id}" style="display: none;"></div>
             <div class="edit-form-container" id="edit-form-${comment.id}" style="display: none;"></div>
             ${repliesHtml}
+            <div class="reply-form-container" id="reply-form-${comment.id}" style="display: none;"></div>
         </div>
     `;
 }
@@ -8882,22 +8836,18 @@ document.getElementById('comment-files').addEventListener('change', function(e) 
 });
 
 // 返信ボタンのイベントリスナー（イベント委譲）
-document.addEventListener('click', function(e) {
-    if (e.target.closest('.reply-button')) {
-        const button = e.target.closest('.reply-button');
-        const commentId = button.dataset.commentId;
-        const authorName = button.dataset.author;
-        showReplyForm(commentId, authorName);
-    }
+$(document).on('click', '.reply-button', function(e) {
+    e.preventDefault();
+    const commentId = $(this).data('comment-id');
+    const authorName = $(this).data('author');
+    showReplyForm(commentId, authorName);
 });
 
 // 折りたたみボタンのイベントリスナー（イベント委譲）
-document.addEventListener('click', function(e) {
-    if (e.target.closest('.toggle-replies')) {
-        const button = e.target.closest('.toggle-replies');
-        const commentId = button.dataset.commentId;
-        toggleReplies(commentId, button);
-    }
+$(document).on('click', '.toggle-replies', function(e) {
+    e.preventDefault();
+    const commentId = $(this).data('comment-id');
+    toggleReplies(commentId, this);
 });
 
 // 返信フォームを表示
@@ -8939,27 +8889,22 @@ function showReplyForm(commentId, authorName) {
 }
 
 // 返信フォームをキャンセル（イベント委譲）
-document.addEventListener('click', function(e) {
-    if (e.target.closest('.cancel-reply')) {
-        const button = e.target.closest('.cancel-reply');
-        const commentId = button.dataset.commentId;
-        const container = document.getElementById(`reply-form-${commentId}`);
-        container.style.display = 'none';
-        container.innerHTML = '';
-    }
+$(document).on('click', '.cancel-reply', function(e) {
+    e.preventDefault();
+    const commentId = $(this).data('comment-id');
+    const container = $(`#reply-form-${commentId}`);
+    container.hide().html('');
 });
 
 // 返信を投稿（イベント委譲）
-document.addEventListener('click', function(e) {
-    if (e.target.closest('.post-reply')) {
-        const button = e.target.closest('.post-reply');
-        const commentId = button.dataset.commentId;
-        const content = document.getElementById(`reply-content-${commentId}`).value.trim();
+$(document).on('click', '.post-reply', function(e) {
+    e.preventDefault();
+    const commentId = $(this).data('comment-id');
+    const content = $(`#reply-content-${commentId}`).val().trim();
 
-        if (!content) return;
+    if (!content) return;
 
-        postCommentReply(commentId, content);
-    }
+    postCommentReply(commentId, content);
 });
 
 // 返信を投稿する関数
@@ -9033,12 +8978,10 @@ function toggleReplies(commentId, button) {
 }
 
 // コメントを編集
-document.addEventListener('click', function(e) {
-    if (e.target.closest('.edit-comment-button')) {
-        const button = e.target.closest('.edit-comment-button');
-        const commentId = button.dataset.commentId;
-        showEditForm(commentId);
-    }
+$(document).on('click', '.edit-comment-button', function(e) {
+    e.preventDefault();
+    const commentId = $(this).data('comment-id');
+    showEditForm(commentId);
 });
 
 function showEditForm(commentId) {
@@ -9153,19 +9096,18 @@ function saveEditComment(commentId, content) {
 }
 
 // コメントを削除
-document.addEventListener('click', function(e) {
-    if (e.target.closest('.delete-comment-button')) {
-        const button = e.target.closest('.delete-comment-button');
-        const commentId = button.dataset.commentId;
+$(document).on('click', '.delete-comment-button', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const commentId = $(this).data('comment-id');
 
-        showConfirmModal(
-            'このコメントを削除してもよろしいですか？\n\nこの操作は取り消せません。',
-            function() {
-                deleteComment(commentId);
-            },
-            'コメントの削除'
-        );
-    }
+    showConfirmModal(
+        'このコメントを削除してもよろしいですか？\n\nこの操作は取り消せません。',
+        function() {
+            deleteComment(commentId);
+        },
+        'コメントの削除'
+    );
 });
 
 function deleteComment(commentId) {

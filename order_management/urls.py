@@ -18,6 +18,7 @@ from .views_ultimate import UltimateDashboardView
 from . import views_material
 from . import views_comment
 from .views_notification import NotificationListView, mark_as_read_and_archive
+from .views_profile import profile_settings
 from .views_cashflow import (
     CashFlowDashboardView,
     AccrualVsCashComparisonView,
@@ -244,6 +245,9 @@ urlpatterns = [
     path('api/notifications/', views_comment.get_notifications, name='api_get_notifications'),
     path('api/notifications/<int:notification_id>/read/', views_comment.mark_notification_read, name='api_mark_notification_read'),
     path('api/notifications/read-all/', views_comment.mark_all_notifications_read, name='api_mark_all_notifications_read'),
+
+    # プロフィール設定
+    path('profile/settings/', profile_settings, name='profile_settings'),
 
     # 詳細コメント機能
     path('api/projects/<int:pk>/comments/', views.project_comments, name='api_project_comments'),

@@ -88,7 +88,13 @@ def post_comment(request, project_id):
                 'content': comment.content,
                 'is_important': comment.is_important,
                 'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'updated_at': comment.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'is_edited': False,  # 新規コメントは編集されていない
                 'attachments': attachments_data,
+                'can_edit': True,
+                'can_delete': True,
+                'replies': [],
+                'reply_count': 0,
             }
         })
     except Exception as e:
@@ -123,8 +129,10 @@ def get_comments(request, project_id):
         for reply in comment.replies.select_related('author').prefetch_related('attachments').order_by('created_at'):
             replies_data.append(format_comment(reply))
 
-        # 編集済みかどうかをチェック（作成時刻と更新時刻が異なる場合）
-        is_edited = comment.created_at != comment.updated_at
+        # 編集済みかどうかをチェック（作成時刻と更新時刻が5秒以上異なる場合）
+        # マイクロ秒の違いを無視するため、秒単位で比較
+        time_diff = abs((comment.updated_at - comment.created_at).total_seconds())
+        is_edited = time_diff > 5
 
         # ユーザーのアバター情報を取得
         avatar_data = {'type': 'initials', 'initials': comment.author.username[:2].upper(), 'background_color': '#007bff'}

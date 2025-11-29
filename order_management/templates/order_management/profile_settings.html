@@ -1,0 +1,297 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+
+{% block title %}プロフィール設定{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+    <div class="row">
+        <div class="col-lg-8 col-xl-6 mx-auto">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-cog me-2"></i>プロフィール設定
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="post" enctype="multipart/form-data" id="profileForm">
+                        {% csrf_token %}
+
+                        <!-- ユーザー情報 -->
+                        <div class="mb-4">
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-user me-2"></i>ユーザー情報
+                            </h6>
+                            <dl class="row mb-0">
+                                <dt class="col-sm-4 text-muted">ユーザー名</dt>
+                                <dd class="col-sm-8">{{ request.user.username }}</dd>
+
+                                <dt class="col-sm-4 text-muted">氏名</dt>
+                                <dd class="col-sm-8">
+                                    {% if request.user.first_name or request.user.last_name %}
+                                        {{ request.user.last_name }} {{ request.user.first_name }}
+                                    {% else %}
+                                        <span class="text-muted">未設定</span>
+                                    {% endif %}
+                                </dd>
+
+                                <dt class="col-sm-4 text-muted">メールアドレス</dt>
+                                <dd class="col-sm-8">{{ request.user.email|default:"未設定" }}</dd>
+                            </dl>
+                        </div>
+
+                        <!-- アバター設定 -->
+                        <div class="mb-4">
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-image me-2"></i>アバター設定
+                            </h6>
+
+                            <!-- 現在のアバター表示 -->
+                            <div class="mb-3">
+                                <label class="form-label">現在のアバター</label>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div id="currentAvatar">
+                                        {% if profile.avatar %}
+                                            <div class="user-avatar-large">
+                                                <img src="{{ profile.avatar.url }}" alt="アバター">
+                                            </div>
+                                        {% else %}
+                                            <div class="user-avatar-large initials" style="background-color: {{ profile.avatar_background_color }}">
+                                                {{ profile.get_initials }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    {% if profile.avatar %}
+                                        <button type="button" class="btn btn-sm btn-outline-danger" id="removeAvatarBtn">
+                                            <i class="fas fa-trash me-1"></i>画像を削除
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- アバター画像アップロード -->
+                            <div class="mb-3">
+                                <label for="avatarInput" class="form-label">
+                                    プロフィール画像
+                                </label>
+                                <input type="file" class="form-control" id="avatarInput" name="avatar" accept="image/*">
+                                <div class="form-text">
+                                    JPG, PNG形式の画像をアップロードできます（最大5MB）
+                                </div>
+                            </div>
+
+                            <!-- 背景色選択 -->
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    アバター背景色
+                                    <small class="text-muted">（画像がない場合に表示されます）</small>
+                                </label>
+                                <div class="d-flex flex-wrap gap-2">
+                                    {% for value, label in color_choices %}
+                                        <div class="form-check">
+                                            <input class="form-check-input color-radio"
+                                                   type="radio"
+                                                   name="avatar_background_color"
+                                                   id="color_{{ forloop.counter }}"
+                                                   value="{{ value }}"
+                                                   {% if profile.avatar_background_color == value %}checked{% endif %}>
+                                            <label class="form-check-label" for="color_{{ forloop.counter }}">
+                                                <span class="color-sample" style="background-color: {{ value }}"></span>
+                                                {{ label }}
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- プレビュー -->
+                            <div class="mb-3">
+                                <label class="form-label">プレビュー</label>
+                                <div class="d-flex align-items-center gap-3 p-3 bg-light rounded">
+                                    <div id="avatarPreview">
+                                        {% if profile.avatar %}
+                                            <div class="user-avatar-large">
+                                                <img src="{{ profile.avatar.url }}" alt="プレビュー" id="previewImage">
+                                            </div>
+                                        {% else %}
+                                            <div class="user-avatar-large initials" id="previewInitials" style="background-color: {{ profile.avatar_background_color }}">
+                                                {{ profile.get_initials }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold">{{ request.user.username }}</div>
+                                        <small class="text-muted">コメントでの表示例</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 保存ボタン -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'order_management:landing' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>戻る
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>保存する
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- アバター削除確認モーダル -->
+<div class="modal fade" id="deleteAvatarModal" tabindex="-1" aria-labelledby="deleteAvatarModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteAvatarModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>プロフィール画像の削除
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>プロフィール画像を削除してもよろしいですか？</p>
+                <p class="text-muted small mb-0">この操作は元に戻せません。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteAvatar">削除する</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.user-avatar-large {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 2rem;
+    color: white;
+    flex-shrink: 0;
+}
+
+.user-avatar-large img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.color-sample {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    margin-right: 5px;
+    vertical-align: middle;
+    border: 1px solid #dee2e6;
+}
+
+.form-check {
+    padding: 0.5rem;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.form-check:has(.form-check-input:checked) {
+    background-color: #e7f3ff;
+    border-color: #0d6efd;
+}
+
+.color-radio {
+    cursor: pointer;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const avatarInput = document.getElementById('avatarInput');
+    const previewImage = document.getElementById('previewImage');
+    const previewInitials = document.getElementById('previewInitials');
+    const avatarPreview = document.getElementById('avatarPreview');
+    const colorRadios = document.querySelectorAll('.color-radio');
+    const removeAvatarBtn = document.getElementById('removeAvatarBtn');
+    const initials = '{{ profile.get_initials }}';
+
+    // ファイル選択時のプレビュー
+    avatarInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // ファイルサイズチェック (5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('ファイルサイズは5MB以下にしてください');
+                this.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                avatarPreview.innerHTML = `
+                    <div class="user-avatar-large">
+                        <img src="${event.target.result}" alt="プレビュー">
+                    </div>
+                `;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // 背景色変更時のプレビュー更新
+    colorRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (previewInitials) {
+                previewInitials.style.backgroundColor = this.value;
+            } else if (!avatarInput.files[0]) {
+                // 画像がない場合はイニシャル表示に戻す
+                avatarPreview.innerHTML = `
+                    <div class="user-avatar-large initials" style="background-color: ${this.value}">
+                        ${initials}
+                    </div>
+                `;
+            }
+        });
+    });
+
+    // アバター削除
+    if (removeAvatarBtn) {
+        removeAvatarBtn.addEventListener('click', function() {
+            const modal = new bootstrap.Modal(document.getElementById('deleteAvatarModal'));
+            modal.show();
+        });
+    }
+
+    // アバター削除確認
+    const confirmDeleteBtn = document.getElementById('confirmDeleteAvatar');
+    if (confirmDeleteBtn) {
+        confirmDeleteBtn.addEventListener('click', function() {
+            const form = document.getElementById('profileForm');
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'remove_avatar';
+            input.value = 'true';
+            form.appendChild(input);
+            form.submit();
+        });
+    }
+});
+</script>
+{% endblock %}
