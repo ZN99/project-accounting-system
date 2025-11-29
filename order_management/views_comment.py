@@ -114,12 +114,17 @@ def get_comments(request, project_id):
         for reply in comment.replies.select_related('author').prefetch_related('attachments').order_by('created_at'):
             replies_data.append(format_comment(reply))
 
+        # 編集済みかどうかをチェック（作成時刻と更新時刻が異なる場合）
+        is_edited = comment.created_at != comment.updated_at
+
         return {
             'id': comment.id,
             'author': comment.author.username,
             'content': comment.content,
             'is_important': comment.is_important,
             'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M'),
+            'updated_at': comment.updated_at.strftime('%Y-%m-%d %H:%M'),
+            'is_edited': is_edited,
             'attachments': attachments_data,
             'replies': replies_data,
             'reply_count': len(replies_data),
