@@ -664,7 +664,7 @@
                                         </dd>
 
                                         <dt class="col-sm-4 text-muted">工事種別</dt>
-                                        <dd class="col-sm-8 editable-field" data-field="work_type" data-type="text">
+                                        <dd class="col-sm-8 editable-field" data-field="work_type" data-type="work_type">
                                             <span class="field-value"><span class="badge bg-secondary">{{ project.work_type }}</span></span>
                                             <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
                                         </dd>
@@ -9212,6 +9212,18 @@ function enableEdit(icon) {
         });
 
         inputHtml = `<select class="form-select form-select-sm edit-input" style="font-size: 0.7rem; padding: 0.2rem 0.4rem; width: auto; display: inline-block;">${options}</select>`;
+    } else if (type === 'work_type') {
+        // 工事種別の場合は、WorkTypeマスターからドロップダウンを作成
+        currentValue = fieldValue.text().trim();
+
+        // 工事種別リストからオプションを生成
+        let options = '<option value="">-- 工事種別を選択 --</option>';
+        workTypesData.forEach(function(workType) {
+            const selected = workType.name === currentValue ? 'selected' : '';
+            options += `<option value="${workType.name}" ${selected}>${workType.name}</option>`;
+        });
+
+        inputHtml = `<select class="form-select form-select-sm edit-input" style="font-size: 0.7rem; padding: 0.2rem 0.4rem; width: auto; display: inline-block;">${options}</select>`;
     } else {
         currentValue = fieldValue.text().replace('¥', '').replace(/,/g, '').trim();
 
@@ -9288,6 +9300,9 @@ function saveField(button) {
 
                     // 元請住所も更新
                     $('#client-address-display .field-value').text(companyAddress);
+                } else if (type === 'work_type') {
+                    // 工事種別の場合は、バッジを更新
+                    fieldValue.find('.badge').text(newValue);
                 } else if (type === 'number') {
                     // 数値をフォーマット
                     const num = parseFloat(newValue);
@@ -9302,8 +9317,8 @@ function saveField(button) {
                     }
                 }
 
-                // バッジがある場合の処理（select以外）
-                if (type !== 'select') {
+                // バッジがある場合の処理（select、work_type以外）
+                if (type !== 'select' && type !== 'work_type') {
                     if (fieldValue.find('.badge').length > 0) {
                         fieldValue.find('.badge').text(displayValue.replace('¥', '').replace(/,/g, ''));
                     } else {
@@ -9632,6 +9647,9 @@ const contractorsData = {{ contractors_json|safe }};
 
 // 元請会社データをJavaScriptで利用できるようにする
 const clientCompaniesData = {{ client_companies_json|safe }};
+
+// 工事種別データをJavaScriptで利用できるようにする
+const workTypesData = {{ work_types_json|safe }};
 
 // モーダル総コスト自動計算
 $(document).ready(function() {

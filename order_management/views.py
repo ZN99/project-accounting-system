@@ -12,7 +12,7 @@ from django.urls import reverse
 from datetime import datetime, timedelta
 import json
 from decimal import Decimal
-from .models import Project, Invoice, InvoiceItem, ClientCompany
+from .models import Project, Invoice, InvoiceItem, ClientCompany, WorkType
 from subcontract_management.models import Contractor
 
 try:
@@ -658,6 +658,13 @@ def project_detail(request, pk):
         'address': c.address,
     } for c in client_companies])
 
+    # 工事種別マスターを取得してJSON化（JavaScript用）
+    work_types = WorkType.objects.filter(is_active=True).order_by('display_order')
+    work_types_json = json.dumps([{
+        'id': w.id,
+        'name': w.name,
+    } for w in work_types])
+
     # 見積もりステップのファイルを取得
     estimate_files = project.files.filter(related_step='estimate').order_by('-uploaded_at')
     estimate_files_json = json.dumps([{
@@ -676,6 +683,8 @@ def project_detail(request, pk):
         'contractors_json': contractors_json,
         'client_companies': client_companies,
         'client_companies_json': client_companies_json,
+        'work_types': work_types,
+        'work_types_json': work_types_json,
         'internal_workers': internal_workers,
         'surveys': surveys,  # 追加
         'subcontract_form': subcontract_form,
