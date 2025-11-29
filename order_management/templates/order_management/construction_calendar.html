@@ -7,6 +7,11 @@
 {% block extra_css %}
 <!-- FullCalendar CSS -->
 <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
+<!-- Frappe Gantt CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.5.0/frappe-gantt.min.css">
+<!-- Tippy.js CSS for tooltips -->
+<link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css">
+<link rel="stylesheet" href="https://unpkg.com/tippy.js@6/themes/light-border.css">
 <style>
     .calendar-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -84,6 +89,178 @@
     .event-detail-row:last-child {
         border-bottom: none;
     }
+
+    /* ガントチャート用スタイル */
+    #ganttView {
+        display: none;
+    }
+
+    .gantt-container {
+        background: white;
+        border-radius: 10px;
+        padding: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        overflow-x: auto;
+    }
+
+    /* ガントチャートツールチップスタイル */
+    .gantt-tooltip {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        overflow: hidden;
+        min-width: 300px;
+    }
+
+    .gantt-tooltip-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 16px;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .gantt-tooltip-body {
+        padding: 12px 16px;
+    }
+
+    .gantt-tooltip-row {
+        display: flex;
+        padding: 6px 0;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 0.875rem;
+    }
+
+    .gantt-tooltip-row:last-child {
+        border-bottom: none;
+    }
+
+    .gantt-tooltip-row .label {
+        font-weight: 600;
+        color: #6c757d;
+        min-width: 100px;
+    }
+
+    .gantt-tooltip-row .value {
+        flex: 1;
+        color: #212529;
+    }
+
+    .view-toggle-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .view-toggle-buttons .btn {
+        min-width: 120px;
+    }
+
+    .view-toggle-buttons .btn.active {
+        background-color: white;
+        color: #667eea;
+        font-weight: 600;
+    }
+
+    /* ツールチップカスタムスタイル */
+    .event-tooltip {
+        padding: 0;
+        max-width: 350px;
+    }
+
+    .event-tooltip-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 16px;
+        font-weight: 600;
+        border-radius: 4px 4px 0 0;
+    }
+
+    .event-tooltip-body {
+        padding: 12px 16px;
+    }
+
+    .event-tooltip-row {
+        display: flex;
+        padding: 6px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .event-tooltip-row:last-child {
+        border-bottom: none;
+    }
+
+    .event-tooltip-label {
+        font-weight: 600;
+        color: #6c757d;
+        min-width: 100px;
+        font-size: 0.875rem;
+    }
+
+    .event-tooltip-value {
+        flex: 1;
+        font-size: 0.875rem;
+    }
+
+    /* リストビューのカスタムスタイル */
+    .fc-list-event-title {
+        font-weight: 600;
+    }
+
+    .fc-list-event-time {
+        font-weight: normal;
+        opacity: 0.8;
+    }
+
+    /* リスト表示ではマイルストーンイベント（見積、契約、現調など）を非表示にする */
+    .fc-list-view .milestone-event {
+        display: none !important;
+    }
+
+    .fc-list-view .fc-list-event.milestone-event {
+        display: none !important;
+    }
+
+    /* より広範囲にカバー */
+    .fc-daygrid-event.milestone-event {
+        /* 月表示では表示 */
+    }
+
+    .fc-timegrid-event.milestone-event {
+        /* 週表示では表示 */
+    }
+
+    /* カレンダー内の青色リンクを通常の色に変更 */
+    .fc-list-day-text,
+    .fc-list-day-text:hover,
+    .fc-list-day-text:visited {
+        color: #212529 !important;
+        text-decoration: none !important;
+    }
+
+    .fc-list-event-title a,
+    .fc-list-event-title a:hover,
+    .fc-list-event-title a:visited {
+        color: inherit !important;
+        text-decoration: none !important;
+    }
+
+    .fc a,
+    .fc a:hover,
+    .fc a:visited {
+        color: inherit;
+        text-decoration: none;
+    }
+
+    /* 日付ヘッダーの色 */
+    .fc-col-header-cell-cushion {
+        color: #212529 !important;
+        text-decoration: none !important;
+    }
+
+    .fc-daygrid-day-number {
+        color: #212529 !important;
+        text-decoration: none !important;
+    }
 </style>
 {% endblock %}
 
@@ -92,57 +269,84 @@
     <!-- ヘッダー -->
     <div class="calendar-header">
         <div class="row align-items-center">
-            <div class="col-md-8">
+            <div class="col-md-6">
                 <h2 class="mb-2">
                     <i class="fas fa-calendar-alt me-2"></i>施工カレンダー
                 </h2>
-                <p class="mb-0 opacity-75">工事予定を月間カレンダーで表示</p>
+                <p class="mb-0 opacity-75">工事予定を月間カレンダー・ガントチャートで表示</p>
             </div>
-            <div class="col-md-4 text-md-end">
-                <div class="month-nav">
-                    <a href="?year={{ prev_year }}&month={{ prev_month }}" class="btn btn-light">
-                        <i class="fas fa-chevron-left"></i> 前月
-                    </a>
-                    <a href="{% url 'order_management:construction_calendar' %}" class="btn btn-light">
-                        今月
-                    </a>
-                    <a href="?year={{ next_year }}&month={{ next_month }}" class="btn btn-light">
-                        次月 <i class="fas fa-chevron-right"></i>
-                    </a>
+            <div class="col-md-6 text-md-end">
+                <div class="d-flex justify-content-end align-items-center gap-3 flex-wrap">
+                    <!-- 表示切り替えボタン -->
+                    <div class="view-toggle-buttons">
+                        <button type="button" class="btn btn-light active" id="calendarViewBtn">
+                            <i class="fas fa-calendar me-1"></i>月表示
+                        </button>
+                        <button type="button" class="btn btn-light" id="ganttViewBtn">
+                            <i class="fas fa-chart-bar me-1"></i>ガントチャート
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- カレンダー表示 -->
-    <div class="row">
+    <div class="row" id="calendarView">
         <div class="col-12">
             <div id="calendar"></div>
         </div>
     </div>
 
+    <!-- ガントチャート表示 -->
+    <div class="row" id="ganttView">
+        <div class="col-12">
+            <!-- ガントチャート表示範囲切り替え -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">ガントチャート</h5>
+                <div class="btn-group btn-group-sm" role="group" aria-label="表示範囲">
+                    <button type="button" class="btn btn-outline-primary gantt-view-btn" data-view="Day">日</button>
+                    <button type="button" class="btn btn-outline-primary gantt-view-btn" data-view="Week">週</button>
+                    <button type="button" class="btn btn-outline-primary gantt-view-btn active" data-view="Month">月</button>
+                    <button type="button" class="btn btn-outline-primary gantt-view-btn" data-view="Year">年</button>
+                </div>
+            </div>
+            <div class="gantt-container">
+                <div id="gantt"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- 凡例 -->
     <div class="legend">
-        <strong>ステータス凡例:</strong>
+        <strong>マイルストーン凡例:</strong>
         <div class="legend-item">
-            <div class="legend-color" style="background-color: #6c757d;"></div>
-            <span>ネタ</span>
+            <div class="legend-color" style="background-color: #17a2b8;"></div>
+            <span>📄 見積発行</span>
         </div>
         <div class="legend-item">
             <div class="legend-color" style="background-color: #ffc107;"></div>
-            <span>施工日待ち</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: #28a745;"></div>
-            <span>進行中</span>
+            <span>📝 契約</span>
         </div>
         <div class="legend-item">
             <div class="legend-color" style="background-color: #007bff;"></div>
-            <span>完工</span>
+            <span>🚧 工期（予定・進行中）</span>
         </div>
         <div class="legend-item">
-            <div class="legend-color" style="background-color: #dc3545;"></div>
-            <span>NG</span>
+            <div class="legend-color" style="background-color: #28a745;"></div>
+            <span>✓ 工期（完工）</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #6f42c1;"></div>
+            <span>📅 現調</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #fd7e14;"></div>
+            <span>👥 立ち会い</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #e83e8c;"></div>
+            <span>🔍 検査</span>
         </div>
     </div>
 </div>
@@ -172,21 +376,50 @@
 {% block extra_js %}
 <!-- FullCalendar JS -->
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+<!-- Frappe Gantt JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.5.0/frappe-gantt.min.js"></script>
+<!-- Tippy.js for tooltips -->
+<script src="https://unpkg.com/@popperjs/core@2"></script>
+<script src="https://unpkg.com/tippy.js@6"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const calendarEl = document.getElementById('calendar');
-    const currentYear = {{ year }};
-    const currentMonth = {{ month }};
+    let ganttChart = null;
 
+    // ビュー切り替え機能
+    const calendarViewBtn = document.getElementById('calendarViewBtn');
+    const ganttViewBtn = document.getElementById('ganttViewBtn');
+    const calendarView = document.getElementById('calendarView');
+    const ganttView = document.getElementById('ganttView');
+
+    calendarViewBtn.addEventListener('click', function() {
+        calendarView.style.display = 'block';
+        ganttView.style.display = 'none';
+        calendarViewBtn.classList.add('active');
+        ganttViewBtn.classList.remove('active');
+    });
+
+    ganttViewBtn.addEventListener('click', function() {
+        calendarView.style.display = 'none';
+        ganttView.style.display = 'block';
+        calendarViewBtn.classList.remove('active');
+        ganttViewBtn.classList.add('active');
+
+        // ガントチャートが未初期化の場合、初期化
+        if (!ganttChart) {
+            initGanttChart();
+        }
+    });
+
+    // カレンダーの初期化
     const calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
-        initialDate: new Date(currentYear, currentMonth - 1, 1),
         locale: 'ja',
         headerToolbar: {
             left: 'prev,next today',
             center: 'title',
-            right: 'dayGridMonth,timeGridWeek,listMonth'
+            right: 'dayGridMonth,dayGridWeek,listMonth'
         },
         buttonText: {
             today: '今日',
@@ -195,12 +428,28 @@ document.addEventListener('DOMContentLoaded', function() {
             list: 'リスト'
         },
         height: 'auto',
+        displayEventEnd: true,  // イベントの終了日を表示
+        displayEventTime: false,  // 時間は非表示（allDayイベントのため）
+        eventDisplay: 'block',  // イベントをブロックとして表示
+
+        // リスト表示の設定
+        views: {
+            dayGridWeek: {
+                displayEventTime: false  // 週表示でも時間を非表示
+            },
+            listMonth: {
+                listDayFormat: { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' },
+                listDaySideFormat: false,
+                noEventsContent: '表示する案件がありません'
+            }
+        },
+
         events: function(info, successCallback, failureCallback) {
             // APIからイベントデータを取得
-            fetch(`{% url 'order_management:calendar_events_api' %}?year=${currentYear}&month=${currentMonth}`)
+            fetch('{% url "order_management:calendar_events_api" %}')
                 .then(response => response.json())
                 .then(data => {
-                    successCallback(data.events);
+                    successCallback(data);
                 })
                 .catch(error => {
                     console.error('Error loading events:', error);
@@ -212,49 +461,376 @@ document.addEventListener('DOMContentLoaded', function() {
             const event = info.event;
             const props = event.extendedProps;
 
+            // 実績/予定バッジの作成
+            let actualBadge = '';
+            if (props.is_actual !== undefined) {
+                actualBadge = props.is_actual
+                    ? '<span class="badge bg-success ms-1">実績</span>'
+                    : '<span class="badge bg-warning ms-1">予定</span>';
+            }
+
             const modalBody = document.getElementById('eventModalBody');
-            modalBody.innerHTML = `
-                <div class="event-detail-row">
-                    <span class="event-detail-label">現場名:</span>
-                    <strong>${event.title}</strong>
-                </div>
-                <div class="event-detail-row">
-                    <span class="event-detail-label">ステータス:</span>
-                    <span class="badge" style="background-color: ${event.backgroundColor};">${props.status}</span>
-                </div>
-                <div class="event-detail-row">
-                    <span class="event-detail-label">元請名:</span>
-                    ${props.client}
-                </div>
-                <div class="event-detail-row">
-                    <span class="event-detail-label">案件担当:</span>
-                    ${props.manager}
-                </div>
-                <div class="event-detail-row">
-                    <span class="event-detail-label">受注金額:</span>
-                    <strong>¥${props.amount.toLocaleString()}</strong>
-                </div>
-                <div class="event-detail-row">
-                    <span class="event-detail-label">期間:</span>
-                    ${event.start ? event.start.toLocaleDateString('ja-JP') : ''}
-                    ${event.end ? '〜 ' + new Date(event.end.getTime() - 86400000).toLocaleDateString('ja-JP') : ''}
-                </div>
-            `;
+
+            // 日付の表示（工期の場合は期間、それ以外は単日）
+            let dateDisplay = '';
+            if (props.milestone_type === 'work_period') {
+                const startDate = new Date(props.work_start).toLocaleDateString('ja-JP');
+                const endDate = new Date(props.work_end).toLocaleDateString('ja-JP');
+                dateDisplay = startDate + ' 〜 ' + endDate;
+            } else {
+                dateDisplay = event.start ? event.start.toLocaleDateString('ja-JP') : '';
+            }
+
+            const formattedAmount = props.amount.toLocaleString();
+
+            modalBody.innerHTML =
+                '<div class="event-detail-row">' +
+                    '<span class="event-detail-label">現場名:</span>' +
+                    '<strong>' + props.project_name + '</strong>' +
+                '</div>' +
+                '<div class="event-detail-row">' +
+                    '<span class="event-detail-label">マイルストーン:</span>' +
+                    '<span class="badge" style="background-color: ' + event.backgroundColor + ';">' + props.milestone_label + '</span>' +
+                    actualBadge +
+                '</div>' +
+                '<div class="event-detail-row">' +
+                    '<span class="event-detail-label">日付:</span>' +
+                    dateDisplay +
+                '</div>' +
+                '<div class="event-detail-row">' +
+                    '<span class="event-detail-label">ステータス:</span>' +
+                    '<span class="badge bg-secondary">' + props.status + '</span>' +
+                '</div>' +
+                '<div class="event-detail-row">' +
+                    '<span class="event-detail-label">元請名:</span>' +
+                    props.client +
+                '</div>' +
+                '<div class="event-detail-row">' +
+                    '<span class="event-detail-label">案件担当:</span>' +
+                    props.manager +
+                '</div>' +
+                '<div class="event-detail-row">' +
+                    '<span class="event-detail-label">下請業者:</span>' +
+                    '<strong>' + (props.subcontractors || '未割当') + '</strong>' +
+                '</div>' +
+                '<div class="event-detail-row">' +
+                    '<span class="event-detail-label">受注金額:</span>' +
+                    '<strong>¥' + formattedAmount + '</strong>' +
+                '</div>';
 
             // 詳細リンクの設定
-            document.getElementById('eventDetailLink').href = `/orders/${event.id}/`;
+            document.getElementById('eventDetailLink').href = '/orders/' + props.project_id + '/';
 
             // モーダルを表示
             const modal = new bootstrap.Modal(document.getElementById('eventModal'));
             modal.show();
         },
         eventDidMount: function(info) {
-            // ツールチップの追加
-            info.el.setAttribute('title', `${info.event.title}\n${info.event.extendedProps.client}`);
+            const view = info.view;
+
+            // リスト表示の処理
+            if (view.type === 'listMonth') {
+                // milestone-eventクラスを持つイベントは非表示
+                if (info.event.classNames && info.event.classNames.includes('milestone-event')) {
+                    info.el.style.display = 'none';
+                    return;
+                }
+
+                // 期間イベントの場合、開始日以外は非表示にする
+                const isStartDay = info.el.classList.contains('fc-event-start');
+
+                // 期間イベント（endがある）かつ開始日でない場合は非表示
+                if (info.event.end && !isStartDay) {
+                    info.el.style.display = 'none';
+                    return;
+                }
+
+                // 開始日に期間を表示
+                if (isStartDay && info.event.end) {
+                    const startDate = new Date(info.event.start);
+                    const endDate = new Date(info.event.end);
+                    endDate.setDate(endDate.getDate() - 1);
+
+                    const formatDate = (date) => {
+                        return `${date.getMonth() + 1}/${date.getDate()}`;
+                    };
+
+                    const periodText = `（${formatDate(startDate)}〜${formatDate(endDate)}）`;
+
+                    const titleElement = info.el.querySelector('.fc-list-event-title a');
+                    if (titleElement) {
+                        const originalText = titleElement.textContent;
+                        titleElement.innerHTML = `${originalText} <span style="color: white; font-size: 0.9em;">${periodText}</span>`;
+                    }
+                }
+            }
+            // 月表示・週表示の処理
+            else if (view.type === 'dayGridMonth' || view.type === 'dayGridWeek') {
+                // 期間イベントにのみ期間を追加
+                if (info.event.end && info.event.extendedProps.milestone_type === 'work_period') {
+                    const startDate = new Date(info.event.start);
+                    const endDate = new Date(info.event.end);
+                    endDate.setDate(endDate.getDate() - 1);
+
+                    const formatDate = (date) => {
+                        return `${date.getMonth() + 1}/${date.getDate()}`;
+                    };
+
+                    const periodText = `（${formatDate(startDate)}〜${formatDate(endDate)}）`;
+
+                    // 月/週表示のタイトル要素に期間を追加
+                    const titleElement = info.el.querySelector('.fc-event-title');
+                    if (titleElement && !titleElement.dataset.periodAdded) {
+                        const originalText = titleElement.textContent;
+                        titleElement.innerHTML = `${originalText} <span style="color: white; font-size: 0.85em;">${periodText}</span>`;
+                        titleElement.dataset.periodAdded = 'true';
+                    }
+                }
+            }
+
+            // リッチツールチップの追加
+            const props = info.event.extendedProps;
+
+            // 日付表示を準備
+            let dateDisplay = '';
+            if (props.milestone_type === 'work_period') {
+                const startDate = new Date(props.work_start).toLocaleDateString('ja-JP');
+                const endDate = new Date(props.work_end).toLocaleDateString('ja-JP');
+                dateDisplay = startDate + ' 〜 ' + endDate;
+            } else {
+                dateDisplay = info.event.start ? info.event.start.toLocaleDateString('ja-JP') : '';
+            }
+
+            // 実績/予定バッジ
+            let actualBadge = '';
+            if (props.is_actual !== undefined) {
+                actualBadge = props.is_actual
+                    ? '<span class="badge bg-success ms-1">実績</span>'
+                    : '<span class="badge bg-warning text-dark ms-1">予定</span>';
+            }
+
+            const tooltipContent = `
+                <div class="event-tooltip">
+                    <div class="event-tooltip-header">
+                        ${info.event.title}
+                    </div>
+                    <div class="event-tooltip-body">
+                        <div class="event-tooltip-row">
+                            <div class="event-tooltip-label">マイルストーン:</div>
+                            <div class="event-tooltip-value">
+                                <span class="badge" style="background-color: ${info.event.backgroundColor};">${props.milestone_label}</span>
+                                ${actualBadge}
+                            </div>
+                        </div>
+                        <div class="event-tooltip-row">
+                            <div class="event-tooltip-label">日付:</div>
+                            <div class="event-tooltip-value">${dateDisplay}</div>
+                        </div>
+                        <div class="event-tooltip-row">
+                            <div class="event-tooltip-label">ステータス:</div>
+                            <div class="event-tooltip-value">${props.status}</div>
+                        </div>
+                        <div class="event-tooltip-row">
+                            <div class="event-tooltip-label">元請:</div>
+                            <div class="event-tooltip-value">${props.client}</div>
+                        </div>
+                        <div class="event-tooltip-row">
+                            <div class="event-tooltip-label">案件担当:</div>
+                            <div class="event-tooltip-value">${props.manager}</div>
+                        </div>
+                        <div class="event-tooltip-row">
+                            <div class="event-tooltip-label">下請:</div>
+                            <div class="event-tooltip-value"><strong>${props.subcontractors || '未割当'}</strong></div>
+                        </div>
+                        <div class="event-tooltip-row">
+                            <div class="event-tooltip-label">受注金額:</div>
+                            <div class="event-tooltip-value"><strong>¥${props.amount.toLocaleString()}</strong></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Tippy.jsツールチップを作成
+            tippy(info.el, {
+                content: tooltipContent,
+                allowHTML: true,
+                theme: 'light-border',
+                placement: 'top',
+                arrow: true,
+                delay: [0, 0],  // ホバー時すぐに表示、非ホバー時すぐに非表示
+                duration: [200, 150],  // アニメーション時間を短縮
+                interactive: false  // ツールチップ内でマウス操作不要
+            });
+        },
+        eventsSet: function(events) {
+            // リスト表示の場合、イベントのない日付ヘッダーを非表示にする
+            const view = calendar.view;
+            if (view.type === 'listMonth') {
+                // 少し遅延させて、DOMが完全に構築されてから実行
+                setTimeout(() => {
+                    const dayHeaders = document.querySelectorAll('.fc-list-day');
+                    dayHeaders.forEach(dayHeader => {
+                        // この日付ヘッダーの後に続く、表示されているイベントを探す
+                        let nextElement = dayHeader.nextElementSibling;
+                        let hasVisibleEvent = false;
+
+                        while (nextElement && !nextElement.classList.contains('fc-list-day')) {
+                            // イベント行で、display: none でないものがあるかチェック
+                            if (nextElement.classList.contains('fc-list-event')) {
+                                const style = window.getComputedStyle(nextElement);
+                                if (style.display !== 'none') {
+                                    hasVisibleEvent = true;
+                                    break;
+                                }
+                            }
+                            nextElement = nextElement.nextElementSibling;
+                        }
+
+                        // 表示されているイベントがない場合、日付ヘッダーを非表示
+                        if (!hasVisibleEvent) {
+                            dayHeader.style.display = 'none';
+                        }
+                    });
+                }, 50);
+            }
         }
     });
 
     calendar.render();
+
+    // ガントチャート初期化関数
+    function initGanttChart() {
+        // APIからガントチャートデータを取得
+        fetch('{% url "order_management:gantt_data_api" %}')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Gantt API response:', data);
+                if (data.tasks && data.tasks.length > 0) {
+                    try {
+                        // データの検証とクリーニング
+                        const validTasks = data.tasks.filter(task => {
+                            if (!task.start || !task.end) {
+                                console.warn('Invalid task (missing dates):', task);
+                                return false;
+                            }
+                            return true;
+                        });
+
+                        console.log('Valid tasks count:', validTasks.length);
+                        console.log('First task sample:', validTasks[0]);
+
+                        if (validTasks.length === 0) {
+                            document.getElementById('gantt').innerHTML = '<div class="alert alert-info">有効な工期データを持つ案件がありません</div>';
+                            return;
+                        }
+
+                        // 日付を明示的に文字列形式に変換
+                        const formattedTasks = validTasks.map(task => ({
+                            ...task,
+                            start: task.start.split('T')[0],  // "2025-12-07T00:00:00" → "2025-12-07"
+                            end: task.end.split('T')[0]
+                        }));
+
+                        console.log('Formatted first task:', formattedTasks[0]);
+
+                        ganttChart = new Gantt('#gantt', formattedTasks, {
+                            view_mode: 'Month',
+                            bar_height: 30,
+                            bar_corner_radius: 3,
+                            padding: 18,
+                            custom_popup_html: function(task) {
+                                // カスタムツールチップHTML
+                                const startDate = new Date(task._start).toLocaleDateString('ja-JP');
+                                const endDate = new Date(task._end).toLocaleDateString('ja-JP');
+                                const statusBadge = task.is_completed
+                                    ? '<span class="badge bg-success">完工</span>'
+                                    : '<span class="badge bg-primary">進行中</span>';
+
+                                return `
+                                    <div class="gantt-tooltip">
+                                        <div class="gantt-tooltip-header">
+                                            <strong>${task.name}</strong>
+                                        </div>
+                                        <div class="gantt-tooltip-body">
+                                            <div class="gantt-tooltip-row">
+                                                <span class="label">工期:</span>
+                                                <span class="value">${startDate} 〜 ${endDate}</span>
+                                            </div>
+                                            <div class="gantt-tooltip-row">
+                                                <span class="label">日数:</span>
+                                                <span class="value">${task.construction_period_days}日</span>
+                                            </div>
+                                            <div class="gantt-tooltip-row">
+                                                <span class="label">進捗:</span>
+                                                <span class="value">${task.progress}% ${statusBadge}</span>
+                                            </div>
+                                            <div class="gantt-tooltip-row">
+                                                <span class="label">ステータス:</span>
+                                                <span class="value">${task.status}</span>
+                                            </div>
+                                            <div class="gantt-tooltip-row">
+                                                <span class="label">元請:</span>
+                                                <span class="value">${task.client}</span>
+                                            </div>
+                                            <div class="gantt-tooltip-row">
+                                                <span class="label">案件担当:</span>
+                                                <span class="value">${task.manager}</span>
+                                            </div>
+                                            <div class="gantt-tooltip-row">
+                                                <span class="label">下請:</span>
+                                                <span class="value"><strong>${task.subcontractors}</strong></span>
+                                            </div>
+                                            <div class="gantt-tooltip-row">
+                                                <span class="label">受注金額:</span>
+                                                <span class="value"><strong>¥${task.amount.toLocaleString()}</strong></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            },
+                            on_click: function(task) {
+                                const projectId = task.id.replace('project-', '');
+                                window.location.href = '/orders/' + projectId + '/';
+                            },
+                            on_view_change: function(mode) {
+                                console.log('View mode changed to:', mode);
+                            }
+                        });
+
+                        // 表示範囲切り替えボタンのイベントリスナー
+                        const viewButtons = document.querySelectorAll('.gantt-view-btn');
+                        viewButtons.forEach(button => {
+                            button.addEventListener('click', function() {
+                                const viewMode = this.getAttribute('data-view');
+
+                                // ガントチャートの表示範囲を変更
+                                if (ganttChart) {
+                                    ganttChart.change_view_mode(viewMode);
+                                }
+
+                                // アクティブボタンの切り替え
+                                viewButtons.forEach(btn => btn.classList.remove('active'));
+                                this.classList.add('active');
+                            });
+                        });
+                    } catch (e) {
+                        console.error('Gantt initialization error:', e);
+                        document.getElementById('gantt').innerHTML =
+                            '<div class="alert alert-warning">' +
+                            '<strong>ガントチャート表示エラー</strong><br>' +
+                            'ガントチャートの初期化に失敗しました。カレンダー表示をご利用ください。<br>' +
+                            '<small>エラー: ' + e.message + '</small>' +
+                            '</div>';
+                    }
+                } else {
+                    document.getElementById('gantt').innerHTML = '<div class="alert alert-info">表示する案件がありません</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading gantt data:', error);
+                document.getElementById('gantt').innerHTML = '<div class="alert alert-danger">ガントチャートデータの読み込みに失敗しました</div>';
+            });
+    }
 });
 </script>
 {% endblock %}

@@ -219,7 +219,18 @@
     <div class="filter-panel">
         <h5 class="mb-3"><i class="fas fa-filter me-2"></i>フィルター</h5>
         <div class="row">
-            <div class="col-md-4">
+            <div class="col-md-3">
+                <div class="filter-group">
+                    <div class="filter-label">職人種別</div>
+                    <select class="form-select" id="workerTypeFilter">
+                        <option value="">すべて</option>
+                        <option value="internal">社内職人</option>
+                        <option value="individual">個人職人</option>
+                        <option value="company">協力会社</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-3">
                 <div class="filter-group">
                     <div class="filter-label">専門分野</div>
                     <select class="form-select" id="specialtyFilter">
@@ -231,7 +242,7 @@
                     </select>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="filter-group">
                     <div class="filter-label">稼働状況</div>
                     <select class="form-select" id="utilizationFilter">
@@ -242,7 +253,7 @@
                     </select>
                 </div>
             </div>
-            <div class="col-md-4 d-flex align-items-end">
+            <div class="col-md-3 d-flex align-items-end">
                 <button class="btn btn-filter w-100" onclick="applyFilters()">
                     <i class="fas fa-check me-2"></i>フィルター適用
                 </button>
@@ -295,7 +306,7 @@
                 </thead>
                 <tbody>
                     {% for contractor in contractors %}
-                    <tr class="worker-row" data-specialty="{{ contractor.specialty }}" data-utilization="{{ contractor.utilization }}">
+                    <tr class="worker-row" data-worker-type="{{ contractor.worker_type }}" data-specialty="{{ contractor.specialty }}" data-utilization="{{ contractor.utilization }}">
                         <td class="worker-info-cell">
                             <div class="worker-name">{{ contractor.name }}</div>
                             <div class="worker-specialty">{{ contractor.specialty }}</div>
@@ -303,7 +314,14 @@
                                 <div class="utilization-fill {% if contractor.utilization > 80 %}high{% elif contractor.utilization > 50 %}medium{% else %}low{% endif %}"
                                      style="width: {{ contractor.utilization }}%;"></div>
                             </div>
-                            <small class="text-muted">稼働率: {{ contractor.utilization }}%</small>
+                            <small class="text-muted"
+                                   style="cursor: help;"
+                                   data-bs-toggle="tooltip"
+                                   data-bs-placement="top"
+                                   data-bs-html="true"
+                                   title="<strong>稼働率の計算方法:</strong><br>1案件 = 25%として計算<br>・0案件 = 0%<br>・1案件 = 25%<br>・2案件 = 50%<br>・3案件 = 75%<br>・4案件以上 = 100%<br><br><small>※今月〜来月の案件が対象</small>">
+                                稼働率: {{ contractor.utilization }}% <i class="fas fa-info-circle" style="font-size: 0.8em; opacity: 0.6;"></i>
+                            </small>
                         </td>
                         {% for day in calendar_days %}
                         <td class="day-cell {% if day == 6 or day == 7 or day == 13 or day == 14 or day == 20 or day == 21 or day == 27 or day == 28 %}weekend{% endif %}">
@@ -350,6 +368,7 @@
 <script>
     // フィルター適用
     function applyFilters() {
+        const workerTypeFilter = document.getElementById('workerTypeFilter').value;
         const specialtyFilter = document.getElementById('specialtyFilter').value;
         const utilizationFilter = document.getElementById('utilizationFilter').value;
 
@@ -357,10 +376,16 @@
         let counts = {available: 0, partial: 0, busy: 0};
 
         rows.forEach(row => {
+            const workerType = row.dataset.workerType;
             const specialty = row.dataset.specialty;
             const utilization = parseInt(row.dataset.utilization);
 
             let showRow = true;
+
+            // 職人種別フィルター
+            if (workerTypeFilter && workerType !== workerTypeFilter) {
+                showRow = false;
+            }
 
             // 専門分野フィルター
             if (specialtyFilter && !specialty.includes(specialtyFilter)) {
@@ -393,6 +418,12 @@
     // 初期統計計算
     document.addEventListener('DOMContentLoaded', function() {
         applyFilters();
+
+        // Bootstrapツールチップの初期化
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
     });
 
     // 職人リソースデータを取得してカレンダーに表示

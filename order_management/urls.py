@@ -70,6 +70,7 @@ from .views_calendar import (
     gantt_data_api,
     worker_resource_data_api
 )
+from .views_mention import mention_users_api
 from .views_client_company import (
     ClientCompanyListView,
     ClientCompanyDetailView,
@@ -257,6 +258,7 @@ urlpatterns = [
     path('calendar/worker-resources/', WorkerResourceCalendarView.as_view(), name='worker_resource_calendar'),
     path('api/calendar/events/', calendar_events_api, name='calendar_events_api'),
     path('api/calendar/worker-resources/', worker_resource_data_api, name='worker_resource_data_api'),
+    path('api/mention/users/', mention_users_api, name='mention_users_api'),
     path('performance/monthly/', PerformanceMonthlyView.as_view(), name='performance_monthly'),
     path('api/performance/monthly/', performance_monthly_api, name='performance_monthly_api'),
     path('gantt/', GanttChartView.as_view(), name='gantt_chart'),

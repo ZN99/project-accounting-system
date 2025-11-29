@@ -372,7 +372,7 @@
                     <div class="notification-title">
                         {{ notification.title }}
                     </div>
-                    <div class="notification-message">
+                    <div class="notification-message" id="message-{{ notification.id }}">
                         {{ notification.message }}
                     </div>
                     <div class="notification-actions">
@@ -413,6 +413,22 @@
 </div>
 
 <script>
+// メンションをハイライト表示する関数
+function formatNotificationMessage() {
+    document.querySelectorAll('.notification-message').forEach(messageEl => {
+        const originalText = messageEl.textContent;
+        // 改行を<br>に変換し、@メンションをハイライト
+        const formattedText = originalText
+            .replace(/\r\n/g, '<br>')
+            .replace(/\n/g, '<br>')
+            .replace(/@(\w+)/g, '<strong class="text-primary">@$1</strong>');
+        messageEl.innerHTML = formattedText;
+    });
+}
+
+// ページ読み込み時にメンションをフォーマット
+document.addEventListener('DOMContentLoaded', formatNotificationMessage);
+
 // フィルター機能
 document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.addEventListener('click', function() {

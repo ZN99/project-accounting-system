@@ -5,8 +5,7 @@ from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from datetime import datetime, timedelta
 from .models import Project
-from subcontract_management.models import Contractor
-from subcontract_management.models import Subcontract
+from subcontract_management.models import Contractor, Subcontract, InternalWorker
 from django.db.models import Q, Count
 
 
@@ -49,15 +48,17 @@ class WorkerResourceCalendarView(LoginRequiredMixin, TemplateView):
         start_date = today.replace(day=1)
         end_date = start_date + timedelta(days=30)
 
-        # 職人（協力業者）一覧を取得
-        contractors = Contractor.objects.all().order_by('name')
+        # 全職人データを統合（社内職人・個人職人・協力会社）
+        all_workers = []
 
-        # 各職人の稼働率を計算
-        contractor_data = []
-        for contractor in contractors:
+        # 1. 社内職人を取得
+        internal_workers = InternalWorker.objects.all().order_by('name')
+
+        for worker in internal_workers:
             # この職人が担当している案件数（期間内）
             active_projects = Subcontract.objects.filter(
-                contractor=contractor,
+                worker_type='internal',
+                internal_worker=worker,
                 project__work_start_date__lte=end_date,
                 project__work_end_date__gte=start_date
             ).count()
@@ -65,17 +66,74 @@ class WorkerResourceCalendarView(LoginRequiredMixin, TemplateView):
             # 稼働率を簡易的に計算（より詳細な計算が必要な場合は調整）
             utilization_rate = min(active_projects * 25, 100)  # 1案件=25%として計算
 
-            contractor_data.append({
-                'id': contractor.id,
-                'name': contractor.name,
+            all_workers.append({
+                'id': f'internal-{worker.id}',
+                'name': f"{worker.name}（社内）",
+                'specialty': worker.get_department_display(),
+                'phone': worker.phone or '-',
+                'email': worker.email or '-',
+                'utilization': utilization_rate,
+                'active_projects': active_projects,
+                'worker_type': 'internal'  # フィルター用
+            })
+
+        # 2. 個人職人を取得
+        individual_contractors = Contractor.objects.filter(
+            contractor_type='individual'
+        ).order_by('name')
+
+        for contractor in individual_contractors:
+            # この職人が担当している案件数（期間内）
+            active_projects = Subcontract.objects.filter(
+                worker_type='external',
+                contractor=contractor,
+                project__work_start_date__lte=end_date,
+                project__work_end_date__gte=start_date
+            ).count()
+
+            # 稼働率を簡易的に計算
+            utilization_rate = min(active_projects * 25, 100)
+
+            all_workers.append({
+                'id': f'individual-{contractor.id}',
+                'name': f"{contractor.name}（個人職人）",
                 'specialty': contractor.specialties or '指定なし',
                 'phone': contractor.phone or '-',
                 'email': contractor.email or '-',
                 'utilization': utilization_rate,
-                'active_projects': active_projects
+                'active_projects': active_projects,
+                'worker_type': 'individual'  # フィルター用
             })
 
-        context['contractors'] = contractor_data
+        # 3. 協力会社を取得
+        company_contractors = Contractor.objects.filter(
+            contractor_type='company'
+        ).order_by('name')
+
+        for contractor in company_contractors:
+            # この職人が担当している案件数（期間内）
+            active_projects = Subcontract.objects.filter(
+                worker_type='external',
+                contractor=contractor,
+                project__work_start_date__lte=end_date,
+                project__work_end_date__gte=start_date
+            ).count()
+
+            # 稼働率を簡易的に計算
+            utilization_rate = min(active_projects * 25, 100)
+
+            all_workers.append({
+                'id': f'company-{contractor.id}',
+                'name': f"{contractor.name}（協力会社）",
+                'specialty': contractor.specialties or '指定なし',
+                'phone': contractor.phone or '-',
+                'email': contractor.email or '-',
+                'utilization': utilization_rate,
+                'active_projects': active_projects,
+                'worker_type': 'company'  # フィルター用
+            })
+
+        context['contractors'] = all_workers
         context['start_date'] = start_date
         context['end_date'] = end_date
 
@@ -87,34 +145,218 @@ class WorkerResourceCalendarView(LoginRequiredMixin, TemplateView):
 
 @login_required
 def calendar_events_api(request):
-    """カレンダーイベントをJSON形式で返す"""
+    """カレンダーイベントをJSON形式で返す - 主要マイルストーン対応"""
+    from datetime import timedelta
+
     # 日付範囲を取得
     start = request.GET.get('start')
     end = request.GET.get('end')
 
-    # 案件を取得
-    projects = Project.objects.filter(
-        work_start_date__isnull=False
-    )
-
-    if start:
-        projects = projects.filter(work_start_date__gte=start)
-    if end:
-        projects = projects.filter(work_start_date__lte=end)
+    # 全案件を取得（Subcontractも一緒に取得）
+    projects = Project.objects.prefetch_related('subcontract_set__contractor', 'subcontract_set__internal_worker').all()
 
     # イベントデータを生成
     events = []
+
+    # マイルストーンの定義（表示名、フィールド名、色）- 各マイルストーンに固有の色を割り当て
+    milestone_types = {
+        'estimate': {'label': '見積発行', 'field': 'estimate_issued_date', 'color': '#17a2b8', 'icon': '📄'},  # teal
+        'contract': {'label': '契約', 'field': 'contract_date', 'color': '#ffc107', 'icon': '📝'},  # yellow
+        'work_start': {'label': '着工', 'field': 'work_start_date', 'color': '#007bff', 'icon': '🚧'},  # blue
+        'work_end': {'label': '完工', 'field': 'work_end_date', 'color': '#28a745', 'icon': '✓'},  # green
+    }
+
+    # 動的ステップ用の色定義
+    dynamic_step_colors = {
+        'survey': '#6f42c1',  # purple - 現調
+        'attendance': '#fd7e14',  # orange - 立ち会い
+        'inspection': '#e83e8c',  # pink - 検査
+        'site_survey': '#6f42c1',  # purple - 現場調査
+    }
+
     for project in projects:
-        event = {
-            'id': project.id,
-            'title': project.site_name,
-            'start': project.work_start_date.isoformat() if project.work_start_date else None,
-            'end': project.work_end_date.isoformat() if project.work_end_date else None,
-            'url': f'/orders/{project.id}/',
-            'backgroundColor': '#3788d8',
-            'borderColor': '#2c6aa0'
-        }
-        events.append(event)
+        # NGステータスの案件はスキップ
+        if project.project_status == 'NG':
+            continue
+
+        # 下請業者情報を取得
+        subcontractors = []
+        for sc in project.subcontract_set.all():
+            if sc.worker_type == 'external' and sc.contractor:
+                subcontractors.append(sc.contractor.name)
+            elif sc.worker_type == 'internal' and sc.internal_worker:
+                subcontractors.append(f"{sc.internal_worker.name}(社内)")
+            elif sc.worker_type == 'internal' and sc.internal_worker_name:
+                subcontractors.append(f"{sc.internal_worker_name}(社内)")
+
+        subcontractor_text = ', '.join(subcontractors) if subcontractors else '未割当'
+
+        # 元請情報を取得（client_companyを優先、なければclient_name）
+        client_display = '-'
+        if project.client_company:
+            client_display = project.client_company.company_name
+        elif project.client_name:
+            client_display = project.client_name
+
+        # 見積と契約のマイルストーンを追加（単日イベント）
+        for milestone_key in ['estimate', 'contract']:
+            milestone_info = milestone_types[milestone_key]
+            date_value = getattr(project, milestone_info['field'], None)
+            if date_value:
+                event = {
+                    'id': f'{project.id}-{milestone_key}',
+                    'project_id': project.id,
+                    'title': f"{milestone_info['icon']} {project.site_name}",
+                    'start': date_value.isoformat(),
+                    'allDay': True,
+                    'url': f'/orders/{project.id}/',
+                    'backgroundColor': milestone_info['color'],
+                    'borderColor': milestone_info['color'],
+                    'classNames': ['milestone-event'],  # リスト表示で非表示にするためのクラス
+                    'extendedProps': {
+                        'milestone_type': milestone_key,
+                        'milestone_label': milestone_info['label'],
+                        'project_name': project.site_name,
+                        'status': project.get_project_status_display(),
+                        'client': client_display,
+                        'manager': project.project_manager or '-',
+                        'amount': float(project.order_amount or 0),
+                        'subcontractors': subcontractor_text
+                    }
+                }
+                events.append(event)
+
+        # 工期（着工〜完工）を期間イベントとして追加
+        # 案件詳細ページと同じwork_start_date/work_end_dateを使用
+        if project.work_start_date and project.work_end_date:
+            # 完工済みかどうかで色を変更（完工チェックボックスのみで判定）
+            is_completed = project.work_end_completed
+            work_period_color = '#28a745' if is_completed else '#007bff'  # 完工済み=緑、進行中=青
+            work_period_icon = '✓' if is_completed else '🚧'
+
+            # 完工チェックで表示を変更
+            period_label = '工期（完工）' if is_completed else '工期（予定・進行中）'
+
+            # 両方ある場合は期間イベント
+            event = {
+                'id': f'{project.id}-work_period',
+                'project_id': project.id,
+                'title': f"{work_period_icon} {project.site_name}",
+                'start': project.work_start_date.isoformat(),
+                'end': (project.work_end_date + timedelta(days=1)).isoformat(),  # FullCalendarは終了日を含まないので+1
+                'allDay': True,
+                'url': f'/orders/{project.id}/',
+                'backgroundColor': work_period_color,
+                'borderColor': work_period_color,
+                'classNames': ['work-period-event'],  # 工期イベント（リスト表示で表示）
+                'extendedProps': {
+                    'milestone_type': 'work_period',
+                    'milestone_label': period_label,
+                    'project_name': project.site_name,
+                    'status': project.get_project_status_display(),
+                    'client': client_display,
+                    'manager': project.project_manager or '-',
+                    'amount': float(project.order_amount or 0),
+                    'work_start': project.work_start_date.isoformat(),
+                    'work_end': project.work_end_date.isoformat(),
+                    'is_completed': is_completed,
+                    'subcontractors': subcontractor_text
+                }
+            }
+            events.append(event)
+        else:
+            # 着工日のみまたは完工日のみの場合は単日イベント
+            for milestone_key in ['work_start', 'work_end']:
+                milestone_info = milestone_types[milestone_key]
+                date_value = getattr(project, milestone_info['field'], None)
+                if date_value:
+                    event = {
+                        'id': f'{project.id}-{milestone_key}',
+                        'project_id': project.id,
+                        'title': f"{milestone_info['icon']} {project.site_name}",
+                        'start': date_value.isoformat(),
+                        'allDay': True,
+                        'url': f'/orders/{project.id}/',
+                        'backgroundColor': milestone_info['color'],
+                        'borderColor': milestone_info['color'],
+                        'classNames': ['work-period-event'],  # 工期がない場合の着工/完工もリスト表示
+                        'extendedProps': {
+                            'milestone_type': milestone_key,
+                            'milestone_label': milestone_info['label'],
+                            'project_name': project.site_name,
+                            'status': project.get_project_status_display(),
+                            'client': client_display,
+                            'manager': project.project_manager or '-',
+                            'amount': float(project.order_amount or 0),
+                            'subcontractors': subcontractor_text
+                        }
+                    }
+                    events.append(event)
+
+        # 動的ステップのマイルストーンを追加
+        if project.additional_items:
+            dynamic_steps = project.additional_items.get('dynamic_steps', {})
+            step_order = project.additional_items.get('step_order', [])
+            complex_step_fields = project.additional_items.get('complex_step_fields', {})
+
+            # 主要ステップの名前マッピング
+            step_names = {
+                'survey': '現調',
+                'attendance': '立ち会い',
+                'inspection': '検査',
+                'site_survey': '現場調査',
+            }
+
+            # 動的ステップのアイコン定義
+            step_icons = {
+                'survey': '📅',
+                'attendance': '👥',
+                'inspection': '🔍',
+                'site_survey': '📅',
+            }
+
+            # step_orderから主要ステップを探す
+            for step_item in step_order:
+                if isinstance(step_item, dict):
+                    step_key = step_item.get('step')
+
+                    if step_key in step_names:
+                        # complex_step_fieldsから日付を取得
+                        step_fields = complex_step_fields.get(step_key, {})
+                        scheduled_date = step_fields.get('scheduled_date')
+                        actual_date = step_fields.get('actual_date')
+
+                        # 実績日がある場合は実績日、なければ予定日
+                        date_to_use = actual_date if actual_date else scheduled_date
+
+                        if date_to_use:
+                            # ステップに応じた色を取得（デフォルトは青）
+                            step_color = dynamic_step_colors.get(step_key, '#007bff')
+                            step_icon = step_icons.get(step_key, '📅')
+
+                            event = {
+                                'id': f'{project.id}-{step_key}',
+                                'project_id': project.id,
+                                'title': f"{step_icon} {project.site_name}",
+                                'start': date_to_use,
+                                'allDay': True,
+                                'url': f'/orders/{project.id}/',
+                                'backgroundColor': step_color,
+                                'borderColor': step_color,
+                                'classNames': ['milestone-event'],  # リスト表示で非表示
+                                'extendedProps': {
+                                    'milestone_type': step_key,
+                                    'milestone_label': step_names[step_key],
+                                    'project_name': project.site_name,
+                                    'status': project.get_project_status_display(),
+                                    'client': client_display,
+                                    'manager': project.project_manager or '-',
+                                    'amount': float(project.order_amount or 0),
+                                    'is_actual': bool(actual_date),
+                                    'subcontractors': subcontractor_text
+                                }
+                            }
+                            events.append(event)
 
     return JsonResponse(events, safe=False)
 
@@ -150,30 +392,64 @@ def performance_monthly_api(request):
 @login_required
 def gantt_data_api(request):
     """ガントチャートデータをJSON形式で返す"""
-    projects = Project.objects.all().order_by('id')
+    projects = Project.objects.prefetch_related('subcontract_set__contractor', 'subcontract_set__internal_worker').all().order_by('id')
 
     # Ganttデータを生成
     tasks = []
     for project in projects:
-        # get_construction_period()を使用して工期を取得
-        period = project.get_construction_period()
+        # NGステータスの案件はスキップ
+        if project.project_status == 'NG':
+            continue
 
-        if period['start_date'] and period['end_date']:
+        # 案件詳細ページと同じwork_start_date/work_end_dateを使用
+        if project.work_start_date and project.work_end_date:
+            # 下請業者情報を取得
+            subcontractors = []
+            for sc in project.subcontract_set.all():
+                if sc.worker_type == 'external' and sc.contractor:
+                    subcontractors.append(sc.contractor.name)
+                elif sc.worker_type == 'internal' and sc.internal_worker:
+                    subcontractors.append(f"{sc.internal_worker.name}(社内)")
+                elif sc.worker_type == 'internal' and sc.internal_worker_name:
+                    subcontractors.append(f"{sc.internal_worker_name}(社内)")
+
+            subcontractor_text = ', '.join(subcontractors) if subcontractors else '未割当'
+
+            # 元請情報を取得（client_companyを優先、なければclient_name）
+            client_display = '-'
+            if project.client_company:
+                client_display = project.client_company.company_name
+            elif project.client_name:
+                client_display = project.client_name
+
             # 進捗率を取得
             progress_details = project.get_progress_details()
             progress_percentage = 0
             if progress_details['total_steps'] > 0:
                 progress_percentage = int((progress_details['completed_steps'] / progress_details['total_steps']) * 100)
 
+            # 工期の日数を計算
+            construction_days = (project.work_end_date - project.work_start_date).days
+
+            # 完工済みかどうか
+            period_type = 'actual' if project.work_end_completed else 'planned'
+
             task = {
                 'id': f'project-{project.id}',
                 'name': project.site_name,
-                'start': period['start_date'].isoformat(),
-                'end': period['end_date'].isoformat(),
+                'start': project.work_start_date.isoformat(),
+                'end': project.work_end_date.isoformat(),
                 'progress': progress_percentage,
                 'dependencies': '',
-                'construction_period_type': period['type'],  # actual, mixed, planned
-                'construction_period_days': period['days']
+                'construction_period_type': period_type,
+                'construction_period_days': construction_days,
+                'project_id': project.id,
+                'status': project.get_project_status_display(),
+                'client': client_display,
+                'manager': project.project_manager or '-',
+                'amount': float(project.order_amount or 0),
+                'subcontractors': subcontractor_text,
+                'is_completed': project.work_end_completed
             }
             tasks.append(task)
 
@@ -182,7 +458,7 @@ def gantt_data_api(request):
 
 @login_required
 def worker_resource_data_api(request):
-    """職人のスケジュールデータをJSON形式で返す"""
+    """職人のスケジュールデータをJSON形式で返す（社内職人・個人職人・協力会社別）"""
     start_date = request.GET.get('start')
     end_date = request.GET.get('end')
 
@@ -196,25 +472,68 @@ def worker_resource_data_api(request):
     subcontracts = Subcontract.objects.filter(
         project__work_start_date__lte=end,
         project__work_end_date__gte=start
-    ).select_related('contractor', 'project')
+    ).select_related('contractor', 'internal_worker', 'project')
 
-    # データ構造を構築
-    worker_schedules = {}
+    # データ構造を構築（社内職人・個人職人・協力会社別）
+    worker_schedules = {
+        'internal': {},  # 社内職人
+        'individual': {},  # 個人職人
+        'company': {}  # 協力会社
+    }
+
     for sc in subcontracts:
-        contractor_id = sc.contractor.id
-        if contractor_id not in worker_schedules:
-            worker_schedules[contractor_id] = {
-                'worker_id': contractor_id,
-                'worker_name': sc.contractor.name,
-                'projects': []
-            }
+        # 社内職人の場合
+        if sc.worker_type == 'internal' and sc.internal_worker:
+            worker_id = f'internal-{sc.internal_worker.id}'
+            if worker_id not in worker_schedules['internal']:
+                worker_schedules['internal'][worker_id] = {
+                    'worker_id': worker_id,
+                    'worker_name': f"{sc.internal_worker.name}（社内）",
+                    'worker_type': 'internal',
+                    'department': sc.internal_worker.get_department_display(),
+                    'projects': []
+                }
 
-        worker_schedules[contractor_id]['projects'].append({
-            'project_id': sc.project.id,
-            'project_name': sc.project.site_name,
-            'start_date': sc.project.work_start_date.isoformat() if sc.project.work_start_date else None,
-            'end_date': sc.project.work_end_date.isoformat() if sc.project.work_end_date else None,
-            'type': sc.project.contract_type or 'other'
-        })
+            worker_schedules['internal'][worker_id]['projects'].append({
+                'project_id': sc.project.id,
+                'project_name': sc.project.site_name,
+                'start_date': sc.project.work_start_date.isoformat() if sc.project.work_start_date else None,
+                'end_date': sc.project.work_end_date.isoformat() if sc.project.work_end_date else None,
+                'type': sc.project.contract_type or 'other'
+            })
 
-    return JsonResponse(list(worker_schedules.values()), safe=False)
+        # 外部業者の場合
+        elif sc.worker_type == 'external' and sc.contractor:
+            contractor_type = sc.contractor.contractor_type
+
+            # 個人職人または協力会社
+            if contractor_type in ['individual', 'company']:
+                category = contractor_type
+                worker_id = f'{contractor_type}-{sc.contractor.id}'
+
+                if worker_id not in worker_schedules[category]:
+                    type_label = '個人職人' if contractor_type == 'individual' else '協力会社'
+                    worker_schedules[category][worker_id] = {
+                        'worker_id': worker_id,
+                        'worker_name': f"{sc.contractor.name}（{type_label}）",
+                        'worker_type': contractor_type,
+                        'specialties': sc.contractor.specialties,
+                        'projects': []
+                    }
+
+                worker_schedules[category][worker_id]['projects'].append({
+                    'project_id': sc.project.id,
+                    'project_name': sc.project.site_name,
+                    'start_date': sc.project.work_start_date.isoformat() if sc.project.work_start_date else None,
+                    'end_date': sc.project.work_end_date.isoformat() if sc.project.work_end_date else None,
+                    'type': sc.project.contract_type or 'other'
+                })
+
+    # 3つのカテゴリーを統合してレスポンスを作成
+    result = {
+        'internal_workers': list(worker_schedules['internal'].values()),
+        'individual_workers': list(worker_schedules['individual'].values()),
+        'company_workers': list(worker_schedules['company'].values())
+    }
+
+    return JsonResponse(result, safe=False)
