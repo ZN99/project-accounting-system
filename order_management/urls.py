@@ -239,6 +239,8 @@ urlpatterns = [
     # コメント・通知機能 - Phase 6
     path('api/projects/<int:project_id>/comments/', views_comment.get_comments, name='api_get_comments'),
     path('api/projects/<int:project_id>/comments/post/', views_comment.post_comment, name='api_post_comment'),
+    path('api/comments/<int:comment_id>/edit/', views_comment.edit_comment, name='api_edit_comment'),
+    path('api/comments/<int:comment_id>/delete/', views_comment.delete_comment, name='api_delete_comment'),
     path('api/notifications/', views_comment.get_notifications, name='api_get_notifications'),
     path('api/notifications/<int:notification_id>/read/', views_comment.mark_notification_read, name='api_mark_notification_read'),
     path('api/notifications/read-all/', views_comment.mark_all_notifications_read, name='api_mark_all_notifications_read'),

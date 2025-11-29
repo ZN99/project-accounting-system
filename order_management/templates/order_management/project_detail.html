@@ -8726,8 +8726,19 @@ function renderComment(comment, isReply) {
                 <button class="btn btn-link text-muted p-0 reply-button" data-comment-id="${comment.id}" data-author="${escapeHtml(comment.author)}" title="返信">
                     <i class="fas fa-reply" style="font-size: 0.9rem;"></i>
                 </button>
+                ${comment.can_edit ? `
+                    <button class="btn btn-link text-muted p-0 edit-comment-button" data-comment-id="${comment.id}" title="編集">
+                        <i class="fas fa-edit" style="font-size: 0.9rem;"></i>
+                    </button>
+                ` : ''}
+                ${comment.can_delete ? `
+                    <button class="btn btn-link text-danger p-0 delete-comment-button" data-comment-id="${comment.id}" title="削除">
+                        <i class="fas fa-trash" style="font-size: 0.9rem;"></i>
+                    </button>
+                ` : ''}
             </div>
             <div class="reply-form-container" id="reply-form-${comment.id}" style="display: none;"></div>
+            <div class="edit-form-container" id="edit-form-${comment.id}" style="display: none;"></div>
             ${repliesHtml}
         </div>
     `;
@@ -9058,6 +9069,177 @@ function toggleReplies(commentId, button) {
         repliesContainer.style.display = 'none';
         button.querySelector('i').className = 'fas fa-chevron-right';
     }
+}
+
+// コメントを編集
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.edit-comment-button')) {
+        const button = e.target.closest('.edit-comment-button');
+        const commentId = button.dataset.commentId;
+        showEditForm(commentId);
+    }
+});
+
+function showEditForm(commentId) {
+    const commentItem = document.querySelector(`.comment-item[data-comment-id="${commentId}"]`);
+    const contentElement = commentItem.querySelector('.comment-content');
+    const currentContent = contentElement.textContent.trim();
+
+    // 他の編集フォームを閉じる
+    document.querySelectorAll('.edit-form-container').forEach(container => {
+        container.style.display = 'none';
+        container.innerHTML = '';
+    });
+
+    // 編集フォームのHTML
+    const editFormHtml = `
+        <div class="edit-form mt-2 p-3 bg-light rounded">
+            <textarea
+                class="form-control mb-2"
+                id="edit-content-${commentId}"
+                rows="3">${currentContent}</textarea>
+            <div class="d-flex justify-content-end gap-2">
+                <button class="btn btn-sm btn-secondary cancel-edit" data-comment-id="${commentId}">
+                    キャンセル
+                </button>
+                <button class="btn btn-sm btn-primary save-edit" data-comment-id="${commentId}">
+                    保存
+                </button>
+            </div>
+        </div>
+    `;
+
+    const container = document.getElementById(`edit-form-${commentId}`);
+    container.innerHTML = editFormHtml;
+    container.style.display = 'block';
+
+    // 元のコンテンツを非表示
+    contentElement.style.display = 'none';
+
+    // フォーカス
+    document.getElementById(`edit-content-${commentId}`).focus();
+}
+
+// 編集をキャンセル
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.cancel-edit')) {
+        const button = e.target.closest('.cancel-edit');
+        const commentId = button.dataset.commentId;
+        const commentItem = document.querySelector(`.comment-item[data-comment-id="${commentId}"]`);
+        const contentElement = commentItem.querySelector('.comment-content');
+        const container = document.getElementById(`edit-form-${commentId}`);
+
+        container.style.display = 'none';
+        container.innerHTML = '';
+        contentElement.style.display = 'block';
+    }
+});
+
+// 編集を保存
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.save-edit')) {
+        const button = e.target.closest('.save-edit');
+        const commentId = button.dataset.commentId;
+        const content = document.getElementById(`edit-content-${commentId}`).value.trim();
+
+        if (!content) return;
+
+        saveEditComment(commentId, content);
+    }
+});
+
+function saveEditComment(commentId, content) {
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    fetch(`/orders/api/comments/${commentId}/edit/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify({
+            content: content
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // コメント一覧を再読み込み
+            loadComments();
+        } else {
+            console.error('[saveEditComment] Error:', data.error);
+            alert('編集に失敗しました: ' + (data.error || '不明なエラー'));
+        }
+    })
+    .catch(error => {
+        console.error('[saveEditComment] Catch error:', error);
+        alert('編集に失敗しました');
+    });
+}
+
+// コメントを削除
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.delete-comment-button')) {
+        const button = e.target.closest('.delete-comment-button');
+        const commentId = button.dataset.commentId;
+
+        if (confirm('このコメントを削除してもよろしいですか？')) {
+            deleteComment(commentId);
+        }
+    }
+});
+
+function deleteComment(commentId) {
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    fetch(`/orders/api/comments/${commentId}/delete/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // コメント一覧を再読み込み
+            loadComments();
+        } else {
+            console.error('[deleteComment] Error:', data.error);
+            alert('削除に失敗しました: ' + (data.error || '不明なエラー'));
+        }
+    })
+    .catch(error => {
+        console.error('[deleteComment] Catch error:', error);
+        alert('削除に失敗しました');
+    });
 }
 
 // Enterキーでの自動投稿を無効化（改行を許可）

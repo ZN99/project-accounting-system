@@ -123,6 +123,8 @@ def get_comments(request, project_id):
             'attachments': attachments_data,
             'replies': replies_data,
             'reply_count': len(replies_data),
+            'can_edit': comment.author == request.user,
+            'can_delete': comment.author == request.user,
         }
 
     # 親コメントのみを取得（返信ではないコメント）- 古い順に表示
@@ -194,3 +196,56 @@ def mark_all_notifications_read(request):
     """全ての通知を既読にする"""
     request.user.notifications.filter(is_read=False).update(is_read=True)
     return JsonResponse({'success': True})
+
+
+@login_required
+@require_POST
+def edit_comment(request, comment_id):
+    """コメントを編集"""
+    comment = get_object_or_404(Comment, pk=comment_id)
+
+    # 自分のコメントのみ編集可能
+    if comment.author != request.user:
+        return JsonResponse({'success': False, 'error': '編集権限がありません'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        content = data.get('content', '').strip()
+
+        if not content:
+            return JsonResponse({'success': False, 'error': 'コメント内容を入力してください'}, status=400)
+
+        comment.content = content
+        comment.save()
+
+        return JsonResponse({
+            'success': True,
+            'comment': {
+                'id': comment.id,
+                'content': comment.content,
+                'updated_at': comment.updated_at.strftime('%Y-%m-%d %H:%M'),
+            }
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def delete_comment(request, comment_id):
+    """コメントを削除"""
+    comment = get_object_or_404(Comment, pk=comment_id)
+
+    # 自分のコメントのみ削除可能
+    if comment.author != request.user:
+        return JsonResponse({'success': False, 'error': '削除権限がありません'}, status=403)
+
+    try:
+        comment.delete()
+        return JsonResponse({'success': True})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
