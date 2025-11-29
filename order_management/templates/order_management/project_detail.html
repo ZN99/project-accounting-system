@@ -8732,7 +8732,7 @@ function renderComment(comment, isReply) {
                     </button>
                 ` : ''}
                 ${comment.can_delete ? `
-                    <button class="btn btn-link text-danger p-0 delete-comment-button" data-comment-id="${comment.id}" title="削除">
+                    <button class="btn btn-link text-muted p-0 delete-comment-button" data-comment-id="${comment.id}" title="削除">
                         <i class="fas fa-trash" style="font-size: 0.9rem;"></i>
                     </button>
                 ` : ''}
@@ -9197,9 +9197,13 @@ document.addEventListener('click', function(e) {
         const button = e.target.closest('.delete-comment-button');
         const commentId = button.dataset.commentId;
 
-        if (confirm('このコメントを削除してもよろしいですか？')) {
-            deleteComment(commentId);
-        }
+        showConfirmModal(
+            'このコメントを削除してもよろしいですか？\n\nこの操作は取り消せません。',
+            function() {
+                deleteComment(commentId);
+            },
+            'コメントの削除'
+        );
     }
 });
 
