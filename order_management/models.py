@@ -254,6 +254,34 @@ class Project(models.Model):
         verbose_name='入金金額',
         help_text='実際の入金金額（請求額と異なる場合に使用）'
     )
+    incoming_payment_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('pending', '入金待ち'),
+            ('received', '入金済み'),
+            ('partial', '一部入金'),
+            ('overdue', '遅延'),
+        ],
+        default='pending',
+        verbose_name='入金ステータス',
+        help_text='元請からの入金状況'
+    )
+    invoice_custom_data = models.JSONField(
+        blank=True,
+        null=True,
+        verbose_name='請求書カスタムデータ',
+        help_text='請求書のカスタマイズされたデータ（備考、工期、現場名など）'
+    )
+    invoice_issued = models.BooleanField(
+        default=False,
+        verbose_name='請求書発行済み'
+    )
+    invoice_file = models.FileField(
+        upload_to='invoices/%Y/%m/',
+        blank=True,
+        null=True,
+        verbose_name='請求書PDFファイル'
+    )
 
     # 完工・請求管理 - Phase 1 追加
     completion_date = models.DateField(
@@ -2651,13 +2679,36 @@ class SeasonalityIndex(models.Model):
 
 
 class UserProfile(models.Model):
-    """ユーザープロファイル - ロール管理"""
+    """ユーザープロファイル - ロール管理とアバター"""
+
+    # 背景色の選択肢
+    BACKGROUND_COLOR_CHOICES = [
+        ('#007bff', 'ブルー'),
+        ('#6c757d', 'グレー'),
+        ('#28a745', 'グリーン'),
+        ('#dc3545', 'レッド'),
+        ('#ffc107', 'イエロー'),
+        ('#17a2b8', 'シアン'),
+        ('#6f42c1', 'パープル'),
+        ('#fd7e14', 'オレンジ'),
+        ('#e83e8c', 'ピンク'),
+        ('#20c997', 'ティール'),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="userprofile")
     roles = models.JSONField(default=list, verbose_name="ロール")
+    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True, verbose_name='プロフィール画像')
+    avatar_background_color = models.CharField(
+        max_length=7,
+        choices=BACKGROUND_COLOR_CHOICES,
+        default='#007bff',
+        verbose_name='アバター背景色'
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="作成日時")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新日時")
 
     class Meta:
+        db_table = 'user_profile'
         verbose_name = "ユーザープロファイル"
         verbose_name_plural = "ユーザープロファイル一覧"
 
@@ -2680,6 +2731,31 @@ class UserProfile(models.Model):
         if role in self.roles:
             self.roles.remove(role)
             self.save()
+
+    def get_initials(self):
+        """ユーザーのイニシャルを取得"""
+        if self.user.first_name and self.user.last_name:
+            return f'{self.user.first_name[0]}{self.user.last_name[0]}'.upper()
+        elif self.user.first_name:
+            return self.user.first_name[:2].upper()
+        elif self.user.last_name:
+            return self.user.last_name[:2].upper()
+        else:
+            return self.user.username[:2].upper()
+
+    def get_avatar_data(self):
+        """アバター表示用のデータを取得"""
+        if self.avatar:
+            return {
+                'type': 'image',
+                'url': self.avatar.url,
+            }
+        else:
+            return {
+                'type': 'initials',
+                'initials': self.get_initials(),
+                'background_color': self.avatar_background_color,
+            }
 
     def get_roles_display(self):
         """ロールの表示名を取得"""
@@ -3357,6 +3433,8 @@ class ProjectFile(models.Model):
     )
     file = models.FileField(
         upload_to='project_files/%Y/%m/',
+        blank=True,
+        null=True,
         verbose_name='ファイル'
     )
     file_name = models.CharField(
@@ -3364,6 +3442,8 @@ class ProjectFile(models.Model):
         verbose_name='ファイル名'
     )
     file_size = models.IntegerField(
+        blank=True,
+        null=True,
         verbose_name='ファイルサイズ（バイト）'
     )
     file_type = models.CharField(
@@ -3391,6 +3471,36 @@ class ProjectFile(models.Model):
         null=True,
         verbose_name='関連ステップ',
         help_text='このファイルが関連するステップ（例：estimate, survey）'
+    )
+
+    # リンクされたファイル用のフィールド
+    is_linked_file = models.BooleanField(
+        default=False,
+        verbose_name='リンクファイル',
+        help_text='他の案件のPDF（発注書・請求書）へのリンク'
+    )
+    linked_source_file = models.CharField(
+        max_length=500,
+        blank=True,
+        null=True,
+        verbose_name='リンク元ファイルパス',
+        help_text='発注書または請求書のファイルパス'
+    )
+    linked_source_type = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        choices=[
+            ('purchase_order', '発注書'),
+            ('invoice', '請求書'),
+        ],
+        verbose_name='リンク元タイプ'
+    )
+    linked_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='リンク作成日時',
+        help_text='ファイルがリンクされた日時（秒単位）'
     )
 
     class Meta:
@@ -3497,61 +3607,52 @@ class RatingCriteria(models.Model):
         super().save(*args, **kwargs)
 
 
-class UserProfile(models.Model):
-    """ユーザープロファイル"""
+class CompanySettings(models.Model):
+    """会社情報とPDF設定を管理するシングルトンモデル"""
 
-    # 背景色の選択肢
-    BACKGROUND_COLOR_CHOICES = [
-        ('#007bff', 'ブルー'),
-        ('#6c757d', 'グレー'),
-        ('#28a745', 'グリーン'),
-        ('#dc3545', 'レッド'),
-        ('#ffc107', 'イエロー'),
-        ('#17a2b8', 'シアン'),
-        ('#6f42c1', 'パープル'),
-        ('#fd7e14', 'オレンジ'),
-        ('#e83e8c', 'ピンク'),
-        ('#20c997', 'ティール'),
-    ]
+    # 自社情報
+    company_name = models.CharField(max_length=200, verbose_name='会社名', blank=True, default='')
+    company_address = models.TextField(verbose_name='住所', blank=True, default='')
+    company_phone = models.CharField(max_length=50, verbose_name='電話番号', blank=True, default='')
+    company_fax = models.CharField(max_length=50, verbose_name='FAX', blank=True, default='')
+    company_email = models.EmailField(verbose_name='メールアドレス', blank=True, default='')
+    company_representative = models.CharField(max_length=100, verbose_name='代表者名', blank=True, default='')
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile', verbose_name='ユーザー')
-    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True, verbose_name='プロフィール画像')
-    avatar_background_color = models.CharField(
-        max_length=7,
-        choices=BACKGROUND_COLOR_CHOICES,
-        default='#007bff',
-        verbose_name='アバター背景色'
+    # 発注書設定
+    purchase_order_remarks = models.TextField(
+        verbose_name='発注書 備考欄',
+        blank=True,
+        default='上記の通り発注いたします。\nご査収の程よろしくお願い申し上げます。',
+        help_text='発注書の備考欄に表示されるテキスト'
     )
 
+    # 請求書設定
+    invoice_remarks = models.TextField(
+        verbose_name='請求書 備考欄',
+        blank=True,
+        default='上記の通り請求させていただきます。\nお支払いの程よろしくお願い申し上げます。',
+        help_text='請求書の備考欄に表示されるテキスト'
+    )
+
+    # 作成・更新日時
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='作成日時')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新日時')
+
     class Meta:
-        db_table = 'user_profile'
-        verbose_name = 'ユーザープロファイル'
-        verbose_name_plural = 'ユーザープロファイル'
+        db_table = 'company_settings'
+        verbose_name = '会社設定'
+        verbose_name_plural = '会社設定'
 
     def __str__(self):
-        return f'{self.user.username}のプロファイル'
+        return f'会社設定 ({self.company_name or "未設定"})'
 
-    def get_initials(self):
-        """ユーザーのイニシャルを取得"""
-        if self.user.first_name and self.user.last_name:
-            return f'{self.user.first_name[0]}{self.user.last_name[0]}'.upper()
-        elif self.user.first_name:
-            return self.user.first_name[:2].upper()
-        elif self.user.last_name:
-            return self.user.last_name[:2].upper()
-        else:
-            return self.user.username[:2].upper()
+    @classmethod
+    def get_settings(cls):
+        """設定を取得（シングルトン）"""
+        settings, created = cls.objects.get_or_create(pk=1)
+        return settings
 
-    def get_avatar_data(self):
-        """アバター表示用のデータを取得"""
-        if self.avatar:
-            return {
-                'type': 'image',
-                'url': self.avatar.url,
-            }
-        else:
-            return {
-                'type': 'initials',
-                'initials': self.get_initials(),
-                'background_color': self.avatar_background_color,
-            }
+    def save(self, *args, **kwargs):
+        """PKを1に固定してシングルトンを保証"""
+        self.pk = 1
+        super().save(*args, **kwargs)

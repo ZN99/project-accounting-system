@@ -1,0 +1,254 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+
+{% block title %}アーカイブされた機能 - 旧版{% endblock %}
+
+{% block extra_css %}
+<style>
+    .archive-header {
+        background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .warning-banner {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 1rem 1.5rem;
+        margin-bottom: 2rem;
+        border-radius: 6px;
+    }
+
+    .feature-category {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .feature-category h4 {
+        color: #374151;
+        border-bottom: 2px solid #e5e7eb;
+        padding-bottom: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .feature-item {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.2s;
+    }
+
+    .feature-item:hover {
+        background: #f3f4f6;
+        border-color: #d1d5db;
+    }
+
+    .feature-icon {
+        width: 40px;
+        height: 40px;
+        background: #9ca3af;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+
+    .feature-note {
+        font-size: 0.875rem;
+        color: #6366f1;
+        font-weight: 500;
+        margin-top: 0.5rem;
+    }
+
+    .info-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .info-card h5 {
+        color: #374151;
+        margin-bottom: 1rem;
+    }
+
+    .reason-list {
+        list-style: none;
+        padding: 0;
+    }
+
+    .reason-list li {
+        padding: 0.5rem 0;
+        padding-left: 1.5rem;
+        position: relative;
+    }
+
+    .reason-list li:before {
+        content: "❌";
+        position: absolute;
+        left: 0;
+    }
+
+    .new-feature-list {
+        list-style: none;
+        padding: 0;
+    }
+
+    .new-feature-list li {
+        padding: 0.5rem 0;
+        padding-left: 1.5rem;
+        position: relative;
+    }
+
+    .new-feature-list li:before {
+        content: "✨";
+        position: absolute;
+        left: 0;
+    }
+
+    .badge-archived {
+        background-color: #6b7280;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .badge-coming-soon {
+        background-color: #3b82f6;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- ヘッダー -->
+    <div class="archive-header">
+        <h2><i class="fas fa-archive me-2"></i>アーカイブされた機能（旧版）</h2>
+        <p class="mb-0 opacity-75">参照専用 - 実運用には使用しないでください</p>
+        <small class="opacity-75">最終アーカイブ日: {{ archive_date }}</small>
+    </div>
+
+    <!-- 警告バナー -->
+    <div class="warning-banner">
+        <h5 class="mb-2"><i class="fas fa-exclamation-triangle me-2"></i>重要なお知らせ</h5>
+        <p class="mb-0">
+            以下の機能は旧バージョンです。新しい経理機能を実装中のため、これらの機能は参照のみ可能です。
+            <strong>実運用での使用は推奨されません。</strong>
+        </p>
+    </div>
+
+    <div class="row">
+        <!-- 左カラム: アーカイブされた機能一覧 -->
+        <div class="col-lg-8">
+            <h4 class="mb-3">アーカイブされた機能一覧</h4>
+
+            {% for category in archived_features %}
+            <div class="feature-category">
+                <h4>
+                    <i class="fas fa-folder me-2"></i>{{ category.category }}
+                    <span class="badge-archived ms-2">アーカイブ済み</span>
+                </h4>
+
+                {% for feature in category.features %}
+                <div class="feature-item">
+                    <div class="d-flex align-items-start">
+                        <div class="feature-icon">
+                            <i class="fas {{ feature.icon }}"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">{{ feature.name }}</h6>
+                            <p class="text-muted mb-0" style="font-size: 0.875rem;">
+                                {{ feature.description }}
+                            </p>
+                            <small class="text-muted">
+                                <i class="fas fa-calendar-alt me-1"></i>
+                                アーカイブ日: {{ feature.archived_date }}
+                            </small>
+                            {% if feature.note %}
+                            <div class="feature-note">
+                                {{ feature.note }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- 右カラム: 情報カード -->
+        <div class="col-lg-4">
+            <!-- アーカイブ理由 -->
+            <div class="info-card">
+                <h5><i class="fas fa-info-circle me-2"></i>アーカイブ理由</h5>
+                <ul class="reason-list">
+                    {% for reason in archive_reasons %}
+                    <li>{{ reason }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- 新機能の情報 -->
+            <div class="info-card">
+                <h5>
+                    <i class="fas fa-rocket me-2"></i>新しい経理機能
+                    <span class="badge-coming-soon ms-2">{{ new_features.status }}</span>
+                </h5>
+                <p class="text-muted mb-2" style="font-size: 0.875rem;">
+                    リリース予定: {{ new_features.release_date }}
+                </p>
+                <ul class="new-feature-list">
+                    {% for feature in new_features.features %}
+                    <li>{{ feature }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- アクション -->
+            <div class="info-card">
+                <h5><i class="fas fa-question-circle me-2"></i>ヘルプ</h5>
+                <p style="font-size: 0.875rem;">
+                    アーカイブされた機能に関するご質問は、システム管理者にお問い合わせください。
+                </p>
+                <a href="{% url 'order_management:dashboard' %}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-home me-1"></i>ダッシュボードに戻る
+                </a>
+            </div>
+
+            <!-- 技術情報 -->
+            <div class="info-card">
+                <h5><i class="fas fa-code me-2"></i>技術情報</h5>
+                <p style="font-size: 0.875rem;" class="mb-2">
+                    アーカイブされたファイルの場所:
+                </p>
+                <code style="font-size: 0.75rem; display: block; padding: 0.5rem; background: #f3f4f6; border-radius: 4px;">
+                    order_management/archived/
+                </code>
+                <p style="font-size: 0.875rem;" class="mt-2 mb-0">
+                    詳細は <code>archived/README.md</code> を参照してください。
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

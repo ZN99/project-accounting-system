@@ -1,0 +1,1866 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+{% load l10n %}
+
+{% block title %}出金/入金管理{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+    }
+
+    .summary-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+
+    .summary-card .metric {
+        text-align: center;
+        padding: 1rem;
+    }
+
+    .summary-card .metric-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #667eea;
+    }
+
+    .summary-card .metric-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+    }
+
+    .summary-card.positive .metric-value {
+        color: #10b981;
+    }
+
+    .summary-card.negative .metric-value {
+        color: #ef4444;
+    }
+
+    .data-section {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+
+    .data-section h5 {
+        color: #374151;
+        margin-bottom: 1rem;
+        border-bottom: 2px solid #e5e7eb;
+        padding-bottom: 0.5rem;
+    }
+
+    .tab-content {
+        margin-top: 2rem;
+    }
+
+    .nav-tabs .nav-link {
+        color: #6c757d;
+        font-weight: 500;
+    }
+
+    .nav-tabs .nav-link.active {
+        color: #667eea;
+        font-weight: 600;
+    }
+
+    .table-responsive {
+        /* スクロール不要 - max-height削除 */
+    }
+
+    .table tbody tr[data-url] {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .table tbody tr[data-url]:hover {
+        background-color: #f3f4f6;
+    }
+
+    .badge-status {
+        padding: 0.35rem 0.65rem;
+        border-radius: 4px;
+        font-size: 0.85rem;
+    }
+
+    .badge-paid {
+        background-color: #10b981;
+        color: white;
+    }
+
+    .badge-pending {
+        background-color: #f59e0b;
+        color: white;
+    }
+
+    .badge-processing {
+        background-color: #3b82f6;
+        color: white;
+    }
+
+    .month-selector {
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+
+    .month-selector .btn-outline-primary {
+        min-width: 42px;
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+    }
+
+    .month-selector .form-select {
+        font-weight: 500;
+    }
+
+    .amount-display {
+        font-family: 'Courier New', monospace;
+        font-weight: bold;
+    }
+
+    .amount-positive {
+        color: #10b981;
+    }
+
+    .amount-negative {
+        color: #ef4444;
+    }
+
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+
+    .loading-overlay.active {
+        display: flex;
+    }
+
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+    }
+
+    /* 案件名のホバー効果 */
+    .site-name-link {
+        color: inherit;
+        cursor: pointer;
+        text-decoration: none;
+        position: relative;
+    }
+
+    .site-name-link:hover {
+        color: #667eea;
+        text-decoration: underline;
+    }
+
+    .popover {
+        max-width: 400px;
+    }
+
+    .popover-body {
+        font-size: 0.9rem;
+    }
+
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.25rem 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+
+    .detail-label {
+        font-weight: 600;
+        color: #6c757d;
+    }
+
+    .detail-value {
+        color: #374151;
+    }
+
+    /* アコーディオンスタイル */
+    .contractor-accordion-item {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+        background: white;
+    }
+
+    .contractor-accordion-header {
+        padding: 1rem 1.5rem;
+        cursor: pointer;
+        background: #f9fafb;
+        border: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background-color 0.2s ease;
+    }
+
+    .contractor-accordion-header:hover {
+        background: #f3f4f6;
+    }
+
+    .contractor-accordion-header.active {
+        background: #eff6ff;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .contractor-name {
+        font-weight: 600;
+        color: #374151;
+        font-size: 1rem;
+    }
+
+    .contractor-summary {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+    }
+
+    .contractor-summary .amount {
+        font-weight: 700;
+        color: #ef4444;
+        font-family: 'SF Mono', 'Monaco', monospace;
+        font-size: 1.1rem;
+    }
+
+    .contractor-summary .count {
+        color: #6b7280;
+        font-size: 0.9rem;
+    }
+
+    .toggle-icon {
+        transition: transform 0.3s ease;
+        color: #9ca3af;
+    }
+
+    .toggle-icon.expanded {
+        transform: rotate(90deg);
+    }
+
+    .contractor-accordion-body {
+        display: none;
+        padding: 1rem;
+        background: white;
+    }
+
+    .contractor-accordion-body.show {
+        display: block;
+    }
+
+    .payment-date-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .payment-date-header {
+        background: #f8fafc;
+        padding: 0.5rem 1rem;
+        border-left: 4px solid #3b82f6;
+        margin-bottom: 0.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .payment-date-header .date {
+        font-weight: 600;
+        color: #1e3a8a;
+    }
+
+    .payment-date-header .date-total {
+        font-weight: 600;
+        color: #374151;
+        font-family: 'SF Mono', 'Monaco', monospace;
+    }
+
+    .site-list-table {
+        margin: 0;
+        font-size: 0.9rem;
+    }
+
+    .site-list-table thead {
+        background: #fafafa;
+    }
+
+    .site-list-table tbody tr:hover {
+        background-color: #f9fafb;
+    }
+
+    .bulk-action-bar {
+        background: #eff6ff;
+        padding: 0.75rem 1rem;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .bulk-action-bar select {
+        max-width: 200px;
+    }
+
+    .bulk-action-bar input[type="date"] {
+        max-width: 180px;
+    }
+
+    .site-checkbox {
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner-border text-light" role="status">
+            <span class="visually-hidden">読み込み中...</span>
+        </div>
+    </div>
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <h2><i class="fas fa-money-bill-wave me-2"></i>出金/入金管理</h2>
+        <p class="mb-0">{{ year|unlocalize }}年{{ month|unlocalize }}月のキャッシュフロー管理</p>
+    </div>
+
+    <!-- Month Selector -->
+    <div class="month-selector">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <div class="d-flex align-items-center gap-2">
+                    <!-- 前月ボタン -->
+                    <a href="?year={{ prev_year|unlocalize }}&month={{ prev_month|unlocalize }}" class="btn btn-outline-primary" title="前月">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+
+                    <!-- 年月選択 -->
+                    <form method="get" id="monthForm" class="d-flex gap-2 flex-grow-1">
+                        <select name="year" class="form-select" id="yearSelect" onchange="this.form.submit()">
+                            <option value="2023" {% if year == 2023 %}selected{% endif %}>2023年</option>
+                            <option value="2024" {% if year == 2024 %}selected{% endif %}>2024年</option>
+                            <option value="2025" {% if year == 2025 %}selected{% endif %}>2025年</option>
+                            <option value="2026" {% if year == 2026 %}selected{% endif %}>2026年</option>
+                        </select>
+                        <select name="month" class="form-select" id="monthSelect" onchange="this.form.submit()">
+                            <option value="1" {% if month == 1 %}selected{% endif %}>1月</option>
+                            <option value="2" {% if month == 2 %}selected{% endif %}>2月</option>
+                            <option value="3" {% if month == 3 %}selected{% endif %}>3月</option>
+                            <option value="4" {% if month == 4 %}selected{% endif %}>4月</option>
+                            <option value="5" {% if month == 5 %}selected{% endif %}>5月</option>
+                            <option value="6" {% if month == 6 %}selected{% endif %}>6月</option>
+                            <option value="7" {% if month == 7 %}selected{% endif %}>7月</option>
+                            <option value="8" {% if month == 8 %}selected{% endif %}>8月</option>
+                            <option value="9" {% if month == 9 %}selected{% endif %}>9月</option>
+                            <option value="10" {% if month == 10 %}selected{% endif %}>10月</option>
+                            <option value="11" {% if month == 11 %}selected{% endif %}>11月</option>
+                            <option value="12" {% if month == 12 %}selected{% endif %}>12月</option>
+                        </select>
+                    </form>
+
+                    <!-- 翌月ボタン -->
+                    <a href="?year={{ next_year|unlocalize }}&month={{ next_month|unlocalize }}" class="btn btn-outline-primary" title="翌月">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <button type="button" class="btn btn-outline-secondary" onclick="setCurrentMonth()">
+                    <i class="fas fa-calendar-day me-1"></i>今月に戻る
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="summary-card">
+                <div class="metric">
+                    <div class="metric-value amount-display amount-negative">
+                        ¥<span id="summaryOutgoingTotal">{{ outgoing_paid_total|floatformat:0|default:"0" }}</span>
+                    </div>
+                    <div class="metric-label">
+                        <i class="fas fa-arrow-up me-1"></i>出金済み合計
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="summary-card">
+                <div class="metric">
+                    <div class="metric-value amount-display amount-positive">
+                        ¥<span id="summaryIncomingTotal">{{ incoming_received_total|floatformat:0|default:"0" }}</span>
+                    </div>
+                    <div class="metric-label">
+                        <i class="fas fa-arrow-down me-1"></i>入金済み合計
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="summary-card {% if monthly_balance >= 0 %}positive{% else %}negative{% endif %}">
+                <div class="metric">
+                    <div class="metric-value amount-display">
+                        ¥<span id="summaryBalance">{{ monthly_balance|floatformat:0|default:"0" }}</span>
+                    </div>
+                    <div class="metric-label">
+                        <i class="fas fa-balance-scale me-1"></i>月次収支
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs" id="paymentTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="outgoing-tab" data-bs-toggle="tab" data-bs-target="#outgoing" type="button" role="tab">
+                <i class="fas fa-arrow-up me-1"></i>出金管理
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="incoming-tab" data-bs-toggle="tab" data-bs-target="#incoming" type="button" role="tab">
+                <i class="fas fa-arrow-down me-1"></i>入金管理
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="paymentTabContent">
+        <!-- 出金管理タブ -->
+        <div class="tab-pane fade show active" id="outgoing" role="tabpanel">
+            <!-- 出金済みセクション -->
+            <div class="data-section">
+                <h5><i class="fas fa-check-circle me-2 text-success"></i>出金済み（{{ outgoing_paid_count }}件）</h5>
+
+                <!-- 業者別集計（支払日別詳細を含む） -->
+                <div class="mb-3">
+                    <h6>業者別集計</h6>
+                    <div id="outgoingPaidByContractorAccordion">
+                        <!-- ここにアコーディオンが動的に挿入されます -->
+                        <div class="text-center text-muted py-3">読み込み中...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 出金予定セクション -->
+            <div class="data-section">
+                <h5><i class="fas fa-clock me-2 text-warning"></i>出金予定（{{ outgoing_scheduled_count }}件）</h5>
+
+                <!-- 業者別集計（支払予定日別詳細を含む） -->
+                <div class="mb-3">
+                    <h6>業者別集計</h6>
+                    <div id="outgoingScheduledByContractorAccordion">
+                        <!-- ここにアコーディオンが動的に挿入されます -->
+                        <div class="text-center text-muted py-3">読み込み中...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 未入力セクション -->
+            <div class="data-section">
+                <h5><i class="fas fa-exclamation-triangle me-2 text-danger"></i>出金情報未入力（{{ outgoing_unfilled_count }}件）</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover" id="outgoingUnfilledTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>現場名</th>
+                                <th>業者名</th>
+                                <th class="text-end">契約金額</th>
+                                <th>未入力項目</th>
+                            </tr>
+                        </thead>
+                        <tbody id="outgoingUnfilledTableBody">
+                            <tr>
+                                <td colspan="4" class="text-center">読み込み中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 入金管理タブ -->
+        <div class="tab-pane fade" id="incoming" role="tabpanel">
+            <!-- 入金済みセクション -->
+            <div class="data-section">
+                <h5><i class="fas fa-check-circle me-2 text-success"></i>入金済み（{{ incoming_received_count }}件）</h5>
+
+                <!-- 元請業者別集計（入金日別詳細を含む） -->
+                <div class="mb-3">
+                    <h6>元請業者別集計</h6>
+                    <div id="incomingReceivedByClientAccordion">
+                        <!-- ここにアコーディオンが動的に挿入されます -->
+                        <div class="text-center text-muted py-3">読み込み中...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 入金予定セクション -->
+            <div class="data-section">
+                <h5><i class="fas fa-clock me-2 text-warning"></i>入金予定</h5>
+
+                <!-- 元請業者別集計（入金予定日別詳細を含む） -->
+                <div class="mb-3">
+                    <h6>元請業者別集計</h6>
+                    <div id="incomingScheduledByClientAccordion">
+                        <!-- ここにアコーディオンが動的に挿入されます -->
+                        <div class="text-center text-muted py-3">読み込み中...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// URLパラメータから年月を取得する関数
+function getUrlParameter(name) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(name);
+}
+
+// Global variables - サーバー側から渡された値を使用
+const currentYear = {{ year|unlocalize }};
+const currentMonth = {{ month|unlocalize }};
+
+// Helper functions
+function formatCurrency(amount) {
+    return '¥' + Math.round(amount).toLocaleString('ja-JP');
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+}
+
+// 期日の警告表示付きフォーマット
+function formatDateWithWarning(dateStr) {
+    if (!dateStr) return '-';
+
+    const dueDate = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    dueDate.setHours(0, 0, 0, 0);
+
+    const diffTime = dueDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    const formattedDate = formatDate(dateStr);
+
+    // 期日超過
+    if (diffDays < 0) {
+        const overdueDays = Math.abs(diffDays);
+        return `<span class="text-danger fw-bold">${formattedDate}<br><small>期日超過 ${overdueDays}日</small></span>`;
+    }
+    // 3日以内
+    else if (diffDays <= 3) {
+        return `<span class="text-danger fw-bold">${formattedDate}<br><small>あと${diffDays}日</small></span>`;
+    }
+    // 通常
+    else {
+        return formattedDate;
+    }
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        '支払済': '<span class="badge-status badge-paid">支払済</span>',
+        '未払い': '<span class="badge-status badge-pending">未払い</span>',
+        '処理中': '<span class="badge-status badge-processing">処理中</span>',
+        '入金済み': '<span class="badge-status badge-paid">入金済み</span>',
+    };
+    return badges[status] || status;
+}
+
+function showLoading() {
+    document.getElementById('loadingOverlay').classList.add('active');
+}
+
+function hideLoading() {
+    document.getElementById('loadingOverlay').classList.remove('active');
+}
+
+function setCurrentMonth() {
+    const now = new Date();
+    window.location.href = `?year=${now.getFullYear()}&month=${now.getMonth() + 1}`;
+}
+
+function navigateMonth(offset) {
+    let year = currentYear;
+    let month = currentMonth + offset;
+
+    console.log('Before adjustment:', 'year:', year, 'month:', month, 'offset:', offset);
+
+    // 月の範囲調整
+    if (month > 12) {
+        month = 1;
+        year += 1;
+    } else if (month < 1) {
+        month = 12;
+        year -= 1;
+    }
+
+    console.log('After adjustment:', 'year:', year, 'month:', month);
+    window.location.href = `?year=${year}&month=${month}`;
+}
+
+// Generate popover content for outgoing sites (subcontracts)
+function generateOutgoingPopoverContent(site) {
+    const paymentCycle = site.closing_day && site.payment_offset_months !== null && site.payment_day
+        ? `${site.closing_day}日締め ${site.payment_offset_months}ヶ月後 ${site.payment_day}日払い`
+        : '未設定';
+
+    return `
+        <div class="detail-row">
+            <span class="detail-label">現場名:</span>
+            <span class="detail-value">${site.site_name}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">業者名:</span>
+            <span class="detail-value">${site.contractor_name}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">金額:</span>
+            <span class="detail-value">${formatCurrency(site.billed_amount)}</span>
+        </div>
+        ${site.work_start_date && site.work_end_date ? `
+        <div class="detail-row">
+            <span class="detail-label">工期:</span>
+            <span class="detail-value">${formatDate(site.work_start_date)} 〜 ${formatDate(site.work_end_date)}</span>
+        </div>
+        ` : ''}
+        <div class="detail-row">
+            <span class="detail-label">支払サイクル:</span>
+            <span class="detail-value">${paymentCycle}</span>
+        </div>
+        ${site.payment_date ? `
+        <div class="detail-row">
+            <span class="detail-label">出金日:</span>
+            <span class="detail-value">${formatDate(site.payment_date)}</span>
+        </div>
+        ` : ''}
+        ${site.payment_due_date ? `
+        <div class="detail-row">
+            <span class="detail-label">出金予定日:</span>
+            <span class="detail-value">${formatDate(site.payment_due_date)}</span>
+        </div>
+        ` : ''}
+        <div class="detail-row">
+            <span class="detail-label">ステータス:</span>
+            <span class="detail-value">${site.payment_status}</span>
+        </div>
+    `;
+}
+
+// Generate popover content for incoming projects
+function generateIncomingPopoverContent(proj) {
+    const paymentCycle = proj.closing_day && proj.payment_offset_months !== null && proj.payment_day
+        ? `${proj.closing_day}日締め ${proj.payment_offset_months}ヶ月後 ${proj.payment_day}日払い`
+        : '未設定';
+
+    return `
+        <div class="detail-row">
+            <span class="detail-label">現場名:</span>
+            <span class="detail-value">${proj.site_name}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">元請業者:</span>
+            <span class="detail-value">${proj.client_company_name}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">金額:</span>
+            <span class="detail-value">${formatCurrency(proj.billing_amount)}</span>
+        </div>
+        ${proj.work_start_date && proj.work_end_date ? `
+        <div class="detail-row">
+            <span class="detail-label">工期:</span>
+            <span class="detail-value">${formatDate(proj.work_start_date)} 〜 ${formatDate(proj.work_end_date)}</span>
+        </div>
+        ` : ''}
+        <div class="detail-row">
+            <span class="detail-label">支払サイクル:</span>
+            <span class="detail-value">${paymentCycle}</span>
+        </div>
+        ${proj.payment_due_date ? `
+        <div class="detail-row">
+            <span class="detail-label">入金予定日:</span>
+            <span class="detail-value">${formatDate(proj.payment_due_date)}</span>
+        </div>
+        ` : ''}
+        <div class="detail-row">
+            <span class="detail-label">ステータス:</span>
+            <span class="detail-value">${proj.payment_status}</span>
+        </div>
+    `;
+}
+
+// Generate popover content for unfilled sites
+function generateUnfilledPopoverContent(site) {
+    const paymentCycle = site.closing_day && site.payment_offset_months !== null && site.payment_day
+        ? `${site.closing_day}日締め ${site.payment_offset_months}ヶ月後 ${site.payment_day}日払い`
+        : '未設定';
+
+    return `
+        <div class="detail-row">
+            <span class="detail-label">現場名:</span>
+            <span class="detail-value">${site.site_name}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">業者名:</span>
+            <span class="detail-value">${site.contractor_name}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">契約金額:</span>
+            <span class="detail-value">${formatCurrency(site.contract_amount)}</span>
+        </div>
+        ${site.work_start_date && site.work_end_date ? `
+        <div class="detail-row">
+            <span class="detail-label">工期:</span>
+            <span class="detail-value">${formatDate(site.work_start_date)} 〜 ${formatDate(site.work_end_date)}</span>
+        </div>
+        ` : ''}
+        <div class="detail-row">
+            <span class="detail-label">支払サイクル:</span>
+            <span class="detail-value">${paymentCycle}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">未入力項目:</span>
+            <span class="detail-value text-danger">${site.missing_fields.join(', ')}</span>
+        </div>
+    `;
+}
+
+// Initialize Bootstrap popovers
+function initializePopovers() {
+    // Destroy existing popovers first
+    const existingPopovers = document.querySelectorAll('[data-bs-toggle="popover"]');
+    existingPopovers.forEach(el => {
+        const popover = bootstrap.Popover.getInstance(el);
+        if (popover) {
+            popover.dispose();
+        }
+    });
+
+    // Initialize new popovers
+    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.map(function (popoverTriggerEl) {
+        return new bootstrap.Popover(popoverTriggerEl, {
+            trigger: 'hover',
+            html: true,
+            sanitize: false
+        });
+    });
+}
+
+// API fetch functions
+async function fetchOutgoingPaidByContractor() {
+    const response = await fetch(`/api/payment-management/outgoing/paid-by-contractor/?year=${currentYear}&month=${currentMonth}`);
+    return await response.json();
+}
+
+async function fetchOutgoingScheduledByContractor() {
+    const response = await fetch(`/api/payment-management/outgoing/scheduled-by-contractor/?year=${currentYear}&month=${currentMonth}`);
+    return await response.json();
+}
+
+async function fetchOutgoingUnfilled() {
+    const response = await fetch(`/api/payment-management/outgoing/unfilled/?year=${currentYear}&month=${currentMonth}`);
+    return await response.json();
+}
+
+async function fetchIncomingReceived() {
+    const response = await fetch(`/api/payment-management/incoming/received/?year=${currentYear}&month=${currentMonth}`);
+    return await response.json();
+}
+
+async function fetchIncomingReceivedByClient() {
+    const response = await fetch(`/api/payment-management/incoming/received-by-client/?year=${currentYear}&month=${currentMonth}`);
+    return await response.json();
+}
+
+async function fetchIncomingScheduledByClient() {
+    const response = await fetch(`/api/payment-management/incoming/scheduled-by-client/?year=${currentYear}&month=${currentMonth}`);
+    return await response.json();
+}
+
+// Render functions
+function renderOutgoingPaidByContractor(data) {
+    const container = document.getElementById('outgoingPaidByContractorAccordion');
+    if (data.data.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-3">データがありません</div>';
+        return;
+    }
+
+    let html = '';
+    data.data.forEach((contractor, index) => {
+        const accordionId = `outgoingPaid_${contractor.contractor_id}`;
+
+        html += `
+            <div class="contractor-accordion-item">
+                <div class="contractor-accordion-header" onclick="toggleAccordion('${accordionId}')">
+                    <div>
+                        <div class="contractor-name">${contractor.contractor_name}</div>
+                    </div>
+                    <div class="contractor-summary">
+                        <span class="amount">${formatCurrency(contractor.total_amount)}</span>
+                        <span class="count">${contractor.count}件</span>
+                        <i class="fas fa-chevron-right toggle-icon" id="${accordionId}_icon"></i>
+                    </div>
+                </div>
+                <div class="contractor-accordion-body" id="${accordionId}">
+                    ${renderPaymentDateGroups(contractor.sites_by_date, contractor.payment_dates, 'paid', contractor.contractor_id)}
+                    ${renderBulkActionBar(accordionId)}
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function renderPaymentDateGroups(sitesByDate, paymentDates, type, contractorId) {
+    let html = '';
+
+    paymentDates.forEach(dateStr => {
+        const sites = sitesByDate[dateStr] || [];
+        const dateTotal = sites.reduce((sum, site) => sum + site.billed_amount, 0);
+        const displayDate = dateStr === 'null' ? '未設定' : formatDate(dateStr);
+        const dateField = type === 'paid' ? 'payment_date' : 'payment_due_date';
+
+        html += `
+            <div class="payment-date-group">
+                <div class="payment-date-header">
+                    <div>
+                        <span class="date">${displayDate}</span>
+                        ${dateStr !== 'null' ? `
+                            <button onclick="openPurchaseOrderPreview('${contractorId}', '${dateStr}', false)"
+                                    class="btn btn-sm btn-outline-primary ms-2"
+                                    title="発注書をプレビュー＆編集">
+                                <i class="fas fa-file-pdf me-1"></i>発注書PDF
+                            </button>
+                        ` : ''}
+                    </div>
+                    <span class="date-total">${formatCurrency(dateTotal)}</span>
+                </div>
+                <table class="table site-list-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">
+                                <input type="checkbox" class="form-check-input site-checkbox select-all-date"
+                                       onchange="toggleDateSelection(this, '${dateStr}')">
+                            </th>
+                            <th>現場名</th>
+                            <th class="text-end">金額</th>
+                            <th>ステータス</th>
+                            <th style="width: 80px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sites.map(site => `
+                            <tr>
+                                <td>
+                                    <input type="checkbox" class="form-check-input site-checkbox"
+                                           value="${site.id}" data-date="${dateStr}">
+                                </td>
+                                <td>${site.site_name}</td>
+                                <td class="text-end amount-display">${formatCurrency(site.billed_amount)}</td>
+                                <td>${getStatusBadge(site.payment_status)}</td>
+                                <td>
+                                    <a href="/subcontracts/subcontract/${site.id}/update/?next=${encodeURIComponent(window.location.pathname + window.location.search)}"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    });
+
+    return html;
+}
+
+function renderBulkActionBar(accordionId) {
+    // デフォルトの日付を今日に設定
+    const today = new Date().toISOString().split('T')[0];
+
+    return `
+        <div class="bulk-action-bar">
+            <span class="me-2">選択した案件：</span>
+            <select class="form-select" id="${accordionId}_status" onchange="togglePaymentDateField('${accordionId}')">
+                <option value="">ステータスを選択</option>
+                <option value="pending">未払い</option>
+                <option value="processing">処理中</option>
+                <option value="paid">支払済</option>
+            </select>
+            <div id="${accordionId}_payment_date_wrapper" style="display: none;">
+                <label class="form-label mb-0 me-2">出金日:</label>
+                <input type="date" class="form-control" id="${accordionId}_payment_date" value="${today}">
+            </div>
+            <button class="btn btn-primary" onclick="bulkUpdateStatus('${accordionId}')">
+                <i class="fas fa-save me-1"></i>一括更新
+            </button>
+        </div>
+    `;
+}
+
+function togglePaymentDateField(accordionId) {
+    const statusSelect = document.getElementById(accordionId + '_status');
+    const paymentDateWrapper = document.getElementById(accordionId + '_payment_date_wrapper');
+
+    if (statusSelect.value === 'paid') {
+        paymentDateWrapper.style.display = 'flex';
+        paymentDateWrapper.style.alignItems = 'center';
+        paymentDateWrapper.style.gap = '0.5rem';
+    } else {
+        paymentDateWrapper.style.display = 'none';
+    }
+}
+
+function toggleAccordion(accordionId) {
+    const body = document.getElementById(accordionId);
+    const icon = document.getElementById(accordionId + '_icon');
+    const header = body.previousElementSibling;
+
+    body.classList.toggle('show');
+    icon.classList.toggle('expanded');
+    header.classList.toggle('active');
+}
+
+function toggleDateSelection(checkbox, dateStr) {
+    const checkboxes = document.querySelectorAll(`input.site-checkbox[data-date="${dateStr}"]`);
+    checkboxes.forEach(cb => {
+        if (!cb.classList.contains('select-all-date')) {
+            cb.checked = checkbox.checked;
+        }
+    });
+}
+
+function bulkUpdateStatus(accordionId) {
+    const statusSelect = document.getElementById(accordionId + '_status');
+    const newStatus = statusSelect.value;
+
+    if (!newStatus) {
+        if (typeof toastr !== 'undefined') {
+            toastr.warning('ステータスを選択してください');
+        }
+        return;
+    }
+
+    const body = document.getElementById(accordionId);
+    const checkedBoxes = body.querySelectorAll('input.site-checkbox:checked:not(.select-all-date)');
+    const subcontractIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
+
+    if (subcontractIds.length === 0) {
+        if (typeof toastr !== 'undefined') {
+            toastr.warning('更新する案件を選択してください');
+        }
+        return;
+    }
+
+    // リクエストボディを作成
+    const requestBody = {
+        subcontract_ids: subcontractIds,
+        status: newStatus
+    };
+
+    // 「支払済」の場合、選択された日付を含める
+    if (newStatus === 'paid') {
+        const paymentDateInput = document.getElementById(accordionId + '_payment_date');
+        if (paymentDateInput && paymentDateInput.value) {
+            requestBody.payment_date = paymentDateInput.value;
+        }
+    }
+
+    showLoading();
+
+    fetch('/api/payment-management/bulk-update-status/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            if (typeof toastr !== 'undefined') {
+                toastr.success(data.message);
+            }
+            // ページをリロード
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            if (typeof toastr !== 'undefined') {
+                toastr.error(data.error);
+            }
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        if (typeof toastr !== 'undefined') {
+            toastr.error('更新に失敗しました');
+        }
+        console.error('Error:', error);
+    });
+}
+
+function getStatusDisplayName(status) {
+    const statusNames = {
+        'pending': '未払い',
+        'processing': '処理中',
+        'paid': '支払済'
+    };
+    return statusNames[status] || status;
+}
+
+function renderOutgoingScheduledByContractor(data) {
+    const container = document.getElementById('outgoingScheduledByContractorAccordion');
+    if (data.data.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-3">データがありません</div>';
+        return;
+    }
+
+    let html = '';
+    data.data.forEach((contractor, index) => {
+        const accordionId = `outgoingScheduled_${contractor.contractor_id}`;
+
+        html += `
+            <div class="contractor-accordion-item">
+                <div class="contractor-accordion-header" onclick="toggleAccordion('${accordionId}')">
+                    <div>
+                        <div class="contractor-name">${contractor.contractor_name}</div>
+                    </div>
+                    <div class="contractor-summary">
+                        <span class="amount">${formatCurrency(contractor.total_amount)}</span>
+                        <span class="count">${contractor.count}件</span>
+                        <i class="fas fa-chevron-right toggle-icon" id="${accordionId}_icon"></i>
+                    </div>
+                </div>
+                <div class="contractor-accordion-body" id="${accordionId}">
+                    ${renderPaymentDateGroupsScheduled(contractor.sites_by_date, contractor.payment_due_dates, contractor.contractor_id)}
+                    ${renderBulkActionBar(accordionId)}
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function renderPaymentDateGroupsScheduled(sitesByDate, paymentDueDates, contractorId) {
+    let html = '';
+
+    paymentDueDates.forEach(dateStr => {
+        const sites = sitesByDate[dateStr] || [];
+        const dateTotal = sites.reduce((sum, site) => sum + site.billed_amount, 0);
+        const displayDate = dateStr === 'null' ? '未設定' : formatDateWithWarning(dateStr);
+
+        html += `
+            <div class="payment-date-group">
+                <div class="payment-date-header">
+                    <div>
+                        <span class="date">${displayDate}</span>
+                        ${dateStr !== 'null' ? `
+                            <button onclick="openPurchaseOrderPreview('${contractorId}', '${dateStr}', true)"
+                                    class="btn btn-sm btn-outline-warning ms-2"
+                                    title="発注書をプレビュー＆編集（予定）">
+                                <i class="fas fa-file-pdf me-1"></i>発注書PDF
+                            </button>
+                        ` : ''}
+                    </div>
+                    <span class="date-total">${formatCurrency(dateTotal)}</span>
+                </div>
+                <table class="table site-list-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">
+                                <input type="checkbox" class="form-check-input site-checkbox select-all-date"
+                                       onchange="toggleDateSelection(this, '${dateStr}')">
+                            </th>
+                            <th>現場名</th>
+                            <th class="text-end">金額</th>
+                            <th>ステータス</th>
+                            <th style="width: 80px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sites.map(site => `
+                            <tr>
+                                <td>
+                                    <input type="checkbox" class="form-check-input site-checkbox"
+                                           value="${site.id}" data-date="${dateStr}">
+                                </td>
+                                <td>${site.site_name}</td>
+                                <td class="text-end amount-display">${formatCurrency(site.billed_amount)}</td>
+                                <td>${getStatusBadge(site.payment_status)}</td>
+                                <td>
+                                    <a href="/subcontracts/subcontract/${site.id}/update/?next=${encodeURIComponent(window.location.pathname + window.location.search)}"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    });
+
+    return html;
+}
+
+function renderOutgoingUnfilled(data) {
+    const tbody = document.getElementById('outgoingUnfilledTableBody');
+    if (data.data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">データがありません</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = data.data.map(site => `
+        <tr data-url="/subcontracts/subcontract/${site.id}/update/?next=${encodeURIComponent(window.location.pathname + window.location.search)}">
+            <td>
+                <span class="site-name-link"
+                   data-bs-toggle="popover"
+                   data-bs-placement="right"
+                   data-bs-html="true"
+                   data-bs-content="${generateUnfilledPopoverContent(site).replace(/"/g, '&quot;')}"
+                   tabindex="0">
+                    ${site.site_name}
+                </span>
+            </td>
+            <td>${site.contractor_name}</td>
+            <td class="text-end amount-display">${formatCurrency(site.contract_amount)}</td>
+            <td><span class="text-danger">${site.missing_fields.join(', ')}</span></td>
+        </tr>
+    `).join('');
+
+    // 行クリックイベントを追加
+    tbody.querySelectorAll('tr[data-url]').forEach(row => {
+        row.addEventListener('click', function() {
+            window.location.href = this.dataset.url;
+        });
+    });
+
+    // Initialize popovers after rendering
+    initializePopovers();
+}
+
+function renderIncomingReceivedByClient(data) {
+    const container = document.getElementById('incomingReceivedByClientAccordion');
+    if (data.data.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-3">データがありません</div>';
+        return;
+    }
+
+    let html = '';
+    data.data.forEach((client, index) => {
+        const accordionId = `incomingReceived_${client.client_id}`;
+
+        // 金額の色を元請業者用に変更（緑色：入金）
+        html += `
+            <div class="contractor-accordion-item">
+                <div class="contractor-accordion-header" onclick="toggleAccordion('${accordionId}')">
+                    <div>
+                        <div class="contractor-name">${client.client_company_name}</div>
+                    </div>
+                    <div class="contractor-summary">
+                        <span class="amount" style="color: #10b981;">${formatCurrency(client.total_amount)}</span>
+                        <span class="count">${client.count}件</span>
+                        <i class="fas fa-chevron-right toggle-icon" id="${accordionId}_icon"></i>
+                    </div>
+                </div>
+                <div class="contractor-accordion-body" id="${accordionId}">
+                    ${renderIncomingPaymentDateGroups(client.projects_by_date, client.payment_dates, client.client_id)}
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function renderIncomingPaymentDateGroups(projectsByDate, paymentDates, clientId) {
+    let html = '';
+
+    paymentDates.forEach(dateStr => {
+        const projects = projectsByDate[dateStr] || [];
+        const dateTotal = projects.reduce((sum, proj) => sum + proj.billing_amount, 0);
+        const displayDate = dateStr === 'null' ? '未設定' : formatDate(dateStr);
+
+        html += `
+            <div class="payment-date-group">
+                <div class="payment-date-header">
+                    <div>
+                        <span class="date">${displayDate}</span>
+                        ${dateStr !== 'null' ? `
+                            <button onclick="openInvoicePreview('${clientId}', '${dateStr}')"
+                                    class="btn btn-sm btn-outline-success ms-2"
+                                    title="請求書をプレビュー＆編集">
+                                <i class="fas fa-file-invoice me-1"></i>請求書PDF
+                            </button>
+                        ` : ''}
+                    </div>
+                    <span class="date-total">${formatCurrency(dateTotal)}</span>
+                </div>
+                <table class="table site-list-table">
+                    <thead>
+                        <tr>
+                            <th>現場名</th>
+                            <th class="text-end">金額</th>
+                            <th>ステータス</th>
+                            <th style="width: 80px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${projects.map(proj => `
+                            <tr>
+                                <td>${proj.site_name}</td>
+                                <td class="text-end amount-display">${formatCurrency(proj.billing_amount)}</td>
+                                <td>${getStatusBadge(proj.payment_status)}</td>
+                                <td>
+                                    <a href="/orders/${proj.id}/?next=${encodeURIComponent(window.location.pathname + window.location.search)}"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    });
+
+    return html;
+}
+
+function renderIncomingScheduledByClient(data) {
+    const container = document.getElementById('incomingScheduledByClientAccordion');
+    if (data.data.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-3">データがありません</div>';
+        return;
+    }
+
+    let html = '';
+    data.data.forEach((client, index) => {
+        const accordionId = `incomingScheduled_${client.client_id}`;
+
+        // 金額の色を元請業者用に変更（緑色：入金）
+        html += `
+            <div class="contractor-accordion-item">
+                <div class="contractor-accordion-header" onclick="toggleAccordion('${accordionId}')">
+                    <div>
+                        <div class="contractor-name">${client.client_company_name}</div>
+                    </div>
+                    <div class="contractor-summary">
+                        <span class="amount" style="color: #10b981;">${formatCurrency(client.total_amount)}</span>
+                        <span class="count">${client.count}件</span>
+                        <i class="fas fa-chevron-right toggle-icon" id="${accordionId}_icon"></i>
+                    </div>
+                </div>
+                <div class="contractor-accordion-body" id="${accordionId}">
+                    ${renderIncomingScheduledPaymentDateGroups(client.projects_by_date, client.payment_due_dates, client.client_id)}
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function renderIncomingScheduledPaymentDateGroups(projectsByDate, paymentDueDates, clientId) {
+    let html = '';
+
+    paymentDueDates.forEach(dateStr => {
+        const projects = projectsByDate[dateStr] || [];
+        const dateTotal = projects.reduce((sum, proj) => sum + proj.billing_amount, 0);
+        const displayDate = dateStr === 'null' ? '未設定' : formatDateWithWarning(dateStr);
+
+        html += `
+            <div class="payment-date-group">
+                <div class="payment-date-header">
+                    <div>
+                        <span class="date">${displayDate}</span>
+                        ${dateStr !== 'null' ? `
+                            <button onclick="openInvoicePreview('${clientId}', '${dateStr}')"
+                                    class="btn btn-sm btn-outline-success ms-2"
+                                    title="請求書をプレビュー＆編集">
+                                <i class="fas fa-file-invoice me-1"></i>請求書PDF
+                            </button>
+                        ` : ''}
+                    </div>
+                    <span class="date-total">${formatCurrency(dateTotal)}</span>
+                </div>
+                <table class="table site-list-table">
+                    <thead>
+                        <tr>
+                            <th>現場名</th>
+                            <th class="text-end">金額</th>
+                            <th>ステータス</th>
+                            <th style="width: 80px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${projects.map(proj => `
+                            <tr>
+                                <td>${proj.site_name}</td>
+                                <td class="text-end amount-display">${formatCurrency(proj.billing_amount)}</td>
+                                <td>${getStatusBadge(proj.payment_status)}</td>
+                                <td>
+                                    <a href="/orders/${proj.id}/?next=${encodeURIComponent(window.location.pathname + window.location.search)}"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    });
+
+    return html;
+}
+
+
+// Load data on page load
+document.addEventListener('DOMContentLoaded', async function() {
+    showLoading();
+
+    try {
+        // Load all data in parallel
+        const [
+            outgoingPaidByContractor,
+            outgoingScheduledByContractor,
+            outgoingUnfilled,
+            incomingReceivedByClient,
+            incomingScheduledByClient
+        ] = await Promise.all([
+            fetchOutgoingPaidByContractor(),
+            fetchOutgoingScheduledByContractor(),
+            fetchOutgoingUnfilled(),
+            fetchIncomingReceivedByClient(),
+            fetchIncomingScheduledByClient()
+        ]);
+
+        // Render all data
+        renderOutgoingPaidByContractor(outgoingPaidByContractor);
+        renderOutgoingScheduledByContractor(outgoingScheduledByContractor);
+        renderOutgoingUnfilled(outgoingUnfilled);
+        renderIncomingReceivedByClient(incomingReceivedByClient);
+        renderIncomingScheduledByClient(incomingScheduledByClient);
+
+    } catch (error) {
+        console.error('データの読み込みに失敗しました:', error);
+        if (typeof toastr !== 'undefined') {
+            toastr.error('データの読み込みに失敗しました。ページを再読み込みしてください。');
+        }
+    } finally {
+        hideLoading();
+    }
+});
+</script>
+
+<!-- 発注書プレビュー＆編集モーダル -->
+<div class="modal fade" id="purchaseOrderPreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">発注書プレビュー＆編集</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="previewLoadingSpinner" class="text-center my-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">読み込み中...</span>
+                    </div>
+                    <p class="mt-2">データを読み込んでいます...</p>
+                </div>
+
+                <div id="previewContent" style="display: none;">
+                    <!-- 業者情報 -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0">業者情報</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-1"><strong>業者名:</strong> <span id="preview_contractor_name"></span></p>
+                            <p class="mb-0"><strong>支払日:</strong> <span id="preview_payment_date"></span></p>
+                        </div>
+                    </div>
+
+                    <!-- 案件リスト（編集可能） -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0">案件一覧（編集可能）</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>管理番号</th>
+                                            <th>現場名</th>
+                                            <th>工期（開始）</th>
+                                            <th>工期（終了）</th>
+                                            <th>金額</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="preview_sites_tbody">
+                                        <!-- JavaScriptで動的に生成 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 備考欄（編集可能） -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-warning">
+                            <h6 class="mb-0">備考欄（編集可能）</h6>
+                        </div>
+                        <div class="card-body">
+                            <textarea id="preview_remarks" class="form-control" rows="4"></textarea>
+                            <small class="form-text text-muted">この備考欄の内容がPDFに表示されます</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-success" onclick="saveAndDownloadPurchaseOrderPDF()">
+                    <i class="fas fa-save me-1"></i>PDFを保存＆ダウンロード
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// グローバル変数でプレビューデータを保持
+let currentPreviewData = null;
+
+// 発注書プレビューモーダルを開く
+function openPurchaseOrderPreview(contractorId, paymentDate, isScheduled = false) {
+    // モーダルを表示
+    const modal = new bootstrap.Modal(document.getElementById('purchaseOrderPreviewModal'));
+    modal.show();
+
+    // ローディング表示
+    document.getElementById('previewLoadingSpinner').style.display = 'block';
+    document.getElementById('previewContent').style.display = 'none';
+
+    // プレビューデータを取得
+    const url = `/api/payment-management/purchase-order-preview/?contractor_id=${contractorId}&payment_date=${paymentDate}&scheduled=${isScheduled}`;
+
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                currentPreviewData = data;
+                renderPreviewData(data);
+
+                // ローディングを非表示、コンテンツを表示
+                document.getElementById('previewLoadingSpinner').style.display = 'none';
+                document.getElementById('previewContent').style.display = 'block';
+            } else {
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(data.error || 'プレビューデータの取得に失敗しました');
+                }
+                modal.hide();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (typeof toastr !== 'undefined') {
+                toastr.error('プレビューデータの取得中にエラーが発生しました');
+            }
+            modal.hide();
+        });
+}
+
+// プレビューデータを画面に表示
+function renderPreviewData(data) {
+    // 業者情報
+    document.getElementById('preview_contractor_name').textContent = data.contractor_name;
+    document.getElementById('preview_payment_date').textContent = data.payment_date;
+
+    // 備考欄
+    document.getElementById('preview_remarks').value = data.company_settings.purchase_order_remarks;
+
+    // 案件リスト
+    const tbody = document.getElementById('preview_sites_tbody');
+    tbody.innerHTML = '';
+
+    data.sites_data.forEach((site, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <input type="text" class="form-control form-control-sm"
+                       value="${site.management_no}"
+                       data-index="${index}"
+                       data-field="management_no">
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm"
+                       value="${site.site_name}"
+                       data-index="${index}"
+                       data-field="site_name">
+            </td>
+            <td>
+                <input type="date" class="form-control form-control-sm"
+                       value="${site.start_date}"
+                       data-index="${index}"
+                       data-field="start_date">
+            </td>
+            <td>
+                <input type="date" class="form-control form-control-sm"
+                       value="${site.end_date}"
+                       data-index="${index}"
+                       data-field="end_date">
+            </td>
+            <td>${formatCurrency(site.contract_amount)}</td>
+        `;
+        tbody.appendChild(row);
+
+        // 入力フィールドの変更を監視
+        row.querySelectorAll('input').forEach(input => {
+            input.addEventListener('change', function() {
+                const index = parseInt(this.getAttribute('data-index'));
+                const field = this.getAttribute('data-field');
+                currentPreviewData.sites_data[index][field] = this.value;
+            });
+        });
+    });
+}
+
+// PDFを保存＆ダウンロード（別ウィンドウで開く）
+function saveAndDownloadPurchaseOrderPDF() {
+    if (!currentPreviewData) {
+        if (typeof toastr !== 'undefined') {
+            toastr.error('プレビューデータがありません');
+        }
+        return;
+    }
+
+    // カスタム備考を取得
+    const customRemarks = document.getElementById('preview_remarks').value;
+
+    // PDFを保存するデータ
+    const downloadData = {
+        contractor_name: currentPreviewData.contractor_name,
+        payment_date: currentPreviewData.payment_date,
+        sites_data: currentPreviewData.sites_data,
+        custom_remarks: customRemarks
+    };
+
+    // PDFを生成して保存
+    fetch('/api/payment-management/generate-and-save-purchase-order/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(downloadData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (typeof toastr !== 'undefined') {
+                toastr.success('発注書PDFを保存しました');
+            }
+            // PDFを別ウィンドウで開く
+            window.open(data.pdf_url, '_blank');
+
+            // モーダルを閉じる
+            const modal = bootstrap.Modal.getInstance(document.getElementById('purchaseOrderPreviewModal'));
+            modal.hide();
+
+            // ページをリロードして保存されたファイルを表示
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            if (typeof toastr !== 'undefined') {
+                toastr.error(data.error || 'PDF生成に失敗しました');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (typeof toastr !== 'undefined') {
+            toastr.error('PDF生成中にエラーが発生しました');
+        }
+    });
+}
+</script>
+
+<!-- 請求書プレビュー＆編集モーダル -->
+<div class="modal fade" id="invoicePreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">請求書プレビュー＆編集</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="invoicePreviewLoadingSpinner" class="text-center my-5">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">読み込み中...</span>
+                    </div>
+                    <p class="mt-2">データを読み込んでいます...</p>
+                </div>
+
+                <div id="invoicePreviewContent" style="display: none;">
+                    <!-- クライアント情報 -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0">元請業者情報</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-1"><strong>元請業者名:</strong> <span id="invoice_preview_client_name"></span></p>
+                            <p class="mb-0"><strong>入金日:</strong> <span id="invoice_preview_payment_date"></span></p>
+                        </div>
+                    </div>
+
+                    <!-- プロジェクトリスト（編集可能） -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0">案件一覧（編集可能）</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>管理番号</th>
+                                            <th>現場名</th>
+                                            <th>工期（開始）</th>
+                                            <th>工期（終了）</th>
+                                            <th>金額</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="invoice_preview_projects_tbody">
+                                        <!-- JavaScriptで動的に生成 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 備考欄（編集可能） -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-warning">
+                            <h6 class="mb-0">備考欄（編集可能）</h6>
+                        </div>
+                        <div class="card-body">
+                            <textarea id="invoice_preview_remarks" class="form-control" rows="4"></textarea>
+                            <small class="form-text text-muted">この備考欄の内容がPDFに表示されます</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-success" onclick="saveAndDownloadInvoicePDF()">
+                    <i class="fas fa-save me-1"></i>PDFを保存＆ダウンロード
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// グローバル変数で請求書プレビューデータを保持
+let currentInvoicePreviewData = null;
+
+// 請求書プレビューモーダルを開く
+function openInvoicePreview(clientId, paymentDate) {
+    // モーダルを表示
+    const modal = new bootstrap.Modal(document.getElementById('invoicePreviewModal'));
+    modal.show();
+
+    // ローディング表示
+    document.getElementById('invoicePreviewLoadingSpinner').style.display = 'block';
+    document.getElementById('invoicePreviewContent').style.display = 'none';
+
+    // プレビューデータを取得
+    const url = `/api/payment-management/invoice-preview/?client_id=${clientId}&payment_date=${paymentDate}`;
+
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                currentInvoicePreviewData = data;
+                renderInvoicePreviewData(data);
+
+                // ローディングを非表示、コンテンツを表示
+                document.getElementById('invoicePreviewLoadingSpinner').style.display = 'none';
+                document.getElementById('invoicePreviewContent').style.display = 'block';
+            } else {
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(data.error || 'プレビューデータの取得に失敗しました');
+                }
+                modal.hide();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (typeof toastr !== 'undefined') {
+                toastr.error('プレビューデータの取得中にエラーが発生しました');
+            }
+            modal.hide();
+        });
+}
+
+// 請求書プレビューデータを画面に表示
+function renderInvoicePreviewData(data) {
+    // クライアント情報
+    document.getElementById('invoice_preview_client_name').textContent = data.client_name;
+    document.getElementById('invoice_preview_payment_date').textContent = data.payment_date;
+
+    // 備考欄
+    document.getElementById('invoice_preview_remarks').value = data.company_settings.invoice_remarks || '';
+
+    // プロジェクトリスト
+    const tbody = document.getElementById('invoice_preview_projects_tbody');
+    tbody.innerHTML = '';
+
+    data.projects_data.forEach((project, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <input type="text" class="form-control form-control-sm"
+                       value="${project.management_no}"
+                       data-index="${index}"
+                       data-field="management_no">
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm"
+                       value="${project.site_name}"
+                       data-index="${index}"
+                       data-field="site_name">
+            </td>
+            <td>
+                <input type="date" class="form-control form-control-sm"
+                       value="${project.start_date}"
+                       data-index="${index}"
+                       data-field="start_date">
+            </td>
+            <td>
+                <input type="date" class="form-control form-control-sm"
+                       value="${project.end_date}"
+                       data-index="${index}"
+                       data-field="end_date">
+            </td>
+            <td>${formatCurrency(project.billing_amount)}</td>
+        `;
+        tbody.appendChild(row);
+
+        // 入力フィールドの変更を監視
+        row.querySelectorAll('input').forEach(input => {
+            input.addEventListener('change', function() {
+                const index = parseInt(this.getAttribute('data-index'));
+                const field = this.getAttribute('data-field');
+                currentInvoicePreviewData.projects_data[index][field] = this.value;
+            });
+        });
+    });
+}
+
+// PDFを保存＆ダウンロード（別ウィンドウで開く）
+function saveAndDownloadInvoicePDF() {
+    if (!currentInvoicePreviewData) {
+        if (typeof toastr !== 'undefined') {
+            toastr.error('プレビューデータがありません');
+        }
+        return;
+    }
+
+    // カスタム備考を取得
+    const customRemarks = document.getElementById('invoice_preview_remarks').value;
+
+    // PDFを保存するデータ
+    const downloadData = {
+        client_name: currentInvoicePreviewData.client_name,
+        payment_date: currentInvoicePreviewData.payment_date,
+        projects_data: currentInvoicePreviewData.projects_data,
+        custom_remarks: customRemarks
+    };
+
+    // PDFを生成して保存
+    fetch('/api/payment-management/generate-and-save-invoice/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(downloadData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (typeof toastr !== 'undefined') {
+                toastr.success('請求書PDFを保存しました');
+            }
+            // PDFを別ウィンドウで開く
+            window.open(data.pdf_url, '_blank');
+
+            // モーダルを閉じる
+            const modal = bootstrap.Modal.getInstance(document.getElementById('invoicePreviewModal'));
+            modal.hide();
+
+            // ページをリロードして保存されたファイルを表示
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            if (typeof toastr !== 'undefined') {
+                toastr.error(data.error || 'PDF生成に失敗しました');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (typeof toastr !== 'undefined') {
+            toastr.error('PDF生成中にエラーが発生しました');
+        }
+    });
+}
+</script>
+
+{% endblock %}

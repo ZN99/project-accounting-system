@@ -11,8 +11,11 @@
                 <p class="mb-0 text-muted">{{ project.management_no }} - {{ project.site_name }}</p>
             </div>
             <div class="card-body">
-                <form method="post">
+                <form method="post" enctype="multipart/form-data">
                     {% csrf_token %}
+                    {% if request.GET.next %}
+                    <input type="hidden" name="next" value="{{ request.GET.next }}">
+                    {% endif %}
 
                     <!-- 外注先情報 -->
                     <div class="card mb-3">
@@ -65,6 +68,41 @@
                                     <small class="form-text text-muted">{{ form.billed_amount.help_text }}</small>
                                 </div>
                             </div>
+
+                            <!-- 追加費用 -->
+                            <hr>
+                            <h6 class="mb-3"><i class="fas fa-plus-circle me-1"></i>追加費用</h6>
+                            <div id="additionalCostsContainer"></div>
+                            <button type="button" class="btn btn-sm btn-outline-primary mb-3" onclick="addAdditionalCostRow()">
+                                <i class="fas fa-plus me-1"></i>費用を追加
+                            </button>
+                            <input type="hidden" id="additionalCostsData" name="additional_costs_data" value="">
+
+                            <!-- 追加費用合計表示 -->
+                            <div id="additional_total_display" class="alert alert-secondary mt-2 mb-0" style="display: none;">
+                                <strong>追加費用合計: ¥<span id="additional_total_amount">0</span></strong>
+                            </div>
+
+                            <!-- 請求書ファイル -->
+                            <hr>
+                            <div class="row">
+                                <div class="col-md-12 mb-0">
+                                    <label for="id_invoice_file" class="form-label">
+                                        <i class="fas fa-file-invoice me-1"></i>請求書ファイル
+                                    </label>
+                                    {% if subcontract and subcontract.invoice_file %}
+                                    <div class="alert alert-info mb-2">
+                                        <i class="fas fa-file-pdf me-1"></i>
+                                        <a href="{{ subcontract.invoice_file.url }}" target="_blank" class="alert-link">
+                                            現在の請求書を表示
+                                        </a>
+                                        <small class="ms-2 text-muted">({{ subcontract.invoice_file.name|slice:"9:" }})</small>
+                                    </div>
+                                    {% endif %}
+                                    <input type="file" name="invoice_file" class="form-control" accept=".pdf,.jpg,.jpeg,.png" id="id_invoice_file">
+                                    <small class="form-text text-muted">PDF、JPG、PNGファイルをアップロード可能</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -74,6 +112,45 @@
                             <h5 class="mb-0">支払い管理</h5>
                         </div>
                         <div class="card-body">
+                            <!-- 支払いサイクル情報表示 -->
+                            <div class="alert alert-info mb-3" id="paymentCycleInfo" style="display: none;">
+                                <h6 class="mb-2"><i class="fas fa-info-circle me-1"></i>選択された業者の支払いサイクル</h6>
+                                <p class="mb-0" id="paymentCycleText"></p>
+                            </div>
+
+                            <!-- 出金予定日自動計算 -->
+                            <div class="card mb-3 border-secondary">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-calculator me-1"></i>出金予定日を自動計算して入力
+                                        <i class="fas fa-info-circle ms-1"
+                                           data-bs-toggle="popover"
+                                           data-bs-placement="top"
+                                           data-bs-trigger="hover"
+                                           data-bs-content="基準日を選択して計算ボタンを押すと、出金予定日フィールドに自動的に入力されます"
+                                           style="cursor: help;"></i>
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-2">
+                                            <label for="referenceDate" class="form-label">
+                                                基準日 <small class="text-muted">（契約日や請求日など）</small>
+                                            </label>
+                                            <input type="date" id="referenceDate" class="form-control" value="{{ today|date:'Y-m-d' }}">
+                                        </div>
+                                        <div class="col-md-6 mb-2 d-flex align-items-end">
+                                            <button type="button" id="calculatePaymentDueDate" class="btn btn-success w-100">
+                                                <i class="fas fa-calculator me-1"></i>計算して出金予定日に入力
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div id="calculationResult" class="alert alert-success mt-2" style="display: none;">
+                                        <i class="fas fa-check-circle me-1"></i><strong>計算完了:</strong> <span id="calculatedDate"></span> が出金予定日に入力されました
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="row">
                                 <div class="col-md-4 mb-3">
                                     <label for="{{ form.payment_status.id_for_label }}" class="form-label">
@@ -102,6 +179,22 @@
                                             発注書発行済み
                                         </label>
                                     </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.purchase_order_file.id_for_label }}" class="form-label">
+                                        <i class="fas fa-file-contract me-1"></i>発注書ファイル
+                                    </label>
+                                    {% if form.instance.purchase_order_file %}
+                                    <div class="alert alert-info mb-2">
+                                        <i class="fas fa-file-pdf me-1"></i>
+                                        <a href="{{ form.instance.purchase_order_file.url }}" target="_blank" class="alert-link">
+                                            現在の発注書を表示
+                                        </a>
+                                        <small class="ms-2 text-muted">({{ form.instance.purchase_order_file.name|slice:"17:" }})</small>
+                                    </div>
+                                    {% endif %}
+                                    {{ form.purchase_order_file }}
+                                    <small class="form-text text-muted">PDF、JPG、PNGファイルをアップロード可能</small>
                                 </div>
                             </div>
                         </div>
@@ -164,6 +257,15 @@
                                     </div>
                                 </div>
                             </div>
+                            <!-- 動的部材費追加エリア -->
+                            <hr>
+                            <h6 class="mb-3"><i class="fas fa-plus-circle me-1"></i>追加部材費</h6>
+                            <div id="dynamicMaterialsContainer"></div>
+                            <button type="button" class="btn btn-sm btn-outline-success mb-3" onclick="addMaterialRow()">
+                                <i class="fas fa-plus me-1"></i>部材費を追加
+                            </button>
+                            <input type="hidden" id="dynamicMaterialsData" name="dynamic_materials_data" value="">
+
                             <!-- 部材費合計表示 -->
                             <div id="material_total_display" class="alert alert-info mt-3 mb-0">
                                 <strong>部材費合計: ¥<span id="material_total_amount">0</span></strong>
@@ -190,7 +292,7 @@
                             <i class="fas fa-calculator me-2"></i>
                             <strong>総コスト: ¥<span id="total_cost_amount">0</span></strong>
                         </h5>
-                        <small class="text-muted">（<span id="cost_base_label">契約金額</span> + 部材費合計）</small>
+                        <small class="text-muted">（<span id="cost_base_label">契約金額</span> + 部材費合計 + 追加費用）</small>
                     </div>
 
                     <!-- ボタン -->
@@ -198,9 +300,15 @@
                         <button type="submit" class="btn btn-primary btn-lg">
                             <i class="fas fa-save"></i> 保存
                         </button>
+                        {% if request.GET.next %}
+                        <a href="{{ request.GET.next }}" class="btn btn-secondary btn-lg">
+                            <i class="fas fa-times"></i> キャンセル
+                        </a>
+                        {% else %}
                         <a href="javascript:window.history.back();" class="btn btn-secondary btn-lg">
                             <i class="fas fa-times"></i> キャンセル
                         </a>
+                        {% endif %}
                     </div>
                 </form>
             </div>
@@ -211,7 +319,81 @@
 
 {% block extra_js %}
 <script>
+// 業者の支払いサイクルデータ
+const contractorsData = {{ contractors_data_json|safe }};
+
+// 既存の動的データ
+const existingDynamicMaterials = {{ existing_dynamic_materials|safe }};
+const existingAdditionalCosts = {{ existing_additional_costs|safe }};
+
 $(document).ready(function() {
+    // ポップオーバーの初期化
+    $('[data-bs-toggle="popover"]').popover();
+
+    // 既存の動的部材費を読み込み
+    if (existingDynamicMaterials && existingDynamicMaterials.length > 0) {
+        existingDynamicMaterials.forEach(function(material) {
+            materialCounter++;
+            const rowId = `material_${materialCounter}`;
+            const row = $(`
+                <div class="row mb-2" id="${rowId}">
+                    <div class="col-md-5">
+                        <input type="text" class="form-control dynamic-material-item" placeholder="部材費項目名" data-row="${rowId}" value="${material.item || ''}">
+                    </div>
+                    <div class="col-md-5">
+                        <div class="input-group">
+                            <span class="input-group-text">¥</span>
+                            <input type="number" class="form-control dynamic-material-cost" placeholder="0" data-row="${rowId}" value="${material.cost || 0}">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-danger btn-sm" onclick="removeMaterialRow('${rowId}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `);
+            $('#dynamicMaterialsContainer').append(row);
+            row.find('input').on('input', function() {
+                updateDynamicMaterialsData();
+                calculateTotal();
+            });
+        });
+        updateDynamicMaterialsData();
+    }
+
+    // 既存の追加費用を読み込み
+    if (existingAdditionalCosts && existingAdditionalCosts.length > 0) {
+        existingAdditionalCosts.forEach(function(cost) {
+            additionalCostCounter++;
+            const rowId = `additional_cost_${additionalCostCounter}`;
+            const row = $(`
+                <div class="row mb-2" id="${rowId}">
+                    <div class="col-md-5">
+                        <input type="text" class="form-control additional-cost-item" placeholder="費用項目名" data-row="${rowId}" value="${cost.item || ''}">
+                    </div>
+                    <div class="col-md-5">
+                        <div class="input-group">
+                            <span class="input-group-text">¥</span>
+                            <input type="number" class="form-control additional-cost-amount" placeholder="0" data-row="${rowId}" value="${cost.cost || 0}">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-danger btn-sm" onclick="removeAdditionalCostRow('${rowId}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `);
+            $('#additionalCostsContainer').append(row);
+            row.find('input').on('input', function() {
+                updateAdditionalCostsData();
+                calculateTotal();
+            });
+        });
+        updateAdditionalCostsData();
+    }
+
     // 自動計算の表示
     function calculateTotal() {
         var material1 = parseFloat($('#id_material_cost_1').val()) || 0;
@@ -223,8 +405,25 @@ $(document).ready(function() {
         // 被請求額がある場合はそれを使用、なければ契約金額を使用
         var baseAmount = billed > 0 ? billed : contract;
 
-        var totalMaterial = material1 + material2 + material3;
-        var totalCost = baseAmount + totalMaterial;
+        // 固定部材費
+        var fixedMaterial = material1 + material2 + material3;
+
+        // 動的部材費
+        var dynamicMaterial = 0;
+        $('#dynamicMaterialsContainer .row').each(function() {
+            var cost = parseFloat($(this).find('.dynamic-material-cost').val()) || 0;
+            dynamicMaterial += cost;
+        });
+
+        // 追加費用
+        var additionalCosts = 0;
+        $('#additionalCostsContainer .row').each(function() {
+            var cost = parseFloat($(this).find('.additional-cost-amount').val()) || 0;
+            additionalCosts += cost;
+        });
+
+        var totalMaterial = fixedMaterial + dynamicMaterial;
+        var totalCost = baseAmount + totalMaterial + additionalCosts;
 
         // ラベル更新
         if (billed > 0) {
@@ -243,6 +442,246 @@ $(document).ready(function() {
 
     // 初期計算
     calculateTotal();
+
+    // 業者選択時に支払いサイクル情報を表示
+    function updatePaymentCycleInfo() {
+        const contractorId = $('#id_contractor').val();
+        if (contractorId && contractorsData[contractorId]) {
+            const contractor = contractorsData[contractorId];
+            const { closing_day, payment_offset_months, payment_day } = contractor;
+
+            if (closing_day !== null && payment_offset_months !== null && payment_day !== null) {
+                const cycleText = `${closing_day}日締め ${payment_offset_months}ヶ月後 ${payment_day}日払い`;
+                $('#paymentCycleText').text(cycleText);
+                $('#paymentCycleInfo').show();
+                // 計算ボタンを有効化
+                $('#calculatePaymentDueDate').prop('disabled', false);
+            } else {
+                $('#paymentCycleInfo').hide();
+                // 計算ボタンを無効化（支払いサイクル情報なし）
+                $('#calculatePaymentDueDate').prop('disabled', true);
+            }
+        } else {
+            $('#paymentCycleInfo').hide();
+            // 計算ボタンを無効化（業者未選択）
+            $('#calculatePaymentDueDate').prop('disabled', true);
+        }
+    }
+
+    // 業者選択変更時
+    $('#id_contractor').on('change', updatePaymentCycleInfo);
+
+    // 初期表示
+    updatePaymentCycleInfo();
+
+    // 出金予定日を計算する関数
+    function calculatePaymentDueDate(contractDate, closingDay, paymentOffsetMonths, paymentDay) {
+        if (!contractDate || closingDay === null || paymentOffsetMonths === null || paymentDay === null) {
+            return null;
+        }
+
+        const date = new Date(contractDate);
+
+        // 締日を基準にして、どの月の締めに含まれるかを判定
+        let closingMonth;
+        if (date.getDate() <= closingDay) {
+            // 当月締め
+            closingMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        } else {
+            // 翌月締め
+            closingMonth = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+        }
+
+        // 支払い月を計算（締め月 + payment_offset_months）
+        const paymentMonth = new Date(closingMonth.getFullYear(), closingMonth.getMonth() + paymentOffsetMonths, 1);
+
+        // 支払日を設定
+        let paymentDueDate;
+        try {
+            paymentDueDate = new Date(paymentMonth.getFullYear(), paymentMonth.getMonth(), paymentDay);
+
+            // 31日が存在しない月の場合は月末日にする
+            if (paymentDueDate.getMonth() !== paymentMonth.getMonth()) {
+                paymentDueDate = new Date(paymentMonth.getFullYear(), paymentMonth.getMonth() + 1, 0);
+            }
+        } catch (e) {
+            // エラーの場合は月末日にする
+            paymentDueDate = new Date(paymentMonth.getFullYear(), paymentMonth.getMonth() + 1, 0);
+        }
+
+        return paymentDueDate;
+    }
+
+    // ===================================
+    // 動的追加費用管理
+    // ===================================
+    let additionalCostCounter = 0;
+    const additionalCosts = [];
+
+    // 追加費用の行を追加
+    window.addAdditionalCostRow = function() {
+        additionalCostCounter++;
+        const rowId = `additional_cost_${additionalCostCounter}`;
+
+        const row = $(`
+            <div class="row mb-2" id="${rowId}">
+                <div class="col-md-5">
+                    <input type="text" class="form-control additional-cost-item" placeholder="費用項目名" data-row="${rowId}">
+                </div>
+                <div class="col-md-5">
+                    <div class="input-group">
+                        <span class="input-group-text">¥</span>
+                        <input type="number" class="form-control additional-cost-amount" placeholder="0" data-row="${rowId}">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-danger btn-sm" onclick="removeAdditionalCostRow('${rowId}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `);
+
+        $('#additionalCostsContainer').append(row);
+        updateAdditionalCostsData();
+
+        // 入力時に合計を更新
+        row.find('input').on('input', function() {
+            updateAdditionalCostsData();
+            calculateTotal();
+        });
+    };
+
+    // 追加費用の行を削除
+    window.removeAdditionalCostRow = function(rowId) {
+        $(`#${rowId}`).remove();
+        updateAdditionalCostsData();
+        calculateTotal();
+    };
+
+    // 追加費用データを更新
+    function updateAdditionalCostsData() {
+        const costs = [];
+        let totalAdditional = 0;
+
+        $('#additionalCostsContainer .row').each(function() {
+            const item = $(this).find('.additional-cost-item').val();
+            const amount = parseFloat($(this).find('.additional-cost-amount').val()) || 0;
+
+            if (item && amount > 0) {
+                costs.push({item, cost: amount});
+                totalAdditional += amount;
+            }
+        });
+
+        $('#additionalCostsData').val(JSON.stringify(costs));
+        $('#additional_total_amount').text(totalAdditional.toLocaleString());
+
+        if (totalAdditional > 0) {
+            $('#additional_total_display').show();
+        } else {
+            $('#additional_total_display').hide();
+        }
+    }
+
+    // ===================================
+    // 動的部材費管理
+    // ===================================
+    let materialCounter = 0;
+
+    // 部材費の行を追加
+    window.addMaterialRow = function() {
+        materialCounter++;
+        const rowId = `material_${materialCounter}`;
+
+        const row = $(`
+            <div class="row mb-2" id="${rowId}">
+                <div class="col-md-5">
+                    <input type="text" class="form-control dynamic-material-item" placeholder="部材費項目名" data-row="${rowId}">
+                </div>
+                <div class="col-md-5">
+                    <div class="input-group">
+                        <span class="input-group-text">¥</span>
+                        <input type="number" class="form-control dynamic-material-cost" placeholder="0" data-row="${rowId}">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-danger btn-sm" onclick="removeMaterialRow('${rowId}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `);
+
+        $('#dynamicMaterialsContainer').append(row);
+        updateDynamicMaterialsData();
+
+        // 入力時に合計を更新
+        row.find('input').on('input', function() {
+            updateDynamicMaterialsData();
+            calculateTotal();
+        });
+    };
+
+    // 部材費の行を削除
+    window.removeMaterialRow = function(rowId) {
+        $(`#${rowId}`).remove();
+        updateDynamicMaterialsData();
+        calculateTotal();
+    };
+
+    // 動的部材費データを更新
+    function updateDynamicMaterialsData() {
+        const materials = [];
+
+        $('#dynamicMaterialsContainer .row').each(function() {
+            const item = $(this).find('.dynamic-material-item').val();
+            const cost = parseFloat($(this).find('.dynamic-material-cost').val()) || 0;
+
+            if (item && cost > 0) {
+                materials.push({item, cost});
+            }
+        });
+
+        $('#dynamicMaterialsData').val(JSON.stringify(materials));
+    }
+
+    // 出金予定日計算ボタンのイベント
+    $('#calculatePaymentDueDate').on('click', function() {
+        const contractorId = $('#id_contractor').val();
+        const referenceDate = $('#referenceDate').val();
+
+        // 基準日が未入力の場合のみチェック
+        if (!referenceDate) {
+            $('#calculationResult').removeClass('alert-success').addClass('alert-warning');
+            $('#calculatedDate').text('基準日を入力してください');
+            $('#calculationResult').show();
+            return;
+        }
+
+        const contractor = contractorsData[contractorId];
+        const { closing_day, payment_offset_months, payment_day } = contractor;
+
+        // 出金予定日を計算
+        const paymentDueDate = calculatePaymentDueDate(referenceDate, closing_day, payment_offset_months, payment_day);
+
+        if (paymentDueDate) {
+            // YYYY-MM-DD形式にフォーマット（ローカルタイムゾーンで）
+            const year = paymentDueDate.getFullYear();
+            const month = String(paymentDueDate.getMonth() + 1).padStart(2, '0');
+            const day = String(paymentDueDate.getDate()).padStart(2, '0');
+            const formattedDate = `${year}-${month}-${day}`;
+
+            // 結果を表示
+            const displayDate = `${year}年${paymentDueDate.getMonth() + 1}月${paymentDueDate.getDate()}日`;
+            $('#calculationResult').removeClass('alert-warning').addClass('alert-success');
+            $('#calculatedDate').text(displayDate);
+            $('#calculationResult').show();
+
+            // 出金予定日フィールドに自動入力
+            $('#id_payment_due_date').val(formattedDate);
+        }
+    });
 });
 </script>
 {% endblock %}

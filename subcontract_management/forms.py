@@ -98,8 +98,15 @@ class SubcontractForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.widget.attrs['class'] = 'form-control'
+        for field_name, field in self.fields.items():
+            # チェックボックスとファイルフィールドには form-control を適用しない
+            if field_name == 'purchase_order_issued':
+                field.widget.attrs['class'] = 'form-check-input'
+            elif field_name == 'purchase_order_file':
+                field.widget.attrs['class'] = 'form-control'
+                field.widget.attrs['accept'] = '.pdf,.jpg,.jpeg,.png'
+            else:
+                field.widget.attrs['class'] = 'form-control'
 
         # 外注先を有効なもののみに限定
         self.fields['contractor'].queryset = Contractor.objects.filter(is_active=True)

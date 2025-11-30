@@ -815,14 +815,14 @@
                                             <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
                                         </dd>
                                         <dt class="col-sm-5 text-muted">工事開始日</dt>
-                                        <dd class="col-sm-7 editable-field" data-field="work_start_date" data-type="date">
+                                        <dd class="col-sm-7">
                                             <span class="field-value">{{ project.work_start_date|date:"Y/n/j"|default:"-" }}</span>
-                                            <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
+                                            <i class="fas fa-info-circle ms-2 text-muted" style="font-size: 0.65rem;" title="プロジェクト段階管理の「着工日」から自動同期されます"></i>
                                         </dd>
                                         <dt class="col-sm-5 text-muted">工事終了日</dt>
-                                        <dd class="col-sm-7 editable-field" data-field="work_end_date" data-type="date">
+                                        <dd class="col-sm-7">
                                             <span class="field-value">{{ project.work_end_date|date:"Y/n/j"|default:"-" }}</span>
-                                            <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
+                                            <i class="fas fa-info-circle ms-2 text-muted" style="font-size: 0.65rem;" title="プロジェクト段階管理の「完工日」から自動同期されます"></i>
                                         </dd>
                                     </dl>
                                 </div>
@@ -980,6 +980,16 @@
                                         </dd>
                                         <dt class="col-sm-3 text-muted">実請求額</dt>
                                         <dd class="col-sm-3 text-success fw-bold">¥{{ project.billing_amount|floatformat:0|intcomma }}</dd>
+
+                                        {% if project.invoice_file %}
+                                        <dt class="col-sm-3 text-muted">請求書PDF</dt>
+                                        <dd class="col-sm-9">
+                                            <a href="{{ project.invoice_file.url }}" class="btn btn-sm btn-success" target="_blank">
+                                                <i class="fas fa-file-pdf me-1"></i>請求書を表示
+                                            </a>
+                                            <small class="text-muted ms-2">{{ project.invoice_file.name|slice:"19:" }}</small>
+                                        </dd>
+                                        {% endif %}
                                     </dl>
                                 </div>
                             </div>
@@ -7738,143 +7748,174 @@ function confirmFileDelete(fileId, fileName) {
                     {% csrf_token %}
                     <input type="hidden" id="subcontractStep" name="step">
 
-                    <div class="mb-3">
-                        <label class="form-label">
-                            発注先 <span class="text-danger">*</span>
-                        </label>
-                        <div class="d-flex gap-2 align-items-center">
-                            <input type="hidden" id="subcontractContractor" name="contractor" required>
-                            <input type="text" id="selectedContractorDisplay" class="form-control" readonly placeholder="下請け管理から選択してください" style="flex: 1; background-color: #f8f9fa; cursor: pointer;" onclick="openContractorManagementPanel()">
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openContractorManagementPanel()" title="下請け業者を選択・管理">
-                                <i class="fas fa-handshake"></i> 下請け管理
-                            </button>
+                    <!-- 外注先情報 -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">外注先情報</h5>
                         </div>
-                        <small class="form-text text-muted">
-                            下請け管理ボタンから業者を選択すると、その業者のデフォルト支払いサイクルが自動入力されます
-                        </small>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="subcontractContractAmount" class="form-label">
-                                    発注金額
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text">¥</span>
-                                    <input type="number" class="form-control" id="subcontractContractAmount" name="contract_amount">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="subcontractBilledAmount" class="form-label">
-                                    請求金額
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text">¥</span>
-                                    <input type="number" class="form-control" id="subcontractBilledAmount" name="billed_amount">
-                                </div>
-                                <small class="form-text text-muted">実際に請求された金額を入力してください（任意）</small>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 発注先のデフォルト支払い情報（表示のみ） -->
-                    <div class="alert alert-info" style="display: none;" id="contractorPaymentInfo">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <h6 class="alert-heading mb-0">
-                                <i class="fas fa-info-circle me-1"></i>発注先の支払い条件
-                            </h6>
-                            <button type="button" class="btn btn-sm btn-outline-warning" onclick="enableCustomPaymentDate()">
-                                <i class="fas fa-exclamation-triangle me-1"></i>例外処理
-                            </button>
-                        </div>
-                        <div class="row mt-2">
-                            <div class="col-md-4">
-                                <small class="text-muted">支払サイクル:</small>
-                                <div><span id="contractorPaymentCycleDisplay">-</span></div>
-                            </div>
-                            <div class="col-md-4">
-                                <small class="text-muted">締日:</small>
-                                <div><span id="contractorClosingDayDisplay">-</span></div>
-                            </div>
-                            <div class="col-md-4">
-                                <small class="text-muted">支払日:</small>
-                                <div><span id="contractorPaymentDayDisplay">-</span></div>
-                            </div>
-                        </div>
-                        <div class="mt-2">
-                            <small class="text-muted">
-                                <i class="fas fa-info-circle me-1"></i>
-                                発注先との契約上の支払い条件（参考情報）
-                            </small>
-                        </div>
-                    </div>
-
-                    <!-- 個別支払期限設定（例外処理） -->
-                    <div id="customPaymentDateSection" style="display: none;">
-                        <div class="alert alert-warning">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h6 class="alert-heading mb-0">
-                                    <i class="fas fa-exclamation-triangle me-1"></i>例外処理：個別支払期限
-                                </h6>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="disableCustomPaymentDate()">
-                                    <i class="fas fa-undo me-1"></i>通常に戻す
-                                </button>
-                            </div>
-                            <small class="text-muted d-block mb-3">
-                                この案件のみ、発注先の通常の支払サイクルとは異なる支払期限を設定します
-                            </small>
-
+                        <div class="card-body">
                             <div class="mb-0">
-                                <label for="subcontractPaymentDueDate" class="form-label">
-                                    <i class="fas fa-calendar-alt me-1"></i>支払期限 <span class="text-danger">*</span>
+                                <label class="form-label">
+                                    発注先 <span class="text-danger">*</span>
                                 </label>
-                                <input type="date" class="form-control" id="subcontractPaymentDueDate" name="payment_due_date">
-                                <small class="form-text text-muted">この案件専用の出金予定日を設定してください</small>
+                                <div class="d-flex gap-2 align-items-center">
+                                    <input type="hidden" id="subcontractContractor" name="contractor" required>
+                                    <input type="text" id="selectedContractorDisplay" class="form-control" readonly placeholder="下請け管理から選択してください" style="flex: 1; background-color: #f8f9fa; cursor: pointer;" onclick="openContractorManagementPanel()">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openContractorManagementPanel()" title="下請け業者を選択・管理">
+                                        <i class="fas fa-handshake"></i> 下請け管理
+                                    </button>
+                                </div>
+                                <small class="form-text text-muted">
+                                    下請け管理ボタンから業者を選択すると、その業者のデフォルト支払いサイクルが自動入力されます
+                                </small>
                             </div>
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="subcontractPaymentDate" class="form-label">
-                                    実際の支払日
-                                </label>
-                                <input type="date" class="form-control" id="subcontractPaymentDate" name="payment_date">
-                                <small class="form-text text-muted">実際に支払った日付（任意）</small>
-                            </div>
+                    <!-- 金額管理 -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">金額管理</h5>
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="subcontractPaymentStatus" class="form-label">
-                                    支払状況
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="subcontractContractAmount" class="form-label">
+                                            契約金額 <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">¥</span>
+                                            <input type="number" class="form-control" id="subcontractContractAmount" name="contract_amount">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="subcontractBilledAmount" class="form-label">
+                                            被請求額
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">¥</span>
+                                            <input type="number" class="form-control" id="subcontractBilledAmount" name="billed_amount">
+                                        </div>
+                                        <small class="form-text text-muted">実際に請求された金額を入力してください（任意）</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 追加費用 -->
+                            <hr>
+                            <h6 class="mb-3"><i class="fas fa-plus-circle me-1"></i>追加費用</h6>
+                            <div id="modalAdditionalCostsContainer"></div>
+                            <button type="button" class="btn btn-sm btn-outline-primary mb-3" onclick="addModalAdditionalCostRow()">
+                                <i class="fas fa-plus me-1"></i>費用を追加
+                            </button>
+                            <input type="hidden" id="modalAdditionalCostsData" name="additional_costs_data">
+
+                            <!-- 追加費用合計表示 -->
+                            <div id="modal_additional_total_display" class="alert alert-secondary mt-2 mb-0" style="display: none;">
+                                <strong>追加費用合計: ¥<span id="modal_additional_total_amount">0</span></strong>
+                            </div>
+
+                            <!-- 請求書ファイル -->
+                            <hr>
+                            <div class="mb-0">
+                                <label for="subcontractInvoiceFile" class="form-label">
+                                    <i class="fas fa-file-invoice me-1"></i>請求書ファイル
                                 </label>
-                                <select class="form-select" id="subcontractPaymentStatus" name="payment_status">
-                                    <option value="pending">未払い</option>
-                                    <option value="processing">処理中</option>
-                                    <option value="paid">支払済</option>
-                                </select>
+                                <input type="file" class="form-control" id="subcontractInvoiceFile" name="invoice_file" accept=".pdf,.jpg,.jpeg,.png">
+                                <small class="form-text text-muted">PDF、JPG、PNGファイルをアップロード可能</small>
                             </div>
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="subcontractWorkDescription" class="form-label">
-                            作業内容
-                        </label>
-                        <textarea class="form-control" id="subcontractWorkDescription" name="work_description" rows="3"></textarea>
-                    </div>
+                    <!-- 支払い管理 -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">支払い管理</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- 支払いサイクル情報表示 -->
+                            <div class="alert alert-info mb-3" id="contractorPaymentInfo" style="display: none;">
+                                <h6 class="mb-2"><i class="fas fa-info-circle me-1"></i>選択された業者の支払いサイクル</h6>
+                                <p class="mb-0" id="paymentCycleText"></p>
+                            </div>
 
-                    <!-- 発注書発行済み -->
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="subcontractPurchaseOrderIssued" name="purchase_order_issued">
-                            <label class="form-check-label" for="subcontractPurchaseOrderIssued">
-                                <i class="fas fa-file-invoice me-1"></i>発注書発行済み
-                            </label>
+                            <!-- 出金予定日自動計算 -->
+                            <div class="card mb-3 border-secondary">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-calculator me-1"></i>出金予定日を自動計算して入力
+                                        <i class="fas fa-info-circle ms-1"
+                                           data-bs-toggle="popover"
+                                           data-bs-placement="top"
+                                           data-bs-trigger="hover"
+                                           data-bs-content="基準日を選択して計算ボタンを押すと、出金予定日フィールドに自動的に入力されます"
+                                           style="cursor: help;"></i>
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-2">
+                                            <label for="modalReferenceDate" class="form-label">
+                                                基準日 <small class="text-muted">（契約日や請求日など）</small>
+                                            </label>
+                                            <input type="date" id="modalReferenceDate" class="form-control" value="{{ today|date:'Y-m-d' }}">
+                                        </div>
+                                        <div class="col-md-6 mb-2 d-flex align-items-end">
+                                            <button type="button" id="modalCalculatePaymentDueDate" class="btn btn-success w-100">
+                                                <i class="fas fa-calculator me-1"></i>計算して出金予定日に入力
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div id="modalCalculationResult" class="alert alert-success mt-2" style="display: none;">
+                                        <i class="fas fa-check-circle me-1"></i><strong>計算完了:</strong> <span id="modalCalculatedDate"></span> が出金予定日に入力されました
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="subcontractPaymentStatus" class="form-label">
+                                        支払い状況
+                                    </label>
+                                    <select class="form-select" id="subcontractPaymentStatus" name="payment_status">
+                                        <option value="pending">未払い</option>
+                                        <option value="processing">処理中</option>
+                                        <option value="paid">支払済</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="subcontractPaymentDueDate" class="form-label">
+                                        出金予定日
+                                    </label>
+                                    <input type="date" class="form-control" id="subcontractPaymentDueDate" name="payment_due_date">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="subcontractPaymentDate" class="form-label">
+                                        出金日
+                                    </label>
+                                    <input type="date" class="form-control" id="subcontractPaymentDate" name="payment_date">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="subcontractPurchaseOrderIssued" name="purchase_order_issued">
+                                        <label class="form-check-label" for="subcontractPurchaseOrderIssued">
+                                            発注書発行済み
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="subcontractPurchaseOrderFile" class="form-label">
+                                        発注書ファイル
+                                    </label>
+                                    <input type="file" class="form-control" id="subcontractPurchaseOrderFile" name="purchase_order_file" accept=".pdf,.jpg,.jpeg,.png">
+                                    <small class="form-text text-muted">PDF、JPG、PNGファイルをアップロード可能</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -7927,6 +7968,16 @@ function confirmFileDelete(fileId, fileName) {
                                         </div>
                                     </div>
                                 </div>
+
+                                <!-- 動的部材費追加エリア -->
+                                <hr>
+                                <h6 class="mb-3"><i class="fas fa-plus-circle me-1"></i>追加部材費</h6>
+                                <div id="modalDynamicMaterialsContainer"></div>
+                                <button type="button" class="btn btn-sm btn-outline-success mb-3" onclick="addModalMaterialRow()">
+                                    <i class="fas fa-plus me-1"></i>部材費を追加
+                                </button>
+                                <input type="hidden" id="modalDynamicMaterialsData" name="dynamic_materials_data">
+
                                 <!-- 部材費合計表示 -->
                                 <div class="alert alert-info mb-0">
                                     <strong>部材費合計: ¥<span id="modalMaterialTotalAmount">0</span></strong>
@@ -7935,13 +7986,26 @@ function confirmFileDelete(fileId, fileName) {
                         </div>
                     </div>
 
+                    <!-- 備考 -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">備考</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-0">
+                                <label for="subcontractNotes" class="form-label">備考</label>
+                                <textarea class="form-control" id="subcontractNotes" name="notes" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- 総コスト表示 -->
                     <div class="alert alert-warning mb-3">
-                        <h6 class="mb-0">
+                        <h5 class="mb-0">
                             <i class="fas fa-calculator me-2"></i>
                             <strong>総コスト: ¥<span id="modalTotalCostAmount">0</span></strong>
-                        </h6>
-                        <small class="text-muted">（<span id="modalCostBaseLabel">契約金額</span> + 部材費合計）</small>
+                        </h5>
+                        <small class="text-muted">（<span id="modalCostBaseLabel">契約金額</span> + 部材費合計 + 追加費用）</small>
                     </div>
 
                     <!-- 他の工程にも追加 -->
@@ -7994,13 +8058,6 @@ function confirmFileDelete(fileId, fileName) {
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="subcontractNotes" class="form-label">
-                            備考
-                        </label>
-                        <textarea class="form-control" id="subcontractNotes" name="notes" rows="2"></textarea>
                     </div>
                 </form>
             </div>
@@ -8166,60 +8223,103 @@ function confirmFileDelete(fileId, fileName) {
                     <table class="table table-hover">
                         <thead class="table-light">
                             <tr>
-                                <th width="40%">ファイル名</th>
+                                <th width="5%">種別</th>
+                                <th width="35%">ファイル名</th>
                                 <th width="15%">サイズ</th>
                                 <th width="20%">アップロード者</th>
-                                <th width="15%">アップロード日時</th>
+                                <th width="15%">日時</th>
                                 <th width="10%" class="text-center">操作</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for file in project.files.all %}
-                            <tr>
+                            <tr {% if file.is_linked_file %}class="table-info"{% endif %}>
                                 <td>
-                                    {% if 'pdf' in file.file_type %}
-                                        <i class="fas fa-file-pdf text-danger me-2"></i>
-                                    {% elif 'word' in file.file_type or 'document' in file.file_type %}
-                                        <i class="fas fa-file-word text-primary me-2"></i>
-                                    {% elif 'excel' in file.file_type or 'spreadsheet' in file.file_type %}
-                                        <i class="fas fa-file-excel text-success me-2"></i>
-                                    {% elif 'image' in file.file_type or 'jpg' in file.file_type or 'png' in file.file_type %}
-                                        <i class="fas fa-file-image text-info me-2"></i>
+                                    {% if file.is_linked_file %}
+                                        <span class="badge bg-info" title="リンクファイル">
+                                            <i class="fas fa-link"></i>
+                                        </span>
                                     {% else %}
-                                        <i class="fas fa-file text-secondary me-2"></i>
-                                    {% endif %}
-                                    <strong>{{ file.file_name }}</strong>
-                                    {% if file.description %}
-                                        <br><small class="text-muted ms-4">{{ file.description }}</small>
+                                        <span class="badge bg-success" title="アップロードファイル">
+                                            <i class="fas fa-upload"></i>
+                                        </span>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <span class="badge bg-light text-dark">{{ file.get_file_size_display }}</span>
+                                    {% if file.is_linked_file %}
+                                        <i class="fas fa-file-pdf text-danger me-2"></i>
+                                        <strong>{{ file.file_name }}</strong>
+                                        <br><small class="text-muted ms-4">
+                                            {% if file.linked_source_type == 'purchase_order' %}
+                                                発注書（複数案件含む）
+                                            {% elif file.linked_source_type == 'invoice' %}
+                                                請求書（複数案件含む）
+                                            {% endif %}
+                                        </small>
+                                    {% else %}
+                                        {% if 'pdf' in file.file_type %}
+                                            <i class="fas fa-file-pdf text-danger me-2"></i>
+                                        {% elif 'word' in file.file_type or 'document' in file.file_type %}
+                                            <i class="fas fa-file-word text-primary me-2"></i>
+                                        {% elif 'excel' in file.file_type or 'spreadsheet' in file.file_type %}
+                                            <i class="fas fa-file-excel text-success me-2"></i>
+                                        {% elif 'image' in file.file_type or 'jpg' in file.file_type or 'png' in file.file_type %}
+                                            <i class="fas fa-file-image text-info me-2"></i>
+                                        {% else %}
+                                            <i class="fas fa-file text-secondary me-2"></i>
+                                        {% endif %}
+                                        <strong>{{ file.file_name }}</strong>
+                                        {% if file.description %}
+                                            <br><small class="text-muted ms-4">{{ file.description }}</small>
+                                        {% endif %}
+                                    {% endif %}
                                 </td>
                                 <td>
-                                    {% if file.uploaded_by %}
+                                    {% if not file.is_linked_file %}
+                                        <span class="badge bg-light text-dark">{{ file.get_file_size_display }}</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if file.is_linked_file %}
+                                        <span class="text-muted">自動リンク</span>
+                                    {% elif file.uploaded_by %}
                                         <i class="fas fa-user-circle me-1"></i>{{ file.uploaded_by.get_full_name|default:file.uploaded_by.username }}
                                     {% else %}
                                         <span class="text-muted">不明</span>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <small>{{ file.uploaded_at|date:"Y/m/d H:i" }}</small>
+                                    {% if file.is_linked_file and file.linked_at %}
+                                        <small>{{ file.linked_at|date:"Y/m/d H:i:s" }}</small>
+                                    {% else %}
+                                        <small>{{ file.uploaded_at|date:"Y/m/d H:i:s" }}</small>
+                                    {% endif %}
                                 </td>
                                 <td class="text-center">
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <a href="{% url 'order_management:project_file_download' project.pk file.pk %}"
-                                           class="btn btn-outline-primary"
-                                           title="ダウンロード">
-                                            <i class="fas fa-download"></i>
+                                    {% if file.is_linked_file %}
+                                        <a href="/media/{{ file.linked_source_file }}"
+                                           class="btn btn-outline-primary btn-sm"
+                                           target="_blank"
+                                           title="PDFを開く">
+                                            <i class="fas fa-external-link-alt"></i>
                                         </a>
-                                        <button type="button"
-                                                class="btn btn-outline-danger"
-                                                onclick="confirmFileDelete({{ file.pk }}, '{{ file.file_name }}')"
-                                                title="削除">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
+                                    {% else %}
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{% url 'order_management:project_file_download' project.pk file.pk %}"
+                                               class="btn btn-outline-primary"
+                                               title="ダウンロード">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                            <button type="button"
+                                                    class="btn btn-outline-danger"
+                                                    onclick="confirmFileDelete({{ file.pk }}, '{{ file.file_name }}')"
+                                                    title="削除">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -9558,7 +9658,9 @@ function handleAdditionalStepsChange() {
 
             if (!surveyStepExists) {
                 // 現調ステップを動的に追加
-                toastr.info('現調ステップをプロジェクトに追加しています...', '', {timeOut: 2000});
+                if (typeof toastr !== 'undefined') {
+                    toastr.info('現調ステップをプロジェクトに追加しています...', '', {timeOut: 2000});
+                }
 
                 // ここで実際にステップを追加する処理
                 // 簡易的な実装：ページをリロードして更新を反映
@@ -9734,9 +9836,8 @@ function openSubcontractModal(stepKey) {
     // 発注先表示フィールドをリセット
     $('#selectedContractorDisplay').val('');
 
-    // 発注先情報と例外処理をリセット
+    // 発注先情報をリセット
     document.getElementById('contractorPaymentInfo').style.display = 'none';
-    document.getElementById('customPaymentDateSection').style.display = 'none';
 
     // 金額設定方法セクションをリセット
     $('#costAllocationSection').hide();
@@ -9747,6 +9848,19 @@ function openSubcontractModal(stepKey) {
     $('#subcontractContractAmount').prop('readonly', false);
     $('#subcontractContractAmount').removeClass('bg-light');
     $('#subcontractContractAmount').attr('placeholder', '');
+
+    // 基準日を今日の日付に設定
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    $('#modalReferenceDate').val(`${year}-${month}-${day}`);
+
+    // 計算ボタンを初期状態で無効化（業者未選択）
+    $('#modalCalculatePaymentDueDate').prop('disabled', true);
+
+    // 計算結果メッセージを非表示
+    $('#modalCalculationResult').hide();
 
     // モーダルを表示
     const modal = new bootstrap.Modal(document.getElementById('subcontractModal'));
@@ -9775,8 +9889,25 @@ $(document).ready(function() {
         // 被請求額がある場合はそれを使用、なければ契約金額を使用
         var baseAmount = billed > 0 ? billed : contract;
 
-        var totalMaterial = material1 + material2 + material3;
-        var totalCost = baseAmount + totalMaterial;
+        // 固定部材費
+        var fixedMaterial = material1 + material2 + material3;
+
+        // 動的部材費
+        var dynamicMaterial = 0;
+        $('#modalDynamicMaterialsContainer .row').each(function() {
+            var cost = parseFloat($(this).find('.dynamic-material-cost').val()) || 0;
+            dynamicMaterial += cost;
+        });
+
+        // 追加費用
+        var additionalCosts = 0;
+        $('#modalAdditionalCostsContainer .row').each(function() {
+            var cost = parseFloat($(this).find('.additional-cost-amount').val()) || 0;
+            additionalCosts += cost;
+        });
+
+        var totalMaterial = fixedMaterial + dynamicMaterial;
+        var totalCost = baseAmount + totalMaterial + additionalCosts;
 
         // ラベル更新
         if (billed > 0) {
@@ -9797,21 +9928,258 @@ $(document).ready(function() {
     $('#subcontractModal').on('shown.bs.modal', function() {
         calculateModalTotalCost();
     });
+
+    // ===================================
+    // モーダル用：動的追加費用管理
+    // ===================================
+    let modalAdditionalCostCounter = 0;
+
+    window.addModalAdditionalCostRow = function() {
+        modalAdditionalCostCounter++;
+        const rowId = `modal_additional_cost_${modalAdditionalCostCounter}`;
+
+        const row = $(`
+            <div class="row mb-2" id="${rowId}">
+                <div class="col-md-5">
+                    <input type="text" class="form-control additional-cost-item" placeholder="費用項目名" data-row="${rowId}">
+                </div>
+                <div class="col-md-5">
+                    <div class="input-group">
+                        <span class="input-group-text">¥</span>
+                        <input type="number" class="form-control additional-cost-amount" placeholder="0" data-row="${rowId}">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-danger btn-sm" onclick="removeModalAdditionalCostRow('${rowId}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `);
+
+        $('#modalAdditionalCostsContainer').append(row);
+        updateModalAdditionalCostsData();
+
+        row.find('input').on('input', function() {
+            updateModalAdditionalCostsData();
+            calculateModalTotalCost();
+        });
+    };
+
+    window.removeModalAdditionalCostRow = function(rowId) {
+        $(`#${rowId}`).remove();
+        updateModalAdditionalCostsData();
+        calculateModalTotalCost();
+    };
+
+    function updateModalAdditionalCostsData() {
+        const costs = [];
+        let totalAdditional = 0;
+
+        $('#modalAdditionalCostsContainer .row').each(function() {
+            const item = $(this).find('.additional-cost-item').val();
+            const amount = parseFloat($(this).find('.additional-cost-amount').val()) || 0;
+
+            if (item && amount > 0) {
+                costs.push({item, cost: amount});
+                totalAdditional += amount;
+            }
+        });
+
+        $('#modalAdditionalCostsData').val(JSON.stringify(costs));
+        $('#modal_additional_total_amount').text(totalAdditional.toLocaleString());
+
+        if (totalAdditional > 0) {
+            $('#modal_additional_total_display').show();
+        } else {
+            $('#modal_additional_total_display').hide();
+        }
+    }
+
+    // ===================================
+    // モーダル用：動的部材費管理
+    // ===================================
+    let modalMaterialCounter = 0;
+
+    window.addModalMaterialRow = function() {
+        modalMaterialCounter++;
+        const rowId = `modal_material_${modalMaterialCounter}`;
+
+        const row = $(`
+            <div class="row mb-2" id="${rowId}">
+                <div class="col-md-5">
+                    <input type="text" class="form-control dynamic-material-item" placeholder="部材費項目名" data-row="${rowId}">
+                </div>
+                <div class="col-md-5">
+                    <div class="input-group">
+                        <span class="input-group-text">¥</span>
+                        <input type="number" class="form-control dynamic-material-cost" placeholder="0" data-row="${rowId}">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-danger btn-sm" onclick="removeModalMaterialRow('${rowId}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `);
+
+        $('#modalDynamicMaterialsContainer').append(row);
+        updateModalDynamicMaterialsData();
+
+        row.find('input').on('input', function() {
+            updateModalDynamicMaterialsData();
+            calculateModalTotalCost();
+        });
+    };
+
+    window.removeModalMaterialRow = function(rowId) {
+        $(`#${rowId}`).remove();
+        updateModalDynamicMaterialsData();
+        calculateModalTotalCost();
+    };
+
+    function updateModalDynamicMaterialsData() {
+        const materials = [];
+
+        $('#modalDynamicMaterialsContainer .row').each(function() {
+            const item = $(this).find('.dynamic-material-item').val();
+            const cost = parseFloat($(this).find('.dynamic-material-cost').val()) || 0;
+
+            if (item && cost > 0) {
+                materials.push({item, cost});
+            }
+        });
+
+        $('#modalDynamicMaterialsData').val(JSON.stringify(materials));
+    }
+
+    // ===================================
+    // モーダル用：出金予定日計算
+    // ===================================
+
+    // 出金予定日を計算する関数
+    function calculatePaymentDueDateForModal(contractDate, closingDay, paymentOffsetMonths, paymentDay) {
+        if (!contractDate || closingDay === null || paymentOffsetMonths === null || paymentDay === null) {
+            return null;
+        }
+
+        const date = new Date(contractDate);
+
+        // 締日を基準にして、どの月の締めに含まれるかを判定
+        let closingMonth;
+        if (date.getDate() <= closingDay) {
+            // 当月締め
+            closingMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        } else {
+            // 翌月締め
+            closingMonth = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+        }
+
+        // 支払い月を計算（締め月 + payment_offset_months）
+        const paymentMonth = new Date(closingMonth.getFullYear(), closingMonth.getMonth() + paymentOffsetMonths, 1);
+
+        // 支払日を設定
+        let paymentDueDate;
+        try {
+            paymentDueDate = new Date(paymentMonth.getFullYear(), paymentMonth.getMonth(), paymentDay);
+
+            // 31日が存在しない月の場合は月末日にする
+            if (paymentDueDate.getMonth() !== paymentMonth.getMonth()) {
+                paymentDueDate = new Date(paymentMonth.getFullYear(), paymentMonth.getMonth() + 1, 0);
+            }
+        } catch (e) {
+            // エラーの場合は月末日にする
+            paymentDueDate = new Date(paymentMonth.getFullYear(), paymentMonth.getMonth() + 1, 0);
+        }
+
+        return paymentDueDate;
+    }
+
+    // 業者選択時に支払いサイクル情報を表示
+    $(document).on('change', '#subcontractContractor', function() {
+        const contractorId = $(this).val();
+        if (contractorId && contractorsData[contractorId]) {
+            const contractor = contractorsData[contractorId];
+            const { closing_day, payment_offset_months, payment_day } = contractor;
+
+            if (closing_day !== null && payment_offset_months !== null && payment_day !== null) {
+                const cycleText = `${closing_day}日締め ${payment_offset_months}ヶ月後 ${payment_day}日払い`;
+                $('#paymentCycleText').text(cycleText);
+                $('#contractorPaymentInfo').show();
+                // 計算ボタンを有効化
+                $('#modalCalculatePaymentDueDate').prop('disabled', false);
+            } else {
+                $('#contractorPaymentInfo').hide();
+                // 計算ボタンを無効化（支払いサイクル情報なし）
+                $('#modalCalculatePaymentDueDate').prop('disabled', true);
+            }
+        } else {
+            $('#contractorPaymentInfo').hide();
+            // 計算ボタンを無効化（業者未選択）
+            $('#modalCalculatePaymentDueDate').prop('disabled', true);
+        }
+    });
+
+    // 出金予定日計算ボタンのイベント
+    $('#modalCalculatePaymentDueDate').on('click', function() {
+        const contractorId = $('#subcontractContractor').val();
+        const referenceDate = $('#modalReferenceDate').val();
+
+        // 基準日が未入力の場合のみチェック
+        if (!referenceDate) {
+            $('#modalCalculationResult').removeClass('alert-success').addClass('alert-warning');
+            $('#modalCalculatedDate').text('基準日を入力してください');
+            $('#modalCalculationResult').show();
+            return;
+        }
+
+        const contractor = contractorsData[contractorId];
+        const { closing_day, payment_offset_months, payment_day } = contractor;
+
+        // 出金予定日を計算
+        const paymentDueDate = calculatePaymentDueDateForModal(referenceDate, closing_day, payment_offset_months, payment_day);
+
+        if (paymentDueDate) {
+            // YYYY-MM-DD形式にフォーマット（ローカルタイムゾーンで）
+            const year = paymentDueDate.getFullYear();
+            const month = String(paymentDueDate.getMonth() + 1).padStart(2, '0');
+            const day = String(paymentDueDate.getDate()).padStart(2, '0');
+            const formattedDate = `${year}-${month}-${day}`;
+
+            // 結果を表示
+            const displayDate = `${year}年${paymentDueDate.getMonth() + 1}月${paymentDueDate.getDate()}日`;
+            $('#modalCalculationResult').removeClass('alert-warning').addClass('alert-success');
+            $('#modalCalculatedDate').text(displayDate);
+            $('#modalCalculationResult').show();
+
+            // 出金予定日フィールドに自動入力
+            $('#subcontractPaymentDueDate').val(formattedDate);
+        }
+    });
+
+    // ポップオーバーの初期化（モーダル内の要素用）
+    $('#subcontractModal').on('shown.bs.modal', function() {
+        $('[data-bs-toggle="popover"]').popover();
+    });
 });
 
-// 例外処理：個別支払期限を有効化
-function enableCustomPaymentDate() {
-    document.getElementById('contractorPaymentInfo').style.display = 'none';
-    document.getElementById('customPaymentDateSection').style.display = 'block';
-}
+// モーダル内エラー表示関数
+function showModalError(message) {
+    // 既存のエラーメッセージを削除
+    $('#subcontractModalError').remove();
 
-// 例外処理：通常の支払サイクルに戻す
-function disableCustomPaymentDate() {
-    document.getElementById('customPaymentDateSection').style.display = 'none';
-    document.getElementById('contractorPaymentInfo').style.display = 'block';
+    // エラーメッセージを作成してモーダルのボディの先頭に挿入
+    const errorHtml = `
+        <div id="subcontractModalError" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    `;
+    $('#subcontractModal .modal-body').prepend(errorHtml);
 
-    // 支払期限フィールドをクリア
-    document.getElementById('subcontractPaymentDueDate').value = '';
+    // エラーメッセージまでスクロール
+    $('#subcontractModal .modal-body').scrollTop(0);
 }
 
 // 下請けを保存
@@ -9819,24 +10187,43 @@ function saveSubcontract() {
     const form = $('#subcontractForm');
     const formData = new FormData(form[0]);
 
+    // 動的データをFormDataに追加
+    formData.set('dynamic_materials_data', $('#modalDynamicMaterialsData').val() || '[]');
+    formData.set('additional_costs_data', $('#modalAdditionalCostsData').val() || '[]');
+
+    // モーダル内のエラー表示エリアをクリア
+    $('#subcontractModalError').remove();
+
+    // 業者が選択されているかチェック
+    const contractorId = $('#subcontractContractor').val();
+    if (!contractorId) {
+        showModalError('下請け管理ボタンから業者を選択してください');
+        return;
+    }
+
     // 工程ごとの金額設定の場合、バリデーション
     const costMethod = $('input[name="cost_allocation_method"]:checked').val();
-    if (costMethod === 'per_step' && $('#perStepAmountsSection').is(':visible')) {
-        // 現在の工程の金額を取得
+    // 追加工程が1つ以上選択されている場合のみバリデーションを実行
+    const hasAdditionalSteps = $('.additional-step-checkbox:checked').length > 0;
+
+    // costMethodが'per_step'で、追加工程が選択されている場合のみバリデーション
+    if (costMethod === 'per_step' && hasAdditionalSteps) {
+        // 現在の工程の金額を取得（0円も許可するため、空かどうかのみチェック）
         const currentStepAmount = $('#currentStepAmount').val();
-        if (!currentStepAmount || currentStepAmount <= 0) {
-            showErrorModal('メイン工程の契約金額を入力してください');
+        if (currentStepAmount === '' || currentStepAmount === null || currentStepAmount === undefined) {
+            showModalError('メイン工程の契約金額を入力してください');
             return;
         }
 
-        // 各追加工程の金額を収集してバリデーション
+        // 各追加工程の金額を収集してバリデーション（0円も許可）
         const stepAmounts = {};
         let hasError = false;
+        let errorMessage = '';
         $('.step-amount-input').each(function() {
             const stepKey = $(this).data('step');
             const amount = $(this).val();
-            if (!amount || amount <= 0) {
-                showErrorModal(`${$(this).prev('label').text().replace(/（.*）/, '')}の契約金額を入力してください`);
+            if (amount === '' || amount === null || amount === undefined) {
+                errorMessage = `${$(this).prev('label').text().replace(/（.*）/, '')}の契約金額を入力してください`;
                 hasError = true;
                 return false;
             }
@@ -9844,6 +10231,7 @@ function saveSubcontract() {
         });
 
         if (hasError) {
+            showModalError(errorMessage);
             return;
         }
 
@@ -9922,17 +10310,36 @@ function saveSubcontract() {
         error: function(xhr, status, error) {
             // エラーメッセージを表示
             let errorMessage = 'エラーが発生しました';
-            if (xhr.responseJSON && xhr.responseJSON.error) {
-                errorMessage = xhr.responseJSON.error;
+
+            if (xhr.responseJSON) {
+                if (xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+
+                // フィールドごとのエラーを処理
+                if (xhr.responseJSON.errors) {
+                    const errors = xhr.responseJSON.errors;
+                    const errorList = [];
+
+                    for (const field in errors) {
+                        const fieldErrors = errors[field];
+                        if (Array.isArray(fieldErrors)) {
+                            fieldErrors.forEach(err => errorList.push(err));
+                        } else {
+                            errorList.push(fieldErrors);
+                        }
+                    }
+
+                    if (errorList.length > 0) {
+                        errorMessage = errorList.join('<br>');
+                    }
+                }
             } else if (xhr.responseText) {
                 errorMessage = xhr.responseText;
             }
 
-            if (typeof toastr !== 'undefined') {
-                toastr.error(errorMessage);
-            } else {
-                showErrorModal(errorMessage);
-            }
+            // モーダル内にエラーを表示
+            showModalError(errorMessage);
 
             // ボタンを元に戻す
             saveBtn.disabled = false;
@@ -10249,10 +10656,11 @@ window.selectContractor = function(contractorId) {
         // 支払いサイクル情報を自動入力（既存の処理を再利用）
         $('#contractorPaymentCycleDisplay').text(selectedContractor.payment_cycle_display || '-');
         $('#contractorClosingDayDisplay').text(selectedContractor.closing_day ? selectedContractor.closing_day + '日' : '-');
+        $('#contractorPaymentOffsetMonthsDisplay').text(selectedContractor.payment_offset_months_display || '-');
         $('#contractorPaymentDayDisplay').text(selectedContractor.payment_day ? selectedContractor.payment_day + '日' : '-');
 
         // 支払い情報を表示
-        if (selectedContractor.payment_cycle || selectedContractor.closing_day || selectedContractor.payment_day) {
+        if (selectedContractor.payment_cycle || selectedContractor.closing_day || selectedContractor.payment_offset_months !== null || selectedContractor.payment_day) {
             $('#contractorPaymentInfo').show();
         } else {
             $('#contractorPaymentInfo').hide();

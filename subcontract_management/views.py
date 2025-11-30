@@ -95,20 +95,20 @@ def project_subcontract_list(request, project_id):
 @login_required
 def subcontract_create(request, project_id):
     """発注新規作成"""
+    import json
     project = get_object_or_404(Project, pk=project_id)
 
     # ステップパラメータを取得
     step = request.GET.get('step') or request.POST.get('step')
 
     if request.method == 'POST':
-        form = SubcontractForm(request.POST)
+        form = SubcontractForm(request.POST, request.FILES)
         if form.is_valid():
             # メインのステップに保存
             subcontract = form.save(commit=False)
             subcontract.project = project
 
             # 金額設定方法を取得
-            import json
             cost_allocation_method = request.POST.get('cost_allocation_method', 'lump_sum')
             step_amounts_json = request.POST.get('step_amounts', '{}')
 
@@ -121,6 +121,20 @@ def subcontract_create(request, project_id):
             # 工程ごとの金額設定の場合、メイン工程の金額を個別金額に上書き
             if cost_allocation_method == 'per_step' and step in step_amounts:
                 subcontract.contract_amount = int(step_amounts[step])
+
+            # 動的部材費データを保存
+            dynamic_materials_data = request.POST.get('dynamic_materials_data', '[]')
+            try:
+                subcontract.dynamic_material_costs = json.loads(dynamic_materials_data)
+            except json.JSONDecodeError:
+                subcontract.dynamic_material_costs = []
+
+            # 追加費用データを保存
+            additional_costs_data = request.POST.get('additional_costs_data', '[]')
+            try:
+                subcontract.dynamic_cost_items = json.loads(additional_costs_data)
+            except json.JSONDecodeError:
+                subcontract.dynamic_cost_items = []
 
             subcontract.save()
 
@@ -246,11 +260,30 @@ def subcontract_create(request, project_id):
             initial['step'] = step
         form = SubcontractForm(initial=initial)
 
+    # 業者の支払いサイクル情報を取得
+    contractors_data = {}
+    for contractor in Contractor.objects.filter(is_active=True):
+        contractors_data[contractor.id] = {
+            'name': contractor.name,
+            'closing_day': contractor.closing_day,
+            'payment_offset_months': contractor.payment_offset_months,
+            'payment_day': contractor.payment_day,
+        }
+
+    # 新規作成時は空の動的データを渡す
+    existing_dynamic_materials = json.dumps([])
+    existing_additional_costs = json.dumps([])
+
     context = {
         'form': form,
         'project': project,
+        'subcontract': None,  # 新規作成時はNone
         'title': '外注先追加',
         'step': step,  # テンプレートで使用するためにステップを渡す
+        'contractors_data_json': json.dumps(contractors_data),
+        'existing_dynamic_materials': existing_dynamic_materials,
+        'existing_additional_costs': existing_additional_costs,
+        'today': timezone.now().date(),
     }
 
     return render(request, 'subcontract_management/subcontract_form.html', context)
@@ -262,21 +295,42 @@ def subcontract_update(request, pk):
     subcontract = get_object_or_404(Subcontract, pk=pk)
 
     if request.method == 'POST':
-        form = SubcontractForm(request.POST, instance=subcontract)
+        form = SubcontractForm(request.POST, request.FILES, instance=subcontract)
         if form.is_valid():
             try:
-                subcontract = form.save()
+                subcontract = form.save(commit=False)
+
+                # 動的部材費データを保存
+                dynamic_materials_data = request.POST.get('dynamic_materials_data', '[]')
+                try:
+                    subcontract.dynamic_material_costs = json.loads(dynamic_materials_data)
+                except json.JSONDecodeError:
+                    subcontract.dynamic_material_costs = []
+
+                # 追加費用データを保存
+                additional_costs_data = request.POST.get('additional_costs_data', '[]')
+                try:
+                    subcontract.dynamic_cost_items = json.loads(additional_costs_data)
+                except json.JSONDecodeError:
+                    subcontract.dynamic_cost_items = []
+
+                subcontract.save()
                 messages.success(request, f'外注先「{subcontract.contractor.name}」を更新しました。')
 
-                # リファラーがあればそこに戻る、なければ案件詳細ページに戻る
+                # nextパラメータがあればそこに戻る
+                next_url = request.POST.get('next') or request.GET.get('next')
+                if next_url:
+                    from django.http import HttpResponseRedirect
+                    return HttpResponseRedirect(next_url)
+
+                # リファラーがあればそこに戻る
                 referer = request.META.get('HTTP_REFERER')
                 if referer and 'subcontract' not in referer:
-                    # 編集ページ自体以外のリファラーがあればそこに戻る
                     from django.http import HttpResponseRedirect
                     return HttpResponseRedirect(referer)
-                else:
-                    # デフォルトは案件詳細ページ
-                    return redirect('order_management:project_detail', pk=subcontract.project.pk)
+
+                # デフォルトは案件詳細ページ
+                return redirect('order_management:project_detail', pk=subcontract.project.pk)
             except Exception as e:
                 import logging
                 logger = logging.getLogger(__name__)
@@ -296,11 +350,29 @@ def subcontract_update(request, pk):
     else:
         form = SubcontractForm(instance=subcontract)
 
+    # 業者の支払いサイクル情報を取得
+    contractors_data = {}
+    for contractor in Contractor.objects.filter(is_active=True):
+        contractors_data[contractor.id] = {
+            'name': contractor.name,
+            'closing_day': contractor.closing_day,
+            'payment_offset_months': contractor.payment_offset_months,
+            'payment_day': contractor.payment_day,
+        }
+
+    # 既存の動的データを取得
+    existing_dynamic_materials = json.dumps(subcontract.dynamic_material_costs or [])
+    existing_additional_costs = json.dumps(subcontract.dynamic_cost_items or [])
+
     context = {
         'form': form,
         'subcontract': subcontract,
         'project': subcontract.project,
-        'title': '外注先編集'
+        'title': '外注先編集',
+        'contractors_data_json': json.dumps(contractors_data),
+        'existing_dynamic_materials': existing_dynamic_materials,
+        'existing_additional_costs': existing_additional_costs,
+        'today': timezone.now().date(),
     }
 
     return render(request, 'subcontract_management/subcontract_form.html', context)

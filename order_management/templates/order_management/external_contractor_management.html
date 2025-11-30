@@ -122,6 +122,15 @@
         padding: 0.25rem 0.75rem;
         margin: 0 0.25rem;
     }
+
+    .table tbody tr {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .table tbody tr:hover {
+        background-color: #f3f4f6;
+    }
 </style>
 {% endblock %}
 
@@ -200,13 +209,15 @@
                             <th>専門分野</th>
                             <th>担当者</th>
                             <th>連絡先</th>
+                            <th>支払サイクル</th>
+                            <th>締日・支払月・支払日</th>
                             <th>ステータス</th>
                             <th>アクション</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for contractor in contractors %}
-                        <tr>
+                        <tr data-contractor-id="{{ contractor.pk }}" data-detail-url="{% url 'order_management:contractor_projects' contractor.pk %}">
                             <td>
                                 <strong>{{ contractor.name }}</strong>
                             </td>
@@ -233,16 +244,36 @@
                                 {% endif %}
                             </td>
                             <td>
+                                {% if contractor.payment_cycle %}
+                                    <span class="badge bg-secondary">{{ contractor.get_payment_cycle_display }}</span>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>
+                                    {% if contractor.closing_day %}
+                                        <div><i class="fas fa-calendar-check me-1"></i>締日: {{ contractor.closing_day }}日</div>
+                                    {% endif %}
+                                    {% if contractor.payment_offset_months is not None %}
+                                        <div><i class="fas fa-calendar-alt me-1"></i>支払月: {{ contractor.get_payment_offset_months_display }}</div>
+                                    {% endif %}
+                                    {% if contractor.payment_day %}
+                                        <div><i class="fas fa-money-bill-wave me-1"></i>支払日: {{ contractor.payment_day }}日</div>
+                                    {% endif %}
+                                    {% if not contractor.closing_day and contractor.payment_offset_months is None and not contractor.payment_day %}
+                                        —
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td>
                                 {% if contractor.is_active %}
                                     <span class="badge-active">アクティブ</span>
                                 {% else %}
                                     <span class="badge-inactive">無効</span>
                                 {% endif %}
                             </td>
-                            <td class="action-buttons">
-                                <a href="{% url 'order_management:contractor_projects' contractor.pk %}" class="btn btn-sm btn-info text-white">
-                                    <i class="fas fa-eye"></i> 詳細
-                                </a>
+                            <td class="action-buttons" onclick="event.stopPropagation();">
                                 <a href="{% url 'order_management:contractor_edit' contractor.pk %}" class="btn btn-sm btn-warning text-white">
                                     <i class="fas fa-edit"></i> 編集
                                 </a>
@@ -250,7 +281,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="7" class="text-center py-5 text-muted">
+                            <td colspan="9" class="text-center py-5 text-muted">
                                 <i class="fas fa-inbox fa-3x mb-3"></i>
                                 <p class="mb-0">下請け業者が登録されていません</p>
                             </td>
@@ -262,4 +293,13 @@
         </div>
     </div>
 </div>
+
+<script>
+// 行クリックで詳細ページに遷移
+document.querySelectorAll('tbody tr[data-detail-url]').forEach(function(row) {
+    row.addEventListener('click', function() {
+        window.location.href = this.dataset.detailUrl;
+    });
+});
+</script>
 {% endblock %}

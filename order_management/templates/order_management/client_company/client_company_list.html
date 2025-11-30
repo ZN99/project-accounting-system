@@ -122,6 +122,15 @@
         padding: 0.25rem 0.75rem;
         margin: 0 0.25rem;
     }
+
+    .table tbody tr {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .table tbody tr:hover {
+        background-color: #f3f4f6;
+    }
 </style>
 {% endblock %}
 
@@ -195,6 +204,7 @@
                             <th>主担当者</th>
                             <th>連絡先</th>
                             <th>支払サイクル</th>
+                            <th>締日・支払月・支払日</th>
                             <th>関連案件数</th>
                             <th>ステータス</th>
                             <th>アクション</th>
@@ -202,7 +212,7 @@
                     </thead>
                     <tbody>
                         {% for company in client_companies %}
-                        <tr>
+                        <tr data-company-id="{{ company.pk }}" data-detail-url="{% url 'order_management:client_company_detail' company.pk %}">
                             <td>
                                 <strong>{{ company.company_name }}</strong>
                             </td>
@@ -237,18 +247,26 @@
                             </td>
                             <td>
                                 {% if company.payment_cycle %}
-                                    {{ company.get_payment_cycle_display }}
-                                    {% if company.closing_day or company.payment_offset_months or company.payment_day %}
-                                        <br>
-                                        <small class="text-muted">
-                                            {% if company.closing_day %}締{{ company.closing_day }}日{% endif %}
-                                            {% if company.payment_offset_months is not None %}{{ company.get_payment_offset_months_display }}{% endif %}
-                                            {% if company.payment_day %}払{{ company.payment_day }}日{% endif %}
-                                        </small>
-                                    {% endif %}
+                                    <span class="badge bg-secondary">{{ company.get_payment_cycle_display }}</span>
                                 {% else %}
                                     —
                                 {% endif %}
+                            </td>
+                            <td>
+                                <small>
+                                    {% if company.closing_day %}
+                                        <div><i class="fas fa-calendar-check me-1"></i>締日: {{ company.closing_day }}日</div>
+                                    {% endif %}
+                                    {% if company.payment_offset_months is not None %}
+                                        <div><i class="fas fa-calendar-alt me-1"></i>支払月: {{ company.get_payment_offset_months_display }}</div>
+                                    {% endif %}
+                                    {% if company.payment_day %}
+                                        <div><i class="fas fa-money-bill-wave me-1"></i>支払日: {{ company.payment_day }}日</div>
+                                    {% endif %}
+                                    {% if not company.closing_day and company.payment_offset_months is None and not company.payment_day %}
+                                        —
+                                    {% endif %}
+                                </small>
                             </td>
                             <td>
                                 <span class="badge bg-info">{{ company.project_count }}</span>
@@ -260,10 +278,7 @@
                                     <span class="badge-inactive">無効</span>
                                 {% endif %}
                             </td>
-                            <td class="action-buttons">
-                                <a href="{% url 'order_management:client_company_detail' company.pk %}" class="btn btn-sm btn-info text-white">
-                                    <i class="fas fa-eye"></i> 詳細
-                                </a>
+                            <td class="action-buttons" onclick="event.stopPropagation();">
                                 <a href="{% url 'order_management:client_company_update' company.pk %}" class="btn btn-sm btn-warning text-white">
                                     <i class="fas fa-edit"></i> 編集
                                 </a>
@@ -271,7 +286,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="8" class="text-center py-5 text-muted">
+                            <td colspan="9" class="text-center py-5 text-muted">
                                 <i class="fas fa-inbox fa-3x mb-3"></i>
                                 <p class="mb-0">元請会社が登録されていません</p>
                             </td>
@@ -313,4 +328,13 @@
 
     </div>
 </div>
+
+<script>
+// 行クリックで詳細ページに遷移
+document.querySelectorAll('tbody tr[data-detail-url]').forEach(function(row) {
+    row.addEventListener('click', function() {
+        window.location.href = this.dataset.detailUrl;
+    });
+});
+</script>
 {% endblock %}

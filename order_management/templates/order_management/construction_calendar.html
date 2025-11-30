@@ -689,6 +689,48 @@ document.addEventListener('DOMContentLoaded', function() {
                         // 表示されているイベントがない場合、日付ヘッダーを非表示
                         if (!hasVisibleEvent) {
                             dayHeader.style.display = 'none';
+                        } else {
+                            // この日付に開始される工期イベントを探す
+                            const dateTextElement = dayHeader.querySelector('.fc-list-day-text');
+                            if (dateTextElement && !dateTextElement.dataset.periodAdded) {
+                                // aria-labelから日付を取得
+                                const ariaLabel = dateTextElement.getAttribute('aria-label');
+                                if (ariaLabel) {
+                                    // "2025年11月23日"の形式から日付を抽出
+                                    const dateMatch = ariaLabel.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+                                    if (dateMatch) {
+                                        const headerDate = new Date(dateMatch[1], dateMatch[2] - 1, dateMatch[3]);
+                                        const headerDateStr = headerDate.toISOString().split('T')[0];
+
+                                        // この日付に開始される工期イベントを探す
+                                        const workPeriodEvents = events.filter(event => {
+                                            if (event.extendedProps && event.extendedProps.milestone_type === 'work_period') {
+                                                const eventStartStr = new Date(event.start).toISOString().split('T')[0];
+                                                return eventStartStr === headerDateStr;
+                                            }
+                                            return false;
+                                        });
+
+                                        // 工期イベントが見つかった場合、期間を追加
+                                        if (workPeriodEvents.length > 0) {
+                                            const event = workPeriodEvents[0]; // 最初のイベントを使用
+                                            const startDate = new Date(event.start);
+                                            const endDate = new Date(event.end);
+                                            endDate.setDate(endDate.getDate() - 1); // FullCalendarの終了日は翌日なので-1
+
+                                            const formatDate = (date) => {
+                                                return `${date.getMonth() + 1}/${date.getDate()}`;
+                                            };
+
+                                            const periodText = ` (${formatDate(startDate)}〜${formatDate(endDate)})`;
+
+                                            // 日付テキストに期間を追加
+                                            dateTextElement.innerHTML = dateTextElement.innerHTML + `<span style="color: #6c757d; font-size: 0.9em; margin-left: 0.5rem;">${periodText}</span>`;
+                                            dateTextElement.dataset.periodAdded = 'true';
+                                        }
+                                    }
+                                }
+                            }
                         }
                     });
                 }, 50);

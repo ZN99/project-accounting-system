@@ -1,0 +1,185 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+
+{% block title %}会社設定{% endblock %}
+
+{% block extra_css %}
+<style>
+    .settings-container {
+        max-width: 900px;
+        margin: 2rem auto;
+    }
+
+    .settings-card {
+        background: white;
+        border-radius: 10px;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+
+    .settings-card h4 {
+        color: #374151;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid #e5e7eb;
+        padding-bottom: 0.75rem;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #4b5563;
+    }
+
+    .form-control, .form-textarea {
+        border-radius: 6px;
+        border: 1px solid #d1d5db;
+    }
+
+    .form-control:focus, .form-textarea:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .btn-save {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+    }
+
+    .btn-save:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <div class="mb-4">
+        <h2><i class="fas fa-building me-2"></i>会社設定</h2>
+        <p class="text-muted">PDFに表示される会社情報と備考欄のテンプレートを設定できます</p>
+    </div>
+
+    <form id="settingsForm">
+        <!-- 自社情報 -->
+        <div class="settings-card">
+            <h4><i class="fas fa-info-circle me-2"></i>自社情報</h4>
+
+            <div class="mb-3">
+                <label for="company_name" class="form-label">会社名</label>
+                <input type="text" class="form-control" id="company_name" name="company_name"
+                       value="{{ settings.company_name }}">
+            </div>
+
+            <div class="mb-3">
+                <label for="company_address" class="form-label">住所</label>
+                <textarea class="form-control" id="company_address" name="company_address"
+                          rows="2">{{ settings.company_address }}</textarea>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="company_phone" class="form-label">電話番号</label>
+                    <input type="text" class="form-control" id="company_phone" name="company_phone"
+                           value="{{ settings.company_phone }}">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="company_fax" class="form-label">FAX</label>
+                    <input type="text" class="form-control" id="company_fax" name="company_fax"
+                           value="{{ settings.company_fax }}">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="company_email" class="form-label">メールアドレス</label>
+                    <input type="email" class="form-control" id="company_email" name="company_email"
+                           value="{{ settings.company_email }}">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="company_representative" class="form-label">代表者名</label>
+                    <input type="text" class="form-control" id="company_representative" name="company_representative"
+                           value="{{ settings.company_representative }}">
+                </div>
+            </div>
+        </div>
+
+        <!-- PDF設定 -->
+        <div class="settings-card">
+            <h4><i class="fas fa-file-pdf me-2"></i>PDF設定</h4>
+
+            <div class="mb-3">
+                <label for="purchase_order_remarks" class="form-label">発注書 備考欄</label>
+                <textarea class="form-control" id="purchase_order_remarks" name="purchase_order_remarks"
+                          rows="4" placeholder="発注書の備考欄に表示されるテキスト">{{ settings.purchase_order_remarks }}</textarea>
+                <small class="form-text text-muted">改行は自動的に反映されます</small>
+            </div>
+
+            <div class="mb-3">
+                <label for="invoice_remarks" class="form-label">請求書 備考欄</label>
+                <textarea class="form-control" id="invoice_remarks" name="invoice_remarks"
+                          rows="4" placeholder="請求書の備考欄に表示されるテキスト">{{ settings.invoice_remarks }}</textarea>
+                <small class="form-text text-muted">改行は自動的に反映されます</small>
+            </div>
+        </div>
+
+        <!-- 保存ボタン -->
+        <div class="text-end">
+            <button type="submit" class="btn btn-primary btn-save">
+                <i class="fas fa-save me-2"></i>設定を保存
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.getElementById('settingsForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = {
+        company_name: document.getElementById('company_name').value,
+        company_address: document.getElementById('company_address').value,
+        company_phone: document.getElementById('company_phone').value,
+        company_fax: document.getElementById('company_fax').value,
+        company_email: document.getElementById('company_email').value,
+        company_representative: document.getElementById('company_representative').value,
+        purchase_order_remarks: document.getElementById('purchase_order_remarks').value,
+        invoice_remarks: document.getElementById('invoice_remarks').value,
+    };
+
+    try {
+        const response = await fetch('/orders/api/company-settings/update/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            if (typeof toastr !== 'undefined') {
+                toastr.success(result.message);
+            } else {
+                alert(result.message);
+            }
+        } else {
+            if (typeof toastr !== 'undefined') {
+                toastr.error(result.error || '保存に失敗しました');
+            } else {
+                alert(result.error || '保存に失敗しました');
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        if (typeof toastr !== 'undefined') {
+            toastr.error('保存中にエラーが発生しました');
+        } else {
+            alert('保存中にエラーが発生しました');
+        }
+    }
+});
+</script>
+{% endblock %}

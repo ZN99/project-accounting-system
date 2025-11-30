@@ -164,7 +164,7 @@
                         </h6>
 
                         <div class="row">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="mb-3">
                                     <label for="{{ form.payment_cycle.id_for_label }}" class="form-label">支払サイクル</label>
                                     {{ form.payment_cycle }}
@@ -178,7 +178,7 @@
                                     <small class="form-text text-muted">月払い、隔月払いなど</small>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="mb-3">
                                     <label for="{{ form.closing_day.id_for_label }}" class="form-label">締日</label>
                                     {{ form.closing_day }}
@@ -192,7 +192,21 @@
                                     <small class="form-text text-muted">毎月の締日（1-31）</small>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="{{ form.payment_offset_months.id_for_label }}" class="form-label">支払月</label>
+                                    {{ form.payment_offset_months }}
+                                    {% if form.payment_offset_months.errors %}
+                                        <div class="text-danger mt-1">
+                                            {% for error in form.payment_offset_months.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">当月、翌月、翌々月など</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
                                 <div class="mb-3">
                                     <label for="{{ form.payment_day.id_for_label }}" class="form-label">支払日</label>
                                     {{ form.payment_day }}

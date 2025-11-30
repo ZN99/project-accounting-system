@@ -1,0 +1,1276 @@
+"""
+今月の出金/入金管理ビュー
+
+シンプルで実用的な2タブUI（出金/入金）を提供
+SubcontractとProjectモデルから直接計算
+"""
+
+from django.views.generic import TemplateView
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import JsonResponse
+from django.utils import timezone
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+from datetime import datetime
+from decimal import Decimal
+import json
+
+from order_management.services.cashflow_service import (
+    get_month_range,
+    get_outgoing_paid_sites,
+    get_outgoing_paid_by_contractor,
+    get_outgoing_scheduled_sites,
+    get_outgoing_scheduled_by_contractor,
+    get_outgoing_unfilled,
+    get_incoming_received_projects,
+    get_incoming_received_by_client,
+    get_incoming_scheduled_projects,
+    get_incoming_scheduled_by_client,
+)
+from subcontract_management.models import Subcontract
+
+
+class PaymentManagementView(LoginRequiredMixin, TemplateView):
+    """今月の出金/入金管理メインビュー"""
+    template_name = 'order_management/payment_management.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # 現在の年月を取得
+        now = timezone.now()
+        # カンマを削除してからintに変換（ブラウザキャッシュ対策）
+        year_str = str(self.request.GET.get('year', now.year)).replace(',', '')
+        month_str = str(self.request.GET.get('month', now.month)).replace(',', '')
+        year = int(year_str)
+        month = int(month_str)
+
+        # 月の範囲を取得
+        start_date, end_date = get_month_range(year, month)
+
+        # 前月・翌月の計算
+        if month == 1:
+            prev_year, prev_month = year - 1, 12
+        else:
+            prev_year, prev_month = year, month - 1
+
+        if month == 12:
+            next_year, next_month = year + 1, 1
+        else:
+            next_year, next_month = year, month + 1
+
+        # 出金データの集計
+        outgoing_paid = get_outgoing_paid_sites(year, month)
+        outgoing_scheduled = get_outgoing_scheduled_sites(year, month)
+        outgoing_unfilled = get_outgoing_unfilled(year, month)
+
+        outgoing_paid_total = sum(site['billed_amount'] for site in outgoing_paid)
+        outgoing_scheduled_total = sum(site['billed_amount'] for site in outgoing_scheduled)
+
+        # 入金データの集計
+        incoming_received = get_incoming_received_projects(year, month)
+
+        incoming_received_total = sum(proj['billing_amount'] for proj in incoming_received)
+
+        # コンテキストに追加
+        context.update({
+            'year': year,
+            'month': month,
+            'prev_year': prev_year,
+            'prev_month': prev_month,
+            'next_year': next_year,
+            'next_month': next_month,
+            'start_date': start_date,
+            'end_date': end_date,
+            'current_year': now.year,
+            'current_month': now.month,
+
+            # 出金サマリー
+            'outgoing_paid_count': len(outgoing_paid),
+            'outgoing_paid_total': outgoing_paid_total,
+            'outgoing_scheduled_count': len(outgoing_scheduled),
+            'outgoing_scheduled_total': outgoing_scheduled_total,
+            'outgoing_unfilled_count': len(outgoing_unfilled),
+
+            # 入金サマリー
+            'incoming_received_count': len(incoming_received),
+            'incoming_received_total': incoming_received_total,
+
+            # 月次収支
+            'monthly_balance': incoming_received_total - outgoing_paid_total,
+        })
+
+        return context
+
+
+# ====================
+# API Endpoints
+# ====================
+
+def get_outgoing_paid_api(request):
+    """今月の出金済み現場一覧API"""
+    year = int(str(request.GET.get('year', timezone.now().year)).replace(',', ''))
+    month = int(str(request.GET.get('month', timezone.now().month)).replace(',', ''))
+
+    sites = get_outgoing_paid_sites(year, month)
+
+    # JSON用にシリアライズ
+    data = []
+    for site in sites:
+        # ステータスを日本語に変換
+        subcontract = site['subcontract']
+        status_display = subcontract.get_payment_status_display()
+
+        # 工期情報
+        project = subcontract.project
+        work_start_date = project.work_start_date.isoformat() if project and project.work_start_date else None
+        work_end_date = project.work_end_date.isoformat() if project and project.work_end_date else None
+
+        # 支払いサイクル情報
+        contractor = subcontract.contractor
+        closing_day = contractor.closing_day if contractor else None
+        payment_offset_months = contractor.payment_offset_months if contractor else None
+        payment_day = contractor.payment_day if contractor else None
+
+        data.append({
+            'id': site['subcontract'].id,
+            'site_name': site['site_name'],
+            'contractor_name': site['contractor_name'],
+            'billed_amount': float(site['billed_amount']),
+            'payment_date': site['payment_date'].isoformat() if site['payment_date'] else None,
+            'payment_status': status_display,
+            'work_start_date': work_start_date,
+            'work_end_date': work_end_date,
+            'closing_day': closing_day,
+            'payment_offset_months': payment_offset_months,
+            'payment_day': payment_day,
+        })
+
+    total_amount = sum(site['billed_amount'] for site in sites)
+
+    return JsonResponse({
+        'success': True,
+        'data': data,
+        'summary': {
+            'count': len(data),
+            'total_amount': float(total_amount),
+        }
+    })
+
+
+def get_outgoing_paid_by_contractor_api(request):
+    """今月の出金済み業者別集計API（支払日別詳細を含む）"""
+    year = int(str(request.GET.get('year', timezone.now().year)).replace(',', ''))
+    month = int(str(request.GET.get('month', timezone.now().month)).replace(',', ''))
+
+    contractors = get_outgoing_paid_by_contractor(year, month)
+
+    # JSON用にシリアライズ
+    data = []
+    for contractor in contractors:
+        # 支払日別のサイト情報をシリアライズ
+        sites_by_date_json = {}
+        for date_str, sites_list in contractor['sites_by_date'].items():
+            sites_by_date_json[date_str] = [
+                {
+                    'id': site['subcontract'].id,
+                    'site_name': site['site_name'],
+                    'billed_amount': float(site['billed_amount']),
+                    'payment_date': site['payment_date'].isoformat() if site['payment_date'] else None,
+                    'payment_status': site['payment_status']
+                }
+                for site in sites_list
+            ]
+
+        data.append({
+            'contractor_id': contractor['contractor_id'],
+            'contractor_name': contractor['contractor_name'],
+            'total_amount': float(contractor['total_amount']),
+            'count': contractor['count'],
+            'sites': contractor['sites'],
+            'payment_dates': contractor['payment_dates'],
+            'sites_by_date': sites_by_date_json
+        })
+
+    total_amount = sum(c['total_amount'] for c in contractors)
+
+    return JsonResponse({
+        'success': True,
+        'data': data,
+        'summary': {
+            'contractor_count': len(data),
+            'total_amount': float(total_amount),
+        }
+    })
+
+
+def get_outgoing_scheduled_api(request):
+    """今月の出金予定現場一覧API"""
+    year = int(str(request.GET.get('year', timezone.now().year)).replace(',', ''))
+    month = int(str(request.GET.get('month', timezone.now().month)).replace(',', ''))
+
+    sites = get_outgoing_scheduled_sites(year, month)
+
+    # JSON用にシリアライズ
+    data = []
+    for site in sites:
+        # ステータスを日本語に変換
+        subcontract = site['subcontract']
+        status_display = subcontract.get_payment_status_display()
+
+        # 工期情報
+        project = subcontract.project
+        work_start_date = project.work_start_date.isoformat() if project and project.work_start_date else None
+        work_end_date = project.work_end_date.isoformat() if project and project.work_end_date else None
+
+        # 支払いサイクル情報
+        contractor = subcontract.contractor
+        closing_day = contractor.closing_day if contractor else None
+        payment_offset_months = contractor.payment_offset_months if contractor else None
+        payment_day = contractor.payment_day if contractor else None
+
+        data.append({
+            'id': site['subcontract'].id,
+            'site_name': site['site_name'],
+            'contractor_name': site['contractor_name'],
+            'billed_amount': float(site['billed_amount']),
+            'payment_due_date': site['payment_due_date'].isoformat() if site['payment_due_date'] else None,
+            'payment_status': status_display,
+            'work_start_date': work_start_date,
+            'work_end_date': work_end_date,
+            'closing_day': closing_day,
+            'payment_offset_months': payment_offset_months,
+            'payment_day': payment_day,
+        })
+
+    total_amount = sum(site['billed_amount'] for site in sites)
+
+    return JsonResponse({
+        'success': True,
+        'data': data,
+        'summary': {
+            'count': len(data),
+            'total_amount': float(total_amount),
+        }
+    })
+
+
+def get_outgoing_scheduled_by_contractor_api(request):
+    """今月の出金予定業者別集計API（支払予定日別詳細を含む）"""
+    year = int(str(request.GET.get('year', timezone.now().year)).replace(',', ''))
+    month = int(str(request.GET.get('month', timezone.now().month)).replace(',', ''))
+
+    contractors = get_outgoing_scheduled_by_contractor(year, month)
+
+    # JSON用にシリアライズ
+    data = []
+    for contractor in contractors:
+        # 支払予定日別のサイト情報をシリアライズ
+        sites_by_date_json = {}
+        for date_str, sites_list in contractor['sites_by_date'].items():
+            sites_by_date_json[date_str] = [
+                {
+                    'id': site['subcontract'].id,
+                    'site_name': site['site_name'],
+                    'billed_amount': float(site['billed_amount']),
+                    'payment_due_date': site['payment_due_date'].isoformat() if site['payment_due_date'] else None,
+                    'payment_status': site['payment_status']
+                }
+                for site in sites_list
+            ]
+
+        data.append({
+            'contractor_id': contractor['contractor_id'],
+            'contractor_name': contractor['contractor_name'],
+            'total_amount': float(contractor['total_amount']),
+            'count': contractor['count'],
+            'sites': contractor['sites'],
+            'payment_due_dates': contractor['payment_due_dates'],
+            'sites_by_date': sites_by_date_json
+        })
+
+    total_amount = sum(c['total_amount'] for c in contractors)
+
+    return JsonResponse({
+        'success': True,
+        'data': data,
+        'summary': {
+            'contractor_count': len(data),
+            'total_amount': float(total_amount),
+        }
+    })
+
+
+def get_outgoing_unfilled_api(request):
+    """今月分で出金情報が未入力の現場一覧API"""
+    year = int(str(request.GET.get('year', timezone.now().year)).replace(',', ''))
+    month = int(str(request.GET.get('month', timezone.now().month)).replace(',', ''))
+
+    sites = get_outgoing_unfilled(year, month)
+
+    # JSON用にシリアライズ
+    data = []
+    for site in sites:
+        subcontract = site['subcontract']
+
+        # 工期情報
+        project = subcontract.project
+        work_start_date = project.work_start_date.isoformat() if project and project.work_start_date else None
+        work_end_date = project.work_end_date.isoformat() if project and project.work_end_date else None
+
+        # 支払いサイクル情報
+        contractor = subcontract.contractor
+        closing_day = contractor.closing_day if contractor else None
+        payment_offset_months = contractor.payment_offset_months if contractor else None
+        payment_day = contractor.payment_day if contractor else None
+
+        data.append({
+            'id': site['subcontract'].id,
+            'site_name': site['site_name'],
+            'contractor_name': site['contractor_name'],
+            'contract_amount': float(site['contract_amount']),
+            'missing_fields': site['missing_fields'],
+            'work_start_date': work_start_date,
+            'work_end_date': work_end_date,
+            'closing_day': closing_day,
+            'payment_offset_months': payment_offset_months,
+            'payment_day': payment_day,
+        })
+
+    return JsonResponse({
+        'success': True,
+        'data': data,
+        'summary': {
+            'count': len(data),
+        }
+    })
+
+
+def get_incoming_received_api(request):
+    """今月の入金済みプロジェクト一覧API"""
+    year = int(str(request.GET.get('year', timezone.now().year)).replace(',', ''))
+    month = int(str(request.GET.get('month', timezone.now().month)).replace(',', ''))
+
+    projects = get_incoming_received_projects(year, month)
+
+    # JSON用にシリアライズ
+    data = []
+    for proj in projects:
+        # ステータスを日本語に変換
+        project = proj['project']
+        status_display = project.get_incoming_payment_status_display()
+
+        # 工期情報
+        work_start_date = project.work_start_date.isoformat() if project.work_start_date else None
+        work_end_date = project.work_end_date.isoformat() if project.work_end_date else None
+
+        # 支払いサイクル情報
+        client_company = project.client_company
+        closing_day = client_company.closing_day if client_company else None
+        payment_offset_months = client_company.payment_offset_months if client_company else None
+        payment_day = client_company.payment_day if client_company else None
+
+        data.append({
+            'id': proj['project'].id,
+            'site_name': proj['site_name'],
+            'client_company_name': proj['client_company_name'],
+            'billing_amount': float(proj['billing_amount']),
+            'payment_due_date': proj['payment_due_date'].isoformat() if proj['payment_due_date'] else None,
+            'payment_status': status_display,
+            'work_start_date': work_start_date,
+            'work_end_date': work_end_date,
+            'closing_day': closing_day,
+            'payment_offset_months': payment_offset_months,
+            'payment_day': payment_day,
+        })
+
+    total_amount = sum(proj['billing_amount'] for proj in projects)
+
+    return JsonResponse({
+        'success': True,
+        'data': data,
+        'summary': {
+            'count': len(data),
+            'total_amount': float(total_amount),
+        }
+    })
+
+
+def get_incoming_received_by_client_api(request):
+    """今月の入金済み元請業者別集計API（入金日別詳細を含む）"""
+    year = int(str(request.GET.get('year', timezone.now().year)).replace(',', ''))
+    month = int(str(request.GET.get('month', timezone.now().month)).replace(',', ''))
+
+    clients = get_incoming_received_by_client(year, month)
+
+    # JSON用にシリアライズ
+    data = []
+    for client in clients:
+        # 入金日別のプロジェクト情報をシリアライズ
+        projects_by_date_json = {}
+        for date_str, projects_list in client['projects_by_date'].items():
+            projects_by_date_json[date_str] = [
+                {
+                    'id': proj['project'].id,
+                    'site_name': proj['site_name'],
+                    'billing_amount': float(proj['billing_amount']),
+                    'payment_due_date': proj['payment_due_date'].isoformat() if proj['payment_due_date'] else None,
+                    'payment_status': proj['payment_status']
+                }
+                for proj in projects_list
+            ]
+
+        data.append({
+            'client_id': client['client_id'],
+            'client_company_name': client['client_company_name'],
+            'total_amount': float(client['total_amount']),
+            'count': client['count'],
+            'projects': client['projects'],
+            'payment_dates': client['payment_dates'],
+            'projects_by_date': projects_by_date_json
+        })
+
+    total_amount = sum(c['total_amount'] for c in clients)
+
+    return JsonResponse({
+        'success': True,
+        'data': data,
+        'summary': {
+            'client_count': len(data),
+            'total_amount': float(total_amount),
+        }
+    })
+
+
+def get_incoming_scheduled_by_client_api(request):
+    """今月の入金予定元請業者別集計API（入金予定日別詳細を含む）"""
+    year = int(str(request.GET.get('year', timezone.now().year)).replace(',', ''))
+    month = int(str(request.GET.get('month', timezone.now().month)).replace(',', ''))
+
+    clients = get_incoming_scheduled_by_client(year, month)
+
+    # JSON用にシリアライズ
+    data = []
+    for client in clients:
+        # 入金予定日別のプロジェクト情報をシリアライズ
+        projects_by_date_json = {}
+        for date_str, projects_list in client['projects_by_date'].items():
+            projects_by_date_json[date_str] = [
+                {
+                    'id': proj['project'].id,
+                    'site_name': proj['site_name'],
+                    'billing_amount': float(proj['billing_amount']),
+                    'payment_due_date': proj['payment_due_date'].isoformat() if proj['payment_due_date'] else None,
+                    'payment_status': proj['payment_status']
+                }
+                for proj in projects_list
+            ]
+
+        data.append({
+            'client_id': client['client_id'],
+            'client_company_name': client['client_company_name'],
+            'total_amount': float(client['total_amount']),
+            'count': client['count'],
+            'projects': client['projects'],
+            'payment_due_dates': client['payment_due_dates'],
+            'projects_by_date': projects_by_date_json
+        })
+
+    total_amount = sum(c['total_amount'] for c in clients)
+
+    return JsonResponse({
+        'success': True,
+        'data': data,
+        'summary': {
+            'client_count': len(data),
+            'total_amount': float(total_amount),
+        }
+    })
+
+
+@require_http_methods(["POST"])
+@csrf_exempt
+def bulk_update_payment_status_api(request):
+    """複数案件の支払いステータスを一括更新するAPI"""
+    try:
+        # JSONデータを解析
+        data = json.loads(request.body)
+        subcontract_ids = data.get('subcontract_ids', [])
+        new_status = data.get('status')
+        payment_date_str = data.get('payment_date')
+
+        # バリデーション
+        if not subcontract_ids:
+            return JsonResponse({
+                'success': False,
+                'error': '更新する案件を選択してください'
+            }, status=400)
+
+        if not new_status:
+            return JsonResponse({
+                'success': False,
+                'error': 'ステータスを選択してください'
+            }, status=400)
+
+        # ステータスの妥当性チェック
+        valid_statuses = ['pending', 'processing', 'paid']
+        if new_status not in valid_statuses:
+            return JsonResponse({
+                'success': False,
+                'error': f'無効なステータスです: {new_status}'
+            }, status=400)
+
+        # 一括更新
+        subcontracts = Subcontract.objects.filter(id__in=subcontract_ids)
+
+        if new_status == 'paid':
+            # 「支払済」に変更する場合、payment_dateを設定
+            if payment_date_str:
+                # リクエストから日付が提供された場合、それを使用
+                from datetime import datetime as dt
+                payment_date = dt.strptime(payment_date_str, '%Y-%m-%d').date()
+            else:
+                # 日付が提供されていない場合、今日の日付を使用
+                from datetime import date
+                payment_date = date.today()
+
+            updated_count = subcontracts.update(
+                payment_status=new_status,
+                payment_date=payment_date
+            )
+        else:
+            # その他のステータスの場合は、ステータスのみ更新
+            updated_count = subcontracts.update(payment_status=new_status)
+
+        return JsonResponse({
+            'success': True,
+            'message': f'{updated_count}件の案件を更新しました',
+            'updated_count': updated_count
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': '無効なJSONデータです'
+        }, status=400)
+    except ValueError as e:
+        return JsonResponse({
+            'success': False,
+            'error': '無効な日付形式です'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+# ====================
+# PDF Generation Views
+# ====================
+
+def generate_purchase_order_pdf_view(request):
+    """業者別・支払日別の発注書PDFを生成してダウンロード"""
+    try:
+        from django.http import FileResponse
+        from order_management.pdf_utils import generate_purchase_order_pdf
+        from subcontract_management.models import Contractor
+        import os
+        from django.conf import settings
+        from django.db.models import Q
+
+        # パラメータ取得
+        contractor_id_str = request.GET.get('contractor_id')
+        payment_date_str = request.GET.get('payment_date')
+        is_scheduled = request.GET.get('scheduled', 'false').lower() == 'true'
+
+        if not contractor_id_str:
+            return JsonResponse({
+                'success': False,
+                'error': '業者IDが指定されていません'
+            }, status=400)
+
+        if not payment_date_str or payment_date_str == 'null':
+            return JsonResponse({
+                'success': False,
+                'error': '支払日が指定されていません'
+            }, status=400)
+
+        # contractor_id_strを解析（"external_8" or "internal_5"形式）
+        if contractor_id_str.startswith('external_'):
+            worker_type = 'external'
+            contractor_id = int(contractor_id_str.replace('external_', ''))
+        elif contractor_id_str.startswith('internal_'):
+            worker_type = 'internal'
+            contractor_id = int(contractor_id_str.replace('internal_', ''))
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': '無効な業者ID形式です'
+            }, status=400)
+
+        # 業者情報を取得
+        if worker_type == 'external':
+            try:
+                contractor = Contractor.objects.get(id=contractor_id)
+                contractor_name = contractor.name
+            except Contractor.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'error': '業者が見つかりません'
+                }, status=404)
+        else:
+            # 内部作業員の場合
+            from order_management.models import Staff
+            try:
+                contractor = Staff.objects.get(id=contractor_id)
+                contractor_name = contractor.name
+            except Staff.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'error': '作業員が見つかりません'
+                }, status=404)
+
+        # 指定した支払日のサイトデータを取得
+        from datetime import datetime as dt
+        payment_date = dt.strptime(payment_date_str, '%Y-%m-%d').date()
+
+        # 該当する案件を取得（出金予定か出金済みか、外注か内部か）
+        base_filter = {
+            'worker_type': worker_type,
+        }
+
+        if worker_type == 'external':
+            base_filter['contractor_id'] = contractor_id
+        else:
+            base_filter['internal_worker_id'] = contractor_id
+
+        if is_scheduled:
+            # 出金予定の場合
+            subcontracts = Subcontract.objects.filter(
+                **base_filter,
+                payment_due_date=payment_date,
+                payment_status__in=['pending', 'processing']
+            ).select_related('project')
+        else:
+            # 出金済みの場合
+            subcontracts = Subcontract.objects.filter(
+                **base_filter,
+                payment_date=payment_date,
+                payment_status='paid'
+            ).select_related('project')
+
+        if not subcontracts.exists():
+            return JsonResponse({
+                'success': False,
+                'error': '該当する案件が見つかりません'
+            }, status=404)
+
+        # サイトデータを準備
+        sites_data = []
+        for sc in subcontracts:
+            project = sc.project
+            sites_data.append({
+                'site_name': project.site_name if project else 'N/A',
+                'start_date': project.work_start_date.strftime('%Y-%m-%d') if project and project.work_start_date else '',
+                'end_date': project.work_end_date.strftime('%Y-%m-%d') if project and project.work_end_date else '',
+                'contract_amount': sc.contract_amount or 0,
+                'billed_amount': sc.billed_amount or 0,
+            })
+
+        # 業者情報
+        contractor_info = {}
+        if worker_type == 'external':
+            contractor_info = {
+                'phone': getattr(contractor, 'phone_number', '') or '',
+                'email': getattr(contractor, 'email', '') or '',
+                'payment_terms': f'{contractor.closing_day}日締め {contractor.payment_offset_months}ヶ月後 {contractor.payment_day}日払い' if hasattr(contractor, 'closing_day') and contractor.closing_day else ''
+            }
+        else:
+            # 内部作業員の場合
+            contractor_info = {
+                'phone': getattr(contractor, 'phone', '') or '',
+                'email': getattr(contractor, 'email', '') or '',
+                'payment_terms': ''
+            }
+
+        # PDFを生成
+        pdf_path = generate_purchase_order_pdf(
+            contractor_name=contractor_name,
+            payment_date=payment_date,
+            sites_data=sites_data,
+            contractor_info=contractor_info
+        )
+
+        # PDFファイルのフルパスを取得
+        full_pdf_path = os.path.join(settings.MEDIA_ROOT, pdf_path)
+
+        # PDFファイルをレスポンスとして返す
+        response = FileResponse(open(full_pdf_path, 'rb'), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{os.path.basename(full_pdf_path)}"'
+
+        return response
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False,
+            'error': f'PDFの生成中にエラーが発生しました: {str(e)}'
+        }, status=500)
+
+
+def generate_invoice_pdf_view(request):
+    """クライアント別・入金日別の請求書PDFを生成してダウンロード"""
+    try:
+        from django.http import FileResponse
+        from order_management.pdf_utils import generate_invoice_pdf
+        from order_management.models import ClientCompany, Project
+        import os
+        from django.conf import settings
+
+        # パラメータ取得
+        client_name = request.GET.get('client_name')
+        payment_date_str = request.GET.get('payment_date')
+
+        if not client_name:
+            return JsonResponse({
+                'success': False,
+                'error': 'クライアント名が指定されていません'
+            }, status=400)
+
+        if not payment_date_str or payment_date_str == 'null':
+            return JsonResponse({
+                'success': False,
+                'error': '入金日が指定されていません'
+            }, status=400)
+
+        # 指定した入金日のプロジェクトデータを取得
+        from datetime import datetime as dt
+        payment_date = dt.strptime(payment_date_str, '%Y-%m-%d').date()
+
+        # クライアント情報を取得
+        try:
+            client_company = ClientCompany.objects.get(name=client_name)
+        except ClientCompany.DoesNotExist:
+            client_company = None
+
+        # 該当する案件を取得
+        projects = Project.objects.filter(
+            client_company__name=client_name,
+            incoming_payment_date=payment_date,
+            incoming_payment_status='received'
+        ).select_related('client_company')
+
+        if not projects.exists():
+            return JsonResponse({
+                'success': False,
+                'error': '該当する案件が見つかりません'
+            }, status=404)
+
+        # プロジェクトデータを準備
+        projects_data = []
+        for project in projects:
+            projects_data.append({
+                'management_no': project.management_no or 'N/A',
+                'site_name': project.site_name or 'N/A',
+                'start_date': project.work_start_date.strftime('%Y-%m-%d') if project.work_start_date else '',
+                'end_date': project.work_end_date.strftime('%Y-%m-%d') if project.work_end_date else '',
+                'order_amount': project.order_amount or 0,
+            })
+
+        # クライアント情報
+        client_info = None
+        if client_company:
+            client_info = {
+                'company_name': client_company.name,
+                'address': client_company.address or '',
+                'phone': client_company.phone_number or '',
+                'payment_terms': f'{client_company.closing_day}日締め {client_company.payment_offset_months}ヶ月後 {client_company.payment_day}日払い' if client_company.closing_day else ''
+            }
+
+        # PDFを生成
+        pdf_path = generate_invoice_pdf(
+            client_name=client_name,
+            payment_date=payment_date,
+            projects_data=projects_data,
+            client_info=client_info
+        )
+
+        # PDFファイルのフルパスを取得
+        full_pdf_path = os.path.join(settings.MEDIA_ROOT, pdf_path)
+
+        # PDFファイルをレスポンスとして返す
+        response = FileResponse(open(full_pdf_path, 'rb'), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{os.path.basename(full_pdf_path)}"'
+
+        return response
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False,
+            'error': f'PDFの生成中にエラーが発生しました: {str(e)}'
+        }, status=500)
+
+
+@require_http_methods(["GET"])
+def get_purchase_order_preview_data(request):
+    """発注書のプレビューデータを取得するAPI"""
+    from order_management.models import CompanySettings
+    from subcontract_management.models import Contractor, InternalWorker
+
+    try:
+        # パラメータ取得
+        contractor_id_str = request.GET.get('contractor_id')
+        payment_date_str = request.GET.get('payment_date')
+        is_scheduled = request.GET.get('scheduled', 'false').lower() == 'true'
+
+        if not contractor_id_str or not payment_date_str:
+            return JsonResponse({
+                'success': False,
+                'error': 'contractor_idとpayment_dateが必要です'
+            }, status=400)
+
+        # contractor_id_strを解析（"external_8" or "internal_5"形式）
+        if contractor_id_str.startswith('external_'):
+            worker_type = 'external'
+            contractor_id = int(contractor_id_str.replace('external_', ''))
+        elif contractor_id_str.startswith('internal_'):
+            worker_type = 'internal'
+            contractor_id = int(contractor_id_str.replace('internal_', ''))
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': '不正なcontractor_id形式です'
+            }, status=400)
+
+        # 支払日をパース
+        try:
+            payment_date = datetime.strptime(payment_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return JsonResponse({
+                'success': False,
+                'error': '不正な日付形式です'
+            }, status=400)
+
+        # 業者情報を取得
+        if worker_type == 'external':
+            contractor = Contractor.objects.get(id=contractor_id)
+            contractor_name = contractor.name
+        else:
+            contractor = InternalWorker.objects.get(id=contractor_id)
+            contractor_name = contractor.name
+
+        # 該当する案件を取得
+        base_filter = {
+            'worker_type': worker_type,
+        }
+
+        if worker_type == 'external':
+            base_filter['contractor_id'] = contractor_id
+        else:
+            base_filter['internal_worker_id'] = contractor_id
+
+        if is_scheduled:
+            subcontracts = Subcontract.objects.filter(
+                **base_filter,
+                payment_due_date=payment_date,
+                payment_status__in=['pending', 'processing']
+            ).select_related('project')
+        else:
+            subcontracts = Subcontract.objects.filter(
+                **base_filter,
+                payment_date=payment_date,
+                payment_status='paid'
+            ).select_related('project')
+
+        if not subcontracts.exists():
+            return JsonResponse({
+                'success': False,
+                'error': '該当する案件が見つかりません'
+            }, status=404)
+
+        # 会社設定を取得
+        company_settings = CompanySettings.get_settings()
+
+        # 案件データを準備
+        sites_data = []
+        for subcontract in subcontracts:
+            # 既存のカスタムデータがあれば取得
+            custom_data = subcontract.purchase_order_custom_data or {}
+
+            # プロジェクト情報を取得
+            project = subcontract.project
+            management_no = project.management_no if project else 'N/A'
+            site_name = project.site_name if project else 'N/A'
+            work_start_date = project.work_start_date.strftime('%Y-%m-%d') if project and project.work_start_date else ''
+            work_end_date = project.work_end_date.strftime('%Y-%m-%d') if project and project.work_end_date else ''
+
+            sites_data.append({
+                'subcontract_id': subcontract.id,
+                'management_no': custom_data.get('management_no', management_no),
+                'site_name': custom_data.get('site_name', site_name),
+                'start_date': custom_data.get('start_date', work_start_date),
+                'end_date': custom_data.get('end_date', work_end_date),
+                'contract_amount': float(subcontract.contract_amount or 0),
+                'billed_amount': float(subcontract.billed_amount or 0),
+            })
+
+        # レスポンスデータ
+        response_data = {
+            'success': True,
+            'contractor_name': contractor_name,
+            'payment_date': payment_date_str,
+            'sites_data': sites_data,
+            'company_settings': {
+                'company_name': company_settings.company_name,
+                'company_address': company_settings.company_address,
+                'company_phone': company_settings.company_phone,
+                'company_fax': company_settings.company_fax,
+                'company_email': company_settings.company_email,
+                'company_representative': company_settings.company_representative,
+                'purchase_order_remarks': company_settings.purchase_order_remarks,
+            }
+        }
+
+        return JsonResponse(response_data)
+
+    except Contractor.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': '業者が見つかりません'
+        }, status=404)
+    except InternalWorker.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': '職員が見つかりません'
+        }, status=404)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False,
+            'error': f'データ取得中にエラーが発生しました: {str(e)}'
+        }, status=500)
+
+
+@require_http_methods(["POST"])
+@csrf_exempt
+def generate_and_save_purchase_order(request):
+    """カスタムデータでPDFを生成し、Subcontractに保存するAPI"""
+    try:
+        from django.core.files.base import ContentFile
+        from order_management.pdf_utils import generate_purchase_order_pdf
+        from order_management.models import ProjectFile
+        from django.conf import settings
+        import os
+
+        # リクエストボディを解析
+        data = json.loads(request.body)
+
+        contractor_name = data.get('contractor_name')
+        payment_date = data.get('payment_date')
+        sites_data = data.get('sites_data', [])
+        custom_remarks = data.get('custom_remarks')
+
+        if not contractor_name or not payment_date or not sites_data:
+            return JsonResponse({
+                'success': False,
+                'error': '必須パラメータが不足しています'
+            }, status=400)
+
+        # PDFを生成（カスタムデータを使用）
+        contractor_info = None  # 必要に応じて設定
+
+        pdf_path = generate_purchase_order_pdf(
+            contractor_name=contractor_name,
+            payment_date=payment_date,
+            sites_data=sites_data,
+            contractor_info=contractor_info,
+            custom_remarks=custom_remarks
+        )
+
+        # PDFファイルを読み込む
+        full_pdf_path = os.path.join(settings.MEDIA_ROOT, pdf_path)
+        with open(full_pdf_path, 'rb') as pdf_file:
+            pdf_content = pdf_file.read()
+
+        # 各Subcontractに同じPDFを保存
+        saved_count = 0
+        linked_projects = []  # リンクファイルを作成するためのプロジェクトIDを収集
+
+        for site in sites_data:
+            subcontract_id = site.get('subcontract_id')
+            if subcontract_id:
+                subcontract = Subcontract.objects.get(id=subcontract_id)
+
+                # カスタムデータと発注書を保存
+                custom_data = {
+                    'management_no': site.get('management_no'),
+                    'site_name': site.get('site_name'),
+                    'start_date': site.get('start_date'),
+                    'end_date': site.get('end_date'),
+                    'custom_remarks': custom_remarks,
+                }
+                subcontract.purchase_order_custom_data = custom_data
+
+                # PDFファイルを保存
+                filename = f'purchase_order_{contractor_name}_{payment_date}.pdf'
+                subcontract.purchase_order_file.save(
+                    filename,
+                    ContentFile(pdf_content),
+                    save=False
+                )
+                subcontract.purchase_order_issued = True
+                subcontract.save()
+
+                saved_count += 1
+
+                # この下請契約に関連するプロジェクトを収集
+                if subcontract.project:
+                    linked_projects.append(subcontract.project)
+
+        # 各プロジェクトにリンクファイルを作成
+        for project in linked_projects:
+            ProjectFile.objects.create(
+                project=project,
+                file_name=f'発注書 - {contractor_name} - {payment_date}',
+                is_linked_file=True,
+                linked_source_file=pdf_path,
+                linked_source_type='purchase_order',
+                linked_at=timezone.now()
+            )
+
+        return JsonResponse({
+            'success': True,
+            'message': f'{saved_count}件の発注書を保存しました',
+            'pdf_url': request.build_absolute_uri(settings.MEDIA_URL + pdf_path)
+        })
+
+    except Subcontract.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': '案件が見つかりません'
+        }, status=404)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False,
+            'error': f'PDF生成・保存中にエラーが発生しました: {str(e)}'
+        }, status=500)
+
+
+@require_http_methods(["GET"])
+def get_invoice_preview_data(request):
+    """請求書のプレビューデータを取得するAPI"""
+    from order_management.models import CompanySettings, ClientCompany, Project
+
+    try:
+        # パラメータ取得
+        client_id_str = request.GET.get('client_id')
+        payment_date_str = request.GET.get('payment_date')
+
+        if not client_id_str or not payment_date_str:
+            return JsonResponse({
+                'success': False,
+                'error': 'client_idとpayment_dateが必要です'
+            }, status=400)
+
+        # client_id_strを解析（"client_8"形式）
+        if client_id_str.startswith('client_'):
+            client_id = int(client_id_str.replace('client_', ''))
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': '不正なclient_id形式です'
+            }, status=400)
+
+        # 入金日をパース
+        try:
+            payment_date = datetime.strptime(payment_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return JsonResponse({
+                'success': False,
+                'error': '不正な日付形式です'
+            }, status=400)
+
+        # クライアント情報を取得
+        client_company = ClientCompany.objects.get(id=client_id)
+        client_name = client_company.company_name
+
+        # 該当する案件を取得（入金済み）
+        projects = Project.objects.filter(
+            client_company_id=client_id,
+            payment_due_date=payment_date,
+            incoming_payment_status='received'
+        ).select_related('client_company')
+
+        if not projects.exists():
+            return JsonResponse({
+                'success': False,
+                'error': '該当する案件が見つかりません'
+            }, status=404)
+
+        # 会社設定を取得
+        company_settings = CompanySettings.get_settings()
+
+        # プロジェクトデータを準備
+        projects_data = []
+        for project in projects:
+            # 既存のカスタムデータがあれば取得
+            custom_data = project.invoice_custom_data or {}
+
+            # プロジェクト情報を取得
+            management_no = project.management_no or 'N/A'
+            site_name = project.site_name or 'N/A'
+            work_start_date = project.work_start_date.strftime('%Y-%m-%d') if project.work_start_date else ''
+            work_end_date = project.work_end_date.strftime('%Y-%m-%d') if project.work_end_date else ''
+
+            projects_data.append({
+                'project_id': project.id,
+                'management_no': custom_data.get('management_no', management_no),
+                'site_name': custom_data.get('site_name', site_name),
+                'start_date': custom_data.get('start_date', work_start_date),
+                'end_date': custom_data.get('end_date', work_end_date),
+                'order_amount': float(project.order_amount or 0),
+                'billing_amount': float(project.billing_amount or project.order_amount or 0),
+            })
+
+        # レスポンスデータ
+        response_data = {
+            'success': True,
+            'client_name': client_name,
+            'payment_date': payment_date_str,
+            'projects_data': projects_data,
+            'company_settings': {
+                'company_name': company_settings.company_name,
+                'company_address': company_settings.company_address,
+                'company_phone': company_settings.company_phone,
+                'company_fax': company_settings.company_fax,
+                'company_email': company_settings.company_email,
+                'company_representative': company_settings.company_representative,
+                'invoice_remarks': company_settings.invoice_remarks if hasattr(company_settings, 'invoice_remarks') else '',
+            }
+        }
+
+        return JsonResponse(response_data)
+
+    except ClientCompany.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'クライアント会社が見つかりません'
+        }, status=404)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False,
+            'error': f'データ取得中にエラーが発生しました: {str(e)}'
+        }, status=500)
+
+
+@require_http_methods(["POST"])
+@csrf_exempt
+def generate_and_save_invoice(request):
+    """カスタムデータでPDFを生成し、Projectに保存するAPI"""
+    try:
+        from django.core.files.base import ContentFile
+        from order_management.pdf_utils import generate_invoice_pdf
+        from order_management.models import Project, ProjectFile
+        from django.conf import settings
+        import os
+
+        # リクエストボディを解析
+        data = json.loads(request.body)
+
+        client_name = data.get('client_name')
+        payment_date = data.get('payment_date')
+        projects_data = data.get('projects_data', [])
+        custom_remarks = data.get('custom_remarks')
+
+        if not client_name or not payment_date or not projects_data:
+            return JsonResponse({
+                'success': False,
+                'error': '必須パラメータが不足しています'
+            }, status=400)
+
+        # PDFを生成（カスタムデータを使用）
+        client_info = None  # 必要に応じて設定
+
+        pdf_path = generate_invoice_pdf(
+            client_name=client_name,
+            payment_date=payment_date,
+            projects_data=projects_data,
+            client_info=client_info,
+            custom_remarks=custom_remarks
+        )
+
+        # PDFファイルを読み込む
+        full_pdf_path = os.path.join(settings.MEDIA_ROOT, pdf_path)
+        with open(full_pdf_path, 'rb') as pdf_file:
+            pdf_content = pdf_file.read()
+
+        # 各Projectに同じPDFを保存し、リンクファイルを作成
+        saved_count = 0
+        linked_projects = []  # リンクファイルを作成するためのプロジェクトを収集
+
+        for proj_data in projects_data:
+            project_id = proj_data.get('project_id')
+            if project_id:
+                project = Project.objects.get(id=project_id)
+
+                # カスタムデータと請求書を保存
+                custom_data = {
+                    'management_no': proj_data.get('management_no'),
+                    'site_name': proj_data.get('site_name'),
+                    'start_date': proj_data.get('start_date'),
+                    'end_date': proj_data.get('end_date'),
+                    'custom_remarks': custom_remarks,
+                }
+                project.invoice_custom_data = custom_data
+
+                # PDFファイルを保存
+                filename = f'invoice_{client_name}_{payment_date}.pdf'
+                project.invoice_file.save(
+                    filename,
+                    ContentFile(pdf_content),
+                    save=False
+                )
+                project.invoice_issued = True
+                project.save()
+
+                saved_count += 1
+                linked_projects.append(project)
+
+        # 各プロジェクトにリンクファイルを作成
+        for project in linked_projects:
+            ProjectFile.objects.create(
+                project=project,
+                file_name=f'請求書 - {client_name} - {payment_date}',
+                is_linked_file=True,
+                linked_source_file=pdf_path,
+                linked_source_type='invoice',
+                linked_at=timezone.now()
+            )
+
+        return JsonResponse({
+            'success': True,
+            'message': f'{saved_count}件の請求書を保存しました',
+            'pdf_url': request.build_absolute_uri(settings.MEDIA_URL + pdf_path)
+        })
+
+    except Project.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': '案件が見つかりません'
+        }, status=404)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False,
+            'error': f'PDF生成・保存中にエラーが発生しました: {str(e)}'
+        }, status=500)

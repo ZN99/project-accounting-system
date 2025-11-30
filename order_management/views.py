@@ -873,6 +873,16 @@ def update_progress(request, pk):
         if complex_step_fields:
             project.additional_items['complex_step_fields'] = complex_step_fields
 
+            # 着工予定日を work_start_date にマッピング（カレンダー表示用）
+            if 'construction_start_scheduled_date' in complex_step_fields:
+                construction_start_date = complex_step_fields['construction_start_scheduled_date']
+                project.work_start_date = construction_start_date if construction_start_date else None
+
+            # 着工完了チェックボックスを work_start_completed にマッピング
+            if 'construction_start_completed' in complex_step_fields:
+                value = complex_step_fields['construction_start_completed']
+                project.work_start_completed = value in ['on', 'true', True]
+
             # 完工予定日を work_end_date にマッピング（通知システム用）
             if 'completion_scheduled_date' in complex_step_fields:
                 completion_date = complex_step_fields['completion_scheduled_date']
@@ -880,7 +890,8 @@ def update_progress(request, pk):
 
             # 完工済みチェックボックスを work_end_completed にマッピング
             if 'completion_completed' in complex_step_fields:
-                project.work_end_completed = complex_step_fields['completion_completed'] == 'on'
+                value = complex_step_fields['completion_completed']
+                project.work_end_completed = value in ['on', 'true', True]
 
         # ステップ順序を保存し、削除されたステップのデータをクリーンアップ
         if step_order:

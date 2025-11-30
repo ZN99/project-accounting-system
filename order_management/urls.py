@@ -6,9 +6,21 @@ from .views_landing import LandingView
 from .views_contractor import ContractorDashboardView, ContractorProjectsView, ContractorEditView
 from .views_ordering import OrderingDashboardView, ExternalContractorManagementView, SupplierManagementView
 from .views_contractor_create import ContractorCreateView
-from .views_payment import PaymentDashboardView
-from .views_receipt import ReceiptDashboardView
-from .views_accounting import AccountingDashboardView
+# ARCHIVED: 旧経理機能のインポート（アーカイブ済み）
+# from .views_payment import PaymentDashboardView
+# from .views_receipt import ReceiptDashboardView
+# from .views_accounting import AccountingDashboardView
+# from .views_cashflow import (
+#     CashFlowDashboardView,
+#     AccrualVsCashComparisonView,
+#     ReceivablesDetailView,
+#     PayablesDetailView,
+#     cashflow_monthly_api,
+#     cashflow_daily_api,
+#     cashflow_forecast_api,
+#     receivables_api,
+#     payables_api
+# )
 from .views_cost import (
     FixedCostListView, FixedCostCreateView, FixedCostUpdateView, FixedCostDeleteView,
     VariableCostListView, VariableCostCreateView, VariableCostUpdateView, VariableCostDeleteView,
@@ -19,37 +31,48 @@ from . import views_material
 from . import views_comment
 from .views_notification import NotificationListView, mark_as_read_and_archive
 from .views_profile import profile_settings
-from .views_cashflow import (
-    CashFlowDashboardView,
-    AccrualVsCashComparisonView,
-    ReceivablesDetailView,
-    PayablesDetailView,
-    cashflow_monthly_api,
-    cashflow_daily_api,
-    cashflow_forecast_api,
-    receivables_api,
-    payables_api
-)
-from .views_forecast import (
-    ForecastDashboardView,
-    ScenarioListView,
-    ScenarioCreateView,
-    ScenarioUpdateView,
-    ScenarioDeleteView,
-    ScenarioCompareView,
-    scenario_calculate_api,
-    forecast_preview_api,
-    scenario_compare_api,
-    pipeline_analysis_api,
-    historical_analysis_api,
-    SeasonalityEditView,
-    seasonality_calculate_api
+# ARCHIVED: 旧予測機能のインポート（アーカイブ済み）
+# from .views_forecast import (
+#     ForecastDashboardView,
+#     ScenarioListView,
+#     ScenarioCreateView,
+#     ScenarioUpdateView,
+#     ScenarioDeleteView,
+#     ScenarioCompareView,
+#     scenario_calculate_api,
+#     forecast_preview_api,
+#     scenario_compare_api,
+#     pipeline_analysis_api,
+#     historical_analysis_api,
+#     SeasonalityEditView,
+#     seasonality_calculate_api
+# )
+# 新経理機能（今月の出金/入金管理）
+from .views_payment_management import (
+    PaymentManagementView,
+    get_outgoing_paid_api,
+    get_outgoing_paid_by_contractor_api,
+    get_outgoing_scheduled_api,
+    get_outgoing_scheduled_by_contractor_api,
+    get_outgoing_unfilled_api,
+    get_incoming_received_api,
+    get_incoming_received_by_client_api,
+    get_incoming_scheduled_by_client_api,
+    bulk_update_payment_status_api,
+    generate_purchase_order_pdf_view,
+    generate_invoice_pdf_view,
+    get_purchase_order_preview_data,
+    generate_and_save_purchase_order,
+    get_invoice_preview_data,
+    generate_and_save_invoice
 )
 from .views_user_management import (
     UserManagementDashboardView,
     UserRoleEditView,
     UserRoleQuickEditView
 )
+from .views_archive import ArchivedFeaturesView
+from .views_company_settings import CompanySettingsView, update_company_settings_api
 from .views_report import (
     ReportDashboardView,
     ReportListView,
@@ -142,6 +165,9 @@ urlpatterns = [
     path('users/<int:user_id>/role-edit/', UserRoleEditView.as_view(), name='user_role_edit'),
     path('users/<int:pk>/role-quick-edit/', UserRoleQuickEditView.as_view(), name='user_role_quick_edit'),
 
+    # アーカイブ管理
+    path('archived-features/', ArchivedFeaturesView.as_view(), name='archived_features'),
+
     # ダッシュボード・案件管理
     path('', UltimateDashboardView.as_view(), name='dashboard'),
     path('legacy/', views.dashboard, name='legacy_dashboard'),
@@ -149,10 +175,11 @@ urlpatterns = [
     path('ordering-dashboard/', OrderingDashboardView.as_view(), name='ordering_dashboard'),
     path('external-contractors/', ExternalContractorManagementView.as_view(), name='external_contractor_management'),
     path('suppliers/', SupplierManagementView.as_view(), name='supplier_management'),
-    path('accounting/', AccountingDashboardView.as_view(), name='accounting_dashboard'),
+    # ARCHIVED: 旧経理機能のURL（アーカイブ済み）
+    # path('accounting/', AccountingDashboardView.as_view(), name='accounting_dashboard'),
     path('ultimate/', UltimateDashboardView.as_view(), name='ultimate_dashboard'),
-    path('payment/', PaymentDashboardView.as_view(), name='payment_dashboard'),
-    path('receipt/', ReceiptDashboardView.as_view(), name='receipt_dashboard'),
+    # path('payment/', PaymentDashboardView.as_view(), name='payment_dashboard'),
+    # path('receipt/', ReceiptDashboardView.as_view(), name='receipt_dashboard'),
     path('contractor/<int:contractor_id>/projects/', ContractorProjectsView.as_view(), name='contractor_projects'),
     path('contractors/<int:pk>/edit/', ContractorEditView.as_view(), name='contractor_edit'),
     path('contractors/new/', ContractorCreateView.as_view(), name='contractor_create'),
@@ -178,47 +205,73 @@ urlpatterns = [
     path('api/invoice/preview/client/', views.get_client_invoice_preview_api, name='client_invoice_preview_api'),
     path('api/generate-invoices-by-client/', views.generate_invoices_by_client_api, name='generate_invoices_by_client_api'),
 
-    # キャッシュフロー管理 - Phase 1
-    path('cashflow/', CashFlowDashboardView.as_view(), name='cashflow_dashboard'),
-    path('cashflow/comparison/', AccrualVsCashComparisonView.as_view(), name='cashflow_comparison'),
-    path('cashflow/receivables/', ReceivablesDetailView.as_view(), name='receivables_detail'),
-    path('cashflow/payables/', PayablesDetailView.as_view(), name='payables_detail'),
+    # ARCHIVED: キャッシュフロー管理 - Phase 1（アーカイブ済み）
+    # path('cashflow/', CashFlowDashboardView.as_view(), name='cashflow_dashboard'),
+    # path('cashflow/comparison/', AccrualVsCashComparisonView.as_view(), name='cashflow_comparison'),
+    # path('cashflow/receivables/', ReceivablesDetailView.as_view(), name='receivables_detail'),
+    # path('cashflow/payables/', PayablesDetailView.as_view(), name='payables_detail'),
 
-    # キャッシュフローAPI - Phase 1
-    path('api/cashflow/monthly/', cashflow_monthly_api, name='cashflow_monthly_api'),
-    path('api/cashflow/daily/', cashflow_daily_api, name='cashflow_daily_api'),
-    path('api/cashflow/forecast/', cashflow_forecast_api, name='cashflow_forecast_api'),
-    path('api/cashflow/receivables/', receivables_api, name='cashflow_receivables_api'),
-    path('api/cashflow/payables/', payables_api, name='cashflow_payables_api'),
+    # ARCHIVED: キャッシュフローAPI - Phase 1（アーカイブ済み）
+    # path('api/cashflow/monthly/', cashflow_monthly_api, name='cashflow_monthly_api'),
+    # path('api/cashflow/daily/', cashflow_daily_api, name='cashflow_daily_api'),
+    # path('api/cashflow/forecast/', cashflow_forecast_api, name='cashflow_forecast_api'),
+    # path('api/cashflow/receivables/', receivables_api, name='cashflow_receivables_api'),
+    # path('api/cashflow/payables/', payables_api, name='cashflow_payables_api'),
 
-    # 売上予測・シミュレーション - Phase 2
-    path('forecast/', ForecastDashboardView.as_view(), name='forecast_dashboard'),
-    path('forecast/scenarios/', ScenarioListView.as_view(), name='scenario_list'),
-    path('forecast/scenarios/create/', ScenarioCreateView.as_view(), name='scenario_create'),
-    path('forecast/scenarios/<int:pk>/edit/', ScenarioUpdateView.as_view(), name='scenario_update'),
-    path('forecast/scenarios/<int:pk>/delete/', ScenarioDeleteView.as_view(), name='scenario_delete'),
-    path('forecast/compare/', ScenarioCompareView.as_view(), name='scenario_compare'),
+    # ARCHIVED: 売上予測・シミュレーション - Phase 2（アーカイブ済み）
+    # path('forecast/', ForecastDashboardView.as_view(), name='forecast_dashboard'),
+    # path('forecast/scenarios/', ScenarioListView.as_view(), name='scenario_list'),
+    # path('forecast/scenarios/create/', ScenarioCreateView.as_view(), name='scenario_create'),
+    # path('forecast/scenarios/<int:pk>/edit/', ScenarioUpdateView.as_view(), name='scenario_update'),
+    # path('forecast/scenarios/<int:pk>/delete/', ScenarioDeleteView.as_view(), name='scenario_delete'),
+    # path('forecast/compare/', ScenarioCompareView.as_view(), name='scenario_compare'),
 
-    # 売上予測API - Phase 2
-    path('api/forecast/scenario/<int:scenario_id>/calculate/', scenario_calculate_api, name='scenario_calculate_api'),
-    path('api/forecast/preview/', forecast_preview_api, name='forecast_preview_api'),
-    path('api/forecast/compare/', scenario_compare_api, name='scenario_compare_api'),
-    path('api/forecast/pipeline/', pipeline_analysis_api, name='pipeline_analysis_api'),
-    path('api/forecast/historical/', historical_analysis_api, name='historical_analysis_api'),
+    # ARCHIVED: 売上予測API - Phase 2（アーカイブ済み）
+    # path('api/forecast/scenario/<int:scenario_id>/calculate/', scenario_calculate_api, name='scenario_calculate_api'),
+    # path('api/forecast/preview/', forecast_preview_api, name='forecast_preview_api'),
+    # path('api/forecast/compare/', scenario_compare_api, name='scenario_compare_api'),
+    # path('api/forecast/pipeline/', pipeline_analysis_api, name='pipeline_analysis_api'),
+    # path('api/forecast/historical/', historical_analysis_api, name='historical_analysis_api'),
 
-    # 季節性指数管理 - Phase 3
-    path('forecast/scenarios/<int:pk>/seasonality/', SeasonalityEditView.as_view(), name='seasonality_edit'),
-    path('api/forecast/scenario/<int:scenario_id>/seasonality/calculate/', seasonality_calculate_api, name='seasonality_calculate_api'),
+    # ARCHIVED: 季節性指数管理 - Phase 3（アーカイブ済み）
+    # path('forecast/scenarios/<int:pk>/seasonality/', SeasonalityEditView.as_view(), name='seasonality_edit'),
+    # path('api/forecast/scenario/<int:scenario_id>/seasonality/calculate/', seasonality_calculate_api, name='seasonality_calculate_api'),
 
-    # レポート管理 - Phase 3
-    path('reports/', ReportDashboardView.as_view(), name='report_dashboard'),
-    path('reports/list/', ReportListView.as_view(), name='report_list'),
-    path('reports/generate/', ReportGenerateView.as_view(), name='report_generate'),
-    path('reports/<int:pk>/', ReportDetailView.as_view(), name='report_detail'),
-    path('reports/<int:pk>/delete/', ReportDeleteView.as_view(), name='report_delete'),
-    path('reports/<int:pk>/download/', report_download_pdf, name='report_download_pdf'),
-    path('reports/<int:pk>/regenerate-pdf/', report_regenerate_pdf, name='report_regenerate_pdf'),
-    path('api/reports/preview/', report_preview_api, name='report_preview_api'),
+    # ARCHIVED: レポート管理 - Phase 3（アーカイブ済み）
+    # path('reports/', ReportDashboardView.as_view(), name='report_dashboard'),
+    # path('reports/list/', ReportListView.as_view(), name='report_list'),
+    # path('reports/generate/', ReportGenerateView.as_view(), name='report_generate'),
+    # path('reports/<int:pk>/', ReportDetailView.as_view(), name='report_detail'),
+    # path('reports/<int:pk>/delete/', ReportDeleteView.as_view(), name='report_delete'),
+    # path('reports/<int:pk>/download/', report_download_pdf, name='report_download_pdf'),
+    # path('reports/<int:pk>/regenerate-pdf/', report_regenerate_pdf, name='report_regenerate_pdf'),
+    # path('api/reports/preview/', report_preview_api, name='report_preview_api'),
+
+    # 新経理機能 - 今月の出金/入金管理
+    path('payment-management/', PaymentManagementView.as_view(), name='payment_management'),
+
+    # 新経理機能API - 出金管理
+    path('api/payment-management/outgoing/paid/', get_outgoing_paid_api, name='outgoing_paid_api'),
+    path('api/payment-management/outgoing/paid-by-contractor/', get_outgoing_paid_by_contractor_api, name='outgoing_paid_by_contractor_api'),
+    path('api/payment-management/outgoing/scheduled/', get_outgoing_scheduled_api, name='outgoing_scheduled_api'),
+    path('api/payment-management/outgoing/scheduled-by-contractor/', get_outgoing_scheduled_by_contractor_api, name='outgoing_scheduled_by_contractor_api'),
+    path('api/payment-management/outgoing/unfilled/', get_outgoing_unfilled_api, name='outgoing_unfilled_api'),
+
+    # 新経理機能API - 入金管理
+    path('api/payment-management/incoming/received/', get_incoming_received_api, name='incoming_received_api'),
+    path('api/payment-management/incoming/received-by-client/', get_incoming_received_by_client_api, name='incoming_received_by_client_api'),
+    path('api/payment-management/incoming/scheduled-by-client/', get_incoming_scheduled_by_client_api, name='incoming_scheduled_by_client_api'),
+
+    # 新経理機能API - 一括操作
+    path('api/payment-management/bulk-update-status/', bulk_update_payment_status_api, name='bulk_update_payment_status_api'),
+
+    # 新経理機能API - PDF生成
+    path('api/payment-management/generate-purchase-order/', generate_purchase_order_pdf_view, name='generate_purchase_order_pdf'),
+    path('api/payment-management/generate-invoice/', generate_invoice_pdf_view, name='generate_invoice_pdf'),
+    path('api/payment-management/purchase-order-preview/', get_purchase_order_preview_data, name='purchase_order_preview'),
+    path('api/payment-management/generate-and-save-purchase-order/', generate_and_save_purchase_order, name='generate_and_save_purchase_order'),
+    path('api/payment-management/invoice-preview/', get_invoice_preview_data, name='invoice_preview'),
+    path('api/payment-management/generate-and-save-invoice/', generate_and_save_invoice, name='generate_and_save_invoice'),
 
     # コスト管理
     path('cost/', cost_dashboard, name='cost_dashboard'),
@@ -249,6 +302,10 @@ urlpatterns = [
 
     # プロフィール設定
     path('profile/settings/', profile_settings, name='profile_settings'),
+
+    # 会社設定
+    path('company-settings/', CompanySettingsView.as_view(), name='company_settings'),
+    path('api/company-settings/update/', update_company_settings_api, name='update_company_settings_api'),
 
     # 詳細コメント機能
     path('api/projects/<int:pk>/comments/', views.project_comments, name='api_project_comments'),

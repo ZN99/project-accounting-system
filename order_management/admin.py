@@ -3,7 +3,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from . import models
 from .models import (
-    Project, CashFlowTransaction, ForecastScenario,
+    Project, ForecastScenario,  # ARCHIVED: CashFlowTransaction removed
     ProjectProgress, Report, SeasonalityIndex, UserProfile,
     Comment, Notification, CommentAttachment, ClientCompany, ContractorReview,
     ApprovalLog, ChecklistTemplate, ProjectChecklist, ProjectFile, WorkType, ContactPerson
@@ -144,59 +144,60 @@ class ProjectAdmin(admin.ModelAdmin):
         return super().change_view(request, object_id, form_url, extra_context)
 
 
-@admin.register(CashFlowTransaction)
-class CashFlowTransactionAdmin(admin.ModelAdmin):
-    list_display = [
-        'transaction_date',
-        'project',
-        'transaction_type',
-        'amount',
-        'is_planned',
-        'description',
-        'created_at'
-    ]
-
-    list_filter = [
-        'transaction_type',
-        'is_planned',
-        'transaction_date',
-        'created_at'
-    ]
-
-    search_fields = [
-        'project__management_no',
-        'project__site_name',
-        'description'
-    ]
-
-    readonly_fields = ['created_at', 'updated_at']
-
-    fieldsets = (
-        ('基本情報', {
-            'fields': (
-                'project',
-                'transaction_type',
-                'transaction_date',
-                'amount',
-                'is_planned'
-            )
-        }),
-        ('詳細情報', {
-            'fields': (
-                'description',
-                'related_subcontract'
-            )
-        }),
-        ('システム情報', {
-            'fields': (
-                'created_at',
-                'updated_at'
-            )
-        })
-    )
-
-    date_hierarchy = 'transaction_date'
-    list_per_page = 50
+# ARCHIVED: CashFlowTransaction Admin (アーカイブ済み)
+# @admin.register(CashFlowTransaction)
+# class CashFlowTransactionAdmin(admin.ModelAdmin):
+#     list_display = [
+#         'transaction_date',
+#         'project',
+#         'transaction_type',
+#         'amount',
+#         'is_planned',
+#         'description',
+#         'created_at'
+#     ]
+#
+#     list_filter = [
+#         'transaction_type',
+#         'is_planned',
+#         'transaction_date',
+#         'created_at'
+#     ]
+#
+#     search_fields = [
+#         'project__management_no',
+#         'project__site_name',
+#         'description'
+#     ]
+#
+#     readonly_fields = ['created_at', 'updated_at']
+#
+#     fieldsets = (
+#         ('基本情報', {
+#             'fields': (
+#                 'project',
+#                 'transaction_type',
+#                 'transaction_date',
+#                 'amount',
+#                 'is_planned'
+#             )
+#         }),
+#         ('詳細情報', {
+#             'fields': (
+#                 'description',
+#                 'related_subcontract'
+#             )
+#         }),
+#         ('システム情報', {
+#             'fields': (
+#                 'created_at',
+#                 'updated_at'
+#             )
+#         })
+#     )
+#
+#     date_hierarchy = 'transaction_date'
+#     list_per_page = 50
 
 
 @admin.register(ForecastScenario)

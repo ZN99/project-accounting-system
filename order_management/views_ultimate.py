@@ -8,7 +8,8 @@ from decimal import Decimal
 
 from .models import Project, FixedCost, VariableCost, ClientCompany
 from subcontract_management.models import Subcontract, Contractor, InternalWorker
-from .cashflow_utils import get_monthly_comparison, get_receivables_summary, get_payables_summary
+# ARCHIVED: 旧キャッシュフロー機能（アーカイブ済み）
+# from .cashflow_utils import get_monthly_comparison, get_receivables_summary, get_payables_summary
 from .utils import safe_int
 from .notification_utils import check_and_create_overdue_notifications
 
@@ -353,15 +354,21 @@ class UltimateDashboardView(TemplateView):
         total_monthly_costs = fixed_costs_monthly + variable_costs_monthly
 
         # ====================
-        # キャッシュフロー管理統計（Phase 1）
+        # キャッシュフロー管理統計（Phase 1）- ARCHIVED
         # ====================
 
+        # ARCHIVED: 旧キャッシュフロー機能（アーカイブ済み）
         # 月次キャッシュフロー比較（発生 vs 現金）
-        cashflow_comparison = get_monthly_comparison(year, month)
+        # cashflow_comparison = get_monthly_comparison(year, month)
 
         # 売掛金・買掛金サマリー
-        receivables = get_receivables_summary()
-        payables = get_payables_summary()
+        # receivables = get_receivables_summary()
+        # payables = get_payables_summary()
+
+        # デフォルト値を設定（新機能実装まで）
+        cashflow_comparison = {}
+        receivables = {'total_receivable': 0, 'count': 0}
+        payables = {'total_payable': 0, 'count': 0}
 
         # ====================
         # コンテキストデータ統合

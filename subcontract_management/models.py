@@ -430,7 +430,27 @@ class Subcontract(models.Model):
     )
 
     # その他
-    purchase_order_issued = models.BooleanField(default=False, verbose_name='発注書発行')
+    purchase_order_issued = models.BooleanField(default=False, verbose_name='発注書発行済み')
+    purchase_order_file = models.FileField(
+        upload_to='purchase_orders/%Y/%m/',
+        blank=True,
+        null=True,
+        verbose_name='発注書ファイル',
+        help_text='発注書のPDFや画像ファイル'
+    )
+    purchase_order_custom_data = models.JSONField(
+        blank=True,
+        null=True,
+        verbose_name='発注書カスタムデータ',
+        help_text='発注書のカスタマイズされたデータ（備考、工期、現場名など）'
+    )
+    invoice_file = models.FileField(
+        upload_to='invoices/%Y/%m/',
+        blank=True,
+        null=True,
+        verbose_name='請求書ファイル',
+        help_text='請求書のPDFや画像ファイル'
+    )
     work_description = models.TextField(blank=True, verbose_name='作業内容')
     notes = models.TextField(blank=True, verbose_name='備考')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='登録日時')
