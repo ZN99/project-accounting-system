@@ -26,6 +26,8 @@ class ProjectForm(forms.ModelForm):
             'completion_report_status',
             # 進捗状況キャッシュフィールド（JavaScriptで自動更新）
             'current_stage', 'current_stage_color',
+            # 入金ステータス（デフォルト値あり・システム管理）
+            'incoming_payment_status',
         ]
         widgets = {
             'site_address': forms.Textarea(attrs={'rows': 2}),
