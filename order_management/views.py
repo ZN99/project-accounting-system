@@ -413,6 +413,24 @@ def project_create(request):
         'is_active': w.is_active
     } for w in internal_workers])
 
+    # contractorsをJSON形式でシリアライズ（Phase 1.2で追加）
+    contractors_json = json.dumps([{
+        'id': c.id,
+        'name': c.name,
+        'contractor_type': c.contractor_type,
+        'address': c.address or '',
+        'phone': c.phone or '',
+        'email': c.email or '',
+        'contact_person': c.contact_person or '',
+        'hourly_rate': float(c.hourly_rate) if c.hourly_rate else 0,
+        'specialties': c.specialties or '',
+        'payment_cycle': c.payment_cycle or '',
+        'closing_day': c.closing_day,
+        'payment_offset_months': c.payment_offset_months if c.payment_offset_months is not None else 0,
+        'payment_day': c.payment_day,
+        'is_active': c.is_active
+    } for c in contractors])
+
     # 支払いサイクルの日本語マッピング
     payment_cycle_labels = {
         'monthly': '月1回',
@@ -448,6 +466,7 @@ def project_create(request):
         'client_companies': client_companies,  # 元請会社
         'client_companies_json': client_companies_json,
         'contractors': contractors,  # 協力会社（作業者追加で使用）
+        'contractors_json': contractors_json,  # Phase 1.2で追加
         'internal_workers': internal_workers,
         'internal_workers_json': internal_workers_json,
     })
