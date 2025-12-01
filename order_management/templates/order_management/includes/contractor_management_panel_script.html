@@ -48,6 +48,24 @@ window.refreshContractorList = function() {
             '<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>アクティブ</span>' :
             '<span class="badge bg-secondary"><i class="fas fa-times-circle me-1"></i>非アクティブ</span>';
 
+        // 業者種別バッジ（カラー付き丸アイコン）
+        let typeBadges = '';
+        if (contractor.is_receiving) {
+            typeBadges += '<span class="badge bg-primary me-1" style="font-size: 0.75rem;"><i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>受注業者</span>';
+        }
+        if (contractor.is_ordering) {
+            typeBadges += '<span class="badge bg-warning text-dark me-1" style="font-size: 0.75rem;"><i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>発注業者</span>';
+        }
+        if (contractor.is_supplier) {
+            typeBadges += '<span class="badge bg-info me-1" style="font-size: 0.75rem;"><i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>資材屋</span>';
+        }
+        if (contractor.is_other) {
+            typeBadges += '<span class="badge bg-secondary me-1" style="font-size: 0.75rem;"><i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>その他</span>';
+        }
+        if (!typeBadges) {
+            typeBadges = '<span class="text-muted">-</span>';
+        }
+
         // 連絡先情報
         let contactInfo = '';
         if (contractor.phone) {
@@ -62,7 +80,10 @@ window.refreshContractorList = function() {
 
         html += `
             <tr>
-                <td><strong style="color: #1f2937;">${escapeHtml(contractor.name)}</strong></td>
+                <td>
+                    <div><strong style="color: #1f2937;">${escapeHtml(contractor.name)}</strong></div>
+                    <div class="mt-1">${typeBadges}</div>
+                </td>
                 <td><span class="text-muted">${escapeHtml(contractor.specialties || '-')}</span></td>
                 <td><span class="text-muted">${escapeHtml(contractor.contact_person || '-')}</span></td>
                 <td style="font-size: 0.875rem;">${contactInfo}</td>

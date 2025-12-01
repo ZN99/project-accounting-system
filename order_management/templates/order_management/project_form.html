@@ -4088,28 +4088,9 @@ window.onModalContractorChange = function(selectElement) {
 
         // 各フィールドに値を設定
         document.getElementById('modalDisplayClosingDay').value = contractor.closing_day || '-';
-        document.getElementById('modalDisplayPaymentOffset').value =
-            contractor.payment_offset_months !== null ? contractor.payment_offset_months + 'ヶ月' : '-';
+        document.getElementById('modalDisplayPaymentOffset').value = '-';  // Contractorにはpayment_offset_monthsがない
         document.getElementById('modalDisplayPaymentDay').value = contractor.payment_day || '-';
         document.getElementById('modalDisplayPaymentCycle').value = contractor.payment_cycle || '-';
-
-        // 出金予定日を自動計算
-        if (contractor.closing_day && contractor.payment_day !== null && contractor.payment_offset_months !== null) {
-            const today = new Date();
-            const dueDate = calculatePaymentDueDate(
-                today,
-                parseInt(contractor.closing_day),
-                parseInt(contractor.payment_offset_months),
-                parseInt(contractor.payment_day)
-            );
-
-            if (dueDate) {
-                const dueDateInput = document.getElementById('modalPaymentDueDate');
-                if (dueDateInput) {
-                    dueDateInput.value = dueDate.toISOString().split('T')[0];
-                }
-            }
-        }
 
         console.log('支払いサイクル情報を表示しました:', contractor);
     } else {
