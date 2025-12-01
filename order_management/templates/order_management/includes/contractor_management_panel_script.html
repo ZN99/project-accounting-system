@@ -50,19 +50,13 @@ window.refreshContractorList = function() {
 
         // 業者種別バッジ（カラー付き丸アイコン）
         let typeBadges = '';
-        if (contractor.is_receiving) {
-            typeBadges += '<span class="badge bg-primary me-1" style="font-size: 0.75rem;"><i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>受注業者</span>';
-        }
-        if (contractor.is_ordering) {
-            typeBadges += '<span class="badge bg-warning text-dark me-1" style="font-size: 0.75rem;"><i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>発注業者</span>';
-        }
-        if (contractor.is_supplier) {
-            typeBadges += '<span class="badge bg-info me-1" style="font-size: 0.75rem;"><i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>資材屋</span>';
-        }
-        if (contractor.is_other) {
-            typeBadges += '<span class="badge bg-secondary me-1" style="font-size: 0.75rem;"><i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>その他</span>';
-        }
-        if (!typeBadges) {
+        if (contractor.contractor_type === 'individual') {
+            typeBadges = '<span class="badge bg-success me-1" style="font-size: 0.75rem;"><i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>個人職人</span>';
+        } else if (contractor.contractor_type === 'company') {
+            typeBadges = '<span class="badge bg-primary me-1" style="font-size: 0.75rem;"><i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>協力会社</span>';
+        } else if (contractor.contractor_type === 'material') {
+            typeBadges = '<span class="badge bg-info me-1" style="font-size: 0.75rem;"><i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>資材</span>';
+        } else {
             typeBadges = '<span class="text-muted">-</span>';
         }
 

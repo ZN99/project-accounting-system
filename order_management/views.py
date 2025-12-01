@@ -417,6 +417,7 @@ def project_create(request):
     contractors_json = json.dumps([{
         'id': c.id,
         'name': c.name,
+        'contractor_type': c.contractor_type,  # individual/company/material
         'address': c.address or '',
         'phone': c.phone or '',
         'email': c.email or '',
@@ -426,11 +427,6 @@ def project_create(request):
         'closing_day': c.closing_day,
         'payment_day': c.payment_day,
         'is_active': c.is_active,
-        # 業者種別フィールド（Phase 4で追加）
-        'is_receiving': c.is_receiving,
-        'is_ordering': c.is_ordering,
-        'is_supplier': c.is_supplier,
-        'is_other': c.is_other,
     } for c in contractors])
 
     # 支払いサイクルの日本語マッピング
