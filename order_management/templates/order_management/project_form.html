@@ -1859,7 +1859,7 @@
                 <!-- 検索・フィルター -->
                 <div class="row mb-3">
                     <div class="col-md-4">
-                        <input type="text" id="contractorSearch" class="form-control" placeholder="元請名・電話・メールで検索" onkeyup="filterContractors()">
+                        <input type="text" id="contractorSearch" class="form-control" placeholder="業者名・電話・メールで検索" onkeyup="filterContractors()">
                     </div>
                     <div class="col-md-3">
                         <select id="contractorTypeFilter" class="form-select" onchange="filterContractors()">
@@ -1890,7 +1890,7 @@
                         <thead class="table-light sticky-top">
                             <tr>
                                 <th style="min-width: 200px; cursor: pointer;" onclick="sortContractorTable('name')">
-                                    元請名 <i class="fas fa-sort"></i>
+                                    業者名 <i class="fas fa-sort"></i>
                                 </th>
                                 <th style="min-width: 200px;">業者タイプ</th>
                                 <th style="min-width: 150px;">専門分野</th>
@@ -1974,7 +1974,7 @@
                     <div id="newContractorDiv" style="display: none;">
                         <div class="row">
                             <div class="col-md-4 mb-3">
-                                <label for="contractorName" class="form-label">元請名 <span class="text-danger">*</span></label>
+                                <label for="contractorName" class="form-label">業者名 <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="contractorName" name="name" required>
                             </div>
                             <div class="col-md-4 mb-3">
@@ -2971,7 +2971,7 @@ window.addImplementationItem = function() {
         const contractAmount = $('input[name="modal_contract_amount"]').val();
 
         if (!contractorName || !workDescription) {
-            toastr.warning('元請名と作業内容を入力してください。');
+            toastr.warning('業者名と作業内容を入力してください。');
             return;
         }
 
@@ -3110,7 +3110,7 @@ window.saveContractor = function() {
 
     // バリデーション
     if (!formData.name) {
-        toastr.warning('元請名を入力してください。');
+        toastr.warning('業者名を入力してください。');
         return;
     }
 
