@@ -77,43 +77,24 @@
 
                         <!-- 外注先フォーム -->
                         <div id="modalContractorSection">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">業者選択方法 <span class="text-danger">*</span></label>
-                                        <div class="btn-group w-100" role="group">
-                                            <input type="radio" class="btn-check" name="contractor_selection_method" id="existing_contractor" value="existing" checked>
-                                            <label class="btn btn-outline-primary" for="existing_contractor">既存業者</label>
-                                            <input type="radio" class="btn-check" name="contractor_selection_method" id="new_contractor" value="new">
-                                            <label class="btn btn-outline-primary" for="new_contractor">新規登録</label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3" id="existingContractorDiv">
-                                        <label class="form-label">業者名 <span class="text-danger">*</span></label>
-                                        <select class="form-select" name="modal_existing_contractor_id" id="modalContractorSelect" onchange="onModalContractorChange(this)">
-                                            <option value="">-- 外注先を選択してください --</option>
-                                            {% for contractor in contractors %}
-                                            <option value="{{ contractor.id }}"
-                                                    data-name="{{ contractor.name }}"
-                                                    data-address="{{ contractor.address|default:'' }}"
-                                                    data-payment-cycle="{{ contractor.payment_cycle|default:'' }}"
-                                                    data-closing-day="{{ contractor.closing_day|default:'' }}"
-                                                    data-payment-day="{{ contractor.payment_day|default:'' }}">
-                                                {{ contractor.name }} {% if contractor.address %}({{ contractor.address }}){% endif %}
-                                            </option>
-                                            {% endfor %}
-                                        </select>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="openContractorManagementPanel()">
-                                            <i class="fas fa-building"></i> 外注先管理
-                                        </button>
-                                    </div>
-                                    <div class="mb-3 d-none" id="newContractorDiv">
-                                        <label class="form-label">業者名 <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" name="modal_new_contractor_name" placeholder="例: ○○建設株式会社">
-                                    </div>
-                                </div>
+                            <div class="mb-3">
+                                <label class="form-label">業者名 <span class="text-danger">*</span></label>
+                                <select class="form-select" name="modal_existing_contractor_id" id="modalContractorSelect" onchange="onModalContractorChange(this)">
+                                    <option value="">-- 外注先を選択してください --</option>
+                                    {% for contractor in contractors %}
+                                    <option value="{{ contractor.id }}"
+                                            data-name="{{ contractor.name }}"
+                                            data-address="{{ contractor.address|default:'' }}"
+                                            data-payment-cycle="{{ contractor.payment_cycle|default:'' }}"
+                                            data-closing-day="{{ contractor.closing_day|default:'' }}"
+                                            data-payment-day="{{ contractor.payment_day|default:'' }}">
+                                        {{ contractor.name }} {% if contractor.address %}({{ contractor.address }}){% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="openContractorManagementPanel()">
+                                    <i class="fas fa-building"></i> 外注先管理
+                                </button>
                             </div>
 
                             <!-- 支払いサイクル情報 -->

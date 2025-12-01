@@ -113,9 +113,8 @@ $(document).ready(function() {
             const resourceType = $('input[name="modal_implementation_type"]:checked').val();
             if (resourceType === 'outsource') {
                 const contractorId = $('#modalContractorSelect').val();
-                const contractorName = $('input[name="modal_new_contractor_name"]').val();
-                if (!contractorId && !contractorName) {
-                    toastr.warning('業者を選択または入力してください');
+                if (!contractorId) {
+                    toastr.warning('業者を選択してください');
                     return false;
                 }
             } else if (resourceType === 'internal') {
@@ -142,12 +141,6 @@ $(document).ready(function() {
         $('#modalLaterSection').toggleClass('d-none', type !== 'later');
     });
 
-    // 業者選択方法切り替え
-    $('input[name="contractor_selection_method"]').change(function() {
-        const isExisting = $(this).val() === 'existing';
-        $('#existingContractorDiv').toggleClass('d-none', !isExisting);
-        $('#newContractorDiv').toggleClass('d-none', isExisting);
-    });
 
     // 料金体系切り替え
     $('input[name="modal_pricing_type"]').change(function() {
