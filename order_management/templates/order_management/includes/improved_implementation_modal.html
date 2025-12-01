@@ -1,0 +1,543 @@
+<!-- 改善版 実施体制・業者追加モーダル（4ステップ） -->
+<div class="modal fade" id="addImplementationModal" tabindex="-1" aria-labelledby="addImplementationModalLabel" aria-hidden="true" style="z-index: 1055;">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="addImplementationModalLabel">
+                    <i class="fas fa-users-cog me-2"></i>実施体制・業者を追加
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="improvedImplementationForm">
+                <div class="modal-body">
+                    <!-- ステップインジケーター -->
+                    <div class="step-indicator mb-4">
+                        <div class="d-flex justify-content-between">
+                            <div class="step-item active" data-step="1">
+                                <div class="step-number">1</div>
+                                <div class="step-label">基本情報</div>
+                            </div>
+                            <div class="step-item" data-step="2">
+                                <div class="step-number">2</div>
+                                <div class="step-label">料金設定</div>
+                            </div>
+                            <div class="step-item" data-step="3">
+                                <div class="step-number">3</div>
+                                <div class="step-label">詳細情報</div>
+                            </div>
+                            <div class="step-item" data-step="4">
+                                <div class="step-number">4</div>
+                                <div class="step-label">工程選択</div>
+                            </div>
+                        </div>
+                        <div class="progress mt-2">
+                            <div class="progress-bar" role="progressbar" style="width: 25%"></div>
+                        </div>
+                    </div>
+
+                    <!-- ステップ1: 基本情報 -->
+                    <div class="step-content" id="step1">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-info-circle me-1"></i>基本情報（必須）
+                        </h6>
+
+                        <!-- リソースタイプ選択 -->
+                        <div class="mb-4 p-3 bg-light rounded">
+                            <label class="form-label fw-bold">リソースタイプ <span class="text-danger">*</span></label>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="modal_implementation_type" id="modalOutsource" value="outsource" checked>
+                                        <label class="form-check-label fw-bold text-primary" for="modalOutsource">
+                                            <i class="fas fa-handshake me-2"></i>外注先に発注
+                                        </label>
+                                        <small class="d-block text-muted">外部業者に工事を依頼</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="modal_implementation_type" id="modalInternal" value="internal">
+                                        <label class="form-check-label fw-bold text-success" for="modalInternal">
+                                            <i class="fas fa-users me-2"></i>社内リソース
+                                        </label>
+                                        <small class="d-block text-muted">自社で工事を実施</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="modal_implementation_type" id="modalLater" value="later">
+                                        <label class="form-check-label fw-bold text-warning" for="modalLater">
+                                            <i class="fas fa-clock me-2"></i>後で決定
+                                        </label>
+                                        <small class="d-block text-muted">詳細画面で設定</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 外注先フォーム -->
+                        <div id="modalContractorSection">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">業者選択方法 <span class="text-danger">*</span></label>
+                                        <div class="btn-group w-100" role="group">
+                                            <input type="radio" class="btn-check" name="contractor_selection_method" id="existing_contractor" value="existing" checked>
+                                            <label class="btn btn-outline-primary" for="existing_contractor">既存業者</label>
+                                            <input type="radio" class="btn-check" name="contractor_selection_method" id="new_contractor" value="new">
+                                            <label class="btn btn-outline-primary" for="new_contractor">新規登録</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3" id="existingContractorDiv">
+                                        <label class="form-label">業者名 <span class="text-danger">*</span></label>
+                                        <select class="form-select" name="modal_existing_contractor_id" id="modalContractorSelect" onchange="onModalContractorChange(this)">
+                                            <option value="">-- 外注先を選択してください --</option>
+                                            {% for contractor in contractors %}
+                                            <option value="{{ contractor.id }}"
+                                                    data-name="{{ contractor.name }}"
+                                                    data-address="{{ contractor.address|default:'' }}"
+                                                    data-payment-cycle="{{ contractor.payment_cycle|default:'' }}"
+                                                    data-closing-day="{{ contractor.closing_day|default:'' }}"
+                                                    data-payment-day="{{ contractor.payment_day|default:'' }}">
+                                                {{ contractor.name }} {% if contractor.address %}({{ contractor.address }}){% endif %}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="openContractorManagementPanel()">
+                                            <i class="fas fa-building"></i> 外注先管理
+                                        </button>
+                                    </div>
+                                    <div class="mb-3 d-none" id="newContractorDiv">
+                                        <label class="form-label">業者名 <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="modal_new_contractor_name" placeholder="例: ○○建設株式会社">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 支払いサイクル情報 -->
+                            <div id="modalPaymentCycleInfo" class="mb-3" style="display: none;">
+                                <div class="card bg-light border-info">
+                                    <div class="card-body p-3">
+                                        <h6 class="card-title text-info mb-3">
+                                            <i class="fas fa-calendar-alt me-2"></i>支払いサイクル情報
+                                        </h6>
+                                        <div class="row g-2">
+                                            <div class="col-md-4">
+                                                <label class="form-label small text-muted mb-1">締め日</label>
+                                                <input type="text" id="modalDisplayClosingDay" class="form-control form-control-sm" readonly>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label small text-muted mb-1">支払日</label>
+                                                <input type="text" id="modalDisplayPaymentDay" class="form-control form-control-sm" readonly>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label small text-muted mb-1">支払いサイクル</label>
+                                                <input type="text" id="modalDisplayPaymentCycle" class="form-control form-control-sm" readonly>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 社内リソースフォーム -->
+                        <div id="modalInternalSection" class="d-none">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">担当者名 <span class="text-danger">*</span></label>
+                                        <select class="form-select" name="modal_existing_internal_id" id="modalInternalSelect">
+                                            <option value="">-- 担当者を選択してください --</option>
+                                            {% for worker in internal_workers %}
+                                            <option value="{{ worker.id }}"
+                                                    data-name="{{ worker.name }}"
+                                                    data-department="{{ worker.get_department_display }}"
+                                                    data-hourly-rate="{{ worker.hourly_rate|default:0 }}"
+                                                    data-specialties="{{ worker.specialties|default:'' }}">
+                                                {{ worker.name }} ({{ worker.get_department_display }}) - ¥{{ worker.hourly_rate|default:0 }}/時間
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="openCraftsmanManagementPanel()">
+                                            <i class="fas fa-tools"></i> 職人管理
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">所属部署</label>
+                                        <input type="text" class="form-control" name="modal_internal_department" id="modalInternalDepartment" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 後で決定フォーム -->
+                        <div id="modalLaterSection" class="d-none">
+                            <div class="alert alert-warning border-warning">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-clock text-warning me-2"></i>
+                                    <strong>後で決定</strong>
+                                </div>
+                                <p class="mb-0">この実施体制は詳細画面で後から設定できます。</p>
+                            </div>
+                        </div>
+
+                        <!-- 作業内容 -->
+                        <div class="mb-3">
+                            <label class="form-label">作業内容 <span class="text-danger">*</span></label>
+                            <small class="text-muted d-block">どんな工事を依頼するかを記入</small>
+                            <textarea class="form-control" name="modal_work_description" rows="3" placeholder="例: 外壁塗装工事、足場設置" required></textarea>
+                        </div>
+                    </div>
+
+                    <!-- ステップ2: 料金設定 -->
+                    <div class="step-content d-none" id="step2">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-yen-sign me-1"></i>料金設定
+                        </h6>
+
+                        <!-- 料金体系選択 -->
+                        <div class="mb-4 p-3 bg-light rounded">
+                            <label class="form-label fw-bold">料金体系 <span class="text-danger">*</span></label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card border-primary pricing-card" data-pricing="hourly">
+                                        <div class="card-body">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="modal_pricing_type" id="modalHourlyPricing" value="hourly" checked>
+                                                <label class="form-check-label" for="modalHourlyPricing">
+                                                    <strong>時給ベース</strong>
+                                                    <small class="d-block text-muted">時給 × 工数で計算</small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card border-secondary pricing-card" data-pricing="project">
+                                        <div class="card-body">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="modal_pricing_type" id="modalProjectPricing" value="project">
+                                                <label class="form-check-label" for="modalProjectPricing">
+                                                    <strong>案件単位</strong>
+                                                    <small class="d-block text-muted">固定金額で計算</small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 時給ベース設定 -->
+                        <div id="modalHourlySettings">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">時給単価</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">¥</span>
+                                            <input type="number" class="form-control" name="modal_hourly_rate" id="modalHourlyRate" placeholder="3000">
+                                            <span class="input-group-text">/時間</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">予定工数</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" name="modal_estimated_hours" id="modalEstimatedHours" step="0.5" placeholder="8">
+                                            <span class="input-group-text">時間</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">基本料金</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">¥</span>
+                                            <input type="text" class="form-control" id="modalBaseAmount" readonly>
+                                        </div>
+                                        <small class="text-muted">自動計算</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 案件単位設定 -->
+                        <div id="modalProjectSettings" class="d-none">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">依頼金額</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">¥</span>
+                                            <input type="number" class="form-control" name="modal_contract_amount" id="modalContractAmount" placeholder="100000">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">被請求額</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">¥</span>
+                                            <input type="number" class="form-control" name="modal_billed_amount" placeholder="100000">
+                                        </div>
+                                        <small class="text-muted">実際に請求される金額</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 追加費用 -->
+                        <div class="mt-4">
+                            <h6 class="mb-3">
+                                <i class="fas fa-plus-circle me-2"></i>追加費用項目
+                            </h6>
+                            <div id="modalAdditionalCostList"></div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addModalCostItem()">
+                                <i class="fas fa-plus me-1"></i>追加費用項目を追加
+                            </button>
+                        </div>
+
+                        <!-- 部材費トグル -->
+                        <div class="mt-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="modalShowMaterialCosts" onchange="toggleModalMaterialCosts()">
+                                <label class="form-check-label fw-bold" for="modalShowMaterialCosts">
+                                    <i class="fas fa-cubes me-1"></i>部材費を管理
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 部材費管理（トグル表示） -->
+                        <div id="modalMaterialCostSection" class="mt-3 d-none">
+                            <div class="card border-success">
+                                <div class="card-header bg-success bg-opacity-10">
+                                    <h6 class="mb-0 text-success">
+                                        <i class="fas fa-cubes me-2"></i>部材費管理
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th style="width: 35%;">部材名</th>
+                                                    <th style="width: 20%;">単価（円）</th>
+                                                    <th style="width: 15%;">数量</th>
+                                                    <th style="width: 20%;">小計（円）</th>
+                                                    <th style="width: 10%;">操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="modalMaterialCostTableBody">
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-md-4">
+                                            <input type="text" id="modalNewMaterialName" class="form-control form-control-sm" placeholder="部材名">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <input type="number" id="modalNewMaterialUnitPrice" class="form-control form-control-sm" placeholder="単価" min="0">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <input type="number" id="modalNewMaterialQuantity" class="form-control form-control-sm" placeholder="数量" min="0" step="0.01">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <button type="button" class="btn btn-outline-success btn-sm w-100" onclick="addModalMaterialCostRow()">
+                                                <i class="fas fa-plus"></i> 追加
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-3">
+                                        <div class="col-md-12">
+                                            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                                                <strong>部材費合計:</strong>
+                                                <span id="modalMaterialCostTotal" class="fw-bold text-success">¥0</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 料金サマリー -->
+                        <div class="mt-4 p-3 bg-warning bg-opacity-10 rounded">
+                            <h6 class="mb-2">料金サマリー</h6>
+                            <div class="d-flex justify-content-between">
+                                <span>基本料金:</span>
+                                <strong>¥<span id="modalSummaryBase">0</span></strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>追加費用:</span>
+                                <strong>¥<span id="modalSummaryAdditional">0</span></strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>部材費:</span>
+                                <strong>¥<span id="modalSummaryMaterials">0</span></strong>
+                            </div>
+                            <hr>
+                            <div class="d-flex justify-content-between">
+                                <span class="fw-bold">合計:</span>
+                                <strong class="text-primary">¥<span id="modalSummaryTotal">0</span></strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ステップ3: 詳細情報 -->
+                    <div class="step-content d-none" id="step3">
+                        <h6 class="text-info mb-3">
+                            <i class="fas fa-file-alt me-1"></i>詳細情報（オプション）
+                        </h6>
+
+                        <!-- 支払い管理 -->
+                        <h6 class="mb-3">支払い管理</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">出金予定日</label>
+                                    <input type="date" class="form-control" name="modal_payment_due_date" id="modalPaymentDueDate">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">出金状況</label>
+                                    <select class="form-select" name="modal_payment_status">
+                                        <option value="pending">未払い</option>
+                                        <option value="paid">支払済み</option>
+                                        <option value="partial">一部払い</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ファイル管理 -->
+                        <h6 class="mb-3">書類管理</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    <i class="fas fa-file-invoice me-1"></i>請求書ファイル
+                                </label>
+                                <input type="file" name="modal_invoice_file" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png">
+                                <small class="text-muted">PDF, JPG, PNG形式のみ</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    <i class="fas fa-file-contract me-1"></i>発注書ファイル
+                                </label>
+                                <input type="file" name="modal_purchase_order_file" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png">
+                                <small class="text-muted">PDF, JPG, PNG形式のみ</small>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="modal_purchase_order_issued" id="modalPurchaseOrder">
+                                    <label class="form-check-label" for="modalPurchaseOrder">
+                                        発注書発行済み
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 備考 -->
+                        <div class="mb-3">
+                            <label class="form-label">備考</label>
+                            <textarea class="form-control" name="modal_notes" rows="3" placeholder="特記事項があれば入力してください"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- ステップ4: 工程選択 -->
+                    <div class="step-content d-none" id="step4">
+                        <h6 class="text-success mb-3">
+                            <i class="fas fa-tasks me-1"></i>工程選択（オプション）
+                        </h6>
+
+                        <div class="card border-primary">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-tasks me-2"></i>この業者を担当させる工程
+                                </h6>
+                                <small class="text-muted">工程を選択しない場合、全工程を担当します</small>
+                            </div>
+                            <div class="card-body">
+                                <!-- 工程選択チェックボックス -->
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">担当工程</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input modal-step-checkbox" type="checkbox" name="modal_step_survey" id="modalStepSurvey" value="survey">
+                                        <label class="form-check-label" for="modalStepSurvey">
+                                            <i class="fas fa-clipboard-list text-info me-1"></i>現調
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input modal-step-checkbox" type="checkbox" name="modal_step_construction_start" id="modalStepConstructionStart" value="construction_start">
+                                        <label class="form-check-label" for="modalStepConstructionStart">
+                                            <i class="fas fa-hard-hat text-warning me-1"></i>着工
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input modal-step-checkbox" type="checkbox" name="modal_step_attendance" id="modalStepAttendance" value="attendance">
+                                        <label class="form-check-label" for="modalStepAttendance">
+                                            <i class="fas fa-user-check text-success me-1"></i>立ち会い
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- 金額設定方法 -->
+                                <div id="modalCostAllocationSection" style="display: none;">
+                                    <label class="form-label fw-bold">金額設定方法</label>
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="modal_cost_allocation_method" id="modalCostLumpSum" value="lump_sum" checked>
+                                            <label class="form-check-label" for="modalCostLumpSum">
+                                                全工程一式 <span class="text-muted">（ステップ2の金額で全工程を実施）</span>
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="modal_cost_allocation_method" id="modalCostPerStep" value="per_step">
+                                            <label class="form-check-label" for="modalCostPerStep">
+                                                工程ごとに金額設定 <span class="text-muted">（各工程ごとに個別に金額を設定）</span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- 工程ごとの金額入力 -->
+                                    <div id="modalPerStepAmountsSection" style="display: none;">
+                                        <div class="alert alert-info">
+                                            <small>
+                                                <i class="fas fa-info-circle me-1"></i>
+                                                各工程ごとに個別の金額を設定できます。
+                                            </small>
+                                        </div>
+                                        <div id="modalPerStepAmountFields">
+                                            <!-- JavaScriptで動的に生成 -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="modalPrevStep" style="display: none;">
+                        <i class="fas fa-arrow-left me-1"></i>前へ
+                    </button>
+                    <button type="button" class="btn btn-primary" id="modalNextStep">
+                        次へ<i class="fas fa-arrow-right ms-1"></i>
+                    </button>
+                    <button type="button" class="btn btn-success d-none" id="modalSubmitBtn" onclick="addImplementationItem()">
+                        <i class="fas fa-save me-1"></i>保存
+                    </button>
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">キャンセル</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

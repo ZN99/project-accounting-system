@@ -823,10 +823,6 @@
 </div>
 
 
-<!-- 改善版 実施体制・業者追加モーダル（Phase 5で追加） -->
-{% include "order_management/includes/improved_implementation_modal.html" %}
-{% include "order_management/includes/improved_implementation_modal_script.html" %}
-
 <!-- 担当者管理モーダル（無効化済み） -->
 <div class="modal fade" id="staffManagementModalInvalid" tabindex="-1" aria-labelledby="staffManagementModalLabel" aria-hidden="true" style="z-index: 1060; display: none !important;">
 
