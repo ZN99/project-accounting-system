@@ -3,7 +3,15 @@ from . import views
 from .views_auth import HeadquartersLoginView, HeadquartersLogoutView
 from .views_permission import PermissionDeniedView
 from .views_landing import LandingView
-from .views_contractor import ContractorDashboardView, ContractorProjectsView, ContractorEditView
+from .views_contractor import (
+    ContractorDashboardView, ContractorEditView, ContractorDetailView,
+    contractor_field_categories_list, contractor_field_category_create,
+    contractor_field_category_update, contractor_field_category_delete,
+    contractor_field_definitions_list, contractor_field_definition_create,
+    contractor_field_definition_update, contractor_field_definition_delete,
+    contractor_field_reorder
+)
+# ARCHIVED: ContractorProjectsView（アーカイブ済み）
 from .views_ordering import OrderingDashboardView, ExternalContractorManagementView, SupplierManagementView
 from .views_contractor_create import ContractorCreateView
 # ARCHIVED: 旧経理機能のインポート（アーカイブ済み）
@@ -180,11 +188,28 @@ urlpatterns = [
     path('ultimate/', UltimateDashboardView.as_view(), name='ultimate_dashboard'),
     # path('payment/', PaymentDashboardView.as_view(), name='payment_dashboard'),
     # path('receipt/', ReceiptDashboardView.as_view(), name='receipt_dashboard'),
-    path('contractor/<int:contractor_id>/projects/', ContractorProjectsView.as_view(), name='contractor_projects'),
+    # ARCHIVED: 旧業者プロジェクト一覧（アーカイブ済み）
+    # path('contractor/<int:contractor_id>/projects/', ContractorProjectsView.as_view(), name='contractor_projects'),
+    path('contractors/<int:pk>/', ContractorDetailView.as_view(), name='contractor_detail'),
     path('contractors/<int:pk>/edit/', ContractorEditView.as_view(), name='contractor_edit'),
     path('contractors/new/', ContractorCreateView.as_view(), name='contractor_create'),
+
+    # カスタムフィールド管理 AJAX API
+    path('api/contractor-field-categories/', contractor_field_categories_list, name='contractor_field_categories_list'),
+    path('api/contractor-field-categories/create/', contractor_field_category_create, name='contractor_field_category_create'),
+    path('api/contractor-field-categories/<int:category_id>/update/', contractor_field_category_update, name='contractor_field_category_update'),
+    path('api/contractor-field-categories/<int:category_id>/delete/', contractor_field_category_delete, name='contractor_field_category_delete'),
+    path('api/contractor-field-definitions/', contractor_field_definitions_list, name='contractor_field_definitions_list'),
+    path('api/contractor-field-definitions/create/', contractor_field_definition_create, name='contractor_field_definition_create'),
+    path('api/contractor-field-definitions/<int:field_id>/update/', contractor_field_definition_update, name='contractor_field_definition_update'),
+    path('api/contractor-field-definitions/<int:field_id>/delete/', contractor_field_definition_delete, name='contractor_field_definition_delete'),
+    path('api/contractor-field-reorder/', contractor_field_reorder, name='contractor_field_reorder'),
     path('list/', views.project_list, name='project_list'),
+    path('drafts/', views.project_draft_list, name='project_draft_list'),
+    path('drafts/<int:pk>/delete/', views.project_draft_delete, name='project_draft_delete'),
     path('create/', views.project_create, name='project_create'),
+    path('save-draft/', views.project_save_as_draft, name='project_save_as_draft'),
+    path('<int:pk>/save-draft/', views.project_save_as_draft, name='project_save_as_draft_edit'),
     path('<int:pk>/', views.project_detail, name='project_detail'),
     path('<int:pk>/update/', views.project_update, name='project_update'),
     path('<int:pk>/update-field/', views.update_project_field, name='update_project_field'),

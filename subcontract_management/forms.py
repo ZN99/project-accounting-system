@@ -23,7 +23,8 @@ class ContractorForm(forms.ModelForm):
             'name', 'contractor_type', 'address', 'contact_person',
             'phone', 'email', 'specialties', 'hourly_rate', 'is_active',
             'bank_name', 'branch_name', 'account_type', 'account_number',
-            'account_holder', 'payment_day', 'payment_cycle',
+            'account_holder', 'payment_cycle', 'closing_day',
+            'payment_offset_months', 'payment_day',
             # Phase 8 新規フィールド
             'skill_level', 'trust_level', 'certifications'
         ]
@@ -31,7 +32,8 @@ class ContractorForm(forms.ModelForm):
             'address': forms.Textarea(attrs={'rows': 2}),
             'specialties': forms.Textarea(attrs={'rows': 3}),
             'hourly_rate': forms.NumberInput(attrs={'step': '1'}),
-            'payment_day': forms.NumberInput(attrs={'min': '1', 'max': '31'}),
+            'closing_day': forms.NumberInput(attrs={'min': '1', 'max': '31', 'placeholder': '1-31'}),
+            'payment_day': forms.NumberInput(attrs={'min': '1', 'max': '31', 'placeholder': '1-31'}),
             'certifications': forms.Textarea(attrs={'rows': 3, 'placeholder': '保有資格を改行区切りで入力'}),
             'trust_level': forms.NumberInput(attrs={'min': '1', 'max': '5'}),
         }
@@ -39,7 +41,14 @@ class ContractorForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
-            if not isinstance(field.widget, forms.CheckboxInput):
+            if isinstance(field.widget, forms.CheckboxInput):
+                # チェックボックスは何もしない
+                pass
+            elif isinstance(field.widget, forms.Select):
+                # Selectフィールドにはform-selectクラスを適用
+                field.widget.attrs['class'] = 'form-select'
+            else:
+                # その他のフィールドにはform-controlクラスを適用
                 field.widget.attrs['class'] = 'form-control'
 
         # Phase 8: 既存データがある場合、JSONFieldをテキストに変換

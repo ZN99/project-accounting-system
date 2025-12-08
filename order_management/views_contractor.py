@@ -1,11 +1,17 @@
 """業者管理ビュー"""
-from django.views.generic import TemplateView, UpdateView
+from django.views.generic import TemplateView, UpdateView, DetailView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.shortcuts import get_object_or_404
+from django.db.models import Sum, Count, Q, Max
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
+import json
 
 from .models import Project
-from subcontract_management.models import Contractor
+from subcontract_management.models import Contractor, ContractorFieldCategory, ContractorFieldDefinition, Subcontract
 
 
 class ContractorDashboardView(LoginRequiredMixin, TemplateView):
@@ -172,6 +178,105 @@ class ContractorProjectsView(LoginRequiredMixin, TemplateView):
         return context
 
 
+class ContractorDetailView(LoginRequiredMixin, DetailView):
+    """業者詳細表示"""
+    model = Contractor
+    template_name = 'order_management/contractor_detail.html'
+    context_object_name = 'contractor'
+
+    def get_context_data(self, **kwargs):
+        from datetime import datetime
+        context = super().get_context_data(**kwargs)
+        contractor = self.get_object()
+
+        # ページネーション設定
+        page = self.request.GET.get('page', 1)
+        per_page = self.request.GET.get('per_page', 10)
+
+        # per_pageのバリデーション
+        try:
+            per_page = int(per_page)
+            if per_page not in [10, 25, 50, 100]:
+                per_page = 10
+        except (ValueError, TypeError):
+            per_page = 10
+
+        # 外注案件を取得
+        all_subcontracts = Subcontract.objects.filter(
+            contractor=contractor,
+            worker_type='external'
+        ).select_related('project').order_by('-created_at')
+
+        # ページネーター作成
+        paginator = Paginator(all_subcontracts, per_page)
+
+        try:
+            subcontracts_page = paginator.page(page)
+        except PageNotAnInteger:
+            subcontracts_page = paginator.page(1)
+        except EmptyPage:
+            subcontracts_page = paginator.page(paginator.num_pages)
+
+        context['subcontracts_page'] = subcontracts_page
+        context['per_page'] = per_page
+
+        # 統計情報
+        subcontracts_all = Subcontract.objects.filter(
+            contractor=contractor,
+            worker_type='external'
+        )
+
+        context['total_subcontracts'] = subcontracts_all.count()
+        context['total_amount'] = subcontracts_all.aggregate(
+            total=Sum('contract_amount')
+        )['total'] or 0
+        context['total_billed'] = subcontracts_all.aggregate(
+            total=Sum('billed_amount')
+        )['total'] or 0
+        context['unpaid_amount'] = subcontracts_all.filter(
+            payment_status='pending'
+        ).aggregate(
+            total=Sum('billed_amount')
+        )['total'] or 0
+
+        # カスタムフィールドをカテゴリごとに整理
+        categories = ContractorFieldCategory.objects.filter(
+            is_active=True
+        ).prefetch_related('field_definitions').order_by('order')
+
+        custom_fields_by_category = []
+        for category in categories:
+            fields_data = []
+            for field_def in category.field_definitions.filter(is_active=True).order_by('order'):
+                # custom_fieldsから値を取得
+                value = contractor.custom_fields.get(field_def.slug, '')
+
+                # フィールドタイプに応じて表示用の値を整形
+                display_value = value
+                if field_def.field_type == 'checkbox':
+                    display_value = '○' if value else '×'
+                elif field_def.field_type == 'multiselect' and isinstance(value, list):
+                    display_value = ', '.join(value)
+                elif field_def.field_type == 'select':
+                    display_value = value
+
+                fields_data.append({
+                    'definition': field_def,
+                    'value': value,
+                    'display_value': display_value
+                })
+
+            if fields_data:  # フィールドがある場合のみ追加
+                custom_fields_by_category.append({
+                    'category': category,
+                    'fields': fields_data
+                })
+
+        context['custom_fields_by_category'] = custom_fields_by_category
+
+        return context
+
+
 class ContractorEditView(LoginRequiredMixin, UpdateView):
     """業者編集"""
     model = Contractor
@@ -194,8 +299,8 @@ class ContractorEditView(LoginRequiredMixin, UpdateView):
             if f'/contractors/{self.object.pk}/edit/' not in referer:
                 return referer
 
-        # デフォルトは下請け検索ページ
-        return reverse_lazy('subcontract_management:contractor_list')
+        # デフォルトは外注先管理ページ
+        return reverse_lazy('order_management:external_contractor_management')
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
@@ -278,6 +383,411 @@ class ContractorEditView(LoginRequiredMixin, UpdateView):
 
         return form
 
+    def form_valid(self, form):
+        """フォームが有効な場合、カスタムフィールドも保存"""
+        contractor = form.save(commit=False)
+
+        # カスタムフィールドの値を取得して保存
+        custom_fields_data = {}
+        field_definitions = ContractorFieldDefinition.objects.filter(is_active=True)
+
+        for field_def in field_definitions:
+            field_name = f'custom_{field_def.slug}'
+
+            if field_def.field_type == 'checkbox':
+                # チェックボックスは on/off で送信される
+                value = field_name in self.request.POST
+                custom_fields_data[field_def.slug] = value
+            elif field_def.field_type == 'multiselect':
+                # 複数選択はリストで取得
+                values = self.request.POST.getlist(field_name)
+                custom_fields_data[field_def.slug] = values
+            else:
+                # その他のフィールドタイプ
+                value = self.request.POST.get(field_name, '')
+                if value:
+                    custom_fields_data[field_def.slug] = value
+
+        # custom_fieldsフィールドに保存
+        if not contractor.custom_fields:
+            contractor.custom_fields = {}
+        contractor.custom_fields.update(custom_fields_data)
+
+        contractor.save()
+        return super().form_valid(form)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+
+        # カスタムフィールド定義をカテゴリごとに取得
+        categories = ContractorFieldCategory.objects.filter(
+            is_active=True
+        ).prefetch_related('field_definitions').order_by('order')
+
+        custom_fields_by_category = []
+        for category in categories:
+            fields_data = []
+            for field_def in category.field_definitions.filter(is_active=True).order_by('order'):
+                # 現在の値を取得
+                current_value = self.object.custom_fields.get(field_def.slug, '')
+
+                fields_data.append({
+                    'definition': field_def,
+                    'current_value': current_value
+                })
+
+            if fields_data:  # フィールドがある場合のみ追加
+                custom_fields_by_category.append({
+                    'category': category,
+                    'fields': fields_data
+                })
+
+        context['custom_fields_by_category'] = custom_fields_by_category
+
         return context
+
+
+# ============================================================================
+# カスタムフィールド管理 AJAX API
+# ============================================================================
+
+@login_required
+@require_http_methods(["GET"])
+def contractor_field_categories_list(request):
+    """カテゴリ一覧取得API"""
+    try:
+        categories = ContractorFieldCategory.objects.all().order_by('order')
+        categories_data = []
+
+        for category in categories:
+            fields_count = category.field_definitions.filter(is_active=True).count()
+            categories_data.append({
+                'id': category.id,
+                'name': category.name,
+                'slug': category.slug,
+                'description': category.description,
+                'order': category.order,
+                'is_active': category.is_active,
+                'fields_count': fields_count,
+            })
+
+        return JsonResponse({
+            'success': True,
+            'categories': categories_data
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def contractor_field_category_create(request):
+    """カテゴリ作成API"""
+    try:
+        data = json.loads(request.body)
+        name = data.get('name', '').strip()
+        slug = data.get('slug', '').strip()
+        description = data.get('description', '').strip()
+
+        if not name or not slug:
+            return JsonResponse({
+                'success': False,
+                'error': 'カテゴリ名とスラッグは必須です'
+            }, status=400)
+
+        max_order = ContractorFieldCategory.objects.aggregate(Max('order'))['order__max'] or 0
+
+        category = ContractorFieldCategory.objects.create(
+            name=name,
+            slug=slug,
+            description=description,
+            order=max_order + 1,
+            is_active=True
+        )
+
+        return JsonResponse({
+            'success': True,
+            'category': {
+                'id': category.id,
+                'name': category.name,
+                'slug': category.slug,
+                'description': category.description,
+                'order': category.order,
+                'is_active': category.is_active,
+                'fields_count': 0,
+            }
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def contractor_field_category_update(request, category_id):
+    """カテゴリ更新API"""
+    try:
+        category = get_object_or_404(ContractorFieldCategory, id=category_id)
+        data = json.loads(request.body)
+
+        category.name = data.get('name', category.name).strip()
+        category.slug = data.get('slug', category.slug).strip()
+        category.description = data.get('description', category.description).strip()
+        category.is_active = data.get('is_active', category.is_active)
+        category.save()
+
+        return JsonResponse({
+            'success': True,
+            'category': {
+                'id': category.id,
+                'name': category.name,
+                'slug': category.slug,
+                'description': category.description,
+                'order': category.order,
+                'is_active': category.is_active,
+            }
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def contractor_field_category_delete(request, category_id):
+    """カテゴリ削除API"""
+    try:
+        category = get_object_or_404(ContractorFieldCategory, id=category_id)
+        category_name = category.name
+        category.delete()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'カテゴリ「{category_name}」を削除しました'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def contractor_field_definitions_list(request):
+    """フィールド定義一覧取得API"""
+    try:
+        category_id = request.GET.get('category_id')
+
+        if category_id:
+            fields = ContractorFieldDefinition.objects.filter(category_id=category_id).order_by('order')
+        else:
+            fields = ContractorFieldDefinition.objects.all().order_by('category__order', 'order')
+
+        fields_data = []
+        for field in fields:
+            fields_data.append({
+                'id': field.id,
+                'category_id': field.category.id,
+                'category_name': field.category.name,
+                'name': field.name,
+                'slug': field.slug,
+                'field_type': field.field_type,
+                'field_type_display': field.get_field_type_display(),
+                'help_text': field.help_text,
+                'placeholder': field.placeholder,
+                'choices': field.choices,
+                'is_required': field.is_required,
+                'min_value': field.min_value,
+                'max_value': field.max_value,
+                'order': field.order,
+                'is_active': field.is_active,
+            })
+
+        return JsonResponse({
+            'success': True,
+            'fields': fields_data
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def contractor_field_definition_create(request):
+    """フィールド定義作成API"""
+    try:
+        data = json.loads(request.body)
+        category_id = data.get('category_id')
+        name = data.get('name', '').strip()
+        slug = data.get('slug', '').strip()
+        field_type = data.get('field_type', 'text')
+
+        if not category_id or not name or not slug:
+            return JsonResponse({
+                'success': False,
+                'error': 'カテゴリ、フィールド名、スラッグは必須です'
+            }, status=400)
+
+        category = get_object_or_404(ContractorFieldCategory, id=category_id)
+        max_order = ContractorFieldDefinition.objects.filter(category=category).aggregate(Max('order'))['order__max'] or 0
+
+        choices_str = data.get('choices', '')
+        if choices_str and field_type in ['select', 'multiselect']:
+            choices = [c.strip() for c in choices_str.split(',') if c.strip()]
+        else:
+            choices = []
+
+        field = ContractorFieldDefinition.objects.create(
+            category=category,
+            name=name,
+            slug=slug,
+            field_type=field_type,
+            help_text=data.get('help_text', '').strip(),
+            placeholder=data.get('placeholder', '').strip(),
+            choices=choices,
+            is_required=data.get('is_required', False),
+            min_value=data.get('min_value'),
+            max_value=data.get('max_value'),
+            order=max_order + 1,
+            is_active=True
+        )
+
+        return JsonResponse({
+            'success': True,
+            'field': {
+                'id': field.id,
+                'category_id': field.category.id,
+                'category_name': field.category.name,
+                'name': field.name,
+                'slug': field.slug,
+                'field_type': field.field_type,
+                'field_type_display': field.get_field_type_display(),
+                'help_text': field.help_text,
+                'placeholder': field.placeholder,
+                'choices': field.choices,
+                'is_required': field.is_required,
+                'min_value': field.min_value,
+                'max_value': field.max_value,
+                'order': field.order,
+                'is_active': field.is_active,
+            }
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def contractor_field_definition_update(request, field_id):
+    """フィールド定義更新API"""
+    try:
+        field = get_object_or_404(ContractorFieldDefinition, id=field_id)
+        data = json.loads(request.body)
+
+        field.name = data.get('name', field.name).strip()
+        field.slug = data.get('slug', field.slug).strip()
+        field.field_type = data.get('field_type', field.field_type)
+        field.help_text = data.get('help_text', field.help_text).strip()
+        field.placeholder = data.get('placeholder', field.placeholder).strip()
+        field.is_required = data.get('is_required', field.is_required)
+        field.is_active = data.get('is_active', field.is_active)
+        field.min_value = data.get('min_value', field.min_value)
+        field.max_value = data.get('max_value', field.max_value)
+
+        if 'choices' in data:
+            choices_str = data['choices']
+            if choices_str and field.field_type in ['select', 'multiselect']:
+                field.choices = [c.strip() for c in choices_str.split(',') if c.strip()]
+            else:
+                field.choices = []
+
+        field.save()
+
+        return JsonResponse({
+            'success': True,
+            'field': {
+                'id': field.id,
+                'name': field.name,
+                'slug': field.slug,
+                'field_type': field.field_type,
+                'field_type_display': field.get_field_type_display(),
+                'help_text': field.help_text,
+                'placeholder': field.placeholder,
+                'choices': field.choices,
+                'is_required': field.is_required,
+                'min_value': field.min_value,
+                'max_value': field.max_value,
+                'is_active': field.is_active,
+            }
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def contractor_field_definition_delete(request, field_id):
+    """フィールド定義削除API"""
+    try:
+        field = get_object_or_404(ContractorFieldDefinition, id=field_id)
+        field_name = field.name
+        field.delete()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'フィールド「{field_name}」を削除しました'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def contractor_field_reorder(request):
+    """カテゴリ・フィールドの並び替えAPI"""
+    try:
+        data = json.loads(request.body)
+        reorder_type = data.get('type')
+        items = data.get('items', [])
+
+        if reorder_type == 'category':
+            for item in items:
+                ContractorFieldCategory.objects.filter(id=item['id']).update(order=item['order'])
+        elif reorder_type == 'field':
+            for item in items:
+                ContractorFieldDefinition.objects.filter(id=item['id']).update(order=item['order'])
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': '無効な並び替えタイプです'
+            }, status=400)
+
+        return JsonResponse({
+            'success': True,
+            'message': '並び替えを保存しました'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

@@ -72,6 +72,82 @@ class InternalWorker(models.Model):
         )['total'] or 0
 
 
+class ContractorFieldCategory(models.Model):
+    """業者カスタムフィールドのカテゴリ（例: 基本情報、問屋契約など）"""
+    name = models.CharField(max_length=100, verbose_name='カテゴリ名')
+    slug = models.SlugField(max_length=100, unique=True, verbose_name='スラッグ')
+    description = models.TextField(blank=True, verbose_name='説明')
+    order = models.IntegerField(default=0, verbose_name='表示順')
+    is_active = models.BooleanField(default=True, verbose_name='有効')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='登録日時')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新日時')
+
+    class Meta:
+        verbose_name = '業者フィールドカテゴリ'
+        verbose_name_plural = '業者フィールドカテゴリ一覧'
+        ordering = ['order', 'name']
+
+    def __str__(self):
+        return self.name
+
+
+class ContractorFieldDefinition(models.Model):
+    """業者カスタムフィールドの定義"""
+    FIELD_TYPE_CHOICES = [
+        ('text', 'テキスト'),
+        ('number', '数値'),
+        ('date', '日付'),
+        ('select', '選択肢'),
+        ('multiselect', '複数選択'),
+        ('checkbox', 'チェックボックス'),
+        ('textarea', 'テキストエリア'),
+    ]
+
+    category = models.ForeignKey(
+        ContractorFieldCategory,
+        on_delete=models.CASCADE,
+        related_name='field_definitions',
+        verbose_name='カテゴリ'
+    )
+    name = models.CharField(max_length=100, verbose_name='フィールド名')
+    slug = models.SlugField(max_length=100, verbose_name='スラッグ')
+    field_type = models.CharField(
+        max_length=20,
+        choices=FIELD_TYPE_CHOICES,
+        default='text',
+        verbose_name='フィールドタイプ'
+    )
+    help_text = models.CharField(max_length=200, blank=True, verbose_name='ヘルプテキスト')
+    placeholder = models.CharField(max_length=100, blank=True, verbose_name='プレースホルダー')
+
+    # 選択肢フィールド用（select, multiselect用）
+    choices = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='選択肢',
+        help_text='例: ["選択肢1", "選択肢2", "選択肢3"]'
+    )
+
+    # バリデーション
+    is_required = models.BooleanField(default=False, verbose_name='必須')
+    min_value = models.IntegerField(null=True, blank=True, verbose_name='最小値')
+    max_value = models.IntegerField(null=True, blank=True, verbose_name='最大値')
+
+    order = models.IntegerField(default=0, verbose_name='表示順')
+    is_active = models.BooleanField(default=True, verbose_name='有効')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='登録日時')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新日時')
+
+    class Meta:
+        verbose_name = '業者フィールド定義'
+        verbose_name_plural = '業者フィールド定義一覧'
+        ordering = ['category__order', 'order', 'name']
+        unique_together = [['category', 'slug']]
+
+    def __str__(self):
+        return f"{self.category.name} - {self.name}"
+
+
 class Contractor(models.Model):
     CONTRACTOR_TYPE_CHOICES = [
         ('individual', '個人職人'),
@@ -130,6 +206,14 @@ class Contractor(models.Model):
         blank=True,
         verbose_name='保有資格',
         help_text='改行区切りで複数入力可能'
+    )
+
+    # カスタムフィールド
+    custom_fields = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='カスタムフィールド',
+        help_text='動的に定義されたフィールドの値を格納。形式: {"field_slug": "value", ...}'
     )
 
     # 実績管理 - Phase 8 追加
@@ -252,9 +336,16 @@ class Subcontract(models.Model):
     ]
 
     STEP_CHOICES = [
-        ('attendance', '立ち会い'),
-        ('survey', '現調'),
-        ('construction_start', '着工'),
+        ('step_attendance', '立ち会い'),
+        ('step_survey', '現調'),
+        ('step_estimate', '見積書発行'),
+        ('step_construction_start', '着工'),
+        ('step_completion', '完工'),
+        ('step_contract', '契約'),
+        ('step_invoice', '請求書発行'),
+        ('step_permit_application', '許可申請'),
+        ('step_material_order', '資材発注'),
+        ('step_inspection', '検査'),
     ]
 
     # 案件情報（受注フォーマットから連携）
@@ -275,9 +366,9 @@ class Subcontract(models.Model):
         verbose_name='作業者タイプ'
     )
 
-    # プロジェクトステップ（立ち会い、現調、着工）
+    # プロジェクトステップ（立ち会い、現調、着工など）
     step = models.CharField(
-        max_length=20,
+        max_length=50,
         choices=STEP_CHOICES,
         null=True,
         blank=True,

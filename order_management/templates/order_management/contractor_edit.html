@@ -7,18 +7,9 @@
 <div class="container-fluid">
     <!-- ヘッダー -->
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-        <div>
-            <h1 class="h2">
-                <i class="fas fa-edit me-2"></i>業者情報編集
-            </h1>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{% url 'order_management:dashboard' %}">ダッシュボード</a></li>
-                    <li class="breadcrumb-item"><a href="{% url 'order_management:contractor_dashboard' %}">業者管理</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">{{ contractor.name }}</li>
-                </ol>
-            </nav>
-        </div>
+        <h1 class="h2">
+            <i class="fas fa-edit me-2"></i>業者情報編集 - {{ contractor.name }}
+        </h1>
         <div class="btn-toolbar mb-2 mb-md-0">
             <div class="btn-group me-2">
                 <a href="javascript:window.history.back();" class="btn btn-outline-secondary">
@@ -299,6 +290,151 @@
                             <small class="form-text text-muted">任意: カタカナで入力（例: カ）マルマルケンセツ）</small>
                         </div>
 
+                        <!-- カスタムフィールド -->
+                        <hr class="my-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">
+                                <i class="fas fa-star me-2"></i>追加情報
+                            </h6>
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#fieldManagementModal">
+                                <i class="fas fa-cog me-1"></i>項目を管理
+                            </button>
+                        </div>
+
+                        {% if custom_fields_by_category %}
+
+                        {% for cat_data in custom_fields_by_category %}
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">{{ cat_data.category.name }}</h6>
+                                {% if cat_data.category.description %}
+                                <small class="text-muted">{{ cat_data.category.description }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    {% for field in cat_data.fields %}
+                                    <div class="col-md-6 mb-3">
+                                        {% if field.definition.field_type == 'text' %}
+                                            <label class="form-label">
+                                                {{ field.definition.name }}
+                                                {% if field.definition.is_required %}<span class="text-danger">*</span>{% endif %}
+                                            </label>
+                                            <input type="text"
+                                                   name="custom_{{ field.definition.slug }}"
+                                                   class="form-control"
+                                                   value="{{ field.current_value }}"
+                                                   placeholder="{{ field.definition.placeholder }}"
+                                                   {% if field.definition.is_required %}required{% endif %}>
+                                            {% if field.definition.help_text %}
+                                                <small class="form-text text-muted">{{ field.definition.help_text }}</small>
+                                            {% endif %}
+
+                                        {% elif field.definition.field_type == 'number' %}
+                                            <label class="form-label">
+                                                {{ field.definition.name }}
+                                                {% if field.definition.is_required %}<span class="text-danger">*</span>{% endif %}
+                                            </label>
+                                            <input type="number"
+                                                   name="custom_{{ field.definition.slug }}"
+                                                   class="form-control"
+                                                   value="{{ field.current_value }}"
+                                                   placeholder="{{ field.definition.placeholder }}"
+                                                   {% if field.definition.min_value %}min="{{ field.definition.min_value }}"{% endif %}
+                                                   {% if field.definition.max_value %}max="{{ field.definition.max_value }}"{% endif %}
+                                                   {% if field.definition.is_required %}required{% endif %}>
+                                            {% if field.definition.help_text %}
+                                                <small class="form-text text-muted">{{ field.definition.help_text }}</small>
+                                            {% endif %}
+
+                                        {% elif field.definition.field_type == 'date' %}
+                                            <label class="form-label">
+                                                {{ field.definition.name }}
+                                                {% if field.definition.is_required %}<span class="text-danger">*</span>{% endif %}
+                                            </label>
+                                            <input type="date"
+                                                   name="custom_{{ field.definition.slug }}"
+                                                   class="form-control"
+                                                   value="{{ field.current_value }}"
+                                                   {% if field.definition.is_required %}required{% endif %}>
+                                            {% if field.definition.help_text %}
+                                                <small class="form-text text-muted">{{ field.definition.help_text }}</small>
+                                            {% endif %}
+
+                                        {% elif field.definition.field_type == 'textarea' %}
+                                            <label class="form-label">
+                                                {{ field.definition.name }}
+                                                {% if field.definition.is_required %}<span class="text-danger">*</span>{% endif %}
+                                            </label>
+                                            <textarea name="custom_{{ field.definition.slug }}"
+                                                      class="form-control"
+                                                      rows="3"
+                                                      placeholder="{{ field.definition.placeholder }}"
+                                                      {% if field.definition.is_required %}required{% endif %}>{{ field.current_value }}</textarea>
+                                            {% if field.definition.help_text %}
+                                                <small class="form-text text-muted">{{ field.definition.help_text }}</small>
+                                            {% endif %}
+
+                                        {% elif field.definition.field_type == 'select' %}
+                                            <label class="form-label">
+                                                {{ field.definition.name }}
+                                                {% if field.definition.is_required %}<span class="text-danger">*</span>{% endif %}
+                                            </label>
+                                            <select name="custom_{{ field.definition.slug }}"
+                                                    class="form-select"
+                                                    {% if field.definition.is_required %}required{% endif %}>
+                                                <option value="">選択してください</option>
+                                                {% for choice in field.definition.choices %}
+                                                    <option value="{{ choice }}" {% if field.current_value == choice %}selected{% endif %}>
+                                                        {{ choice }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                            {% if field.definition.help_text %}
+                                                <small class="form-text text-muted">{{ field.definition.help_text }}</small>
+                                            {% endif %}
+
+                                        {% elif field.definition.field_type == 'multiselect' %}
+                                            <label class="form-label">
+                                                {{ field.definition.name }}
+                                                {% if field.definition.is_required %}<span class="text-danger">*</span>{% endif %}
+                                            </label>
+                                            <select name="custom_{{ field.definition.slug }}"
+                                                    class="form-select"
+                                                    multiple
+                                                    {% if field.definition.is_required %}required{% endif %}>
+                                                {% for choice in field.definition.choices %}
+                                                    <option value="{{ choice }}" {% if choice in field.current_value %}selected{% endif %}>
+                                                        {{ choice }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                            {% if field.definition.help_text %}
+                                                <small class="form-text text-muted">{{ field.definition.help_text }}</small>
+                                            {% endif %}
+
+                                        {% elif field.definition.field_type == 'checkbox' %}
+                                            <div class="form-check">
+                                                <input type="checkbox"
+                                                       name="custom_{{ field.definition.slug }}"
+                                                       class="form-check-input"
+                                                       {% if field.current_value %}checked{% endif %}>
+                                                <label class="form-check-label">
+                                                    {{ field.definition.name }}
+                                                </label>
+                                            </div>
+                                            {% if field.definition.help_text %}
+                                                <small class="form-text text-muted">{{ field.definition.help_text }}</small>
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+
                         <hr class="my-4">
 
                         <div class="d-flex gap-2">
@@ -358,11 +494,240 @@
         </div>
     </div>
 </div>
+
+<!-- カスタムフィールド管理モーダル -->
+<div class="modal fade" id="fieldManagementModal" tabindex="-1" aria-labelledby="fieldManagementModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="fieldManagementModalLabel">
+                    <i class="fas fa-cog me-2"></i>カスタムフィールド管理
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- タブナビゲーション -->
+                <ul class="nav nav-tabs mb-3" id="fieldManagementTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="categories-tab" data-bs-toggle="tab" data-bs-target="#categories" type="button" role="tab">
+                            <i class="fas fa-folder me-1"></i>カテゴリ管理
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="fields-tab" data-bs-toggle="tab" data-bs-target="#fields" type="button" role="tab">
+                            <i class="fas fa-list me-1"></i>フィールド管理
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- タブコンテンツ -->
+                <div class="tab-content" id="fieldManagementTabsContent">
+                    <!-- カテゴリ管理タブ -->
+                    <div class="tab-pane fade show active" id="categories" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h6>カテゴリ一覧</h6>
+                                <div id="categoriesList" class="list-group mb-3">
+                                    <!-- カテゴリがここに動的に追加されます -->
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <h6>カテゴリ追加/編集</h6>
+                                <form id="categoryForm">
+                                    <input type="hidden" id="categoryId">
+                                    <div class="mb-3">
+                                        <label class="form-label">カテゴリ名 <span class="text-danger">*</span></label>
+                                        <input type="text" id="categoryName" class="form-control" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">スラッグ <span class="text-danger">*</span></label>
+                                        <input type="text" id="categorySlug" class="form-control" required>
+                                        <small class="text-muted">英数字とハイフンのみ</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">説明</label>
+                                        <textarea id="categoryDescription" class="form-control" rows="2"></textarea>
+                                    </div>
+                                    <div class="d-grid gap-2">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save me-1"></i>保存
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" id="cancelCategoryEdit">
+                                            <i class="fas fa-times me-1"></i>キャンセル
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- フィールド管理タブ -->
+                    <div class="tab-pane fade" id="fields" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h6>フィールド一覧</h6>
+                                <div class="mb-3">
+                                    <label class="form-label">カテゴリでフィルター</label>
+                                    <select id="fieldFilterCategory" class="form-select">
+                                        <option value="">すべてのカテゴリ</option>
+                                    </select>
+                                </div>
+                                <div id="fieldsList" class="list-group mb-3">
+                                    <!-- フィールドがここに動的に追加されます -->
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <h6>フィールド追加/編集</h6>
+                                <form id="fieldForm">
+                                    <input type="hidden" id="fieldId">
+                                    <div class="mb-3">
+                                        <label class="form-label">カテゴリ <span class="text-danger">*</span></label>
+                                        <select id="fieldCategory" class="form-select" required>
+                                            <option value="">選択してください</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">フィールド名 <span class="text-danger">*</span></label>
+                                        <input type="text" id="fieldName" class="form-control" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">スラッグ <span class="text-danger">*</span></label>
+                                        <input type="text" id="fieldSlug" class="form-control" required>
+                                        <small class="text-muted">英数字とアンダースコアのみ</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">フィールドタイプ <span class="text-danger">*</span></label>
+                                        <select id="fieldType" class="form-select" required>
+                                            <option value="text">テキスト</option>
+                                            <option value="number">数値</option>
+                                            <option value="date">日付</option>
+                                            <option value="select">選択肢</option>
+                                            <option value="multiselect">複数選択</option>
+                                            <option value="checkbox">チェックボックス</option>
+                                            <option value="textarea">テキストエリア</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3" id="choicesGroup" style="display: none;">
+                                        <label class="form-label">選択肢（カンマ区切り）</label>
+                                        <input type="text" id="fieldChoices" class="form-control" placeholder="例: ○,×,△">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">プレースホルダー</label>
+                                        <input type="text" id="fieldPlaceholder" class="form-control">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">ヘルプテキスト</label>
+                                        <input type="text" id="fieldHelpText" class="form-control">
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input type="checkbox" id="fieldRequired" class="form-check-input">
+                                        <label class="form-check-label" for="fieldRequired">必須フィールド</label>
+                                    </div>
+                                    <div class="d-grid gap-2">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save me-1"></i>保存
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" id="cancelFieldEdit">
+                                            <i class="fas fa-times me-1"></i>キャンセル
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 確認ダイアログモーダル -->
+<div class="modal fade" id="confirmDialog" tabindex="-1" aria-labelledby="confirmDialogLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmDialogLabel">確認</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="confirmDialogBody">
+                <!-- メッセージがここに表示されます -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-danger" id="confirmDialogOkBtn">削除</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 通知トーストエリア -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 11000;">
+    <div id="notificationToast" class="toast align-items-center border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="toastBody">
+                <!-- メッセージがここに表示されます -->
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // ========================================
+    // ユーティリティ関数
+    // ========================================
+
+    // 通知トーストを表示
+    function showToast(message, type = 'success') {
+        const toastEl = document.getElementById('notificationToast');
+        const toastBody = document.getElementById('toastBody');
+        const toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 3000 });
+
+        // タイプに応じて背景色を変更
+        toastEl.classList.remove('bg-success', 'bg-danger', 'bg-warning', 'text-white');
+        if (type === 'success') {
+            toastEl.classList.add('bg-success', 'text-white');
+        } else if (type === 'error') {
+            toastEl.classList.add('bg-danger', 'text-white');
+        } else if (type === 'warning') {
+            toastEl.classList.add('bg-warning', 'text-white');
+        }
+
+        toastBody.textContent = message;
+        toast.show();
+    }
+
+    // 確認ダイアログを表示
+    function showConfirmDialog(message, onConfirm) {
+        const confirmDialog = document.getElementById('confirmDialog');
+        const confirmBody = document.getElementById('confirmDialogBody');
+        const confirmBtn = document.getElementById('confirmDialogOkBtn');
+
+        // 改行を<br>に変換
+        confirmBody.innerHTML = message.replace(/\n/g, '<br>');
+
+        // 既存のイベントリスナーを削除
+        const newConfirmBtn = confirmBtn.cloneNode(true);
+        confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+        // 新しいイベントリスナーを追加
+        newConfirmBtn.addEventListener('click', function() {
+            const modal = bootstrap.Modal.getInstance(confirmDialog);
+            modal.hide();
+            onConfirm();
+        });
+
+        const modal = new bootstrap.Modal(confirmDialog);
+        modal.show();
+    }
+
     // 業者種別に応じて時給単価フィールドを表示/非表示
     const contractorTypeField = document.getElementById('{{ form.contractor_type.id_for_label }}');
     const hourlyRateField = document.getElementById('hourlyRateField');
@@ -383,6 +748,463 @@ document.addEventListener('DOMContentLoaded', function() {
     // 業者種別変更時のイベントリスナー
     if (contractorTypeField) {
         contractorTypeField.addEventListener('change', toggleHourlyRateField);
+    }
+
+    // ========================================
+    // カスタムフィールド管理モーダル
+    // ========================================
+
+    const fieldManagementModal = document.getElementById('fieldManagementModal');
+    let categoriesData = [];
+    let fieldsData = [];
+
+    // モーダルが開いたときにデータを読み込む
+    if (fieldManagementModal) {
+        fieldManagementModal.addEventListener('show.bs.modal', function() {
+            loadCategories();
+            loadFields();
+        });
+    }
+
+    // CSRFトークンを取得
+    function getCsrfToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]').value;
+    }
+
+    // ========================================
+    // カテゴリ管理
+    // ========================================
+
+    function loadCategories() {
+        fetch('/orders/api/contractor-field-categories/')
+            .then(response => response.json())
+            .then(data => {
+                categoriesData = data.categories || [];
+                renderCategories();
+                updateCategorySelects();
+            })
+            .catch(error => {
+                console.error('カテゴリの読み込みエラー:', error);
+                showToast('カテゴリの読み込みに失敗しました', 'error');
+            });
+    }
+
+    function renderCategories() {
+        const categoriesList = document.getElementById('categoriesList');
+        if (!categoriesList) return;
+
+        if (categoriesData.length === 0) {
+            categoriesList.innerHTML = '<div class="text-muted text-center p-3">カテゴリがありません</div>';
+            return;
+        }
+
+        categoriesList.innerHTML = categoriesData.map(cat => `
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>${cat.name}</strong>
+                    <br>
+                    <small class="text-muted">スラッグ: ${cat.slug}</small>
+                    ${cat.description ? '<br><small class="text-muted">' + cat.description + '</small>' : ''}
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-primary" onclick="editCategory(${cat.id})">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteCategory(${cat.id}, '${cat.name}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function updateCategorySelects() {
+        // フィールド作成フォームのカテゴリ選択肢を更新
+        const fieldCategory = document.getElementById('fieldCategory');
+        const fieldFilterCategory = document.getElementById('fieldFilterCategory');
+
+        if (fieldCategory) {
+            fieldCategory.innerHTML = '<option value="">選択してください</option>' +
+                categoriesData.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
+        }
+
+        if (fieldFilterCategory) {
+            fieldFilterCategory.innerHTML = '<option value="">すべてのカテゴリ</option>' +
+                categoriesData.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
+        }
+    }
+
+    // カテゴリフォーム送信
+    const categoryForm = document.getElementById('categoryForm');
+    if (categoryForm) {
+        categoryForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const categoryId = document.getElementById('categoryId').value;
+            const name = document.getElementById('categoryName').value.trim();
+            const slug = document.getElementById('categorySlug').value.trim();
+            const description = document.getElementById('categoryDescription').value.trim();
+
+            if (!name || !slug) {
+                showToast('カテゴリ名とスラッグは必須です', 'warning');
+                return;
+            }
+
+            const url = categoryId ?
+                `/orders/api/contractor-field-categories/${categoryId}/update/` :
+                '/orders/api/contractor-field-categories/create/';
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({ name, slug, description })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(categoryId ? 'カテゴリを更新しました' : 'カテゴリを作成しました', 'success');
+                    resetCategoryForm();
+                    loadCategories();
+                } else {
+                    showToast('エラー: ' + (data.error || '保存に失敗しました'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('カテゴリ保存エラー:', error);
+                showToast('カテゴリの保存に失敗しました', 'error');
+            });
+        });
+    }
+
+    // カテゴリ編集
+    window.editCategory = function(categoryId) {
+        const category = categoriesData.find(c => c.id === categoryId);
+        if (!category) return;
+
+        document.getElementById('categoryId').value = category.id;
+        document.getElementById('categoryName').value = category.name;
+        document.getElementById('categorySlug').value = category.slug;
+        document.getElementById('categoryDescription').value = category.description || '';
+    };
+
+    // カテゴリ削除
+    window.deleteCategory = function(categoryId, categoryName) {
+        showConfirmDialog(
+            `カテゴリ「${categoryName}」を削除してもよろしいですか？\n\nこのカテゴリに紐づくフィールドもすべて削除されます。`,
+            function() {
+                fetch(`/orders/api/contractor-field-categories/${categoryId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken()
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('カテゴリを削除しました', 'success');
+                        loadCategories();
+                        loadFields();
+                    } else {
+                        showToast('エラー: ' + (data.error || '削除に失敗しました'), 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('カテゴリ削除エラー:', error);
+                    showToast('カテゴリの削除に失敗しました', 'error');
+                });
+            }
+        );
+    };
+
+    // カテゴリフォームリセット
+    const cancelCategoryEdit = document.getElementById('cancelCategoryEdit');
+    if (cancelCategoryEdit) {
+        cancelCategoryEdit.addEventListener('click', resetCategoryForm);
+    }
+
+    function resetCategoryForm() {
+        document.getElementById('categoryId').value = '';
+        document.getElementById('categoryName').value = '';
+        document.getElementById('categorySlug').value = '';
+        document.getElementById('categoryDescription').value = '';
+    }
+
+    // ========================================
+    // フィールド管理
+    // ========================================
+
+    function loadFields() {
+        fetch('/orders/api/contractor-field-definitions/')
+            .then(response => response.json())
+            .then(data => {
+                fieldsData = data.fields || [];
+                renderFields();
+            })
+            .catch(error => {
+                console.error('フィールドの読み込みエラー:', error);
+                showToast('フィールドの読み込みに失敗しました', 'error');
+            });
+    }
+
+    function renderFields() {
+        const fieldsList = document.getElementById('fieldsList');
+        const filterCategoryId = document.getElementById('fieldFilterCategory')?.value;
+
+        if (!fieldsList) return;
+
+        let filteredFields = fieldsData;
+        if (filterCategoryId) {
+            filteredFields = fieldsData.filter(f => f.category_id == filterCategoryId);
+        }
+
+        if (filteredFields.length === 0) {
+            fieldsList.innerHTML = '<div class="text-muted text-center p-3">フィールドがありません</div>';
+            return;
+        }
+
+        // カテゴリごとにフィールドをグループ化
+        const fieldsByCategory = {};
+        filteredFields.forEach(field => {
+            if (!fieldsByCategory[field.category_id]) {
+                fieldsByCategory[field.category_id] = [];
+            }
+            fieldsByCategory[field.category_id].push(field);
+        });
+
+        // カテゴリごとに表示
+        let html = '';
+        categoriesData.forEach(category => {
+            const categoryFields = fieldsByCategory[category.id];
+            if (!categoryFields || categoryFields.length === 0) {
+                // フィルターなしの場合は空のカテゴリも表示
+                if (!filterCategoryId) {
+                    html += `
+                        <div class="mb-4">
+                            <h6 class="text-primary mb-2">
+                                <i class="fas fa-folder me-1"></i>${category.name}
+                            </h6>
+                            <div class="text-muted ps-3 small">フィールドがありません</div>
+                        </div>
+                    `;
+                }
+                return;
+            }
+
+            html += `
+                <div class="mb-4">
+                    <h6 class="text-primary mb-2">
+                        <i class="fas fa-folder me-1"></i>${category.name}
+                    </h6>
+                    <div class="list-group">
+                        ${categoryFields.map(field => `
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <strong>${field.name}</strong>
+                                        <span class="badge bg-secondary ms-2">${field.field_type}</span>
+                                        <br>
+                                        <small class="text-muted">スラッグ: ${field.slug}</small>
+                                        ${field.help_text ? '<br><small class="text-muted">' + field.help_text + '</small>' : ''}
+                                        ${field.choices && field.choices.length > 0 ? '<br><small class="text-muted">選択肢: ' + field.choices.join(', ') + '</small>' : ''}
+                                    </div>
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="editField(${field.id})">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteField(${field.id}, '${field.name}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        });
+
+        fieldsList.innerHTML = html;
+    }
+
+    // フィールドタイプ変更時に選択肢入力の表示/非表示を切り替え
+    const fieldType = document.getElementById('fieldType');
+    if (fieldType) {
+        fieldType.addEventListener('change', function() {
+            const choicesGroup = document.getElementById('choicesGroup');
+            if (this.value === 'select' || this.value === 'multiselect') {
+                choicesGroup.style.display = 'block';
+            } else {
+                choicesGroup.style.display = 'none';
+            }
+        });
+    }
+
+    // フィールドフィルター変更時
+    const fieldFilterCategory = document.getElementById('fieldFilterCategory');
+    if (fieldFilterCategory) {
+        fieldFilterCategory.addEventListener('change', renderFields);
+    }
+
+    // フィールドフォーム送信
+    const fieldForm = document.getElementById('fieldForm');
+    if (fieldForm) {
+        fieldForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const fieldId = document.getElementById('fieldId').value;
+            const category_id = document.getElementById('fieldCategory').value;
+            const name = document.getElementById('fieldName').value.trim();
+            const slug = document.getElementById('fieldSlug').value.trim();
+            const field_type = document.getElementById('fieldType').value;
+            const placeholder = document.getElementById('fieldPlaceholder').value.trim();
+            const help_text = document.getElementById('fieldHelpText').value.trim();
+            const is_required = document.getElementById('fieldRequired').checked;
+
+            let choices = [];
+            if (field_type === 'select' || field_type === 'multiselect') {
+                const choicesInput = document.getElementById('fieldChoices').value.trim();
+                if (choicesInput) {
+                    choices = choicesInput.split(',').map(c => c.trim()).filter(c => c);
+                }
+            }
+
+            if (!category_id || !name || !slug) {
+                showToast('カテゴリ、フィールド名、スラッグは必須です', 'warning');
+                return;
+            }
+
+            const url = fieldId ?
+                `/orders/api/contractor-field-definitions/${fieldId}/update/` :
+                '/orders/api/contractor-field-definitions/create/';
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({
+                    category_id,
+                    name,
+                    slug,
+                    field_type,
+                    placeholder,
+                    help_text,
+                    is_required,
+                    choices
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(fieldId ? 'フィールドを更新しました' : 'フィールドを作成しました', 'success');
+                    resetFieldForm();
+                    loadFields();
+                } else {
+                    showToast('エラー: ' + (data.error || '保存に失敗しました'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('フィールド保存エラー:', error);
+                showToast('フィールドの保存に失敗しました', 'error');
+            });
+        });
+    }
+
+    // フィールド編集
+    window.editField = function(fieldId) {
+        const field = fieldsData.find(f => f.id === fieldId);
+        if (!field) return;
+
+        document.getElementById('fieldId').value = field.id;
+        document.getElementById('fieldCategory').value = field.category_id;
+        document.getElementById('fieldName').value = field.name;
+        document.getElementById('fieldSlug').value = field.slug;
+        document.getElementById('fieldType').value = field.field_type;
+        document.getElementById('fieldPlaceholder').value = field.placeholder || '';
+        document.getElementById('fieldHelpText').value = field.help_text || '';
+        document.getElementById('fieldRequired').checked = field.is_required || false;
+
+        // 選択肢がある場合
+        if (field.choices && field.choices.length > 0) {
+            document.getElementById('fieldChoices').value = field.choices.join(', ');
+        } else {
+            document.getElementById('fieldChoices').value = '';
+        }
+
+        // 選択肢入力の表示/非表示
+        const choicesGroup = document.getElementById('choicesGroup');
+        if (field.field_type === 'select' || field.field_type === 'multiselect') {
+            choicesGroup.style.display = 'block';
+        } else {
+            choicesGroup.style.display = 'none';
+        }
+
+        // フィールドタブに切り替え
+        const fieldsTab = document.getElementById('fields-tab');
+        if (fieldsTab) {
+            fieldsTab.click();
+        }
+    };
+
+    // フィールド削除
+    window.deleteField = function(fieldId, fieldName) {
+        showConfirmDialog(
+            `フィールド「${fieldName}」を削除してもよろしいですか？`,
+            function() {
+                fetch(`/orders/api/contractor-field-definitions/${fieldId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken()
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('フィールドを削除しました', 'success');
+                        loadFields();
+                    } else {
+                        showToast('エラー: ' + (data.error || '削除に失敗しました'), 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('フィールド削除エラー:', error);
+                    showToast('フィールドの削除に失敗しました', 'error');
+                });
+            }
+        );
+    };
+
+    // フィールドフォームリセット
+    const cancelFieldEdit = document.getElementById('cancelFieldEdit');
+    if (cancelFieldEdit) {
+        cancelFieldEdit.addEventListener('click', resetFieldForm);
+    }
+
+    function resetFieldForm() {
+        document.getElementById('fieldId').value = '';
+        document.getElementById('fieldCategory').value = '';
+        document.getElementById('fieldName').value = '';
+        document.getElementById('fieldSlug').value = '';
+        document.getElementById('fieldType').value = 'text';
+        document.getElementById('fieldPlaceholder').value = '';
+        document.getElementById('fieldHelpText').value = '';
+        document.getElementById('fieldRequired').checked = false;
+        document.getElementById('fieldChoices').value = '';
+        document.getElementById('choicesGroup').style.display = 'none';
+    }
+
+    // モーダルを閉じたときにページをリロード（カスタムフィールドを反映）
+    if (fieldManagementModal) {
+        fieldManagementModal.addEventListener('hidden.bs.modal', function() {
+            // 変更があった場合のみリロード
+            if (categoriesData.length > 0 || fieldsData.length > 0) {
+                location.reload();
+            }
+        });
     }
 });
 </script>
