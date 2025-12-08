@@ -32,13 +32,15 @@ window.refreshContractorList = function() {
     console.log('✅ refreshContractorList called');
 
     const tbody = $('#contractorTableBody');
-    tbody.html('<tr><td colspan="6" class="text-center text-muted">読み込み中...</td></tr>');
+    tbody.html('<tr><td colspan="7" class="text-center text-muted">読み込み中...</td></tr>');
 
-    // すべての下請け業者を取得（Djangoテンプレートから）
-    const allContractors = {{ contractors_json|safe }};
+    // すべての下請け業者を取得（window.contractors_jsonから）
+    const allContractors = window.contractors_json || [];
+
+    console.log('📋 Loaded contractors:', allContractors.length);
 
     if (!allContractors || allContractors.length === 0) {
-        tbody.html('<tr><td colspan="6" class="text-center text-muted">下請け業者が登録されていません</td></tr>');
+        tbody.html('<tr><td colspan="7" class="text-center text-muted">下請け業者が登録されていません</td></tr>');
         return;
     }
 
@@ -72,6 +74,41 @@ window.refreshContractorList = function() {
             contactInfo = '<span class="text-muted">-</span>';
         }
 
+        // 支払いサイクル情報
+        let paymentCycleInfo = '';
+        const paymentCycleMap = {
+            'monthly': '月払い',
+            'bimonthly': '隔月払い',
+            'quarterly': '四半期払い',
+            'custom': 'その他'
+        };
+        const paymentOffsetMap = {
+            0: '当月',
+            1: '翌月',
+            2: '翌々月',
+            3: '3ヶ月後'
+        };
+
+        const paymentCycle = contractor.payment_cycle ? paymentCycleMap[contractor.payment_cycle] || '-' : '-';
+        const closingDay = contractor.closing_day ? `${contractor.closing_day}日` : '-';
+        const paymentOffset = contractor.payment_offset_months !== null && contractor.payment_offset_months !== ''
+            ? (paymentOffsetMap[contractor.payment_offset_months] || '-')
+            : '-';
+        const paymentDay = contractor.payment_day ? `${contractor.payment_day}日` : '-';
+
+        if (paymentCycle !== '-' || closingDay !== '-' || paymentDay !== '-') {
+            paymentCycleInfo = `
+                <div style="font-size: 0.8rem; line-height: 1.4;">
+                    <div>${paymentCycle}</div>
+                    <div class="text-muted">締日: ${closingDay}</div>
+                    <div class="text-muted">支払月: ${paymentOffset}</div>
+                    <div class="text-muted">支払日: ${paymentDay}</div>
+                </div>
+            `;
+        } else {
+            paymentCycleInfo = '<span class="text-muted">-</span>';
+        }
+
         html += `
             <tr style="cursor: pointer;" onclick="selectContractor(${contractor.id})" onmouseover="this.style.backgroundColor='#f8f9fa'" onmouseout="this.style.backgroundColor=''">
                 <td>
@@ -81,6 +118,7 @@ window.refreshContractorList = function() {
                 <td><span class="text-muted">${escapeHtml(contractor.specialties || '-')}</span></td>
                 <td><span class="text-muted">${escapeHtml(contractor.contact_person || '-')}</span></td>
                 <td style="font-size: 0.875rem;">${contactInfo}</td>
+                <td style="font-size: 0.875rem;">${paymentCycleInfo}</td>
                 <td class="text-center">${statusBadge}</td>
                 <td onclick="event.stopPropagation()">
                     <button class="btn btn-sm btn-success me-1" onclick="selectContractor(${contractor.id})" title="この業者を選択">
@@ -101,7 +139,7 @@ window.refreshContractorList = function() {
 window.openEditContractorModal = function(contractorId) {
     console.log('✅ openEditContractorModal called', contractorId);
 
-    const allContractors = {{ contractors_json|safe }};
+    const allContractors = window.contractors_json || [];
     const contractor = allContractors.find(c => c.id === contractorId);
 
     if (!contractor) {
@@ -239,13 +277,26 @@ window.submitEditContractor = function() {
     });
 };
 
-// 業者を削除
+// 業者削除確認モーダルを開く
 window.deleteContractor = function(contractorId, contractorName) {
     console.log('✅ deleteContractor called', contractorId, contractorName);
 
-    if (!confirm(`本当に「${contractorName}」を削除しますか？\n\nこの操作は取り消せません。`)) {
-        return;
-    }
+    // モーダルに情報をセット
+    $('#contractorIdToDelete').val(contractorId);
+    $('#contractorNameToDelete').text(contractorName);
+
+    // モーダルを表示
+    const modal = new bootstrap.Modal(document.getElementById('deleteContractorModal'));
+    modal.show();
+};
+
+// 業者削除を実行
+window.confirmDeleteContractor = function() {
+    const contractorId = $('#contractorIdToDelete').val();
+    const deleteBtn = $('#confirmDeleteContractorBtn');
+    const originalText = deleteBtn.html();
+
+    deleteBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>削除中...');
 
     const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
@@ -259,6 +310,12 @@ window.deleteContractor = function(contractorId, contractorName) {
         },
         success: function(response) {
             if (response && response.success) {
+                // モーダルを閉じる
+                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteContractorModal'));
+                if (modal) {
+                    modal.hide();
+                }
+
                 toastr.success(response.message || '業者を削除しました');
 
                 // 一覧を更新
@@ -270,6 +327,7 @@ window.deleteContractor = function(contractorId, contractorName) {
                 }, 1000);
             } else {
                 toastr.error(response.message || '削除に失敗しました');
+                deleteBtn.prop('disabled', false).html(originalText);
             }
         },
         error: function(xhr, status, error) {
@@ -285,6 +343,7 @@ window.deleteContractor = function(contractorId, contractorName) {
             }
 
             toastr.error(errorMessage);
+            deleteBtn.prop('disabled', false).html(originalText);
         }
     });
 };
@@ -323,7 +382,7 @@ window.filterContractorList = function(searchTerm) {
     if (visibleRows === 0) {
         const tbody = $('#contractorTableBody');
         if (tbody.find('.no-results-row').length === 0) {
-            tbody.append('<tr class="no-results-row"><td colspan="6" class="text-center text-muted py-4"><i class="fas fa-search me-2"></i>「' + escapeHtml(searchTerm) + '」に一致する下請け業者が見つかりませんでした</td></tr>');
+            tbody.append('<tr class="no-results-row"><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-search me-2"></i>「' + escapeHtml(searchTerm) + '」に一致する下請け業者が見つかりませんでした</td></tr>');
         }
     } else {
         $('#contractorTableBody .no-results-row').remove();
@@ -338,32 +397,62 @@ window.selectContractor = function(contractorId) {
     const modal = bootstrap.Modal.getInstance(document.getElementById('contractorManagementModal'));
     if (modal) modal.hide();
 
-    // 外注先フォームに切り替え
-    const externalCard = $('.worker-type-card[data-type="external"]');
-    $('.worker-type-card').removeClass('active');
-    externalCard.addClass('active');
-    externalCard.find('input[type="radio"]').prop('checked', true);
-    $('.conditional-section').removeClass('active');
-    $('#external-form').addClass('active');
+    // コンテキスト判定: 実施体制追加モーダル内かどうか
+    const improvedModal = document.getElementById('addImplementationModal');
+    const isInImprovedModal = improvedModal && $(improvedModal).hasClass('show');
 
-    // 既存業者を選択
-    $('#existing_contractor').prop('checked', true).trigger('change');
+    if (isInImprovedModal) {
+        // 実施体制追加モーダル内の場合
+        // 外注先を選択
+        $('#modalOutsource').prop('checked', true).trigger('change');
 
-    // ドロップダウンで業者を選択
-    $('#contractorSelect').val(contractorId).trigger('change');
+        // ドロップダウンで業者を選択
+        $('#modalContractorSelect').val(contractorId).trigger('change');
 
-    // 成功メッセージ
-    const selectedOption = $('#contractorSelect option:selected');
-    const contractorName = selectedOption.data('name');
+        // 成功メッセージ
+        const selectedOption = $('#modalContractorSelect option:selected');
+        const contractorName = selectedOption.text().trim();
 
-    if (typeof toastr !== 'undefined') {
-        toastr.success(`「${contractorName}」を選択しました`);
+        if (typeof toastr !== 'undefined') {
+            toastr.success(`「${contractorName}」を選択しました`);
+        }
+    } else {
+        // メイン案件登録フォームの場合
+        // 外注先フォームに切り替え
+        const externalCard = $('.worker-type-card[data-type="external"]');
+        if (externalCard.length === 0) {
+            console.warn('worker-type-card not found');
+            return;
+        }
+
+        $('.worker-type-card').removeClass('active');
+        externalCard.addClass('active');
+        externalCard.find('input[type="radio"]').prop('checked', true);
+        $('.conditional-section').removeClass('active');
+        $('#external-form').addClass('active');
+
+        // 既存業者を選択
+        $('#existing_contractor').prop('checked', true).trigger('change');
+
+        // ドロップダウンで業者を選択
+        $('#contractorSelect').val(contractorId).trigger('change');
+
+        // 成功メッセージ
+        const selectedOption = $('#contractorSelect option:selected');
+        const contractorName = selectedOption.data('name');
+
+        if (typeof toastr !== 'undefined') {
+            toastr.success(`「${contractorName}」を選択しました`);
+        }
+
+        // フォームの先頭にスクロール
+        const externalForm = $('#external-form');
+        if (externalForm.length > 0) {
+            $('html, body').animate({
+                scrollTop: externalForm.offset().top - 100
+            }, 500);
+        }
     }
-
-    // フォームの先頭にスクロール
-    $('html, body').animate({
-        scrollTop: $('#external-form').offset().top - 100
-    }, 500);
 };
 
 // HTMLエスケープ関数

@@ -5,7 +5,7 @@ from . import models
 from .models import (
     Project, ForecastScenario,  # ARCHIVED: CashFlowTransaction removed
     ProjectProgress, Report, SeasonalityIndex, UserProfile,
-    Comment, Notification, CommentAttachment, ClientCompany, ContractorReview,
+    Comment, Notification, CommentAttachment, CommentReadStatus, ClientCompany, ContractorReview,
     ApprovalLog, ChecklistTemplate, ProjectChecklist, ProjectFile, WorkType, ContactPerson
 )
 from .user_roles import UserRole
@@ -23,8 +23,7 @@ class ProjectAdmin(admin.ModelAdmin):
         'order_amount',        # 旧: estimate_amount
         'billing_amount',
         'amount_difference',
-        'work_start_date',
-        'work_end_date',
+        # DEPRECATED: work_start_date, work_end_date moved to ProjectProgressStep
         'invoice_issued',
         'created_at'
     ]
@@ -34,7 +33,7 @@ class ProjectAdmin(admin.ModelAdmin):
         'work_type',
         'invoice_issued',
         'project_manager',
-        'work_start_date',
+        # DEPRECATED: work_start_date moved to ProjectProgressStep
         'created_at'
     ]
 
@@ -67,7 +66,7 @@ class ProjectAdmin(admin.ModelAdmin):
         ('受注・見積情報', {
             'fields': (
                 'project_status',        # 旧: order_status
-                'estimate_issued_date',
+                # DEPRECATED: estimate_issued_date moved to ProjectProgressStep
                 'order_amount',          # 旧: estimate_amount
                 'parking_fee'
             )
@@ -81,8 +80,7 @@ class ProjectAdmin(admin.ModelAdmin):
         }),
         ('スケジュール', {
             'fields': (
-                'work_start_date',
-                'work_end_date',
+                # DEPRECATED: work_start_date, work_end_date moved to ProjectProgressStep
                 'contract_date',
                 'completion_date'  # Phase 1 追加
             )
@@ -481,6 +479,16 @@ class CommentAdmin(admin.ModelAdmin):
         count = obj.attachments.count()
         return f"{count}件" if count > 0 else "-"
     get_attachments_count.short_description = "添付"
+
+
+@admin.register(CommentReadStatus)
+class CommentReadStatusAdmin(admin.ModelAdmin):
+    """コメント既読状態管理"""
+    list_display = ["project", "user", "last_read_at"]
+    list_filter = ["last_read_at", "user"]
+    search_fields = ["project__site_name", "project__management_no", "user__username"]
+    date_hierarchy = "last_read_at"
+    readonly_fields = ["last_read_at"]
 
 
 @admin.register(CommentAttachment)

@@ -391,7 +391,6 @@
                         <th>手配状況</th>
                         <th>工期</th>
                         <th>売上内訳</th>
-                        <th>コメント</th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -479,37 +478,6 @@
                             <small class="text-info">({{ revenue.profit_margin|floatformat:1 }}%)</small>
                             {% endwith %}
                         </td>
-                        <td onclick="event.stopPropagation();" style="min-width: 200px;">
-                            <div class="d-flex align-items-center gap-2">
-                                {% if project.comment_count > 0 %}
-                                    <div class="position-relative">
-                                        <i class="fas fa-comment text-primary"></i>
-                                        {% if project.latest_comment_date and project.last_read_at and project.latest_comment_date > project.last_read_at or project.latest_comment_date and not project.last_read_at %}
-                                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.6rem;">
-                                                新
-                                            </span>
-                                        {% endif %}
-                                        <small class="text-muted ms-1">({{ project.comment_count }})</small>
-                                    </div>
-                                    {% if project.latest_comment_list %}
-                                        <div class="flex-grow-1" style="font-size: 0.75rem;">
-                                            <div class="text-truncate" style="max-width: 150px;" title="{{ project.latest_comment_list.0.content }}">
-                                                <strong>{{ project.latest_comment_list.0.author.username }}:</strong>
-                                                {{ project.latest_comment_list.0.content }}
-                                            </div>
-                                            <small class="text-muted">{{ project.latest_comment_list.0.created_at|date:"m/d H:i" }}</small>
-                                        </div>
-                                    {% endif %}
-                                    {% if project.latest_comment_date and project.last_read_at and project.latest_comment_date > project.last_read_at or project.latest_comment_date and not project.last_read_at %}
-                                        <button class="btn btn-sm btn-outline-success mark-as-read-btn" data-project-id="{{ project.pk }}" title="既読にする">
-                                            <i class="fas fa-check"></i>
-                                        </button>
-                                    {% endif %}
-                                {% else %}
-                                    <small class="text-muted">-</small>
-                                {% endif %}
-                            </div>
-                        </td>
                         <td onclick="event.stopPropagation();">
                             <div class="btn-group btn-group-sm" role="group">
                                 <a href="{% url 'order_management:project_detail' project.pk %}" class="btn btn-info btn-sm" title="詳細">
@@ -526,7 +494,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="14" class="text-center text-muted">案件データがありません</td>
+                        <td colspan="10" class="text-center text-muted">案件データがありません</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -683,30 +651,31 @@
         <!-- リスト表示のヘッダー行 -->
         <div class="mb-3 p-3 bg-white rounded shadow-sm border">
             <div class="row align-items-center">
-                <div class="col-md-2">
-                    <small class="text-muted fw-bold">
-                        <i class="fas fa-building me-1"></i>元請
+                <div class="col-md-3">
+                    <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('name')">
+                        案件名 <i class="fas fa-sort"></i>
                     </small>
                 </div>
-                <div class="col-md-2">
-                    <small class="text-muted fw-bold">
-                        <i class="fas fa-users me-1"></i>下請
+                <div class="col-md-1-5">
+                    <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('work_type')">
+                        施工種別 <i class="fas fa-sort"></i>
                     </small>
                 </div>
-                <div class="col-md-2">
-                    <small class="text-muted fw-bold">
-                        <i class="fas fa-calendar me-1"></i>工期・利益
-                    </small>
-                </div>
-                <div class="col-md-1">
-                    <small class="text-muted fw-bold">
-                        <i class="fas fa-tools me-1"></i>種別
-                    </small>
-                </div>
-                <div class="col-md-5">
+                <div class="col-md-1-5">
                     <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('stage')">
-                        <i class="fas fa-tasks me-1"></i>案件進捗 <i class="fas fa-sort"></i>
+                        案件進捗 <i class="fas fa-sort"></i>
                     </small>
+                </div>
+                <div class="col-md-2">
+                    <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('progress')">
+                        進捗 <i class="fas fa-sort"></i>
+                    </small>
+                </div>
+                <div class="col-md-1-5">
+                    <small class="text-muted fw-bold">手配状況</small>
+                </div>
+                <div class="col-md-1-5">
+                    <small class="text-muted fw-bold">工期・入金予定</small>
                 </div>
             </div>
         </div>
@@ -722,204 +691,79 @@
                  data-progress="{% if details.total_steps > 0 %}{% widthratio details.completed_steps details.total_steps 100 %}{% else %}0{% endif %}"
                  data-revenue="{{ revenue.revenue }}">
                 <div class="row align-items-center">
-                    <!-- 現場名・管理No -->
-                    <div class="col-md-12 mb-2">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div class="d-flex align-items-center gap-2">
-                                <h6 class="mb-0 fw-bold" style="color: #2c3e50;">{{ project.site_name }}</h6>
-                                <span class="badge {% if project.project_status == '受注確定' %}bg-success{% elif project.project_status == 'A' %}bg-danger{% elif project.project_status == 'B' %}bg-warning text-dark{% elif project.project_status == 'NG' %}bg-secondary{% else %}text-dark{% endif %}"
-                                      style="font-size: 0.7rem; padding: 0.25rem 0.5rem;{% if project.project_status == 'ネタ' %} background-color: #e9d5ff;{% endif %} cursor: help;"
-                                      title="{% if project.project_status == '受注確定' %}正式に契約が決定した案件。施工準備・実施段階{% elif project.project_status == 'A' %}受注確度【高】見積提出済みで、契約の意向が強く確認できている案件{% elif project.project_status == 'B' %}受注確度【中】見積提出済みだが、他社との競合や不確定要素がある案件{% elif project.project_status == 'NG' %}失注または取り下げた案件。他社受注や予算不成立など{% else %}初期段階の見込み案件。元請からの問い合わせや引き合いがあった段階{% endif %}">
-                                    {{ project.get_project_status_display }}
-                                </span>
-                                <small class="text-muted"><i class="fas fa-hashtag me-1"></i>{{ project.management_no }}</small>
-                            </div>
-                            {% with comment_count=project.get_comment_count %}
-                            {% if comment_count > 0 %}
-                            <span class="badge bg-secondary">
-                                <i class="fas fa-comment"></i> {{ comment_count }}
-                            </span>
-                            {% endif %}
-                            {% endwith %}
-                        </div>
-                        {% if project.site_address %}
-                        <div class="mt-1">
-                            <small class="text-muted" style="font-size: 0.65rem;">
-                                <i class="fas fa-map-marker-alt me-1"></i>{{ project.site_address }}
-                            </small>
-                        </div>
-                        {% endif %}
-                    </div>
+                    <div class="col-md-3">
+                        <h6 class="mb-1 fw-bold" style="color: #2c3e50;">{{ project.site_name }}</h6>
+                        <small class="text-muted"><i class="fas fa-hashtag me-1"></i>{{ project.management_no }}</small>
 
-                    <!-- 3カラムレイアウト開始 -->
-                    <div class="col-md-2">
-                        <!-- Column 1: 元請情報 -->
-                        <div class="border-end pe-2" style="min-height: 80px;">
-                            <small class="text-muted d-block mb-1" style="font-size: 0.65rem;">
-                                <i class="fas fa-building me-1"></i>元請
-                            </small>
-                            <div style="font-size: 0.7rem; line-height: 1.3;">
-                                <div class="mb-1 fw-bold" style="font-size: 0.75rem;">
+                        <!-- 元請名と支払いサイクル -->
+                        <div class="mt-1" style="font-size: 0.75rem; line-height: 1.4;">
+                            <div class="mb-1">
+                                <i class="fas fa-building me-1" style="font-size: 0.65rem; opacity: 0.7;"></i>
+                                <span class="text-muted" style="opacity: 0.8;">
                                     {% if project.client_company %}
                                         {{ project.client_company.company_name }}
                                     {% else %}
                                         {{ project.client_name|default:"-" }}
                                     {% endif %}
-                                </div>
-                                {% if project.client_company and project.client_company.payment_cycle %}
-                                <div class="text-muted mb-1" style="font-size: 0.65rem;">
-                                    {{ project.client_company.get_payment_cycle_display }}
-                                    {% if project.client_company.closing_day %}/締{{ project.client_company.closing_day }}{% endif %}{% if project.client_company.payment_day %}払{{ project.client_company.payment_day }}{% endif %}
-                                </div>
-                                {% endif %}
-                                {% if project.payment_due_date %}
-                                <div class="text-muted mb-1" style="font-size: 0.65rem;">
-                                    <i class="fas fa-calendar me-1"></i>{{ project.payment_due_date|date:"m/d" }}
-                                </div>
-                                {% endif %}
-                                {% with revenue=project.get_revenue_breakdown %}
-                                <div class="text-success fw-bold" style="font-size: 0.75rem;">
-                                    <i class="fas fa-arrow-down me-1"></i>¥{{ revenue.revenue|floatformat:0|intcomma }}
-                                </div>
-                                {% endwith %}
+                                </span>
                             </div>
+                            {% if project.client_company and project.client_company.payment_cycle %}
+                            <div class="text-muted" style="font-size: 0.7rem;">
+                                <i class="fas fa-calendar-check me-1" style="font-size: 0.6rem;"></i>
+                                {{ project.client_company.get_payment_cycle_display }}
+                                {% if project.client_company.closing_day %}
+                                    / 締{{ project.client_company.closing_day }}日
+                                {% endif %}
+                                {% if project.client_company.payment_day %}
+                                    払{{ project.client_company.payment_day }}日
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 売上内訳（一列表示） -->
+                        {% with revenue=project.get_revenue_breakdown %}
+                        <div class="mt-1" style="font-size: 0.75rem; line-height: 1.4;">
+                            <span class="text-muted" style="opacity: 0.7;">売上</span>
+                            <span class="text-success fw-bold">¥{{ revenue.revenue|floatformat:0|intcomma }}</span>
+                            <span class="text-muted mx-1">|</span>
+                            <span class="text-muted" style="opacity: 0.7;">原価</span>
+                            <span class="text-warning">¥{{ revenue.cost_of_sales|floatformat:0|intcomma }}</span>
+                            <span class="text-muted mx-1">|</span>
+                            <span class="text-muted" style="opacity: 0.7;">利益</span>
+                            <span class="text-primary fw-bold">¥{{ revenue.gross_profit|floatformat:0|intcomma }}</span>
+                            <small class="text-info">({{ revenue.profit_margin|floatformat:1 }}%)</small>
+                        </div>
+                        {% endwith %}
+                    </div>
+                    <div class="col-md-1-5">
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;"><i class="fas fa-tools me-1"></i>施工種別</small>
+                        <strong style="font-size: 0.9rem;">{{ project.work_type|default:"-" }}</strong>
+                    </div>
+                    <div class="col-md-1-5">
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;"><i class="fas fa-tasks me-1"></i>案件進捗</small>
+                        {% with stage=project.get_current_project_stage %}
+                        <span class="badge bg-{{ stage.color }}" style="font-size: 0.85rem; padding: 0.35rem 0.6rem;">
+                            {{ stage.stage }}
+                        </span>
+                        {% endwith %}
+                        <div class="mt-1">
+                            <small class="text-muted d-block mb-1" style="font-size: 0.65rem;"><i class="fas fa-chart-pie me-1"></i>受注ヨミ</small>
+                            <span class="badge {% if project.project_status == '受注確定' %}bg-success{% elif project.project_status == 'A' %}bg-danger{% elif project.project_status == 'B' %}bg-warning text-dark{% elif project.project_status == 'NG' %}bg-secondary{% else %}text-dark{% endif %}"
+                                  style="font-size: 0.75rem; padding: 0.25rem 0.5rem;{% if project.project_status == 'ネタ' %} background-color: #e9d5ff;{% endif %} cursor: help;"
+                                  title="{% if project.project_status == '受注確定' %}正式に契約が決定した案件。施工準備・実施段階{% elif project.project_status == 'A' %}受注確度【高】見積提出済みで、契約の意向が強く確認できている案件{% elif project.project_status == 'B' %}受注確度【中】見積提出済みだが、他社との競合や不確定要素がある案件{% elif project.project_status == 'NG' %}失注または取り下げた案件。他社受注や予算不成立など{% else %}初期段階の見込み案件。元請からの問い合わせや引き合いがあった段階{% endif %}">
+                                {{ project.get_project_status_display }}
+                            </span>
                         </div>
                     </div>
-
                     <div class="col-md-2">
-                        <!-- Column 2: 下請情報 -->
-                        <div class="border-end pe-2" style="min-height: 80px;">
-                            <small class="text-muted d-block mb-1" style="font-size: 0.65rem;">
-                                <i class="fas fa-users me-1"></i>下請
-                            </small>
-                            <div style="font-size: 0.7rem; line-height: 1.3;">
-                                {% with grouped_subs=project.get_grouped_subcontracts %}
-                                {% if grouped_subs %}
-                                    {% for group in grouped_subs %}
-                                    <div class="{% if not forloop.last %}mb-2 pb-2 border-bottom{% endif %}">
-                                        <div class="fw-bold mb-1" style="font-size: 0.75rem;">
-                                            {% if group.contractor %}
-                                                {{ group.contractor.name }}
-                                                <small class="text-muted" style="font-size: 0.65rem;">({{ group.contractor.get_contractor_type_display }})</small>
-                                            {% elif group.internal_worker %}
-                                                {{ group.internal_worker.name }}
-                                                <small class="text-muted" style="font-size: 0.65rem;">(社内)</small>
-                                            {% endif %}
-                                        </div>
-                                        {% if group.contractor and group.contractor.payment_cycle %}
-                                        <div class="text-muted mb-1" style="font-size: 0.65rem;">
-                                            月1回{% if group.contractor.closing_day %}/締{{ group.contractor.closing_day }}{% endif %}{% if group.contractor.payment_day %}払{{ group.contractor.payment_day }}{% endif %}
-                                        </div>
-                                        {% endif %}
-                                        {% if group.payment_due_date %}
-                                        <div class="text-muted mb-1" style="font-size: 0.65rem;">
-                                            <i class="fas fa-calendar me-1"></i>{{ group.payment_due_date|date:"m/d" }}
-                                        </div>
-                                        {% endif %}
-                                        <div class="text-warning fw-bold" style="font-size: 0.75rem;">
-                                            <i class="fas fa-arrow-up me-1"></i>¥{{ group.total_amount|floatformat:0|intcomma }}
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                {% else %}
-                                    <div class="text-muted">未手配</div>
-                                {% endif %}
-                                {% endwith %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-md-2">
-                        <!-- Column 3: 工期・利益 -->
-                        <div class="border-end pe-2" style="min-height: 80px;">
-                            <small class="text-muted d-block mb-1" style="font-size: 0.65rem;"><i class="fas fa-calendar me-1"></i>工期</small>
-                            {% with period=project.get_construction_period %}
-                            <div style="font-size: 0.7rem; line-height: 1.2;">
-                                {% if period.days is not None %}
-                                <div class="text-muted mb-1">
-                                    {{ period.start_date|date:"m/d" }}~{{ period.end_date|date:"m/d" }}
-                                </div>
-                                <div class="text-muted">
-                                    ({{ period.days }}日)
-                                </div>
-                                {% else %}
-                                <div class="text-muted mb-1">-</div>
-                                {% endif %}
-                            </div>
-                            {% endwith %}
-                            {% with revenue=project.get_revenue_breakdown %}
-                            <div class="mt-2" style="font-size: 0.7rem;">
-                                <small class="text-muted d-block" style="font-size: 0.65rem;">利益</small>
-                                <div class="text-primary fw-bold">
-                                    ¥{{ revenue.gross_profit|floatformat:0|intcomma }}
-                                </div>
-                                <small class="text-info">({{ revenue.profit_margin|floatformat:1 }}%)</small>
-                            </div>
-                            {% endwith %}
-                        </div>
-                    </div>
-
-                    <div class="col-md-1">
-                        <!-- Column 4: 工種 -->
-                        <div class="border-end pe-2" style="min-height: 80px;">
-                            <small class="text-muted d-block mb-1" style="font-size: 0.65rem;"><i class="fas fa-tools me-1"></i>種別</small>
-                            <div style="font-size: 0.75rem; line-height: 1.3;">
-                                <div class="fw-bold mb-1">{{ project.work_type|default:"-" }}</div>
-                                <div class="text-muted mb-2" style="font-size: 0.7rem;">
-                                    {% if project.material_labor_type %}{{ project.get_material_labor_type_display }}{% else %}-{% endif %}
-                                </div>
-
-                                <!-- 連携状況バッジ -->
-                                {% with material_status=project.get_material_status subcontract_status=project.get_subcontract_status %}
-                                <div class="d-flex flex-column gap-1">
-                                    {% if project.material_labor_type == 'material_labor' %}
-                                        <!-- 材工の場合：資材・下請両方を常に表示 -->
-                                        <span class="badge bg-{{ material_status.color }}" style="font-size: 0.55rem; padding: 2px 4px;">
-                                            資材:{{ material_status.status }}
-                                        </span>
-                                        <span class="badge bg-{{ subcontract_status.color }}" style="font-size: 0.55rem; padding: 2px 4px;">
-                                            下請:{{ subcontract_status.status }}
-                                        </span>
-                                    {% elif project.material_labor_type == 'labor_only' %}
-                                        <!-- 手間の場合：下請のみ表示 -->
-                                        <span class="badge bg-{{ subcontract_status.color }}" style="font-size: 0.55rem; padding: 2px 4px;">
-                                            下請:{{ subcontract_status.status }}
-                                        </span>
-                                    {% else %}
-                                        <!-- 未選択の場合：実際に連携があるものを表示 -->
-                                        {% if material_status.count > 0 %}
-                                        <span class="badge bg-{{ material_status.color }}" style="font-size: 0.55rem; padding: 2px 4px;">
-                                            資材:{{ material_status.status }}
-                                        </span>
-                                        {% endif %}
-                                        {% if subcontract_status.count > 0 %}
-                                        <span class="badge bg-{{ subcontract_status.color }}" style="font-size: 0.55rem; padding: 2px 4px;">
-                                            下請:{{ subcontract_status.status }}
-                                        </span>
-                                        {% endif %}
-                                    {% endif %}
-                                </div>
-                                {% endwith %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-md-4">
-                        <!-- Column 5: 案件進捗 -->
-                        <small class="text-muted d-block mb-1" style="font-size: 0.65rem;"><i class="fas fa-tasks me-1"></i>案件進捗</small>
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;"><i class="fas fa-chart-line me-1"></i>進捗</small>
                         {% if project.project_status == 'NG' %}
                         <div>
                             <span class="badge bg-secondary">NG</span>
                         </div>
                         {% else %}
                         {% with stage=project.get_current_project_stage details=project.get_progress_details %}
-                        <!-- 案件進捗ステージ -->
-                        <div class="mb-2">
-                            <span class="badge bg-{{ stage.color }}" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
-                                {{ stage.stage }}
-                            </span>
-                        </div>
-                        <!-- 進捗バー -->
                         <div class="progress progress-enhanced" style="height: 15px;">
                             <div class="progress-bar bg-{{ stage.color }}"
                                  style="width: {% if details.total_steps > 0 %}{% widthratio details.completed_steps details.total_steps 100 %}{% else %}0{% endif %}%">
@@ -939,28 +783,34 @@
                         {% endwith %}
                         {% endif %}
                     </div>
-
-                    <div class="col-md-1">
-                        <!-- Column 6: コメント -->
-                        <div style="font-size: 0.7rem; line-height: 1.3;">
-                            {% if project.comment_count > 0 %}
-                                <small class="text-muted d-block mb-1" style="font-size: 0.65rem;"><i class="fas fa-comment me-1"></i>コメント</small>
-                                {% if project.latest_comment_list %}
-                                    <div class="mb-1" style="font-size: 0.65rem;">
-                                        {% if project.latest_comment_date and project.last_read_at and project.latest_comment_date > project.last_read_at or project.latest_comment_date and not project.last_read_at %}
-                                            <span class="badge bg-secondary" style="font-size: 0.55rem; padding: 2px 4px;">新</span>
-                                        {% endif %}
-                                        <div class="text-truncate" style="max-width: 100px;" title="{{ project.latest_comment_list.0.content }}">
-                                            <strong>{{ project.latest_comment_list.0.author.username }}:</strong>
-                                            {{ project.latest_comment_list.0.content|truncatewords:3 }}
-                                        </div>
-                                        <small class="text-muted" style="font-size: 0.6rem;">{{ project.latest_comment_list.0.created_at|date:"m/d H:i" }}</small>
-                                    </div>
-                                {% endif %}
+                    <div class="col-md-1-5">
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;"><i class="fas fa-handshake me-1"></i>手配状況</small>
+                        {% with subcontract_status=project.get_subcontract_status %}
+                        <span class="badge bg-{{ subcontract_status.color }}">
+                            <i class="fas {{ subcontract_status.icon }}"></i> {{ subcontract_status.status }}
+                        </span>
+                        {% endwith %}
+                    </div>
+                    <div class="col-md-1-5">
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;"><i class="fas fa-calendar me-1"></i>工期・入金予定</small>
+                        {% with period=project.get_construction_period %}
+                        <div style="font-size: 0.75rem; line-height: 1.3;">
+                            {% if period.days is not None %}
+                            <div class="text-muted mb-1">
+                                <i class="fas fa-calendar-alt"></i> {{ period.start_date|date:"m/d" }}~{{ period.end_date|date:"m/d" }} ({{ period.days }}日)
+                            </div>
                             {% else %}
-                                <small class="text-muted" style="font-size: 0.65rem;">-</small>
+                            <div class="text-muted mb-1">-</div>
+                            {% endif %}
+                            {% if project.payment_due_date %}
+                            <div class="text-info">
+                                <i class="fas fa-yen-sign"></i> {{ project.payment_due_date|date:"m/d" }}
+                            </div>
+                            {% else %}
+                            <div class="text-muted">未定</div>
                             {% endif %}
                         </div>
+                        {% endwith %}
                     </div>
                 </div>
             </div>
@@ -1282,62 +1132,6 @@ function updateSortIcons(field) {
     $('#listView .bg-white.rounded small[onclick*="' + field + '"] i')
         .removeClass('fa-sort')
         .addClass(iconClass);
-}
-
-// コメント既読マーク機能
-$(document).on('click', '.mark-as-read-btn', function(e) {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const button = $(this);
-    const projectId = button.data('project-id');
-
-    // ボタンを無効化
-    button.prop('disabled', true);
-
-    fetch(`/orders/projects/${projectId}/mark-comments-read/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // バッジを非表示（テーブルビューとリストビューの両方に対応）
-            // 親要素内のバッジを検索
-            button.parent().find('.badge.bg-danger').fadeOut();
-            // 祖父母要素内のバッジも検索（リストビュー用）
-            button.parent().parent().find('.badge.bg-danger').fadeOut();
-            // ボタン自体も非表示
-            button.fadeOut();
-        } else {
-            alert('既読マークに失敗しました: ' + (data.error || '不明なエラー'));
-            button.prop('disabled', false);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('既読マークに失敗しました');
-        button.prop('disabled', false);
-    });
-});
-
-// CSRFトークン取得用関数
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
 }
 </script>
 

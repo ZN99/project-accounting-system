@@ -512,16 +512,7 @@
         background-color: #f8f9fa !important;
         border: 1px solid #dee2e6;
     }
-
-    /* FullCalendar スタイル調整 */
-    #projectCalendar {
-        max-width: 100%;
-        margin: 0 auto;
-    }
 </style>
-
-<!-- FullCalendar CSS -->
-<link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.5/main.min.css' rel='stylesheet' />
 {% endblock %}
 
 {% block content %}
@@ -630,8 +621,13 @@
                 <!-- タブナビゲーション -->
                 <ul class="nav nav-tabs" id="projectDetailTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab">
-                            <i class="fas fa-info-circle me-1"></i>基本情報
+                        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
+                            <i class="fas fa-home me-1"></i>概要
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="business-tab" data-bs-toggle="tab" data-bs-target="#business" type="button" role="tab">
+                            <i class="fas fa-briefcase me-1"></i>業者・担当
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
@@ -641,520 +637,443 @@
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="finance-tab" data-bs-toggle="tab" data-bs-target="#finance" type="button" role="tab">
-                            <i class="fas fa-file-invoice-dollar me-1"></i>請求
+                            <i class="fas fa-yen-sign me-1"></i>請求・経費
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="calendar-tab" data-bs-toggle="tab" data-bs-target="#calendar" type="button" role="tab">
-                            <i class="fas fa-calendar me-1"></i>カレンダー
+                        <button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button" role="tab">
+                            <i class="fas fa-sticky-note me-1"></i>備考・その他
                         </button>
                     </li>
                 </ul>
 
                 <!-- タブコンテンツ -->
                 <div class="tab-content p-3" id="projectDetailTabsContent">
-                    <!-- 基本情報タブ -->
-                    <div class="tab-pane fade show active" id="basic" role="tabpanel" data-section-title="📋 基本情報">
-                        <!-- 基本情報と受注金額情報を横並び -->
-                        <div class="row">
-                            <div class="col-lg-6">
-                                <!-- 基本情報カード -->
-                                <div class="card shadow-sm mb-3" style="font-size: 0.9rem;">
-                                    <div class="card-header bg-primary text-white py-2">
-                                        <h6 class="mb-0" style="font-size: 0.95rem;"><i class="fas fa-info-circle me-2"></i>基本情報</h6>
-                                    </div>
-                                    <div class="card-body p-3">
-                                        <!-- 管理No（読み取り専用） -->
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold" style="font-size: 0.85rem;">管理No</label>
-                                            <div class="form-control-plaintext">{{ project.management_no }}</div>
-                                        </div>
+                    <!-- 概要タブ -->
+                    <div class="tab-pane fade show active" id="overview" role="tabpanel" data-section-title="📋 概要">
+                        <div class="row g-3">
+                            <!-- 基本情報 -->
+                            <div class="col-md-6">
+                                <div class="info-group">
+                                    <h6 class="text-primary border-bottom pb-2 mb-3">
+                                        <i class="fas fa-file-alt me-2"></i>基本情報
+                                    </h6>
+                                    <dl class="row mb-0">
+                                        <dt class="col-sm-4 text-muted">管理No</dt>
+                                        <dd class="col-sm-8 fw-bold">{{ project.management_no }}</dd>
 
-                                        <!-- 元請名と案件担当者を最優先 -->
-                                        <div class="row">
-                                            <div class="col-md-6 mb-3">
-                                                <label class="form-label" style="font-size: 0.85rem;">元請名</label>
-                                                <div class="d-flex gap-2">
-                                                    <div class="form-control-plaintext">
-                                                        {{ project.client_company.company_name|default:"-" }}
-                                                    </div>
-                                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openClientCompanyManagementPanel()" title="元請会社を選択・管理">
-                                                        <i class="fas fa-building"></i> 元請管理
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <label class="form-label" style="font-size: 0.85rem;">案件担当者（営業）</label>
-                                                <div class="d-flex gap-2">
-                                                    <div class="form-control-plaintext">
-                                                        {{ project.project_manager|default:"-" }}
-                                                    </div>
-                                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openSalesStaffManagementPanel()">
-                                                        <i class="fas fa-chart-line"></i> 営業管理
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
+                                        <dt class="col-sm-4 text-muted">現場名</dt>
+                                        <dd class="col-sm-8 editable-field" data-field="site_name" data-type="text">
+                                            <span class="field-value">{{ project.site_name }}</span>
+                                            <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
+                                        </dd>
 
-                                        <!-- 現場名・種別・住所 -->
-                                        <div class="row">
-                                            <div class="col-md-6 mb-3">
-                                                <label class="form-label" style="font-size: 0.85rem;">現場名</label>
-                                                <div class="form-control-plaintext editable-field" data-field="site_name" data-type="text">
-                                                    <span class="field-value">{{ project.site_name }}</span>
-                                                    <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <label class="form-label" style="font-size: 0.85rem;">種別</label>
-                                                <div class="d-flex gap-2 align-items-center">
-                                                    <div class="editable-field" data-field="work_type" data-type="work_type">
-                                                        <span class="field-value"><span class="badge bg-secondary">{{ project.work_type }}</span></span>
-                                                        <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
-                                                    </div>
-                                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openWorkTypeManagementModal()" title="工事種別を管理">
-                                                        <i class="fas fa-tools"></i> 種別管理
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row">
-                                            <div class="col-md-6 mb-3">
-                                                <label class="form-label" style="font-size: 0.85rem;">
-                                                    材工/手間
-                                                    <i class="fas fa-info-circle text-muted ms-1"
-                                                       data-bs-toggle="tooltip"
-                                                       data-bs-placement="top"
-                                                       title="材工=資材の発注も自社で行う、手間=材料は元請から支給され労働力のみ提供"></i>
-                                                </label>
-                                                <div>
-                                                    {% if project.material_labor_type == 'material_labor' %}
-                                                        <span class="badge bg-primary">材工</span>
-                                                    {% elif project.material_labor_type == 'labor_only' %}
-                                                        <span class="badge bg-info">手間</span>
-                                                    {% else %}
-                                                        <span class="badge bg-secondary">-</span>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label" style="font-size: 0.85rem;">現場住所</label>
-                                            <div class="form-control-plaintext editable-field" data-field="site_address" data-type="text">
-                                                <span class="field-value">{{ project.site_address|default:"-" }}</span>
-                                                <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
-                                            </div>
-                                        </div>
+                                        <dt class="col-sm-4 text-muted">工事種別</dt>
+                                        <dd class="col-sm-8 editable-field" data-field="work_type" data-type="work_type">
+                                            <span class="field-value"><span class="badge bg-secondary">{{ project.work_type }}</span></span>
+                                            <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
+                                        </dd>
 
-                                        <!-- 鍵受け渡し設定 -->
-                                        {% if project.key_handover_location or project.key_handover_date or project.key_handover_notes %}
-                                        <div class="row mt-3">
-                                            <div class="col-12">
-                                                <div class="alert alert-info" style="font-size: 0.85rem;">
-                                                    <h6 style="font-size: 0.9rem;"><i class="fas fa-key me-2"></i>鍵受け渡し設定</h6>
-                                                    {% if project.key_handover_location %}
-                                                    <p class="mb-1"><strong>場所:</strong> {{ project.key_handover_location }}</p>
-                                                    {% endif %}
-                                                    {% if project.key_handover_date %}
-                                                    <p class="mb-1"><strong>日時:</strong> {{ project.key_handover_date }}</p>
-                                                    {% endif %}
-                                                    {% if project.key_handover_notes %}
-                                                    <p class="mb-0"><strong>メモ:</strong> {{ project.key_handover_notes }}</p>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {% endif %}
-                                    </div>
+                                        <dt class="col-sm-4 text-muted">現場住所</dt>
+                                        <dd class="col-sm-8 editable-field" data-field="site_address" data-type="text">
+                                            <span class="field-value">{{ project.site_address|default:"-" }}</span>
+                                            <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
+                                        </dd>
+                                    </dl>
                                 </div>
                             </div>
-                            <div class="col-lg-6">
-                                <!-- 受注金額情報カード -->
-                                <div class="card shadow-sm mb-3" style="font-size: 0.9rem;">
-                                    <div class="card-header bg-success text-white py-2">
-                                        <h6 class="mb-0" style="font-size: 0.95rem;"><i class="fas fa-yen-sign me-2"></i>受注金額情報</h6>
-                                    </div>
-                                    <div class="card-body p-3">
-                                        <div class="row">
-                                            <div class="col-md-12 mb-3">
-                                                <label class="form-label" style="font-size: 0.85rem;">受注ヨミ</label>
-                                                <div class="d-flex gap-2 align-items-center">
-                                                    <select class="form-select order-forecast-select-detail"
-                                                            data-project-id="{{ project.pk }}">
-                                                        {% for value, label in project.PROJECT_STATUS_CHOICES %}
-                                                        <option value="{{ value }}" {% if value == project.project_status %}selected{% endif %}>
-                                                            {{ label }}
-                                                        </option>
-                                                        {% endfor %}
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row">
-                                            <div class="col-md-6 mb-3">
-                                                <label class="form-label" style="font-size: 0.85rem;">受注金額(税抜)</label>
-                                                <div class="text-primary fw-bold editable-field" data-field="order_amount" data-type="number">
-                                                    <span class="field-value">¥{{ project.order_amount|floatformat:0|intcomma }}</span>
+
+                            <!-- ステータス・金額 -->
+                            <div class="col-md-6">
+                                <div class="info-group">
+                                    <h6 class="text-success border-bottom pb-2 mb-3">
+                                        <i class="fas fa-chart-line me-2"></i>ステータス・金額
+                                    </h6>
+                                    <dl class="row mb-0">
+                                        <dt class="col-sm-5 text-muted">案件進捗</dt>
+                                        <dd class="col-sm-7">
+                                            {% with stage=project.get_current_project_stage %}
+                                            <span class="badge bg-{{ stage.color }}" style="font-size: 0.65rem;">{{ stage.stage }}</span>
+                                            {% endwith %}
+                                        </dd>
+                                        <dt class="col-sm-5 text-muted">受注ヨミ</dt>
+                                        <dd class="col-sm-7">
+                                            <select class="form-select form-select-sm order-forecast-select-detail"
+                                                    data-project-id="{{ project.pk }}"
+                                                    style="width: auto; display: inline-block; max-width: 150px; font-size: 0.7rem; padding: 0.2rem 0.4rem;">
+                                                {% for value, label in project.PROJECT_STATUS_CHOICES %}
+                                                <option value="{{ value }}" {% if value == project.project_status %}selected{% endif %}>
+                                                    {{ label }}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                        </dd>
+                                        <dt class="col-sm-5 text-muted">受注金額</dt>
+                                        <dd class="col-sm-7 text-primary fw-bold editable-field" data-field="order_amount" data-type="number">
+                                            <span class="field-value">¥{{ project.order_amount|floatformat:0|intcomma }}</span>
+                                            <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
+                                        </dd>
+
+                                        <dt class="col-sm-5 text-muted">実請求額</dt>
+                                        <dd class="col-sm-7 text-success fw-bold editable-field" data-field="billing_amount" data-type="number">
+                                            <span class="field-value">¥{{ project.billing_amount|floatformat:0|intcomma }}</span>
+                                            <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
+                                        </dd>
+                                    </dl>
+                                </div>
+                            </div>
+
+                            <!-- その他情報 -->
+                            <div class="col-12">
+                                <div class="info-group">
+                                    <h6 class="text-info border-bottom pb-2 mb-3">
+                                        <i class="fas fa-clipboard-list me-2"></i>その他詳細
+                                    </h6>
+                                    <div class="row">
+                                        <!-- 見積書発行日 -->
+                                        <!-- DEPRECATED: This editable field is now handled by ProjectProgressStep in activeSteps area -->
+                                        <!-- Hidden for SSOT Architecture migration (Phase 4) -->
+                                        <div class="col-md-4" style="display:none;">
+                                            <dl class="row mb-0">
+                                                <dt class="col-sm-6 text-muted">見積書発行日</dt>
+                                                <dd class="col-sm-6 editable-field" data-field="estimate_issued_date" data-type="date">
+                                                    <span class="field-value">{{ project.estimate_issued_date|date:"Y/m/d"|default:"-" }}</span>
                                                     <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <label class="form-label" style="font-size: 0.85rem;">金額ステータス</label>
-                                                <div>
-                                                    {% if project.order_amount_status == 'estimated' %}
-                                                        <span class="badge bg-warning">見積もり後確定</span>
-                                                    {% elif project.order_amount_status == 'planned' %}
-                                                        <span class="badge bg-info">予定</span>
-                                                    {% elif project.order_amount_status == 'confirmed' %}
-                                                        <span class="badge bg-success">確定</span>
-                                                    {% else %}
-                                                        <span class="badge bg-secondary">-</span>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
+                                                </dd>
+                                            </dl>
                                         </div>
-                                        <div class="row">
-                                            <div class="col-md-6 mb-3">
-                                                <label class="form-label" style="font-size: 0.85rem;">実請求額</label>
-                                                <div class="text-success fw-bold editable-field" data-field="billing_amount" data-type="number">
-                                                    <span class="field-value">¥{{ project.billing_amount|floatformat:0|intcomma }}</span>
-                                                    <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <label class="form-label" style="font-size: 0.85rem;">駐車場代</label>
-                                                <div class="editable-field" data-field="parking_fee" data-type="number">
+                                        <div class="col-md-4">
+                                            <dl class="row mb-0">
+                                                <dt class="col-sm-6 text-muted">駐車場代</dt>
+                                                <dd class="col-sm-6 editable-field" data-field="parking_fee" data-type="number">
                                                     <span class="field-value">¥{{ project.parking_fee|floatformat:0|intcomma }}</span>
                                                     <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
-                                                </div>
-                                            </div>
+                                                </dd>
+                                            </dl>
                                         </div>
-                                        <div class="row">
-                                            <div class="col-md-6 mb-3">
-                                                <label class="form-label" style="font-size: 0.85rem;">増減額</label>
-                                                <div class="{% if project.amount_difference > 0 %}text-success{% elif project.amount_difference < 0 %}text-danger{% endif %} fw-bold">
+                                        <div class="col-md-4">
+                                            <dl class="row mb-0">
+                                                <dt class="col-sm-6 text-muted">増減額</dt>
+                                                <dd class="col-sm-6 {% if project.amount_difference > 0 %}text-success{% elif project.amount_difference < 0 %}text-danger{% endif %} fw-bold">
                                                     ¥{{ project.amount_difference|floatformat:0|intcomma }}
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <label class="form-label" style="font-size: 0.85rem;">案件進捗</label>
-                                                <div>
-                                                    {% with stage=project.get_current_project_stage %}
-                                                    <span class="badge bg-{{ stage.color }}">{{ stage.stage }}</span>
-                                                    {% endwith %}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- 経費・諸経費項目の表示 -->
-                                        {% if project.expense_item_1 or project.expense_item_2 %}
-                                        <div class="mt-3">
-                                            <div class="card border-warning" style="font-size: 0.85rem;">
-                                                <div class="card-header bg-warning bg-opacity-10">
-                                                    <h6 class="mb-0" style="font-size: 0.9rem;"><i class="fas fa-receipt me-2"></i>経費・諸経費項目</h6>
-                                                </div>
-                                                <div class="card-body">
-                                                    <table class="table table-sm mb-0">
-                                                        <thead class="table-light">
-                                                            <tr>
-                                                                <th>項目名</th>
-                                                                <th>金額</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {% if project.expense_item_1 %}
-                                                            <tr>
-                                                                <td>{{ project.expense_item_1 }}</td>
-                                                                <td>¥{{ project.expense_amount_1|floatformat:0|intcomma }}</td>
-                                                            </tr>
-                                                            {% endif %}
-                                                            {% if project.expense_item_2 %}
-                                                            <tr>
-                                                                <td>{{ project.expense_item_2 }}</td>
-                                                                <td>¥{{ project.expense_amount_2|floatformat:0|intcomma }}</td>
-                                                            </tr>
-                                                            {% endif %}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 備考・添付ファイルカード -->
-                        <div class="card shadow-sm mb-3" style="font-size: 0.9rem;">
-                            <div class="card-header bg-info text-white py-2">
-                                <h6 class="mb-0" style="font-size: 0.95rem;"><i class="fas fa-sticky-note me-2"></i>備考・添付ファイル</h6>
-                            </div>
-                            <div class="card-body p-3">
-                                <div class="mb-3">
-                                    <label class="form-label" style="font-size: 0.85rem;">備考</label>
-                                    <div class="form-control-plaintext editable-field" data-field="notes" data-type="textarea">
-                                        <span class="field-value">{{ project.notes|default:"-"|linebreaks }}</span>
-                                        <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
-                                    </div>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label" style="font-size: 0.85rem;">
-                                        <i class="fas fa-paperclip me-1"></i>添付ファイル
-                                    </label>
-
-                                    <!-- アップロード済みファイル一覧 -->
-                                    {% if project.files.exists %}
-                                    <div class="card" style="font-size: 0.85rem;">
-                                        <div class="card-header bg-light py-2">
-                                            <small class="text-muted" style="font-size: 0.8rem;"><i class="fas fa-file me-1"></i>アップロード済みファイル</small>
-                                        </div>
-                                        <div class="card-body p-2">
-                                            <ul class="list-group list-group-flush">
-                                                {% for file in project.files.all %}
-                                                <li class="list-group-item d-flex justify-content-between align-items-center py-2" style="font-size: 0.85rem;">
-                                                    <span>
-                                                        <i class="fas fa-file-{% if file.is_pdf %}pdf{% elif file.is_image %}image{% else %}alt{% endif %} me-2"></i>
-                                                        {{ file.file_name }}
-                                                        <small class="text-muted">({{ file.get_file_size_display }})</small>
-                                                    </span>
-                                                    <div>
-                                                        {% if file.file %}
-                                                        <a href="{{ file.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary me-1">
-                                                            <i class="fas fa-download"></i>
-                                                        </a>
-                                                        {% else %}
-                                                        <span class="btn btn-sm btn-outline-secondary me-1 disabled" title="ファイルが存在しません">
-                                                            <i class="fas fa-exclamation-triangle"></i>
-                                                        </span>
-                                                        {% endif %}
-                                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteProjectFile({{ file.id }})">
-                                                            <i class="fas fa-trash"></i>
-                                                        </button>
-                                                    </div>
-                                                </li>
-                                                {% endfor %}
-                                            </ul>
+                                                </dd>
+                                            </dl>
                                         </div>
                                     </div>
-                                    {% else %}
-                                    <p class="text-muted">添付ファイルはありません</p>
-                                    {% endif %}
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- カレンダータブ -->
-                    <div class="tab-pane fade" id="calendar" role="tabpanel" data-section-title="📅 カレンダー">
-                        <div class="card shadow-sm">
-                            <div class="card-header bg-primary text-white py-2">
-                                <h6 class="mb-0" style="font-size: 0.95rem;"><i class="fas fa-calendar me-2"></i>案件スケジュール</h6>
+                    <!-- 業者・担当タブ -->
+                    <div class="tab-pane fade" id="business" role="tabpanel" data-section-title="🏢 業者・担当">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="info-group">
+                                    <h6 class="text-primary border-bottom pb-2 mb-3">
+                                        <i class="fas fa-building me-2"></i>元請情報
+                                    </h6>
+                                    <dl class="row mb-0">
+                                        <dt class="col-sm-4 text-muted">元請名</dt>
+                                        <dd class="col-sm-8 fw-bold editable-field" data-field="client_company" data-type="select" data-client-company-id="{{ project.client_company_id|default:'' }}">
+                                            <span class="field-value">{{ project.client_name|default:"-" }}</span>
+                                            <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
+                                        </dd>
+                                        <dt class="col-sm-4 text-muted">元請住所</dt>
+                                        <dd class="col-sm-8" id="client-address-display">
+                                            <span class="field-value">{{ project.client_address|default:"-" }}</span>
+                                        </dd>
+                                    </dl>
+                                </div>
                             </div>
-                            <div class="card-body p-3">
-                                <div id="projectCalendar"></div>
+                            <div class="col-md-6">
+                                <div class="info-group">
+                                    <h6 class="text-success border-bottom pb-2 mb-3">
+                                        <i class="fas fa-user-tie me-2"></i>担当者情報
+                                    </h6>
+                                    <dl class="row mb-0">
+                                        <dt class="col-sm-4 text-muted">案件担当</dt>
+                                        <dd class="col-sm-8 fw-bold editable-field" data-field="project_manager" data-type="text">
+                                            <span class="field-value">{{ project.project_manager|default:"-" }}</span>
+                                            <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
+                                        </dd>
+                                    </dl>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- スケジュールタブ -->
                     <div class="tab-pane fade" id="schedule" role="tabpanel" data-section-title="📅 スケジュール">
-                        <!-- プロジェクト段階管理参照カード -->
-                        <div class="card shadow-sm mb-3" style="font-size: 0.9rem;">
-                            <div class="card-header bg-gradient-primary text-white py-2">
-                                <h6 class="mb-0" style="font-size: 0.95rem;"><i class="fas fa-cog me-2"></i>主要日程</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="info-group">
+                                    <h6 class="text-primary border-bottom pb-2 mb-3">
+                                        <i class="fas fa-calendar-check me-2"></i>契約・工事日程
+                                    </h6>
+                                    <dl class="row mb-0">
+                                        <dt class="col-sm-5 text-muted">契約日</dt>
+                                        <dd class="col-sm-7 editable-field" data-field="contract_date" data-type="date">
+                                            <span class="field-value">{{ project.contract_date|date:"Y/n/j"|default:"-" }}</span>
+                                            <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
+                                        </dd>
+                                        <dt class="col-sm-5 text-muted">工事開始日</dt>
+                                        <dd class="col-sm-7">
+                                            <span class="field-value">{{ project.work_start_date|date:"Y/n/j"|default:"-" }}</span>
+                                            <i class="fas fa-info-circle ms-2 text-muted" style="font-size: 0.65rem;" title="プロジェクト段階管理の「着工日」から自動同期されます"></i>
+                                        </dd>
+                                        <dt class="col-sm-5 text-muted">工事終了日</dt>
+                                        <dd class="col-sm-7">
+                                            <span class="field-value">{{ project.work_end_date|date:"Y/n/j"|default:"-" }}</span>
+                                            <i class="fas fa-info-circle ms-2 text-muted" style="font-size: 0.65rem;" title="プロジェクト段階管理の「完工日」から自動同期されます"></i>
+                                        </dd>
+                                    </dl>
+                                </div>
                             </div>
-                            <div class="card-body p-3">
-                                <div class="alert alert-info mb-3" style="font-size: 0.85rem;">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    詳細なプロジェクト段階管理は、ページ下部のセクションに表示されています。
-                                </div>
-
-                                <!-- 主要日程サマリー -->
-                                <div class="row">
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label fw-bold" style="font-size: 0.85rem;">契約日</label>
-                                        <div class="editable-field" data-field="contract_date" data-type="date">
-                                            <span class="field-value">{{ project.contract_date|date:"Y年m月d日"|default:"-" }}</span>
+                            <div class="col-md-6">
+                                <div class="info-group">
+                                    <h6 class="text-success border-bottom pb-2 mb-3">
+                                        <i class="fas fa-money-bill-wave me-2"></i>入金予定
+                                    </h6>
+                                    <dl class="row mb-0">
+                                        <dt class="col-sm-5 text-muted">入金予定日</dt>
+                                        <dd class="col-sm-7 fw-bold editable-field" data-field="payment_due_date" data-type="date">
+                                            <span class="field-value">{{ project.payment_due_date|date:"Y/n/j"|default:"-" }}</span>
                                             <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label fw-bold" style="font-size: 0.85rem;">入金予定日</label>
-                                        <div class="editable-field" data-field="payment_due_date" data-type="date">
-                                            <span class="field-value">{{ project.payment_due_date|date:"Y年m月d日"|default:"-" }}</span>
-                                            <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label fw-bold" style="font-size: 0.85rem;">工事開始日</label>
-                                        <div style="font-size: 0.9rem;">
-                                            {{ project.work_start_date|date:"Y年m月d日"|default:"-" }}
-                                            <small class="text-muted d-block" style="font-size: 0.75rem;"><i class="fas fa-info-circle"></i> 着工日から自動同期</small>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label fw-bold" style="font-size: 0.85rem;">工事終了日</label>
-                                        <div style="font-size: 0.9rem;">
-                                            {{ project.work_end_date|date:"Y年m月d日"|default:"-" }}
-                                            <small class="text-muted d-block" style="font-size: 0.75rem;"><i class="fas fa-info-circle"></i> 完工日から自動同期</small>
-                                        </div>
-                                    </div>
+                                        </dd>
+                                    </dl>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- 完了報告カード -->
-                        <div class="card shadow-sm" style="font-size: 0.9rem;">
-                            <div class="card-header bg-info text-white py-2">
-                                <h6 class="mb-0" style="font-size: 0.95rem;"><i class="fas fa-clipboard-check me-2"></i>完了報告</h6>
-                            </div>
-                            <div class="card-body p-3">
-                                <div class="row">
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label fw-bold" style="font-size: 0.85rem;">完了報告ステータス</label>
-                                        <div>
+                        <!-- 完了報告セクション -->
+                        <div class="row g-3 mt-3">
+                            <div class="col-12">
+                                <div class="info-group">
+                                    <h6 class="text-info border-bottom pb-2 mb-3">
+                                        <i class="fas fa-clipboard-check me-2"></i>完了報告
+                                    </h6>
+                                    <div class="alert alert-info small mb-3">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        元請会社のテンプレートが自動入力されています。内容を編集して完了報告を作成できます。
+                                    </div>
+
+                                    <!-- 表示モード -->
+                                    <dl class="row view-mode-only">
+                                        <dt class="col-sm-3 text-muted">完了報告ステータス</dt>
+                                        <dd class="col-sm-9">
                                             {% if project.completion_report_completed %}
                                             <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>完了</span>
                                             {% else %}
                                             <span class="badge bg-secondary">未完了</span>
                                             {% endif %}
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label fw-bold" style="font-size: 0.85rem;">完了報告日</label>
-                                        <div>{{ project.completion_report_date|date:"Y年m月d日"|default:"-" }}</div>
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label fw-bold" style="font-size: 0.85rem;">元請テンプレート</label>
-                                        <div>
+                                        </dd>
+                                        <dt class="col-sm-3 text-muted">テンプレート</dt>
+                                        <dd class="col-sm-9">
                                             {% if project.client_company and project.client_company.completion_report_template %}
                                             <a href="{{ project.client_company.completion_report_template.url }}" class="btn btn-sm btn-outline-primary" download>
-                                                <i class="fas fa-download me-1"></i>ダウンロード
+                                                <i class="fas fa-download me-1"></i>元請テンプレートをダウンロード
                                             </a>
                                             {% else %}
-                                            <span class="text-muted" style="font-size: 0.85rem;">テンプレートなし</span>
+                                            <span class="text-muted">テンプレートなし</span>
                                             {% endif %}
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label fw-bold" style="font-size: 0.85rem;">完了報告ファイル</label>
-                                        <div>
+                                        </dd>
+                                        <dt class="col-sm-3 text-muted">完了報告ファイル</dt>
+                                        <dd class="col-sm-9">
                                             {% if project.completion_report_file %}
                                             <a href="{{ project.completion_report_file.url }}" class="btn btn-sm btn-success" download>
                                                 <i class="fas fa-file-download me-1"></i>ダウンロード
                                             </a>
-                                            <small class="text-muted ms-2" style="font-size: 0.75rem;">{{ project.completion_report_file.name|slice:"19:" }}</small>
+                                            <small class="text-muted ms-2">{{ project.completion_report_file.name|slice:"19:" }}</small>
                                             {% else %}
-                                            <span class="text-muted" style="font-size: 0.85rem;">未アップロード</span>
+                                            <span class="text-muted">未アップロード</span>
                                             {% endif %}
+                                        </dd>
+                                        <dt class="col-sm-3 text-muted">完了報告日</dt>
+                                        <dd class="col-sm-9">{{ project.completion_report_date|date:"Y年m月d日"|default:"-" }}</dd>
+                                        <dt class="col-sm-3 text-muted">完了報告内容</dt>
+                                        <dd class="col-sm-9">
+                                            <div style="white-space: pre-wrap;">{{ project.completion_report_content|default:"未作成" }}</div>
+                                        </dd>
+                                        {% if project.completion_report_notes %}
+                                        <dt class="col-sm-3 text-muted">メモ</dt>
+                                        <dd class="col-sm-9">
+                                            <div style="white-space: pre-wrap;">{{ project.completion_report_notes }}</div>
+                                        </dd>
+                                        {% endif %}
+                                    </dl>
+
+                                    <!-- 編集モード -->
+                                    <div class="edit-mode-only" style="display: none;">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">完了チェック</label>
+                                            <div class="form-check">
+                                                <input type="checkbox" class="form-check-input" id="completion_report_completed" name="completion_report_completed" {% if project.completion_report_completed %}checked{% endif %}>
+                                                <label class="form-check-label" for="completion_report_completed">
+                                                    完了報告を完了しました
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">元請テンプレート</label>
+                                            <div>
+                                                {% if project.client_company and project.client_company.completion_report_template %}
+                                                <a href="{{ project.client_company.completion_report_template.url }}" class="btn btn-sm btn-outline-primary" download>
+                                                    <i class="fas fa-download me-1"></i>テンプレートをダウンロード
+                                                </a>
+                                                <div class="form-text">元請会社のテンプレートファイルをダウンロードして使用できます</div>
+                                                {% else %}
+                                                <span class="text-muted">この元請会社にはテンプレートが登録されていません</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">完了報告ファイル</label>
+                                            <input type="file" name="completion_report_file" class="form-control" id="completionReportFileInput" accept=".pdf,.doc,.docx,.xls,.xlsx">
+                                            <div class="form-text">PDF、Word、Excelファイルをアップロードできます</div>
+                                            {% if project.completion_report_file %}
+                                            <div class="mt-2">
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-file me-1"></i>現在のファイル: {{ project.completion_report_file.name|slice:"19:" }}
+                                                </span>
+                                                <a href="{{ project.completion_report_file.url }}" class="btn btn-sm btn-link" download>
+                                                    <i class="fas fa-download me-1"></i>ダウンロード
+                                                </a>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">完了報告日</label>
+                                            <input type="date" name="completion_report_date" class="form-control dynamic-field" value="{{ project.completion_report_date|date:'Y-m-d'|default:'' }}">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">完了報告内容（テキスト）</label>
+                                            <textarea name="completion_report_content" class="form-control dynamic-field" rows="6">{{ project.completion_report_content|default:'' }}</textarea>
+                                            <div class="form-text">元請会社のテンプレート内容から自動入力されます（テキスト形式）</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">完了報告メモ</label>
+                                            <textarea name="completion_report_notes" class="form-control dynamic-field" rows="3">{{ project.completion_report_notes|default:'' }}</textarea>
                                         </div>
                                     </div>
                                 </div>
-                                {% if project.completion_report_content %}
-                                <div class="row">
-                                    <div class="col-12 mb-2">
-                                        <label class="form-label fw-bold" style="font-size: 0.85rem;">完了報告内容</label>
-                                        <div class="p-2 bg-light rounded" style="white-space: pre-wrap; font-size: 0.85rem;">{{ project.completion_report_content }}</div>
-                                    </div>
-                                </div>
-                                {% endif %}
-                                {% if project.completion_report_notes %}
-                                <div class="row">
-                                    <div class="col-12">
-                                        <label class="form-label fw-bold" style="font-size: 0.85rem;">メモ</label>
-                                        <div class="p-2 bg-light rounded" style="white-space: pre-wrap; font-size: 0.85rem;">{{ project.completion_report_notes }}</div>
-                                    </div>
-                                </div>
-                                {% endif %}
                             </div>
                         </div>
                     </div>
 
-                    <!-- 請求タブ -->
-                    <div class="tab-pane fade" id="finance" role="tabpanel" data-section-title="💰 請求">
-                        <!-- 請求セクション -->
-                        <div class="card shadow-sm" style="font-size: 0.9rem;">
-                            <div class="card-header bg-info text-white py-2">
-                                <h6 class="mb-0" style="font-size: 0.95rem;">
-                                    <i class="fas fa-file-invoice me-2"></i>請求情報
-                                </h6>
-                            </div>
-                            <div class="card-body p-3">
-                                <!-- 支払いサイクル情報（読み取り専用カード） -->
-                                {% if project.client_company %}
-                                <div class="alert alert-info mb-3" style="font-size: 0.85rem;">
-                                    <h6 class="mb-2" style="font-size: 0.9rem;">
-                                        <i class="fas fa-info-circle me-2"></i>元請会社の支払いサイクル
+                    <!-- 請求・経費タブ -->
+                    <div class="tab-pane fade" id="finance" role="tabpanel" data-section-title="💰 請求・経費">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="info-group">
+                                    <h6 class="text-primary border-bottom pb-2 mb-3">
+                                        <i class="fas fa-file-invoice me-2"></i>請求情報
                                     </h6>
-                                    <div class="row">
-                                        <div class="col-md-3">
-                                            <strong>支払サイクル:</strong><br>
-                                            <span>{{ project.client_company.payment_cycle|default:"-" }}</span>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <strong>締め日:</strong><br>
-                                            <span>{% if project.client_company.closing_day is not None %}{{ project.client_company.closing_day }}日{% else %}-{% endif %}</span>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <strong>支払月:</strong><br>
-                                            <span>{% if project.client_company.payment_offset_months is not None %}{{ project.client_company.payment_offset_months }}ヶ月後{% else %}-{% endif %}</span>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <strong>支払日:</strong><br>
-                                            <span>{% if project.client_company.payment_day is not None %}{{ project.client_company.payment_day }}日{% else %}-{% endif %}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endif %}
-
-                                <!-- 入金予定日 -->
-                                <div class="row mb-2">
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label fw-bold" style="font-size: 0.85rem;">
-                                            入金予定日（自社←元請）
-                                        </label>
-                                        <div>
-                                            {{ project.payment_due_date|date:"Y年m月d日"|default:"-" }}
-                                        </div>
-                                        <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">支払いサイクルは元請会社の設定値です</small>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label fw-bold" style="font-size: 0.85rem;">請求書状況（自社→元請）</label>
-                                        <div class="mt-2">
+                                    <dl class="row mb-0">
+                                        <dt class="col-sm-3 text-muted">請求書発行</dt>
+                                        <dd class="col-sm-3">
                                             {% if project.invoice_issued %}
-                                            <span class="badge bg-success">請求書発行済み</span>
+                                            <span class="badge bg-success">発行済み</span>
                                             {% else %}
                                             <span class="badge bg-secondary">未発行</span>
                                             {% endif %}
-                                        </div>
+                                        </dd>
+                                        <dt class="col-sm-3 text-muted">実請求額</dt>
+                                        <dd class="col-sm-3 text-success fw-bold">¥{{ project.billing_amount|floatformat:0|intcomma }}</dd>
 
-                                        <!-- 請求書ファイル -->
-                                        <div class="mt-2">
-                                            <label class="form-label small" style="font-size: 0.8rem;">
-                                                <i class="fas fa-file-invoice me-1"></i>請求書ファイル（自社→元請）
-                                            </label>
-                                            {% if project.invoice_file %}
-                                            <div class="mt-2">
-                                                <a href="{{ project.invoice_file.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
-                                                    <i class="fas fa-file-pdf me-1"></i>請求書を確認
-                                                </a>
-                                                <small class="text-muted ms-2" style="font-size: 0.75rem;">{{ project.invoice_file.name|slice:"19:" }}</small>
-                                            </div>
-                                            {% else %}
-                                            <p class="text-muted small mb-0" style="font-size: 0.8rem;">請求書ファイルは未アップロードです</p>
-                                            {% endif %}
-                                        </div>
-                                    </div>
+                                        {% if project.invoice_file %}
+                                        <dt class="col-sm-3 text-muted">請求書PDF</dt>
+                                        <dd class="col-sm-9">
+                                            <a href="{{ project.invoice_file.url }}" class="btn btn-sm btn-success" target="_blank">
+                                                <i class="fas fa-file-pdf me-1"></i>請求書を表示
+                                            </a>
+                                            <small class="text-muted ms-2">{{ project.invoice_file.name|slice:"19:" }}</small>
+                                        </dd>
+                                        {% endif %}
+                                    </dl>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="info-group">
+                                    <h6 class="text-warning border-bottom pb-2 mb-3">
+                                        <i class="fas fa-receipt me-2"></i>諸経費①
+                                    </h6>
+                                    <dl class="row mb-0">
+                                        <dt class="col-sm-5 text-muted">項目名</dt>
+                                        <dd class="col-sm-7 editable-field" data-field="expense_item_1" data-type="text">
+                                            <span class="field-value">{{ project.expense_item_1|default:"-" }}</span>
+                                            <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
+                                        </dd>
+                                        <dt class="col-sm-5 text-muted">金額</dt>
+                                        <dd class="col-sm-7 fw-bold editable-field" data-field="expense_amount_1" data-type="number">
+                                            <span class="field-value">¥{{ project.expense_amount_1|floatformat:0|intcomma }}</span>
+                                            <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
+                                        </dd>
+                                    </dl>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="info-group">
+                                    <h6 class="text-warning border-bottom pb-2 mb-3">
+                                        <i class="fas fa-receipt me-2"></i>諸経費②
+                                    </h6>
+                                    <dl class="row mb-0">
+                                        <dt class="col-sm-5 text-muted">項目名</dt>
+                                        <dd class="col-sm-7 editable-field" data-field="expense_item_2" data-type="text">
+                                            <span class="field-value">{{ project.expense_item_2|default:"-" }}</span>
+                                            <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
+                                        </dd>
+                                        <dt class="col-sm-5 text-muted">金額</dt>
+                                        <dd class="col-sm-7 fw-bold editable-field" data-field="expense_amount_2" data-type="number">
+                                            <span class="field-value">¥{{ project.expense_amount_2|floatformat:0|intcomma }}</span>
+                                            <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer;" onclick="enableEdit(this)"></i>
+                                        </dd>
+                                    </dl>
                                 </div>
                             </div>
                         </div>
                     </div>
 
+                    <!-- 備考・その他タブ -->
+                    <div class="tab-pane fade" id="notes" role="tabpanel" data-section-title="📝 備考・その他">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="info-group">
+                                    <h6 class="text-primary border-bottom pb-2 mb-3">
+                                        <i class="fas fa-comment-alt me-2"></i>備考
+                                    </h6>
+                                    <div class="editable-field" data-field="notes" data-type="textarea">
+                                        <div class="field-value">
+                                            {% if project.notes %}
+                                                <div class="p-3 bg-light rounded">{{ project.notes|linebreaks }}</div>
+                                            {% else %}
+                                                <p class="text-muted fst-italic">備考はありません</p>
+                                            {% endif %}
+                                        </div>
+                                        <i class="fas fa-pencil-alt ms-2 edit-icon" style="font-size: 0.65rem; color: #6c757d; cursor: pointer; position: absolute; right: 1rem; top: 0.5rem;" onclick="enableEdit(this)"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="info-group">
+                                    <h6 class="text-secondary border-bottom pb-2 mb-3">
+                                        <i class="fas fa-database me-2"></i>システム情報
+                                    </h6>
+                                    <dl class="row mb-0">
+                                        <dt class="col-sm-2 text-muted">作成日時</dt>
+                                        <dd class="col-sm-4">{{ project.created_at|date:"Y年m月d日 H:i" }}</dd>
+                                        <dt class="col-sm-2 text-muted">更新日時</dt>
+                                        <dd class="col-sm-4">{{ project.updated_at|date:"Y年m月d日 H:i" }}</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -3315,14 +3234,6 @@ $(document).ready(function() {
 
         $('.progress-step').each(function() {
             const $step = $(this);
-            const stepKey = $step.data('step');
-
-            // 🔧 FIX: 見積書発行ステップはチェックボックスで完了状態を管理するためスキップ
-            const complexStepsWithCheckbox = ['estimate', 'step_estimate', 'step_attendance', 'step_survey', 'step_construction_start', 'step_completion'];
-            if (complexStepsWithCheckbox.includes(stepKey)) {
-                return; // continue
-            }
-
             const $scheduledInput = $step.find('.scheduled-date-input');
             const $actualInput = $step.find('.actual-date-input');
             const $completedCheckbox = $step.find('input[type="checkbox"][name$="_completed"], input[type="checkbox"][id$="Completed"]');
@@ -3557,27 +3468,12 @@ $(document).ready(function() {
                     projectData.estimate_issued_date = dateValue;
                     console.log('projectDataを更新しました:', projectData.estimate_issued_date);
 
-                    // 🔧 FIX: UIを更新（完了チェックボックスを確認）
-                    const isEstimateCompleted = $('#estimateCompleted').is(':checked');
-
-                    console.log('🔧 estimate_issued_date change handler:', {
-                        dateValue: dateValue,
-                        notRequiredChecked: notRequiredChecked,
-                        isEstimateCompleted: isEstimateCompleted
-                    });
-
+                    // UIを更新
                     if (dateValue && !notRequiredChecked) {
-                        if (isEstimateCompleted) {
-                            console.log('ステップを完了状態にします');
-                            step.addClass('completed');
-                            step.removeClass('active');
-                            step.find('.progress-step-date').html('<span class="badge bg-success">見積書発行済み</span> ' + formatDate(dateValue));
-                        } else {
-                            console.log('ステップを予定状態にします');
-                            step.removeClass('completed');
-                            step.addClass('active');
-                            step.find('.progress-step-date').html('<span class="badge bg-warning">見積書待ち</span> ' + formatDate(dateValue));
-                        }
+                        console.log('ステップを完了状態にします');
+                        step.addClass('completed');
+                        step.removeClass('active');
+                        step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了: ' + formatDate(dateValue));
                     } else if (!notRequiredChecked) {
                         console.log('ステップを未完了状態にします');
                         step.removeClass('completed');
@@ -3633,55 +3529,6 @@ $(document).ready(function() {
         });
     });
 
-    // 見積書完了チェックボックスのイベントハンドラ（イベント委譲）
-    // 🔧 FIX: 動的に生成される要素なのでイベント委譲を使用
-    $(document).on('change', '#estimateCompleted', function() {
-        var isChecked = $(this).is(':checked');
-        var step = $('.progress-step[data-step="estimate"]');
-        var scheduledDate = $('input[name="estimate_issued_date"]').val();
-
-        console.log('見積書完了チェックボックスが変更されました:', isChecked);
-
-        // UIを更新
-        if (isChecked) {
-            step.addClass('completed');
-            step.removeClass('active');
-            if (scheduledDate) {
-                step.find('.progress-step-date').html(`<i class="fas fa-check-circle me-1"></i>完了: ${formatDate(scheduledDate)}`);
-            } else {
-                step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了');
-            }
-        } else {
-            step.removeClass('completed');
-            if (scheduledDate) {
-                step.find('.progress-step-date').html(`<i class="fas fa-calendar me-1"></i>予定: ${formatDate(scheduledDate)}`);
-            } else {
-                step.find('.progress-step-date').html('<div class="progress-step-date">未完了</div>');
-            }
-        }
-
-        // データベースに保存（SSOT: ProjectProgressStep）
-        $.ajax({
-            url: '{% url "order_management:update_progress" project.pk %}',
-            method: 'POST',
-            dataType: 'json',
-            data: {
-                dynamic_field_estimate_completed: isChecked ? 'true' : '',
-                ajax_save: 'true',
-                csrfmiddlewaretoken: '{{ csrf_token }}'
-            },
-            success: function(response) {
-                console.log('✓ 見積書完了状態を保存しました:', isChecked);
-                // 進捗状況を更新
-                updateProgressStatus();
-            },
-            error: function(xhr, status, error) {
-                console.error('❌ 保存エラー:', error);
-                console.error('Response:', xhr.responseText);
-            }
-        });
-    });
-
     // 見積書不要チェックボックスの処理をグローバル関数として定義
     window.handleEstimateNotRequiredChange = function() {
         var isChecked = $('#estimateNotRequired').is(':checked');
@@ -3718,39 +3565,19 @@ $(document).ready(function() {
                         // 見積書不要にチェックした場合
                         step.addClass('completed');
                         step.removeClass('active');
-                        step.find('.progress-step-date').html('<span class="badge bg-success">見積書不要</span>');
+                        step.find('.progress-step-date').html('<i class="fas fa-times-circle me-1"></i>見積不要');
                     dateInput.prop('disabled', true).val('');
                 } else {
                     // 見積書不要のチェックを外した場合
                     dateInput.prop('disabled', false);
-
-                    // 🔧 FIX: 完了チェックボックスの状態を確認してから完了状態を設定
-                    const isEstimateCompleted = $('#estimateCompleted').is(':checked');
-
-                    console.log('🔧 handleEstimateNotRequiredChange - estimate not required unchecked:', {
-                        dateValue: dateInput.val(),
-                        isEstimateCompleted: isEstimateCompleted,
-                        currentClasses: step.attr('class')
-                    });
-
                     if (!dateInput.val()) {
                         step.removeClass('completed');
                         step.find('.progress-step-date').html('<span class="badge bg-secondary">未完了</span>');
-                    } else if (isEstimateCompleted) {
-                        // 完了チェックボックスがONの場合のみ完了状態にする
+                    } else {
                         step.addClass('completed');
                         step.removeClass('active');
-                        step.find('.progress-step-date').html('<span class="badge bg-success">見積書発行済み</span> ' + formatDate(dateInput.val()));
-                    } else {
-                        // 日付があるが未完了の場合は予定として表示
-                        step.removeClass('completed');
-                        step.addClass('active');
-                        step.find('.progress-step-date').html('<span class="badge bg-warning">見積書待ち</span> ' + formatDate(dateInput.val()));
+                        step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>' + formatDate(dateInput.val()));
                     }
-
-                    console.log('🔧 handleEstimateNotRequiredChange - after update:', {
-                        newClasses: step.attr('class')
-                    });
                 }
 
                     // 進捗状況全体を更新
@@ -4302,9 +4129,8 @@ $(document).ready(function() {
     // 複合ステップのフィールド変更を監視
     $(document).on('change', 'input[name^="dynamic_field_"], select[name^="dynamic_field_"], textarea[name^="dynamic_field_"]', function() {
         const fieldName = $(this).attr('name');
-        // dynamic_field_step_attendance_scheduled_date -> step_attendance
-        // 最後のフィールド名（scheduled_date, actual_date, completed, value）を削除してstepKeyを取得
-        const stepKey = fieldName.replace(/^dynamic_field_/, '').replace(/_(scheduled_date|actual_date|completed|value)$/, '');
+        // dynamic_field_attendance_scheduled_date -> attendance
+        const stepKey = fieldName.replace(/^dynamic_field_/, '').split('_')[0];
         const $step = $(`.progress-step[data-step="${stepKey}"]`);
 
         // 保存状態を表示
@@ -4356,6 +4182,8 @@ $(document).ready(function() {
                             // 進捗タイムラインと状況バーを更新
                             updateProgressTimeline();
                             updateProgressStatus();
+
+                            console.log(`Updated complex step ${stepKey}:`, status);
                         }
                     }
                 } else {
@@ -4411,35 +4239,9 @@ $(document).ready(function() {
             step.addClass('completed');
             step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了: ' + formatDate(value));
         } else if (inputName.includes('issued_date') && value) {
-            // 🔧 FIX: 見積書発行日の場合は、完了チェックボックスの状態を確認
-            if (inputName === 'estimate_issued_date') {
-                const estimateCompletedCheckbox = $('#estimateCompleted');
-                const isEstimateCompleted = estimateCompletedCheckbox.is(':checked');
-
-                console.log('🔧 updateStepStatus - estimate_issued_date:', {
-                    value: value,
-                    isEstimateCompleted: isEstimateCompleted,
-                    currentClasses: step.attr('class')
-                });
-
-                if (isEstimateCompleted) {
-                    step.addClass('completed');
-                    step.removeClass('active');
-                    step.find('.progress-step-date').html('<span class="badge bg-success">見積書発行済み</span> ' + formatDate(value));
-                } else {
-                    step.removeClass('completed');
-                    step.addClass('active');
-                    step.find('.progress-step-date').html('<span class="badge bg-warning">見積書待ち</span> ' + formatDate(value));
-                }
-
-                console.log('🔧 updateStepStatus - after update:', {
-                    newClasses: step.attr('class')
-                });
-            } else {
-                // その他の発行日フィールド
-                step.addClass('completed');
-                step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了: ' + formatDate(value));
-            }
+            // 発行日の場合も「完了」
+            step.addClass('completed');
+            step.find('.progress-step-date').html('<i class="fas fa-check-circle me-1"></i>完了: ' + formatDate(value));
         } else if (inputName.includes('scheduled_date') && value) {
             // 予定日の場合は「予定」
             step.removeClass('completed');
@@ -4644,28 +4446,16 @@ $(document).ready(function() {
             const stepName = $step.find('.progress-step-label').text().trim();
             const stepKey = $step.data('step');
 
-            // 🔧 FIX: Special handling for estimate step - check BOTH estimate_not_required AND estimate_completed
+            // Special handling for estimate step - check estimate_not_required checkbox
             if (stepKey === 'estimate' && !isCompleted) {
                 const estimateNotRequired = $step.find('#estimateNotRequired').is(':checked');
                 const estimateIssuedDate = $step.find('input[name="estimate_issued_date"]').val();
-                const estimateCompleted = $step.find('#estimateCompleted').is(':checked');
-
-                console.log('🔧 updateNextActionAndStep - estimate check:', {
-                    estimateNotRequired: estimateNotRequired,
-                    estimateIssuedDate: estimateIssuedDate,
-                    estimateCompleted: estimateCompleted
-                });
-
-                // Only mark as completed if EITHER:
-                // 1. estimate_not_required is checked, OR
-                // 2. estimate_completed checkbox is checked
-                if (estimateNotRequired || estimateCompleted) {
+                if (estimateNotRequired || estimateIssuedDate) {
                     isCompleted = true;
                     // Make sure the step has the completed class
                     if (!$step.hasClass('completed')) {
                         $step.addClass('completed');
                         $step.removeClass('active');
-                        console.log('🔧 updateNextActionAndStep - marking estimate as completed');
                     }
                 }
             }
@@ -5330,8 +5120,8 @@ $(document).ready(function() {
                     const $step = $(this);
                     const stepKey = $step.data('step');
 
-                    // 複合ステップと見積書発行ステップはスキップ（SSOT対応）
-                    const complexSteps = ['step_attendance', 'step_survey', 'step_estimate', 'estimate', 'step_construction_start', 'step_completion'];
+                    // 複合ステップはスキップ（既にgetComplexStepStatusで処理済み）
+                    const complexSteps = ['step_attendance', 'step_survey', 'step_construction_start', 'step_completion'];
                     if (complexSteps.includes(stepKey)) {
                         return; // continue
                     }
@@ -5446,24 +5236,13 @@ $(document).ready(function() {
 
         switch (step.key) {
             case 'estimate':
-            case 'step_estimate':
                 stepName = '見積作成';
                 stepIcon = 'fas fa-file-invoice';
-                // orderedStepsから完了状態を取得（SSOT対応）
-                const estimateStepData = orderedSteps.find(s => s.key === 'step_estimate' || s.key === 'estimate');
-                isCompleted = estimateStepData ? estimateStepData.completed : (projectData.estimate_issued_date || projectData.estimate_not_required);
-                const estimateDate = estimateStepData && estimateStepData.data ? estimateStepData.data.scheduled_date : projectData.estimate_issued_date;
-
-                if (isCompleted) {
-                    if (estimateDate) {
-                        statusHtml = `<i class="fas fa-check-circle me-1"></i>完了: ${formatDate(estimateDate)}`;
-                    } else {
-                        statusHtml = '<i class="fas fa-check-circle me-1"></i>完了';
-                    }
-                } else if (projectData.estimate_not_required) {
+                isCompleted = projectData.estimate_issued_date || projectData.estimate_not_required;
+                if (projectData.estimate_not_required) {
                     statusHtml = '<i class="fas fa-times-circle me-1"></i>見積不要';
-                } else if (estimateDate) {
-                    statusHtml = `<i class="fas fa-calendar me-1"></i>予定: ${formatDate(estimateDate)}`;
+                } else if (projectData.estimate_issued_date) {
+                    statusHtml = `<i class="fas fa-check-circle me-1"></i>完了: ${formatDate(projectData.estimate_issued_date)}`;
                 } else {
                     statusHtml = '未完了';
                 }
@@ -5728,8 +5507,7 @@ $(document).ready(function() {
             completedValue = stepData.completed;
         }
 
-        // 🔧 FIX: Only use completedValue to determine if step is completed, not presence of date
-        const isCompleted = completedValue || false;
+        const isCompleted = completedValue || dateValue || stepData.value;
         let statusHtml = '<div class="progress-step-date">未完了</div>';
 
         if (stepData.type === 'date' && dateValue) {
@@ -5809,30 +5587,13 @@ $(document).ready(function() {
 
     // 見積書発行ステップのHTML生成
     function generateEstimateStepHtml() {
-        // orderedStepsから見積書発行ステップのデータを取得（SSOT対応）
-        const estimateStep = orderedSteps.find(s => s.key === 'step_estimate' || s.key === 'estimate');
-        // 🔧 FIX: estimateStepが存在する場合は必ずそのcompleted値を使用（フォールバックなし）
-        const isCompleted = estimateStep ? estimateStep.completed : false;
-        const scheduledDate = estimateStep && estimateStep.data ? estimateStep.data.scheduled_date : projectData.estimate_issued_date;
+        const isCompleted = projectData.estimate_issued_date || projectData.estimate_not_required;
+        let statusHtml = '<div class="progress-step-date">未完了</div>';
 
-        console.log('=== generateEstimateStepHtml Debug ===');
-        console.log('estimateStep:', estimateStep);
-        console.log('isCompleted:', isCompleted);
-        console.log('scheduledDate:', scheduledDate);
-
-        // 🔧 FIX: 他のステップと同じバッジスタイルに統一
-        let statusHtml = '<div class="progress-step-date"><span class="badge bg-secondary">未完了</span></div>';
-
-        if (isCompleted) {
-            if (scheduledDate) {
-                statusHtml = `<div class="progress-step-date"><span class="badge bg-success">見積書発行済み</span> ${formatDate(scheduledDate)}</div>`;
-            } else {
-                statusHtml = '<div class="progress-step-date"><span class="badge bg-success">見積書発行済み</span></div>';
-            }
-        } else if (projectData.estimate_not_required) {
-            statusHtml = '<div class="progress-step-date"><span class="badge bg-success">見積書不要</span></div>';
-        } else if (scheduledDate) {
-            statusHtml = `<div class="progress-step-date"><span class="badge bg-warning">見積書待ち</span> ${formatDate(scheduledDate)}</div>`;
+        if (projectData.estimate_not_required) {
+            statusHtml = '<div class="progress-step-date"><i class="fas fa-times-circle me-1"></i>見積不要</div>';
+        } else if (projectData.estimate_issued_date) {
+            statusHtml = `<div class="progress-step-date"><i class="fas fa-check-circle me-1"></i>完了: ${formatDate(projectData.estimate_issued_date)}</div>`;
         }
 
         return `
@@ -5868,16 +5629,6 @@ $(document).ready(function() {
                             </div>
                         </div>
                     </div>
-
-                    <!-- 完了チェックボックス -->
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="estimate_completed"
-                               id="estimateCompleted" ${isCompleted ? 'checked' : ''}>
-                        <label class="form-check-label" for="estimateCompleted">
-                            <i class="fas fa-check me-1"></i>完了
-                        </label>
-                    </div>
-
                     <div class="form-check mb-3">
                         <input class="form-check-input" type="checkbox" name="estimate_not_required"
                                id="estimateNotRequired" ${projectData.estimate_not_required ? 'checked' : ''}>
@@ -5931,75 +5682,76 @@ $(document).ready(function() {
         `;
     }
 
-    // 現地調査ステップのHTML生成（ProjectProgressStep対応）
+    // 現地調査ステップのHTML生成
     function generateSurveyStepHtml() {
-        // 🔧 FIX: orderedStepsからstep_surveyのデータを取得
-        const surveyStep = orderedSteps.find(s => s.key === 'step_survey' || s.key === 'survey');
-        const scheduled_date = surveyStep && surveyStep.data ? surveyStep.data.scheduled_date : '';
-        const actual_date = surveyStep && surveyStep.data ? surveyStep.data.actual_date : '';
-        const isCompleted = surveyStep ? surveyStep.completed : false;
-
-        console.log('=== generateSurveyStepHtml Debug ===');
-        console.log('surveyStep:', surveyStep);
-        console.log('scheduled_date:', scheduled_date);
-        console.log('actual_date:', actual_date);
-        console.log('isCompleted:', isCompleted);
-
-        // ステータスHTMLの生成
+        // 実際の調査データがあるかチェック（surveys変数がテンプレートから渡されている場合）
+        let isCompleted = false;
         let statusHtml = '<div class="progress-step-date">未完了</div>';
-        if (isCompleted) {
-            if (actual_date) {
-                statusHtml = `<div class="progress-step-date"><i class="fas fa-check-circle me-1"></i>完了: ${formatDate(actual_date)}</div>`;
-            } else if (scheduled_date) {
-                statusHtml = `<div class="progress-step-date"><i class="fas fa-check-circle me-1"></i>完了: ${formatDate(scheduled_date)}</div>`;
-            } else {
-                statusHtml = '<div class="progress-step-date"><i class="fas fa-check-circle me-1"></i>完了</div>';
-            }
-        } else if (scheduled_date) {
-            statusHtml = `<div class="progress-step-date"><i class="fas fa-calendar me-1"></i>予定: ${formatDate(scheduled_date)}</div>`;
+
+        {% if surveys %}
+        // 完了した調査があるかチェック
+        const completedSurveys = [{% for survey in surveys %}{% if survey.status == 'completed' %}'{{ survey.id }}'{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}];
+        const inProgressSurveys = [{% for survey in surveys %}{% if survey.status == 'in_progress' %}'{{ survey.id }}'{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}];
+        const scheduledSurveys = [{% for survey in surveys %}{% if survey.status == 'scheduled' %}{ id: '{{ survey.id }}', date: '{{ survey.scheduled_date|date:"m/d" }}', time: '{{ survey.scheduled_start_time|time:"H:i" }}' }{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}];
+
+        if (completedSurveys.length > 0) {
+            isCompleted = true;
+            statusHtml = `<div class="progress-step-date"><i class="fas fa-check-circle me-1"></i>完了: ${completedSurveys.length}件</div>`;
+        } else if (inProgressSurveys.length > 0) {
+            statusHtml = `<div class="progress-step-date"><i class="fas fa-play me-1"></i>実施中: ${inProgressSurveys.length}件</div>`;
+        } else if (scheduledSurveys.length > 0) {
+            // 次回予定の調査日時を表示
+            const nextSurvey = scheduledSurveys[0];
+            statusHtml = `<div class="progress-step-date"><i class="fas fa-calendar me-1"></i>予定: ${scheduledSurveys.length}件 (次回: ${nextSurvey.date} ${nextSurvey.time})</div>`;
         }
+        {% endif %}
+
+        const hasEstimateCompleted = projectData.estimate_issued_date || projectData.estimate_not_required;
 
         return `
-            <div class="progress-step ${isCompleted ? 'completed' : 'active'}" data-step="step_survey">
+            <div class="progress-step ${isCompleted ? 'completed' : hasEstimateCompleted ? 'active' : ''}" data-step="survey">
                 <div class="progress-step-header d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
                         <i class="fas fa-grip-vertical drag-handle me-2" title="ドラッグして並び替え"></i>
                         <span><i class="fas fa-clipboard-list me-2"></i><span class="progress-step-label">現地調査</span></span>
                     </div>
                     <button type="button" class="btn btn-outline-danger btn-sm remove-step-btn"
-                            data-step="step_survey" title="ステップを削除">
+                            data-step="survey" title="ステップを削除">
                         <i class="fas fa-minus"></i>
                     </button>
                 </div>
                 ${statusHtml}
                 <div class="progress-step-content">
-                    <!-- 予定日入力 -->
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <label class="form-label mb-0">予定日</label>
-                        <button type="button" class="btn btn-sm btn-outline-secondary add-actual-date-btn" data-step="step_survey" title="実施日を追加">
-                            <i class="fas fa-plus me-1"></i>実施日
-                        </button>
+                    <div class="d-flex gap-2 mb-3">
+                        {% comment %}
+                        <a href="#" class="btn btn-primary btn-sm">
+                            <i class="fas fa-plus me-1"></i>調査作成
+                        </a>
+                        <a href="#" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-list me-1"></i>調査一覧
+                        </a>
+                        {% endcomment %}
                     </div>
-                    <input type="date" name="dynamic_field_step_survey_scheduled_date" class="form-control scheduled-date-input" value="${scheduled_date || ''}">
-
-                    <!-- 実施日入力 -->
-                    <div class="actual-date-field mt-2" style="display: ${actual_date ? 'block' : 'none'};">
-                        <label class="form-label">実施日</label>
-                        <div class="input-group">
-                            <input type="date" name="dynamic_field_step_survey_actual_date" class="form-control actual-date-input" value="${actual_date || ''}">
-                            <button type="button" class="btn btn-outline-danger remove-actual-date-btn" title="実施日を削除">
-                                <i class="fas fa-times"></i>
-                            </button>
+                    {% if surveys %}
+                    <div class="small">
+                        <div class="mb-2"><strong>調査状況:</strong></div>
+                        {% for survey in surveys|slice:":3" %}
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-muted">{{ survey.scheduled_date|date:"m/d" }} {{ survey.scheduled_start_time|time:"H:i" }}</span>
+                            <span class="badge {% if survey.status == 'completed' %}bg-success{% elif survey.status == 'in_progress' %}bg-warning{% else %}bg-secondary{% endif %} small">
+                                {{ survey.get_status_display }}
+                            </span>
                         </div>
+                        {% endfor %}
+                        {% if surveys|length > 3 %}
+                        <div class="text-muted small">他 {{ surveys|length|add:"-3" }}件...</div>
+                        {% endif %}
                     </div>
-
-                    <!-- 完了チェックボックス -->
-                    <div class="form-check mt-3 mb-3">
-                        <input class="form-check-input" type="checkbox" name="dynamic_field_step_survey_completed" id="surveyCompleted" ${isCompleted ? 'checked' : ''}>
-                        <label class="form-check-label" for="surveyCompleted">
-                            <i class="fas fa-check me-1"></i>完了
-                        </label>
+                    {% else %}
+                    <div class="text-muted small">
+                        <i class="fas fa-info-circle me-1"></i>調査が未スケジュールです
                     </div>
+                    {% endif %}
 
                     <!-- 現調担当者の表示 -->
                     ${generateStepSubcontractCardHtml('survey')}
@@ -6015,9 +5767,12 @@ $(document).ready(function() {
             ? `<div class="progress-step-date"><i class="fas fa-check-circle me-1"></i>完了: ${formatDate(projectData.contract_date)}</div>`
             : '<div class="progress-step-date">未完了</div>';
 
-        // 🔧 FIX: ProjectProgressStepから現地調査の完了状態を確認
-        const surveyStep = orderedSteps.find(s => s.key === 'step_survey' || s.key === 'survey');
-        const hasSurveyCompleted = surveyStep ? surveyStep.completed : false;
+        // Check if survey is completed to determine if contract should be active
+        let hasSurveyCompleted = false;
+        {% if surveys %}
+        const completedSurveys = [{% for survey in surveys %}{% if survey.status == 'completed' %}'{{ survey.id }}'{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}];
+        hasSurveyCompleted = completedSurveys.length > 0;
+        {% endif %}
 
         return `
             <div class="progress-step ${isCompleted ? 'completed' : hasSurveyCompleted ? 'active' : ''}" data-step="contract">
@@ -6857,29 +6612,6 @@ $(document).ready(function() {
             additionalCardHtml = generateMaterialOrderCardHtml();
         }
 
-        // 🔧 FIX: Generate status HTML based on step's completion state and scheduled date
-        let statusHtml = '<div class="progress-step-date"><span class="badge bg-secondary">未完了</span></div>';
-
-        // Get step data from orderedSteps to check completion and scheduled date
-        const orderedStep = orderedSteps.find(s => s.key === stepData.key);
-        if (orderedStep && orderedStep.data) {
-            const scheduled_date = orderedStep.data.scheduled_date;
-            const actual_date = orderedStep.data.actual_date;
-            const isCompleted = orderedStep.completed;
-
-            if (isCompleted) {
-                if (actual_date) {
-                    statusHtml = `<div class="progress-step-date"><i class="fas fa-check-circle me-1"></i>完了: ${formatDate(actual_date)}</div>`;
-                } else if (scheduled_date) {
-                    statusHtml = `<div class="progress-step-date"><i class="fas fa-check-circle me-1"></i>完了: ${formatDate(scheduled_date)}</div>`;
-                } else {
-                    statusHtml = '<div class="progress-step-date"><i class="fas fa-check-circle me-1"></i>完了</div>';
-                }
-            } else if (scheduled_date) {
-                statusHtml = `<div class="progress-step-date"><i class="fas fa-calendar me-1"></i>予定: ${formatDate(scheduled_date)}</div>`;
-            }
-        }
-
         return `
             <div class="progress-step" data-step="${stepData.key}">
                 <div class="progress-step-header d-flex justify-content-between align-items-center">
@@ -6892,7 +6624,7 @@ $(document).ready(function() {
                         <i class="fas fa-minus"></i>
                     </button>
                 </div>
-                ${statusHtml}
+                <div class="progress-step-date"><span class="badge bg-secondary">未完了</span></div>
                 <div class="progress-step-content">
                     ${fieldHtml}
                     ${additionalCardHtml}
@@ -7189,14 +6921,7 @@ $(document).ready(function() {
 
     // 複合ステップのステータス判定
     function getComplexStepStatus(stepData, stepElement) {
-        console.log('🔍 getComplexStepStatus called for:', stepData.key, {
-            hasFields: !!stepData.fields,
-            fieldsIsArray: Array.isArray(stepData.fields),
-            fieldsLength: stepData.fields ? stepData.fields.length : 0
-        });
-
         if (!stepData.fields || !Array.isArray(stepData.fields)) {
-            console.log('⚠️ No fields found for', stepData.key, '- returning 未完了');
             return { completed: false, statusText: '未完了', status: 'pending' };
         }
 
@@ -7204,7 +6929,6 @@ $(document).ready(function() {
         stepData.fields.forEach(field => {
             const fieldName = `dynamic_field_${stepData.key}_${field.name}`;  // dynamic_field_ プレフィックスを追加
             const input = stepElement.find(`[name="${fieldName}"]`);
-            console.log(`🔍 Looking for field: ${fieldName}, found: ${input.length}`);
 
             if (input.length > 0) {
                 if (field.type === 'checkbox') {
@@ -7243,55 +6967,33 @@ $(document).ready(function() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        console.log('🔍 Extracted values for', stepData.key, ':', values);
-
         // ステップ別のステータス判定（予定日ベース：予定日が過去なら自動完了）
         switch (stepData.key) {
             case 'attendance':  // 立ち会い日
-            case 'step_attendance':
                 const attCompleted = values.completed;
                 const attScheduled = values.scheduled_date;
-                const attActual = values.actual_date;
-                console.log('🔍 attendance status:', { attCompleted, attScheduled, attActual });
                 const attStaff = getStaffInfo();
 
-                // Priority 1: 実施日があれば完了扱い
-                if (attActual) {
-                    return {
-                        completed: true,
-                        status: 'completed',
-                        statusText: `<span class="badge bg-success">立ち会い済み</span> ${formatDate(attActual)}${attStaff ? ' (' + attStaff + ')' : ''}`
-                    };
+                // 予定日が過去かチェック
+                let attScheduledPast = false;
+                if (attScheduled) {
+                    const scheduled = new Date(attScheduled);
+                    scheduled.setHours(0, 0, 0, 0);
+                    attScheduledPast = scheduled < today;
                 }
 
-                // Priority 2: 完了フラグがtrueなら完了扱い
-                if (attCompleted) {
+                if (attCompleted || attScheduledPast) {
                     return {
                         completed: true,
                         status: 'completed',
                         statusText: `<span class="badge bg-success">立ち会い済み</span> ${attScheduled ? formatDate(attScheduled) : ''}${attStaff ? ' (' + attStaff + ')' : ''}`
                     };
-                }
-
-                // Priority 3: 予定日が過去なら自動完了扱い
-                if (attScheduled) {
-                    const scheduledDate = new Date(attScheduled);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-
-                    if (scheduledDate < today) {
-                        return {
-                            completed: true,
-                            status: 'completed',
-                            statusText: `<span class="badge bg-success">立ち会い済み</span> ${formatDate(attScheduled)}${attStaff ? ' (' + attStaff + ')' : ''}`
-                        };
-                    } else {
-                        return {
-                            completed: false,
-                            status: 'waiting',
-                            statusText: `<span class="badge bg-warning">立ち会い待ち</span> ${formatDate(attScheduled)}${attStaff ? ' (' + attStaff + ')' : ''}`
-                        };
-                    }
+                } else if (attScheduled) {
+                    return {
+                        completed: false,
+                        status: 'waiting',
+                        statusText: `<span class="badge bg-warning">立ち会い待ち</span> ${formatDate(attScheduled)}${attStaff ? ' (' + attStaff + ')' : ''}`
+                    };
                 } else {
                     return {
                         completed: false,
@@ -7301,49 +7003,30 @@ $(document).ready(function() {
                 }
 
             case 'survey':  // 現調日
-            case 'step_survey':
                 const surCompleted = values.completed;
                 const surScheduled = values.scheduled_date;
-                const surActual = values.actual_date;
                 const surStaff = getStaffInfo();
 
-                // Priority 1: 実施日があれば完了扱い
-                if (surActual) {
-                    return {
-                        completed: true,
-                        status: 'completed',
-                        statusText: `<span class="badge bg-success">現調済み</span> ${formatDate(surActual)}${surStaff ? ' (' + surStaff + ')' : ''}`
-                    };
+                // 予定日が過去かチェック
+                let surScheduledPast = false;
+                if (surScheduled) {
+                    const scheduled = new Date(surScheduled);
+                    scheduled.setHours(0, 0, 0, 0);
+                    surScheduledPast = scheduled < today;
                 }
 
-                // Priority 2: 完了フラグがtrueなら完了扱い
-                if (surCompleted) {
+                if (surCompleted || surScheduledPast) {
                     return {
                         completed: true,
                         status: 'completed',
                         statusText: `<span class="badge bg-success">現調済み</span> ${surScheduled ? formatDate(surScheduled) : ''}${surStaff ? ' (' + surStaff + ')' : ''}`
                     };
-                }
-
-                // Priority 3: 予定日が過去なら自動完了扱い
-                if (surScheduled) {
-                    const scheduledDate = new Date(surScheduled);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-
-                    if (scheduledDate < today) {
-                        return {
-                            completed: true,
-                            status: 'completed',
-                            statusText: `<span class="badge bg-success">現調済み</span> ${formatDate(surScheduled)}${surStaff ? ' (' + surStaff + ')' : ''}`
-                        };
-                    } else {
-                        return {
-                            completed: false,
-                            status: 'waiting',
-                            statusText: `<span class="badge bg-warning">現調待ち</span> ${formatDate(surScheduled)}${surStaff ? ' (' + surStaff + ')' : ''}`
-                        };
-                    }
+                } else if (surScheduled) {
+                    return {
+                        completed: false,
+                        status: 'waiting',
+                        statusText: `<span class="badge bg-warning">現調待ち</span> ${formatDate(surScheduled)}${surStaff ? ' (' + surStaff + ')' : ''}`
+                    };
                 } else {
                     return {
                         completed: false,
@@ -7376,14 +7059,13 @@ $(document).ready(function() {
                     };
                 }
 
-            case 'construction_start':  // 着工日（実施日優先、完了フラグベース）
-            case 'step_construction_start':
+            case 'construction_start':  // 着工日（実施日優先、予定日ベース：予定日が過去なら自動完了）
                 const csCompleted = values.completed;
                 const csScheduled = values.scheduled_date;
                 const csActual = values.actual_date;
                 const csStaff = getStaffInfo();
 
-                // Priority 1: 実施日が入力されている場合は、それを優先して完了扱い
+                // 実施日が入力されている場合は、それを優先
                 if (csActual) {
                     return {
                         completed: true,
@@ -7392,34 +7074,26 @@ $(document).ready(function() {
                     };
                 }
 
-                // Priority 2: 完了フラグがtrueなら完了扱い
-                if (csCompleted) {
+                // 予定日が過去かチェック
+                let csScheduledPast = false;
+                if (csScheduled) {
+                    const scheduled = new Date(csScheduled);
+                    scheduled.setHours(0, 0, 0, 0);
+                    csScheduledPast = scheduled < today;
+                }
+
+                if (csCompleted || csScheduledPast) {
                     return {
                         completed: true,
                         status: 'in_progress',
                         statusText: `<span class="badge bg-primary">工事中</span> ${csScheduled ? formatDate(csScheduled) : ''}${csStaff ? ' (' + csStaff + ')' : ''}`
                     };
-                }
-
-                // Priority 3: 予定日が過去なら自動完了扱い
-                if (csScheduled) {
-                    const scheduledDate = new Date(csScheduled);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-
-                    if (scheduledDate < today) {
-                        return {
-                            completed: true,
-                            status: 'in_progress',
-                            statusText: `<span class="badge bg-primary">工事中</span> ${formatDate(csScheduled)}${csStaff ? ' (' + csStaff + ')' : ''}`
-                        };
-                    } else {
-                        return {
-                            completed: false,
-                            status: 'waiting',
-                            statusText: `<span class="badge bg-warning">着工日待ち</span> ${formatDate(csScheduled)}${csStaff ? ' (' + csStaff + ')' : ''}`
-                        };
-                    }
+                } else if (csScheduled) {
+                    return {
+                        completed: false,
+                        status: 'waiting',
+                        statusText: `<span class="badge bg-warning">着工日待ち</span> ${formatDate(csScheduled)}${csStaff ? ' (' + csStaff + ')' : ''}`
+                    };
                 } else {
                     return {
                         completed: false,
@@ -7428,13 +7102,12 @@ $(document).ready(function() {
                     };
                 }
 
-            case 'completion':  // 完工日（実施日優先、完了フラグベース）
-            case 'step_completion':
+            case 'completion':  // 完工日（実施日優先、予定日ベース：予定日が過去なら自動完了）
                 const compCompleted = values.completed;
                 const compScheduled = values.scheduled_date;
                 const compActual = values.actual_date;
 
-                // 🔧 FIX: 実施日が入力されている場合は、それを優先して完了扱い
+                // 実施日が入力されている場合は、それを優先
                 if (compActual) {
                     return {
                         completed: true,
@@ -7443,30 +7116,44 @@ $(document).ready(function() {
                     };
                 }
 
-                // 🔧 FIX: Only use completed flag, not past date auto-completion
-                if (compCompleted) {
+                // 予定日が過去かチェック
+                let compScheduledPast = false;
+                if (compScheduled) {
+                    const scheduled = new Date(compScheduled);
+                    scheduled.setHours(0, 0, 0, 0);
+                    compScheduledPast = scheduled < today;
+                }
+
+                if (compCompleted || compScheduledPast) {
                     return {
                         completed: true,
                         status: 'completed',
                         statusText: `<span class="badge bg-success">完工</span> ${compScheduled ? formatDate(compScheduled) : ''}`
                     };
                 } else if (compScheduled) {
-                    // 着工日の状態を確認（実施日またはcompletedベース）
+                    // 着工日の状態を確認（実施日、completedベース、または予定日過去）
                     const constructionStartStep = $('#activeSteps .progress-step[data-step="step_construction_start"]');
                     let isConstructionStarted = false;
 
                     if (constructionStartStep.length > 0) {
                         const csActualInput = constructionStartStep.find('input[name*="actual_date"]');
                         const csCompletedInput = constructionStartStep.find('input[name*="completed"]');
+                        const csScheduledInput = constructionStartStep.find('.scheduled-date-input');
 
                         // 着工日の実施日が入力されているかチェック
                         const hasActualDate = csActualInput.length > 0 && csActualInput.val();
 
-                        // 着工日の完了フラグをチェック
                         const csIsCompleted = csCompletedInput.length > 0 && csCompletedInput.is(':checked');
 
-                        // 🔧 FIX: Remove past date auto-completion logic
-                        isConstructionStarted = hasActualDate || csIsCompleted;
+                        // 着工日の予定日が過去かチェック
+                        let csScheduledPast = false;
+                        if (csScheduledInput.length > 0 && csScheduledInput.val()) {
+                            const csScheduled = new Date(csScheduledInput.val());
+                            csScheduled.setHours(0, 0, 0, 0);
+                            csScheduledPast = csScheduled < today;
+                        }
+
+                        isConstructionStarted = hasActualDate || csIsCompleted || csScheduledPast;
                     }
 
                     if (isConstructionStarted) {
@@ -7491,10 +7178,12 @@ $(document).ready(function() {
                 }
 
             default:
-                // 🔧 FIX: その他のステップ：completed フラグのみで判定（値の有無では判定しない）
-                const isStepCompleted = values.completed || false;
+                // その他のステップ：何か値があれば完了
+                const hasAnyValue = Object.values(values).some(value =>
+                    typeof value === 'boolean' ? value : (value && value.trim && value.trim())
+                );
 
-                if (isStepCompleted) {
+                if (hasAnyValue) {
                     return { completed: true, status: 'completed', statusText: '<span class="badge bg-success">完了</span>' };
                 } else {
                     return { completed: false, status: 'pending', statusText: '<span class="badge bg-secondary">未完了</span>' };
@@ -11305,102 +10994,5 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 </div>
-
-<!-- FullCalendar JS -->
-<script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.5/main.min.js'></script>
-<script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.5/locales/ja.js'></script>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    var calendarEl = document.getElementById('projectCalendar');
-    var calendar = null;
-    var calendarInitialized = false;
-
-    function initCalendar() {
-        if (calendarInitialized || !calendarEl) return;
-
-        // プロジェクトの進捗ステップからイベントを作成
-        var events = [];
-
-        {% for step in project.progress_steps.all %}
-            {% if step.value and step.value.scheduled_date %}
-            events.push({
-                title: '{{ step.template.name }}',
-                start: '{{ step.value.scheduled_date }}',
-                backgroundColor: '{{ step.is_completed|yesno:"#28a745,#007bff" }}',
-                borderColor: '{{ step.is_completed|yesno:"#28a745,#007bff" }}',
-                extendedProps: {
-                    completed: {{ step.is_completed|yesno:"true,false" }},
-                    stepName: '{{ step.template.name }}'
-                }
-            });
-            {% endif %}
-        {% endfor %}
-
-        // 契約日
-        {% if project.contract_date %}
-        events.push({
-            title: '契約日',
-            start: '{{ project.contract_date|date:"Y-m-d" }}',
-            backgroundColor: '#6c757d',
-            borderColor: '#6c757d'
-        });
-        {% endif %}
-
-        // 支払期日
-        {% if project.payment_due_date %}
-        events.push({
-            title: '支払期日',
-            start: '{{ project.payment_due_date|date:"Y-m-d" }}',
-            backgroundColor: '#ffc107',
-            borderColor: '#ffc107'
-        });
-        {% endif %}
-
-        console.log('Calendar events:', events);
-
-        calendar = new FullCalendar.Calendar(calendarEl, {
-            locale: 'ja',
-            initialView: 'dayGridMonth',
-            headerToolbar: {
-                left: 'prev,next today',
-                center: 'title',
-                right: 'dayGridMonth,timeGridWeek'
-            },
-            events: events,
-            eventClick: function(info) {
-                var eventDetails = info.event.title;
-                if (info.event.extendedProps && info.event.extendedProps.completed) {
-                    eventDetails += ' (完了)';
-                }
-                alert(eventDetails);
-            },
-            height: 'auto',
-            buttonText: {
-                today: '今日',
-                month: '月',
-                week: '週'
-            }
-        });
-
-        calendar.render();
-        calendarInitialized = true;
-    }
-
-    // カレンダータブがクリックされたときに初期化
-    var calendarTab = document.getElementById('calendar-tab');
-    if (calendarTab) {
-        calendarTab.addEventListener('shown.bs.tab', function (e) {
-            initCalendar();
-        });
-    }
-
-    // タブがすでにアクティブな場合は即座に初期化
-    var calendarTabPane = document.getElementById('calendar');
-    if (calendarTabPane && calendarTabPane.classList.contains('active')) {
-        initCalendar();
-    }
-});
-</script>
 
 {% endblock %}

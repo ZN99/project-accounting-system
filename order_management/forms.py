@@ -11,11 +11,23 @@ class ProjectForm(forms.ModelForm):
         label='工事種別'
     )
 
+    material_labor_type = forms.ChoiceField(
+        choices=[
+            ('', '-'),
+            ('material_labor', '材工'),
+            ('labor_only', '手間'),
+        ],
+        required=False,
+        widget=forms.RadioSelect(),
+        label='材工/手間',
+        initial=''
+    )
+
     class Meta:
         model = Project
         exclude = [
             'management_no', 'billing_amount', 'amount_difference',
-            'created_at', 'updated_at',
+            'created_at', 'updated_at', 'invoice_status', 'parking_fee',
             # Phase 8: 自動計算・システム管理フィールド
             'priority_score', 'requires_approval', 'approval_status',
             'approved_by', 'approved_at',
@@ -67,7 +79,7 @@ class ProjectForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
-            if not isinstance(field.widget, (forms.CheckboxInput, forms.Select)):
+            if not isinstance(field.widget, (forms.CheckboxInput, forms.Select, forms.RadioSelect)):
                 field.widget.attrs['class'] = 'form-control'
 
         # 必須項目の設定（基本情報のみ）

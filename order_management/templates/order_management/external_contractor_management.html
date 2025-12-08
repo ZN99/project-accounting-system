@@ -217,7 +217,7 @@
                     </thead>
                     <tbody>
                         {% for contractor in contractors %}
-                        <tr data-contractor-id="{{ contractor.pk }}" data-detail-url="{% url 'order_management:contractor_projects' contractor.pk %}">
+                        <tr data-contractor-id="{{ contractor.pk }}" data-detail-url="{% url 'order_management:contractor_edit' contractor.pk %}">
                             <td>
                                 <strong>{{ contractor.name }}</strong>
                             </td>

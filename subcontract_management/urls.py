@@ -14,11 +14,13 @@ urlpatterns = [
     path('subcontract/<int:pk>/update/', views.subcontract_update, name='subcontract_update'),
     path('<int:pk>/delete/', views.subcontract_delete, name='subcontract_delete'),
 
-    # 発注先マスター管理
-    path('contractors/', views.contractor_list, name='contractor_list'),
-    path('contractors/create/', views.contractor_create, name='contractor_create'),
-    path('contractors/<int:pk>/update/', views.contractor_update, name='contractor_update'),
-    path('contractors/<int:pk>/delete/', views.contractor_delete, name='contractor_delete'),
+    # 業者管理（部分的にorder_managementアプリに統合中）
+    # 一覧ページ: /orders/external-contractors/ を使用（新しい）
+    # AJAX API: 以下のエンドポイントを使用（後でorder_managementに移行予定）
+    # path('contractors/', views.contractor_list, name='contractor_list'),  # ARCHIVED
+    path('contractors/create/', views.contractor_create, name='contractor_create'),  # AJAX用
+    path('contractors/<int:pk>/update/', views.contractor_update, name='contractor_update'),  # AJAX用
+    path('contractors/<int:pk>/delete/', views.contractor_delete, name='contractor_delete'),  # AJAX用
 
     # 職人スキル管理 - Phase 8
     path('contractor-skills/', ContractorSkillsDashboardView.as_view(), name='contractor_skills_dashboard'),

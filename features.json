@@ -1,0 +1,1393 @@
+{
+  "application": {
+    "name": "Django Construction Management System",
+    "version": "Phase 8+",
+    "description": "Comprehensive construction project management, accounting, and subcontractor management system"
+  },
+  "features": {
+    "project_management": {
+      "name": "Project Management",
+      "description": "Core project lifecycle management",
+      "features": [
+        {
+          "name": "Project CRUD",
+          "description": "Create, read, update, delete projects",
+          "endpoints": [
+            "GET /list/ - project_list",
+            "POST /create/ - project_create",
+            "GET /<int:pk>/ - project_detail",
+            "POST /<int:pk>/update/ - project_update",
+            "POST /<int:pk>/delete/ - project_delete",
+            "POST /<int:pk>/update-field/ - update_project_field",
+            "GET /api/list/ - project_api_list"
+          ],
+          "models": ["Project"],
+          "roles": ["All authenticated users"],
+          "key_fields": [
+            "management_no (unique project ID)",
+            "site_name (construction site name)",
+            "client_name (元請名 - client/contractor name)",
+            "order_amount (受注金額 - contract amount with tax)",
+            "billing_amount (請求額実請求 - auto-calculated)",
+            "project_status (ネタ/A/B/受注確定/NG)",
+            "work_type (construction type)",
+            "project_manager (case manager)",
+            "notes (remarks)"
+          ]
+        },
+        {
+          "name": "Draft Project Management",
+          "description": "Save projects as drafts before finalizing",
+          "endpoints": [
+            "POST /save-draft/ - project_save_as_draft",
+            "GET /drafts/ - project_draft_list",
+            "POST /drafts/<int:pk>/delete/ - project_draft_delete"
+          ],
+          "models": ["Project"],
+          "key_fields": [
+            "is_draft (Boolean - marks project as draft)"
+          ],
+          "functionality": "Allows users to save incomplete projects and return to them later"
+        },
+        {
+          "name": "Project Status Management",
+          "description": "Track project status through pipeline",
+          "statuses": [
+            "ネタ (Lead - prospect stage)",
+            "A (High probability)",
+            "B (Medium probability)",
+            "受注確定 (Confirmed order)",
+            "NG (Rejected/No-go)"
+          ],
+          "key_fields": [
+            "project_status (main status)",
+            "estimate_status (not_issued, issued, under_review, approved, cancelled)",
+            "construction_status (waiting, in_progress, completed, cancelled)",
+            "invoice_status (not_issued, issued)",
+            "incoming_payment_status (pending, received, partial, overdue)"
+          ]
+        },
+        {
+          "name": "Dynamic Progress Step Tracking",
+          "description": "Flexible multi-step project tracking system",
+          "endpoints": [
+            "POST /<int:pk>/update-progress/ - update_progress"
+          ],
+          "models": ["ProjectProgressStep", "ProgressStepTemplate"],
+          "steps": [
+            "attendance (立ち会い - site attendance/witness)",
+            "survey (現調 - site survey)",
+            "estimate (見積書発行 - estimate issuance)",
+            "construction_start (着工 - construction start)",
+            "completion (完工 - completion)",
+            "contract (契約 - contract)",
+            "invoice (請求書発行 - invoice issuance)",
+            "permit_application (許可申請 - permit application)",
+            "material_order (資材発注 - material ordering)",
+            "inspection (検査 - inspection)"
+          ],
+          "key_features": [
+            "Step customization per project",
+            "Scheduled vs actual date tracking",
+            "Assignee assignment per step",
+            "Step completion status",
+            "File attachments per step"
+          ]
+        },
+        {
+          "name": "Approval Workflow",
+          "description": "Multi-level approval system for high-value projects",
+          "endpoints": [
+            "GET /approvals/ - ApprovalListView",
+            "GET /approvals/<int:pk>/ - ApprovalDetailView",
+            "POST /projects/<int:project_pk>/request-approval/ - ApprovalRequestView",
+            "POST /approvals/<int:pk>/action/ - approval_action"
+          ],
+          "models": ["ApprovalLog", "Project"],
+          "features": [
+            "Approval thresholds per client company",
+            "Approval status tracking (not_required, pending, approved, rejected)",
+            "Approval logs with timestamps",
+            "Approver tracking"
+          ],
+          "approval_statuses": [
+            "not_required - Below threshold",
+            "pending - Awaiting approval",
+            "approved - Approved by authority",
+            "rejected - Rejected"
+          ]
+        },
+        {
+          "name": "NG (Rejected) Project Management",
+          "description": "Handle and track rejected projects",
+          "functionality": [
+            "Mark project as NG status",
+            "Auto-cancel related progress steps",
+            "Prevent further action on rejected projects",
+            "Track rejection reasons"
+          ],
+          "key_fields": [
+            "project_status == 'NG'",
+            "Auto-cancels all progress steps when set to NG"
+          ]
+        },
+        {
+          "name": "Schedule Management",
+          "description": "Work start/end date and schedule management",
+          "key_fields": [
+            "payment_due_date (支払予定日 - when payment is due)",
+            "asap_requested (最短希望 - ASAP requested)",
+            "work_date_specified (施工日指定あり - specific date set)",
+            "contract_date (契約日 - contract date)",
+            "completion_date (完工日 - completion date)"
+          ]
+        }
+      ]
+    },
+    "financial_accounting": {
+      "name": "Financial & Accounting",
+      "description": "Complete financial tracking and reporting",
+      "features": [
+        {
+          "name": "Payment Management Dashboard",
+          "description": "Monthly outgoing and incoming payment tracking",
+          "endpoints": [
+            "GET /payment-management/ - PaymentManagementView"
+          ],
+          "models": ["Subcontract", "Project"],
+          "sections": [
+            {
+              "name": "Outgoing Payments (出金)",
+              "description": "Payments to contractors and suppliers",
+              "tabs": [
+                "Paid (出金済み) - Already paid out",
+                "Scheduled (出金予定) - Scheduled for payment",
+                "Unfilled (未伝票) - No invoice yet"
+              ],
+              "apis": [
+                "GET /api/payment-management/outgoing/paid/ - get_outgoing_paid_api",
+                "GET /api/payment-management/outgoing/paid-by-contractor/ - get_outgoing_paid_by_contractor_api",
+                "GET /api/payment-management/outgoing/scheduled/ - get_outgoing_scheduled_api",
+                "GET /api/payment-management/outgoing/scheduled-by-contractor/ - get_outgoing_scheduled_by_contractor_api",
+                "GET /api/payment-management/outgoing/unfilled/ - get_outgoing_unfilled_api"
+              ]
+            },
+            {
+              "name": "Incoming Payments (入金)",
+              "description": "Payments received from clients",
+              "tabs": [
+                "Received (入金済み) - Already received",
+                "Scheduled (入金予定) - Expected to receive"
+              ],
+              "apis": [
+                "GET /api/payment-management/incoming/received/ - get_incoming_received_api",
+                "GET /api/payment-management/incoming/received-by-client/ - get_incoming_received_by_client_api",
+                "GET /api/payment-management/incoming/scheduled-by-client/ - get_incoming_scheduled_by_client_api"
+              ]
+            }
+          ],
+          "features": [
+            "Month navigation (previous/current/next)",
+            "Monthly balance calculation (incoming - outgoing)",
+            "Payment status tracking",
+            "Bulk payment status updates"
+          ]
+        },
+        {
+          "name": "Bulk Payment Status Update",
+          "description": "Update multiple payment records at once",
+          "endpoints": [
+            "POST /api/payment-management/bulk-update-status/ - bulk_update_payment_status_api"
+          ],
+          "functionality": "Update payment statuses in bulk for efficient accounting workflow"
+        },
+        {
+          "name": "Purchase Order & Invoice Generation",
+          "description": "Automated PDF generation for purchase orders and invoices",
+          "endpoints": [
+            "POST /api/payment-management/generate-purchase-order/ - generate_purchase_order_pdf_view",
+            "POST /api/payment-management/generate-invoice/ - generate_invoice_pdf_view",
+            "GET /api/payment-management/purchase-order-preview/ - get_purchase_order_preview_data",
+            "POST /api/payment-management/generate-and-save-purchase-order/ - generate_and_save_purchase_order",
+            "GET /api/payment-management/invoice-preview/ - get_invoice_preview_data",
+            "POST /api/payment-management/generate-and-save-invoice/ - generate_and_save_invoice"
+          ],
+          "models": ["Subcontract"],
+          "functionality": [
+            "Generate PDF purchase orders",
+            "Generate PDF invoices",
+            "Preview data before generation",
+            "Save generated documents"
+          ]
+        },
+        {
+          "name": "Client Invoice Management",
+          "description": "Generate invoices for customers",
+          "endpoints": [
+            "POST /api/invoice/generate/ - generate_client_invoice_api",
+            "GET /api/invoice/preview/<int:project_id>/ - get_invoice_preview_api",
+            "GET /api/invoice/preview/client/ - get_client_invoice_preview_api",
+            "POST /api/generate-invoices-by-client/ - generate_invoices_by_client_api"
+          ],
+          "models": ["Invoice", "InvoiceItem", "Project"],
+          "features": [
+            "Per-project invoice generation",
+            "Bulk invoice generation by client",
+            "Invoice customization (custom_data storage)",
+            "Invoice status tracking",
+            "Invoice file storage"
+          ]
+        },
+        {
+          "name": "Cost Management",
+          "description": "Fixed and variable cost tracking",
+          "endpoints": [
+            "GET /cost/ - cost_dashboard",
+            "GET /cost/fixed/ - FixedCostListView",
+            "POST /cost/fixed/create/ - FixedCostCreateView",
+            "GET /cost/fixed/<int:pk>/edit/ - FixedCostUpdateView",
+            "POST /cost/fixed/<int:pk>/delete/ - FixedCostDeleteView",
+            "GET /cost/variable/ - VariableCostListView",
+            "POST /cost/variable/create/ - VariableCostCreateView",
+            "GET /cost/variable/<int:pk>/edit/ - VariableCostUpdateView",
+            "POST /cost/variable/<int:pk>/delete/ - VariableCostDeleteView"
+          ],
+          "models": ["FixedCost", "VariableCost"],
+          "cost_types": [
+            {
+              "name": "Fixed Costs",
+              "description": "Recurring overhead costs",
+              "fields": [
+                "name (cost name)",
+                "amount (monthly amount)",
+                "category (rent, utilities, insurance, etc.)",
+                "description",
+                "is_active (toggle)"
+              ]
+            },
+            {
+              "name": "Variable Costs",
+              "description": "Project-dependent costs",
+              "fields": [
+                "name (cost name)",
+                "rate (per unit or percentage)",
+                "cost_type (percentage of revenue, fixed per project, per unit)",
+                "category",
+                "description"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Profit Analysis",
+          "description": "Project-level profitability tracking",
+          "models": ["ProjectProfitAnalysis"],
+          "metrics": [
+            "total_revenue (from Project.billing_amount)",
+            "total_subcontract_cost (sum of Subcontract costs)",
+            "total_material_cost (sum of material costs)",
+            "total_expense (all costs combined)",
+            "gross_profit (revenue - expenses)",
+            "profit_rate (profit/revenue %)"
+          ],
+          "features": [
+            "Auto-calculation on subcontract save",
+            "Profit rate color coding (success/warning/info/danger)",
+            "Per-project profitability view"
+          ]
+        },
+        {
+          "name": "Financial Reports (Archived)",
+          "description": "Legacy reporting features (archived in Phase 3+)",
+          "models": ["Report", "SeasonalityIndex"],
+          "archived_endpoints": [
+            "GET /reports/ - ReportDashboardView",
+            "GET /reports/list/ - ReportListView",
+            "GET /reports/generate/ - ReportGenerateView",
+            "GET /reports/<int:pk>/ - ReportDetailView",
+            "POST /reports/<int:pk>/delete/ - ReportDeleteView",
+            "GET /reports/<int:pk>/download/ - report_download_pdf"
+          ],
+          "status": "ARCHIVED - Phase 3+"
+        },
+        {
+          "name": "Cashflow Management (Archived)",
+          "description": "Legacy cash flow features (archived in Phase 1+)",
+          "status": "ARCHIVED - Phase 1+",
+          "original_features": [
+            "Cashflow Dashboard",
+            "Accrual vs Cash Comparison",
+            "Receivables Detail",
+            "Payables Detail",
+            "Monthly/Daily/Forecast cashflow APIs"
+          ]
+        },
+        {
+          "name": "Forecast & Scenarios (Archived)",
+          "description": "Legacy forecasting features (archived in Phase 2+)",
+          "status": "ARCHIVED - Phase 2+",
+          "original_features": [
+            "Forecast Dashboard",
+            "Scenario CRUD",
+            "Scenario Comparison",
+            "Pipeline Analysis",
+            "Historical Analysis",
+            "Seasonality Management"
+          ]
+        }
+      ]
+    },
+    "subcontractor_management": {
+      "name": "Subcontractor Management",
+      "description": "Contractor and subcontract management",
+      "features": [
+        {
+          "name": "Contractor CRUD",
+          "description": "Create, read, update, delete contractors",
+          "endpoints": [
+            "GET /external-contractors/ - ExternalContractorManagementView",
+            "POST /contractors/new/ - ContractorCreateView",
+            "GET /contractors/<int:pk>/edit/ - ContractorEditView",
+            "POST /subcontract_management/contractors/create/ - contractor_create (AJAX)",
+            "POST /subcontract_management/contractors/<int:pk>/update/ - contractor_update (AJAX)",
+            "POST /subcontract_management/contractors/<int:pk>/delete/ - contractor_delete (AJAX)"
+          ],
+          "models": ["Contractor (subcontract_management)"],
+          "contractor_types": [
+            "individual (個人職人 - independent craftsmen)",
+            "company (協力会社 - subcontracting company)",
+            "material (資材 - material supplier)"
+          ],
+          "key_fields": [
+            "name (contractor name)",
+            "contractor_type (individual/company/material)",
+            "address (address)",
+            "contact_person (contact person name)",
+            "phone, email (contact info)",
+            "specialties (areas of expertise)",
+            "hourly_rate (hourly rate)",
+            "is_active (active status)"
+          ]
+        },
+        {
+          "name": "Contractor Skills Management",
+          "description": "Track contractor capabilities and ratings",
+          "endpoints": [
+            "GET /subcontract_management/contractor-skills/ - ContractorSkillsDashboardView",
+            "GET /subcontract_management/contractor-skills/<int:pk>/ - ContractorSkillsDetailView"
+          ],
+          "models": ["Contractor"],
+          "skill_fields": [
+            "skill_categories (JSON list of skill areas)",
+            "skill_level (beginner/intermediate/advanced/expert)",
+            "service_areas (JSON list of geographic areas)",
+            "certifications (list of held certifications)",
+            "trust_level (1-5 rating - 4+ can be assigned directly by CL)"
+          ]
+        },
+        {
+          "name": "Contractor Performance Tracking",
+          "description": "Track contractor performance metrics",
+          "models": ["Contractor", "ContractorReview"],
+          "metrics": [
+            "total_projects (total contract count)",
+            "success_rate (% of successful completions)",
+            "average_rating (1-5 from reviews)",
+            "last_project_date (most recent project)"
+          ]
+        },
+        {
+          "name": "Contractor Payment Terms",
+          "description": "Define payment terms per contractor",
+          "key_fields": [
+            "bank_name (bank for payment)",
+            "branch_name (branch name)",
+            "account_type (ordinary/current/savings)",
+            "account_number (account number)",
+            "account_holder (account holder name)",
+            "closing_day (payment cutoff day - 1-31)",
+            "payment_offset_months (delay - 0/1/2/3 months)",
+            "payment_day (payment date - 1-31)",
+            "payment_cycle (monthly/bimonthly/quarterly/custom)"
+          ]
+        },
+        {
+          "name": "Internal Worker Management",
+          "description": "Track in-house staff and their work assignments",
+          "endpoints": [
+            "POST /subcontract_management/add-internal-worker/ - add_internal_worker",
+            "POST /subcontract_management/update-internal-worker/ - update_internal_worker",
+            "POST /subcontract_management/delete-internal-worker/ - delete_internal_worker"
+          ],
+          "models": ["InternalWorker"],
+          "worker_departments": [
+            "construction (施工部)",
+            "sales (営業部)",
+            "design (設計部)",
+            "management (管理部)",
+            "quality (品質管理)",
+            "safety (安全管理)",
+            "other (その他)"
+          ],
+          "key_fields": [
+            "name (worker name)",
+            "employee_id (unique ID)",
+            "department (department assignment)",
+            "position (job title)",
+            "email, phone (contact)",
+            "hourly_rate (standard hourly rate)",
+            "specialties (areas of expertise)",
+            "skills (certifications/skills)",
+            "is_active (employment status)",
+            "hire_date (hire date)"
+          ]
+        },
+        {
+          "name": "Subcontract Creation & Tracking",
+          "description": "Create and track subcontracts for projects",
+          "endpoints": [
+            "GET /subcontract_management/project/<int:project_id>/ - project_subcontract_list",
+            "POST /subcontract_management/project/<int:project_id>/create/ - subcontract_create",
+            "POST /subcontract_management/subcontract/<int:pk>/update/ - subcontract_update",
+            "POST /subcontract_management/<int:pk>/delete/ - subcontract_delete",
+            "POST /<int:pk>/add-subcontract/ - add_subcontract (from project detail)"
+          ],
+          "models": ["Subcontract"],
+          "subcontract_fields": [
+            "project (linked project)",
+            "management_no (auto-filled from project)",
+            "site_name (auto-filled from project)",
+            "site_address (auto-filled from project)",
+            "worker_type (external/internal)",
+            "step (which project step)",
+            "contractor (for external workers)",
+            "internal_worker (for internal staff)",
+            "contract_amount (amount)",
+            "billed_amount (actual invoice amount)",
+            "payment_status (pending/processing/paid)",
+            "payment_due_date (when due)",
+            "payment_date (when paid)",
+            "purchase_order_issued (flag)",
+            "purchase_order_file (PDF storage)"
+          ]
+        },
+        {
+          "name": "Material Cost Management",
+          "description": "Track materials and costs per subcontract",
+          "models": ["Subcontract"],
+          "material_tracking": [
+            "Fixed material items (material_item_1/2/3, material_cost_1/2/3)",
+            "Dynamic material costs (JSONField for flexible items)",
+            "Total material cost auto-calculation"
+          ]
+        },
+        {
+          "name": "Dynamic Cost Items",
+          "description": "Track additional costs per subcontract",
+          "models": ["Subcontract"],
+          "features": [
+            "Hourly rate-based additional costs",
+            "Project-unit based additional costs",
+            "Dynamic cost item list (JSONField)",
+            "Auto-calculation of total contract amount"
+          ]
+        },
+        {
+          "name": "Payment Status Tracking",
+          "description": "Track payment status for subcontracts",
+          "statuses": [
+            "pending (未払い - not paid)",
+            "processing (処理中 - being processed)",
+            "paid (支払済 - already paid)"
+          ],
+          "features": [
+            "Overdue payment detection (is_payment_overdue())",
+            "Payment status color coding (warning/info/success)",
+            "Individual payment tracking"
+          ]
+        },
+        {
+          "name": "Profit Analysis",
+          "description": "Subcontract-level profit tracking",
+          "endpoints": [
+            "GET /subcontract_management/profit-analysis/ - profit_analysis_list"
+          ],
+          "features": [
+            "Per-project profit analysis",
+            "Revenue tracking",
+            "Expense aggregation",
+            "Profit rate calculation"
+          ]
+        },
+        {
+          "name": "Payment Tracking",
+          "description": "Monitor payment progress",
+          "endpoints": [
+            "GET /subcontract_management/payment-tracking/ - payment_tracking"
+          ]
+        },
+        {
+          "name": "CSV Export",
+          "description": "Export subcontract data to CSV",
+          "endpoints": [
+            "GET /subcontract_management/export/csv/ - export_subcontracts_csv"
+          ]
+        }
+      ]
+    },
+    "customer_management": {
+      "name": "Customer/Client Company Management",
+      "description": "Client company and contact person management",
+      "features": [
+        {
+          "name": "Client Company CRUD",
+          "description": "Create, read, update, delete client companies",
+          "endpoints": [
+            "GET /client-companies/ - ClientCompanyListView",
+            "POST /client-companies/create/ - ClientCompanyCreateView",
+            "GET /client-companies/<int:pk>/ - ClientCompanyDetailView",
+            "GET /client-companies/<int:pk>/edit/ - ClientCompanyUpdateView",
+            "POST /client-companies/<int:pk>/delete/ - ClientCompanyDeleteView",
+            "GET /api/client-companies/<int:company_id>/ - client_company_api",
+            "GET /api/client-companies/list-ajax/ - client_company_list_ajax",
+            "POST /api/client-companies/create-ajax/ - client_company_create_ajax"
+          ],
+          "models": ["ClientCompany"],
+          "key_fields": [
+            "name (company name)",
+            "address (company address)",
+            "phone, email (contact info)",
+            "representative (company representative)",
+            "industry (industry type)",
+            "is_active (active status)"
+          ]
+        },
+        {
+          "name": "Client Company Settings",
+          "description": "Configure client-specific defaults",
+          "models": ["ClientCompany"],
+          "settings": [
+            "default_key_handover_location (鍵受け渡し場所 default)",
+            "completion_report_notes (完了報告テンプレート)",
+            "approval_threshold (金額 threshold for approval requirement)",
+            "payment_cycle (支払サイクル default)",
+            "closing_day (締日 default)",
+            "payment_offset_months (支払月 default)",
+            "payment_day (支払日 default)"
+          ]
+        },
+        {
+          "name": "Contact Person Management",
+          "description": "Manage contact persons for each client",
+          "endpoints": [
+            "POST /api/contact-persons/create-ajax/ - contact_person_create_ajax",
+            "POST /api/contact-persons/update-ajax/ - contact_person_update_ajax",
+            "POST /api/contact-persons/delete-ajax/ - contact_person_delete_ajax"
+          ],
+          "models": ["ContactPerson"],
+          "key_fields": [
+            "name (contact person name)",
+            "title (position/title)",
+            "email, phone (contact info)",
+            "is_primary (primary contact flag)",
+            "notes (notes)"
+          ]
+        },
+        {
+          "name": "Work Type Management",
+          "description": "Define construction work types",
+          "endpoints": [
+            "GET /api/work-types/list-ajax/ - work_type_list_ajax",
+            "POST /api/work-types/create-ajax/ - work_type_create_ajax",
+            "POST /api/work-types/update-ajax/ - work_type_update_ajax",
+            "POST /api/work-types/delete-ajax/ - work_type_delete_ajax",
+            "POST /api/work-types/reorder-ajax/ - work_type_reorder_ajax"
+          ],
+          "models": ["WorkType"],
+          "features": [
+            "Create custom work types",
+            "Reorder work type display",
+            "AJAX-based CRUD",
+            "Per-client work types"
+          ]
+        }
+      ]
+    },
+    "progress_tracking": {
+      "name": "Progress Step Tracking",
+      "description": "Track project progress through customizable steps",
+      "features": [
+        {
+          "name": "Standard Progress Steps",
+          "description": "Pre-defined progress tracking steps",
+          "steps": [
+            {
+              "key": "attendance",
+              "name_ja": "立ち会い",
+              "name_en": "Site Attendance/Witness",
+              "type": "complex",
+              "fields": ["scheduled_date", "actual_date", "completed_checkbox"]
+            },
+            {
+              "key": "survey",
+              "name_ja": "現調",
+              "name_en": "Site Survey",
+              "type": "complex",
+              "fields": ["scheduled_date", "actual_date", "completed_checkbox"]
+            },
+            {
+              "key": "estimate",
+              "name_ja": "見積書発行",
+              "name_en": "Estimate Issuance",
+              "type": "estimate",
+              "fields": ["issued_date", "not_required_flag"]
+            },
+            {
+              "key": "construction_start",
+              "name_ja": "着工",
+              "name_en": "Construction Start",
+              "type": "work_start",
+              "fields": ["scheduled_date", "actual_date", "completed_checkbox"]
+            },
+            {
+              "key": "completion",
+              "name_ja": "完工",
+              "name_en": "Completion",
+              "type": "work_end",
+              "fields": ["scheduled_date", "actual_date", "completed_checkbox"]
+            },
+            {
+              "key": "contract",
+              "name_ja": "契約",
+              "name_en": "Contract",
+              "type": "contract",
+              "fields": ["contract_date"]
+            },
+            {
+              "key": "invoice",
+              "name_ja": "請求書発行",
+              "name_en": "Invoice Issuance",
+              "type": "invoice",
+              "fields": ["completed_checkbox"]
+            },
+            {
+              "key": "permit_application",
+              "name_ja": "許可申請",
+              "name_en": "Permit Application",
+              "type": "complex",
+              "fields": ["scheduled_date", "completed_checkbox"]
+            },
+            {
+              "key": "material_order",
+              "name_ja": "資材発注",
+              "name_en": "Material Ordering",
+              "type": "complex",
+              "fields": ["scheduled_date", "completed_checkbox"]
+            },
+            {
+              "key": "inspection",
+              "name_ja": "検査",
+              "name_en": "Inspection",
+              "type": "complex",
+              "fields": ["scheduled_date", "actual_date", "completed_checkbox"]
+            }
+          ]
+        },
+        {
+          "name": "Step Customization",
+          "description": "Customize steps per project",
+          "features": [
+            "Enable/disable individual steps",
+            "Reorder steps",
+            "Add custom steps",
+            "Define step requirements"
+          ],
+          "models": ["ProjectProgressStep", "ProgressStepTemplate"]
+        },
+        {
+          "name": "Step Assignees",
+          "description": "Assign responsible parties per step",
+          "models": ["ProjectProgressStep"],
+          "fields": [
+            "assignees (JSON array of user/staff assignments)",
+            "assignee_type (internal/external)"
+          ]
+        },
+        {
+          "name": "Step File Attachments",
+          "description": "Attach files to progress steps",
+          "endpoints": [
+            "POST /api/projects/<int:project_pk>/step-files/upload/ - step_file_upload_ajax",
+            "POST /api/projects/<int:project_pk>/step-files/<int:file_pk>/delete/ - step_file_delete_ajax"
+          ],
+          "features": [
+            "Upload files per step",
+            "File organization by step",
+            "Delete uploaded files"
+          ]
+        },
+        {
+          "name": "Progress Calculation",
+          "description": "Auto-calculate project progress percentage",
+          "logic": [
+            "Completed steps / total steps",
+            "Based on ProjectProgressStep is_completed flag or scheduled_date past",
+            "Updates Project.current_stage automatically"
+          ],
+          "endpoints": [
+            "Available in project detail view"
+          ]
+        },
+        {
+          "name": "Project Stage Calculation",
+          "description": "Determine current project stage dynamically",
+          "stages": [
+            "未開始 (Not started)",
+            "立ち会い待ち (Waiting for witness)",
+            "立ち会い済み (Witnessed)",
+            "現調待ち (Waiting for survey)",
+            "現調済み (Survey completed)",
+            "見積もり審査中 (Estimate under review)",
+            "着工日待ち (Waiting for start date)",
+            "工事中 (Under construction)",
+            "完工 (Completed)"
+          ],
+          "color_coding": [
+            "verified (濃緑) - Checkbox marked",
+            "success (緑) - Actual date entered or scheduled past",
+            "warning (黄) - Only scheduled date (future)",
+            "secondary (グレー) - No input"
+          ]
+        }
+      ]
+    },
+    "additional_features": {
+      "name": "Additional Features",
+      "features": [
+        {
+          "name": "Material Order Management",
+          "description": "Track material orders for projects",
+          "endpoints": [
+            "GET /<int:project_id>/materials/ - material_order_list",
+            "POST /<int:project_id>/materials/create/ - material_order_create",
+            "GET /<int:project_id>/materials/<int:order_id>/ - material_order_detail",
+            "POST /<int:project_id>/materials/<int:order_id>/edit/ - material_order_edit",
+            "POST /<int:project_id>/materials/<int:order_id>/status/ - material_order_status_update"
+          ],
+          "models": ["MaterialOrder", "MaterialOrderItem"],
+          "features": [
+            "Create material orders",
+            "Track order status",
+            "Line item tracking",
+            "Cost totalization"
+          ]
+        },
+        {
+          "name": "File Management",
+          "description": "Upload and manage project files",
+          "endpoints": [
+            "POST /projects/<int:project_pk>/files/upload/ - project_file_upload",
+            "GET /projects/<int:project_pk>/files/<int:file_pk>/download/ - project_file_download",
+            "POST /projects/<int:project_pk>/files/<int:file_pk>/delete/ - project_file_delete"
+          ],
+          "models": ["ProjectFile"],
+          "features": [
+            "Upload project files",
+            "Download files",
+            "Organize by project",
+            "Delete files"
+          ]
+        },
+        {
+          "name": "Checklist Management",
+          "description": "Create and track project checklists",
+          "endpoints": [
+            "GET /checklists/templates/ - ChecklistTemplateListView",
+            "POST /checklists/templates/create/ - ChecklistTemplateCreateView",
+            "POST /checklists/templates/<int:pk>/edit/ - ChecklistTemplateUpdateView",
+            "POST /checklists/templates/<int:pk>/delete/ - ChecklistTemplateDeleteView",
+            "POST /projects/<int:project_pk>/checklists/create/ - ProjectChecklistCreateView",
+            "GET /projects/<int:project_pk>/checklists/<int:checklist_pk>/ - ProjectChecklistDetailView",
+            "POST /projects/<int:project_pk>/checklists/<int:checklist_pk>/update-item/ - project_checklist_update_item",
+            "POST /projects/<int:project_pk>/checklists/<int:checklist_pk>/delete/ - project_checklist_delete"
+          ],
+          "models": ["ChecklistTemplate", "ProjectChecklist"],
+          "features": [
+            "Create reusable checklist templates",
+            "Apply checklists to projects",
+            "Mark items as completed",
+            "Track checklist progress"
+          ]
+        },
+        {
+          "name": "Comments & Notes",
+          "description": "Add comments to projects",
+          "endpoints": [
+            "GET /api/projects/<int:project_id>/comments/ - get_comments",
+            "POST /api/projects/<int:project_id>/comments/post/ - post_comment",
+            "POST /api/comments/<int:comment_id>/edit/ - edit_comment",
+            "POST /api/comments/<int:comment_id>/delete/ - delete_comment",
+            "GET /api/projects/<int:pk>/comments/ - project_comments"
+          ],
+          "models": ["Comment", "CommentAttachment"],
+          "features": [
+            "Post project comments",
+            "Edit/delete comments",
+            "Attach files to comments",
+            "Comment history"
+          ]
+        },
+        {
+          "name": "Notifications",
+          "description": "Notify users about project updates",
+          "endpoints": [
+            "GET /notifications/ - NotificationListView",
+            "POST /notifications/<int:notification_id>/archive/ - mark_as_read_and_archive",
+            "GET /api/notifications/ - get_notifications",
+            "POST /api/notifications/<int:notification_id>/read/ - mark_notification_read",
+            "POST /api/notifications/read-all/ - mark_all_notifications_read"
+          ],
+          "models": ["Notification"],
+          "features": [
+            "Create notifications on project updates",
+            "Mark as read",
+            "Archive old notifications",
+            "Real-time notification updates"
+          ]
+        },
+        {
+          "name": "User Mentions",
+          "description": "Mention users in comments",
+          "endpoints": [
+            "GET /api/mention/users/ - mention_users_api"
+          ],
+          "features": [
+            "Mention users with @",
+            "Send notifications to mentioned users"
+          ]
+        },
+        {
+          "name": "Contractor Review/Rating",
+          "description": "Rate contractors after project completion",
+          "endpoints": [
+            "POST /projects/<int:project_pk>/contractors/<int:contractor_pk>/review/ - ContractorReviewCreateView"
+          ],
+          "models": ["ContractorReview"],
+          "rating_fields": [
+            "rating (1-5 stars)",
+            "quality_rating (work quality)",
+            "punctuality_rating (on-time delivery)",
+            "communication_rating (communication)",
+            "comments (text review)"
+          ]
+        },
+        {
+          "name": "Search Functionality",
+          "description": "Search projects and data",
+          "features": [
+            "Search by management_no",
+            "Search by site_name",
+            "Search by client_name",
+            "Search by project_manager",
+            "Advanced filtering"
+          ]
+        },
+        {
+          "name": "Data Export/Import",
+          "description": "Export and import system data",
+          "endpoints": [
+            "GET /backup/export/ - export_data",
+            "POST /backup/import/ - import_data_view"
+          ],
+          "features": [
+            "Export project data",
+            "Export financial data",
+            "Import from backup",
+            "Data migration support"
+          ]
+        }
+      ]
+    },
+    "user_management": {
+      "name": "User & Role Management",
+      "description": "User access control and role definition",
+      "features": [
+        {
+          "name": "Authentication",
+          "description": "User login and logout",
+          "endpoints": [
+            "GET /login/ - HeadquartersLoginView",
+            "GET /logout/ - HeadquartersLogoutView"
+          ],
+          "features": [
+            "User authentication",
+            "Session management",
+            "Permission-based access"
+          ]
+        },
+        {
+          "name": "User Role Management",
+          "description": "Define and manage user roles and permissions",
+          "endpoints": [
+            "GET /users/ - UserManagementDashboardView",
+            "POST /users/<int:user_id>/role-edit/ - UserRoleEditView",
+            "POST /users/<int:pk>/role-quick-edit/ - UserRoleQuickEditView"
+          ],
+          "models": ["UserProfile"],
+          "roles": [
+            {
+              "name": "Executive (経営者)",
+              "permissions": [
+                "View all financial data",
+                "Approve high-value projects",
+                "Manage user roles",
+                "Access company settings"
+              ]
+            },
+            {
+              "name": "Accounting (経理)",
+              "permissions": [
+                "Manage payments",
+                "Track finances",
+                "View financial reports",
+                "Change payment status",
+                "Input payment due dates"
+              ]
+            },
+            {
+              "name": "Sales (営業)",
+              "permissions": [
+                "Create projects",
+                "Manage client companies",
+                "Generate invoices",
+                "View project pipeline"
+              ]
+            },
+            {
+              "name": "Project Manager (現場管理)",
+              "permissions": [
+                "Update project status",
+                "Track progress",
+                "Manage subcontracts",
+                "Assign workers"
+              ]
+            },
+            {
+              "name": "Worker Dispatch (作業員派遣)",
+              "permissions": [
+                "View project schedules",
+                "Manage worker assignments",
+                "Track attendance"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Permission System",
+          "description": "Fine-grained permission checks",
+          "helper_functions": [
+            "has_role(user, role)",
+            "has_any_role(user, roles)",
+            "has_all_roles(user, roles)",
+            "can_view_profit(user)",
+            "can_view_fixed_costs(user)",
+            "can_change_payment_status(user)",
+            "can_input_payment_due_date(user)",
+            "can_issue_invoice(user)",
+            "can_view_all_member_performance(user)",
+            "can_manage_project(user)",
+            "can_dispatch_workers(user)"
+          ],
+          "decorators": [
+            "@role_required(*roles)",
+            "@executive_required",
+            "@accounting_required",
+            "@worker_dispatch_required",
+            "@sales_required"
+          ]
+        },
+        {
+          "name": "Profile Settings",
+          "description": "User profile management",
+          "endpoints": [
+            "GET /profile/settings/ - profile_settings"
+          ],
+          "features": [
+            "Update personal information",
+            "Change password",
+            "Manage preferences"
+          ]
+        }
+      ]
+    },
+    "system_features": {
+      "name": "System & Admin Features",
+      "features": [
+        {
+          "name": "Company Settings",
+          "description": "Global company configuration",
+          "endpoints": [
+            "GET /company-settings/ - CompanySettingsView",
+            "POST /api/company-settings/update/ - update_company_settings_api"
+          ],
+          "models": ["CompanySettings"],
+          "settings": [
+            "company_name",
+            "company_address",
+            "company_phone",
+            "company_email",
+            "tax_id",
+            "default_invoice_template",
+            "financial_year_start",
+            "currency"
+          ]
+        },
+        {
+          "name": "Rating Criteria Management",
+          "description": "Define contractor rating criteria",
+          "endpoints": [
+            "GET /settings/rating-criteria/ - rating_criteria_view",
+            "POST /api/rating-criteria/update-ajax/ - rating_criteria_update_ajax"
+          ],
+          "models": ["RatingCriteria"],
+          "features": [
+            "Define rating categories",
+            "Set rating weights",
+            "Customize rating scale"
+          ]
+        },
+        {
+          "name": "Dashboards",
+          "description": "Various dashboard views",
+          "dashboards": [
+            {
+              "name": "Ultimate Dashboard",
+              "endpoint": "GET / - UltimateDashboardView",
+              "description": "Main project overview"
+            },
+            {
+              "name": "Contractor Dashboard",
+              "endpoint": "GET /contractor-dashboard/ - ContractorDashboardView",
+              "description": "Contractor-specific view"
+            },
+            {
+              "name": "Ordering Dashboard",
+              "endpoint": "GET /ordering-dashboard/ - OrderingDashboardView",
+              "description": "Order management view"
+            },
+            {
+              "name": "Construction Calendar",
+              "endpoint": "GET /calendar/ - ConstructionCalendarView",
+              "description": "Project schedule calendar"
+            },
+            {
+              "name": "Performance Monthly",
+              "endpoint": "GET /performance/monthly/ - PerformanceMonthlyView",
+              "description": "Monthly performance metrics"
+            },
+            {
+              "name": "Gantt Chart",
+              "endpoint": "GET /gantt/ - GanttChartView",
+              "description": "Project timeline Gantt chart"
+            },
+            {
+              "name": "Worker Resource Calendar",
+              "endpoint": "GET /calendar/worker-resources/ - WorkerResourceCalendarView",
+              "description": "Worker availability calendar"
+            }
+          ]
+        },
+        {
+          "name": "Calendar & Schedule Management",
+          "description": "Project and resource scheduling",
+          "endpoints": [
+            "GET /calendar/ - ConstructionCalendarView",
+            "GET /api/calendar/events/ - calendar_events_api",
+            "GET /calendar/worker-resources/ - WorkerResourceCalendarView",
+            "GET /api/calendar/worker-resources/ - worker_resource_data_api",
+            "GET /performance/monthly/ - PerformanceMonthlyView",
+            "GET /api/performance/monthly/ - performance_monthly_api",
+            "GET /gantt/ - GanttChartView",
+            "GET /api/gantt/data/ - gantt_data_api"
+          ],
+          "features": [
+            "Calendar view of projects",
+            "Worker resource scheduling",
+            "Gantt chart visualization",
+            "Performance tracking by month"
+          ]
+        },
+        {
+          "name": "Landing Page",
+          "description": "Public/unauthenticated landing page",
+          "endpoints": [
+            "GET /landing/ - LandingView"
+          ]
+        },
+        {
+          "name": "Permission Denied Page",
+          "description": "Error handling for unauthorized access",
+          "endpoints": [
+            "GET /permission-denied/ - PermissionDeniedView"
+          ]
+        },
+        {
+          "name": "Archived Features View",
+          "description": "Reference for deprecated features",
+          "endpoints": [
+            "GET /archived-features/ - ArchivedFeaturesView"
+          ]
+        },
+        {
+          "name": "Legacy Dashboard",
+          "description": "Legacy project dashboard (for compatibility)",
+          "endpoints": [
+            "GET /legacy/ - dashboard (legacy)"
+          ]
+        }
+      ]
+    },
+    "apis": {
+      "name": "API Endpoints",
+      "description": "RESTful API endpoints for programmatic access",
+      "categories": [
+        {
+          "category": "Project Management APIs",
+          "endpoints": [
+            "GET /api/list/ - List all projects (JSON)",
+            "GET /api/staff/ - Get staff list for assignment",
+            "GET /api/contractor/ - Get contractor list"
+          ]
+        },
+        {
+          "category": "Payment Management APIs",
+          "endpoints": [
+            "GET /api/payment-management/outgoing/paid/",
+            "GET /api/payment-management/outgoing/paid-by-contractor/",
+            "GET /api/payment-management/outgoing/scheduled/",
+            "GET /api/payment-management/outgoing/scheduled-by-contractor/",
+            "GET /api/payment-management/outgoing/unfilled/",
+            "GET /api/payment-management/incoming/received/",
+            "GET /api/payment-management/incoming/received-by-client/",
+            "GET /api/payment-management/incoming/scheduled-by-client/",
+            "POST /api/payment-management/bulk-update-status/"
+          ]
+        },
+        {
+          "category": "Client Company APIs",
+          "endpoints": [
+            "GET /api/client-companies/<int:company_id>/",
+            "GET /api/client-companies/list-ajax/",
+            "POST /api/client-companies/create-ajax/"
+          ]
+        },
+        {
+          "category": "Contact Person APIs",
+          "endpoints": [
+            "POST /api/contact-persons/create-ajax/",
+            "POST /api/contact-persons/update-ajax/",
+            "POST /api/contact-persons/delete-ajax/"
+          ]
+        },
+        {
+          "category": "Work Type APIs",
+          "endpoints": [
+            "GET /api/work-types/list-ajax/",
+            "POST /api/work-types/create-ajax/",
+            "POST /api/work-types/update-ajax/",
+            "POST /api/work-types/delete-ajax/",
+            "POST /api/work-types/reorder-ajax/"
+          ]
+        }
+      ]
+    }
+  },
+  "models_reference": {
+    "order_management": [
+      {
+        "name": "Project",
+        "description": "Main construction project record",
+        "key_fields": [
+          "management_no (unique ID)",
+          "site_name (project name)",
+          "project_status (ネタ/A/B/受注確定/NG)",
+          "order_amount, billing_amount (financials)",
+          "is_draft (draft status)",
+          "client_company (linked client company)"
+        ]
+      },
+      {
+        "name": "ProgressStepTemplate",
+        "description": "Template for project progress steps"
+      },
+      {
+        "name": "ProjectProgressStep",
+        "description": "Instance of progress step for a project"
+      },
+      {
+        "name": "ClientCompany",
+        "description": "Client/元請 company management"
+      },
+      {
+        "name": "ContactPerson",
+        "description": "Contact persons for client companies"
+      },
+      {
+        "name": "WorkType",
+        "description": "Construction work type definitions"
+      },
+      {
+        "name": "FixedCost",
+        "description": "Recurring overhead costs"
+      },
+      {
+        "name": "VariableCost",
+        "description": "Project-dependent costs"
+      },
+      {
+        "name": "MaterialOrder",
+        "description": "Material order management"
+      },
+      {
+        "name": "MaterialOrderItem",
+        "description": "Line items in material orders"
+      },
+      {
+        "name": "Invoice",
+        "description": "Client invoices"
+      },
+      {
+        "name": "InvoiceItem",
+        "description": "Line items in invoices"
+      },
+      {
+        "name": "CashFlowTransaction",
+        "description": "Cash flow transactions"
+      },
+      {
+        "name": "ForecastScenario",
+        "description": "Sales forecast scenarios (archived)"
+      },
+      {
+        "name": "Report",
+        "description": "Business reports (archived)"
+      },
+      {
+        "name": "SeasonalityIndex",
+        "description": "Seasonality data (archived)"
+      },
+      {
+        "name": "UserProfile",
+        "description": "User role and permission definitions"
+      },
+      {
+        "name": "Comment",
+        "description": "Project comments"
+      },
+      {
+        "name": "CommentAttachment",
+        "description": "Attachments to comments"
+      },
+      {
+        "name": "Notification",
+        "description": "User notifications"
+      },
+      {
+        "name": "ContractorReview",
+        "description": "Contractor performance reviews"
+      },
+      {
+        "name": "ApprovalLog",
+        "description": "Project approval logs"
+      },
+      {
+        "name": "ChecklistTemplate",
+        "description": "Reusable checklist templates"
+      },
+      {
+        "name": "ProjectChecklist",
+        "description": "Checklists for specific projects"
+      },
+      {
+        "name": "ProjectFile",
+        "description": "Project document storage"
+      },
+      {
+        "name": "RatingCriteria",
+        "description": "Contractor rating criteria"
+      },
+      {
+        "name": "CompanySettings",
+        "description": "Global company settings"
+      }
+    ],
+    "subcontract_management": [
+      {
+        "name": "Contractor",
+        "description": "Subcontractor information",
+        "types": ["individual", "company", "material"]
+      },
+      {
+        "name": "InternalWorker",
+        "description": "In-house staff management"
+      },
+      {
+        "name": "Subcontract",
+        "description": "Subcontract records for projects",
+        "key_fields": [
+          "project (linked project)",
+          "contractor or internal_worker",
+          "contract_amount, billed_amount",
+          "payment_status",
+          "step (which progress step)"
+        ]
+      },
+      {
+        "name": "ProjectProfitAnalysis",
+        "description": "Per-project profit calculation"
+      }
+    ]
+  },
+  "url_patterns": {
+    "description": "All URL patterns available in the system",
+    "authentication": {
+      "login": "order_management:login",
+      "logout": "order_management:logout",
+      "landing": "order_management:landing",
+      "permission_denied": "order_management:permission_denied"
+    },
+    "dashboard": {
+      "main": "order_management:dashboard",
+      "ultimate": "order_management:ultimate_dashboard",
+      "contractor": "order_management:contractor_dashboard",
+      "ordering": "order_management:ordering_dashboard",
+      "payment_management": "order_management:payment_management",
+      "cost": "order_management:cost_dashboard"
+    },
+    "projects": {
+      "list": "order_management:project_list",
+      "create": "order_management:project_create",
+      "detail": "order_management:project_detail",
+      "update": "order_management:project_update",
+      "delete": "order_management:project_delete",
+      "draft_list": "order_management:project_draft_list",
+      "draft_save": "order_management:project_save_as_draft",
+      "draft_delete": "order_management:project_draft_delete",
+      "progress_update": "order_management:update_progress",
+      "stage_update": "order_management:update_project_stage"
+    }
+  },
+  "archival_status": {
+    "active": ["Project Management", "Payment Management", "Subcontractor Management", "Customer Management", "Approvals", "Checklists", "File Management", "Comments", "Calendar", "User Management"],
+    "archived_phase_1": ["Cashflow Management"],
+    "archived_phase_2": ["Forecast & Scenarios"],
+    "archived_phase_3": ["Financial Reports"]
+  },
+  "technology_stack": {
+    "framework": "Django 3.2+",
+    "frontend": "Bootstrap 5, jQuery, JavaScript",
+    "database": "PostgreSQL/SQLite",
+    "pdf_generation": "ReportLab",
+    "export_formats": ["CSV", "PDF", "JSON"]
+  }
+}

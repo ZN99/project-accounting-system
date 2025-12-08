@@ -10,6 +10,15 @@
     flex: 1;
 }
 
+.step-item.clickable {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.step-item.clickable:hover .step-number {
+    transform: scale(1.1);
+}
+
 .step-number {
     width: 40px;
     height: 40px;
@@ -21,6 +30,11 @@
     justify-content: center;
     font-weight: bold;
     margin-bottom: 0.5rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.step-item.clickable:hover .step-number {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
 .step-item.active .step-number {
@@ -62,76 +76,670 @@
 .bg-light.bg-opacity-50 {
     background-color: rgba(248, 249, 250, 0.5);
 }
+
+/* プログレスタイムライン - 工程別実施体制管理 */
+.progress-timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.progress-timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.vertical-progress {
+    position: relative;
+    padding-left: 40px;
+    min-height: 400px;
+}
+
+.vertical-progress::before {
+    content: '';
+    position: absolute;
+    left: 20px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e9ecef;
+}
+
+.progress-step {
+    position: relative;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 0.25rem 0.4rem;
+    background-color: #fff;
+    max-width: 800px;
+}
+
+.progress-step::before {
+    content: '';
+    position: absolute;
+    left: -28px;
+    top: 8px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #6c757d;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 2px #6c757d;
+    transition: all 0.3s ease;
+}
+
+.progress-step.completed::before {
+    background: #28a745;
+    box-shadow: 0 0 0 2px #28a745;
+}
+
+.progress-step.active::before {
+    background: #007bff;
+    box-shadow: 0 0 0 2px #007bff, 0 0 0 6px rgba(0, 123, 255, 0.2);
+    transform: scale(1.2);
+}
+
+.progress-step:hover {
+    background-color: #f8f9fa;
+    transform: translateY(-1px);
+    border-color: #adb5bd;
+}
+
+.progress-step.expanded {
+    background-color: #fff;
+    border-color: #dee2e6;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.progress-step-header {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 5px;
+    transition: color 0.3s ease;
+}
+
+.progress-step.completed .progress-step-header {
+    color: #28a745;
+}
+
+.progress-step.active .progress-step-header {
+    color: #007bff;
+}
+
+.progress-step-label {
+    font-size: 1.05rem;
+    font-weight: 500;
+}
+
+.progress-step-date {
+    font-size: 0.85rem;
+    color: #6c757d;
+    line-height: 1.2;
+}
+
+.progress-step.completed .progress-step-date {
+    color: #28a745;
+    font-weight: 500;
+}
+
+.progress-step-content {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 12px;
+    margin-top: 8px;
+    display: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    line-height: 1.3;
+}
+
+.progress-step.expanded .progress-step-content {
+    display: block;
+    background: #fff;
+    border-color: #dee2e6;
+}
+
+/* グレーアウト（外注無関係の工程） */
+.progress-step.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #f8f9fa;
+}
+
+.progress-step.disabled:hover {
+    transform: none;
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+}
+
+.progress-step.disabled .progress-step-header {
+    color: #adb5bd;
+}
+
+.progress-step.disabled::before {
+    background: #dee2e6;
+    box-shadow: 0 0 0 2px #dee2e6;
+}
+
+/* 作業者追加ボタン */
+.add-worker-btn {
+    font-size: 0.875rem;
+    padding: 0.4rem 0.8rem;
+}
+
+/* 登録済み作業者カード */
+.worker-card {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+}
+
+.worker-card:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.worker-card .worker-name {
+    font-weight: 600;
+    color: #495057;
+}
+
+.worker-card .worker-cost {
+    color: #6c757d;
+}
 </style>
 
 <script>
 // 改善版モーダル: ステップナビゲーション
-$(document).ready(function() {
-    let currentModalStep = 1;
-    const totalModalSteps = 4;
+console.log('🚀 improved_implementation_modal_script.html が読み込まれました');
 
-    // ステップ表示関数
-    window.showModalStep = function(step) {
-        // ステップコンテンツの表示/非表示
-        $('.step-content').addClass('d-none');
-        $(`#step${step}`).removeClass('d-none');
+// jQueryの読み込みを待つ
+function initializeModalScript() {
+    if (typeof $ === 'undefined' || typeof jQuery === 'undefined') {
+        console.log('⏳ jQueryがまだ読み込まれていません。100ms後に再試行します...');
+        setTimeout(initializeModalScript, 100);
+        return;
+    }
 
-        // ステップインジケーターの更新
-        $('.step-item').removeClass('active completed');
-        for (let i = 1; i < step; i++) {
-            $(`.step-item[data-step="${i}"]`).addClass('completed');
+    console.log('✅ jQueryが読み込まれました。モーダルスクリプトを初期化します。');
+
+    // ==========================================
+    // 工程別実施体制管理: タイムラインベース
+    // ==========================================
+
+    // 外注関連を判定するキーワード
+    const outsourcingKeywords = ['現調', '立ち会い', '着工', '施工', '工事', '解体', '撤去', '設置'];
+
+    // 工程名から外注必要性を判定
+    function isOutsourcingProcess(stepName) {
+        if (!stepName) return false;
+        return outsourcingKeywords.some(keyword => stepName.includes(keyword));
+    }
+
+    // 工程名からアイコンを推定
+    function getProcessIcon(stepName) {
+        if (!stepName) return 'fa-circle';
+        if (stepName.includes('見積')) return 'fa-file-invoice';
+        if (stepName.includes('現調')) return 'fa-clipboard-list';
+        if (stepName.includes('立ち会い')) return 'fa-user-check';
+        if (stepName.includes('着工') || stepName.includes('施工')) return 'fa-hard-hat';
+        if (stepName.includes('工事')) return 'fa-tools';
+        if (stepName.includes('完工') || stepName.includes('完了')) return 'fa-check-circle';
+        if (stepName.includes('検査')) return 'fa-clipboard-check';
+        if (stepName.includes('引渡')) return 'fa-handshake';
+        return 'fa-circle';
+    }
+
+    // 工程ごとの作業者データ（動的に初期化）
+    window.processWorkers = {};
+
+    // 既存のsubcontractsデータでprocessWorkersを初期化（編集モードの場合）
+    {% if subcontracts_json %}
+    try {
+        const existingSubcontracts = {{ subcontracts_json|safe }};
+        console.log('📦 既存のsubcontractsデータをロード:', existingSubcontracts);
+
+        existingSubcontracts.forEach(function(subcontract) {
+            const stepKey = subcontract.step;  // 既に step_ プレフィックス付き
+
+            if (!window.processWorkers[stepKey]) {
+                window.processWorkers[stepKey] = [];
+            }
+
+            window.processWorkers[stepKey].push({
+                subcontractId: subcontract.id,
+                contractorId: subcontract.contractor_id,
+                contractorName: subcontract.contractor_name,
+                contractAmount: subcontract.contract_amount || 0,
+                billedAmount: subcontract.billed_amount || 0,
+                paymentDueDate: subcontract.payment_due_date || '',
+                paymentStatus: subcontract.payment_status || 'pending',
+                workDescription: subcontract.work_description || '',
+                step: stepKey
+            });
+        });
+
+        console.log('✅ processWorkers initialized:', window.processWorkers);
+    } catch (e) {
+        console.error('❌ processWorkers初期化エラー:', e);
+    }
+    {% endif %}
+
+    // 現在編集中の工程
+    let currentEditingProcess = null;
+
+    // タイムライン生成（プロジェクトフォームの工程を使用）
+    window.generateImplementationTimeline = function() {
+        console.log('🔄 generateImplementationTimeline() called');
+        console.log('👥 Current window.processWorkers:', window.processWorkers);
+
+        const timeline = $('#implementationTimeline');
+        timeline.empty();
+
+        let allSteps = [];
+
+        // 1. プロジェクト段階管理の工程を取得（DOMから）
+        $('#formActiveSteps .progress-step').each(function() {
+            const stepKey = $(this).data('step');
+            const stepName = $(this).find('.progress-step-label').text().trim();
+            // stepKeyが既にstep_で始まっている場合は二重にしない
+            const stepKeyForInput = stepKey.startsWith('step_') ? stepKey : `step_${stepKey}`;
+            const stepDateInput = $(this).find(`input[name="${stepKeyForInput}_scheduled_date"]`);
+            const stepDate = stepDateInput.val();
+            const stepCompleted = $(this).find(`input[name="${stepKeyForInput}_completed"]`).is(':checked');
+
+            if (stepKey && stepName) {
+                allSteps.push({
+                    id: stepKey,
+                    name: stepName,
+                    date: stepDate,
+                    completed: stepCompleted,
+                    source: 'formActiveSteps'
+                });
+            }
+        });
+
+        // 2. 工程ステップ（scheduleSteps）を取得
+        let scheduleSteps = [];
+        if (typeof window.scheduleSteps !== 'undefined' && window.scheduleSteps) {
+            scheduleSteps = window.scheduleSteps;
+        } else if (window.parent && typeof window.parent.scheduleSteps !== 'undefined') {
+            scheduleSteps = window.parent.scheduleSteps;
         }
-        $(`.step-item[data-step="${step}"]`).addClass('active');
 
-        // プログレスバーの更新
-        const progress = (step / totalModalSteps) * 100;
-        $('.progress-bar').css('width', `${progress}%`);
+        // scheduleStepsを追加
+        scheduleSteps.forEach(step => {
+            allSteps.push({
+                id: step.id,
+                name: step.name,
+                date: step.date,
+                completed: step.completed,
+                source: 'scheduleSteps'
+            });
+        });
 
-        // ボタンの表示/非表示
-        $('#modalPrevStep').toggle(step > 1);
-        $('#modalNextStep').toggle(step < totalModalSteps);
-        $('#modalSubmitBtn').toggleClass('d-none', step !== totalModalSteps);
+        console.log('📋 取得した全工程データ:', allSteps);
 
-        currentModalStep = step;
+        // 工程が登録されていない場合のメッセージ
+        if (allSteps.length === 0) {
+            timeline.html(`
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    工程が登録されていません。先に「工程・スケジュール」タブで工程を登録してください。
+                </div>
+            `);
+            return;
+        }
+
+        // 各工程をタイムラインに表示
+        allSteps.forEach(step => {
+            // step.idが既にstep_プレフィックスを持っている場合は二重にしない
+            const processKey = step.id.startsWith('step_') ? step.id : `step_${step.id}`;
+            const processName = step.name || '工程名未設定';
+            const processIcon = getProcessIcon(processName);
+            const isOutsourcing = isOutsourcingProcess(processName);
+            const workers = window.processWorkers[processKey] || [];
+            const disabledClass = !isOutsourcing ? 'disabled' : '';
+            const expandedClass = isOutsourcing ? 'expanded' : '';
+
+            console.log(`📌 Processing step: ${processKey} (${processName}), isOutsourcing: ${isOutsourcing}, workers:`, workers);
+
+            // 工程データを初期化
+            if (!window.processWorkers[processKey]) {
+                window.processWorkers[processKey] = [];
+            }
+
+            let workersHtml = '';
+            if (isOutsourcing && workers.length > 0) {
+                console.log(`👷 Rendering ${workers.length} workers for ${processKey}`);
+
+                workersHtml = '<div class="mt-2">';
+                workers.forEach((worker, index) => {
+                    workersHtml += `
+                        <div class="worker-card d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="worker-name">${worker.contractorName || '未設定'}</div>
+                                <div class="worker-cost text-muted">¥${(worker.contractAmount || 0).toLocaleString()}</div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeWorkerFromProcess('${processKey}', ${index})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    `;
+                });
+                workersHtml += '</div>';
+            }
+
+            const addButtonHtml = isOutsourcing ? `
+                <button type="button" class="btn btn-sm btn-outline-primary add-worker-btn mt-2" onclick="event.stopPropagation(); openWorkerSubmodal('${processKey}', '${processName}')">
+                    <i class="fas fa-user-plus me-1"></i>作業者を追加
+                </button>
+            ` : '';
+
+            // 日付表示
+            let dateDisplay = '<span class="text-muted" style="opacity: 0.6;">日付未設定</span>';
+            if (step.date) {
+                dateDisplay = `<span class="text-muted" style="opacity: 0.6;">${step.date}</span>`;
+            }
+
+            const stepHtml = `
+                <div class="progress-step ${disabledClass} ${expandedClass}" data-process="${processKey}" onclick="toggleProcess('${processKey}', ${isOutsourcing})">
+                    <div class="progress-step-header">
+                        <i class="fas ${processIcon} me-2"></i>
+                        <span class="progress-step-label">${processName}</span>
+                        ${!isOutsourcing ? '<span class="badge bg-secondary ms-2" style="font-size: 0.7rem;">外注不要</span>' : ''}
+                        ${step.completed ? '<span class="badge bg-success ms-2" style="font-size: 0.7rem;">完了</span>' : ''}
+                    </div>
+                    <div class="progress-step-date">${dateDisplay}</div>
+                    <div class="progress-step-content">
+                        ${workersHtml}
+                        ${addButtonHtml}
+                    </div>
+                </div>
+            `;
+
+            timeline.append(stepHtml);
+        });
+
+        console.log('✅ generateImplementationTimeline() completed');
+    }
+
+    // 工程の展開/折りたたみ
+    window.toggleProcess = function(processKey, isOutsourcing) {
+        if (!isOutsourcing) return; // 外注無関係の工程はクリック不可
+
+        const step = $(`.progress-step[data-process="${processKey}"]`);
+        step.toggleClass('expanded');
     };
 
-    // 次へボタン
-    $('#modalNextStep').click(function() {
-        if (validateModalStep(currentModalStep)) {
-            showModalStep(currentModalStep + 1);
-        }
-    });
+    // 作業者サブモーダルを開く（既存のサブコントラクトモーダルを使用）
+    window.openWorkerSubmodal = function(processKey, processName) {
+        currentEditingProcess = processKey;
 
-    // 前へボタン
-    $('#modalPrevStep').click(function() {
-        showModalStep(currentModalStep - 1);
-    });
+        console.log('📝 作業者追加モーダルを開く:', { processKey, processName });
 
-    // ステップバリデーション
-    function validateModalStep(step) {
-        if (step === 1) {
-            const resourceType = $('input[name="modal_implementation_type"]:checked').val();
-            if (resourceType === 'outsource') {
-                const contractorId = $('#modalContractorSelect').val();
-                if (!contractorId) {
-                    toastr.warning('業者を選択してください');
-                    return false;
-                }
-            } else if (resourceType === 'internal') {
-                const workerId = $('#modalInternalSelect').val();
-                if (!workerId) {
-                    toastr.warning('担当者を選択してください');
-                    return false;
-                }
+        // サブコントラクトモーダルを開く
+        const subcontractModal = document.getElementById('subcontractModal');
+        if (subcontractModal) {
+            // フォームをリセット
+            const form = document.getElementById('subcontractForm');
+            if (form) {
+                form.reset();
             }
-            const workDesc = $('textarea[name="modal_work_description"]').val();
-            if (!workDesc && resourceType !== 'later') {
-                toastr.warning('作業内容を入力してください');
-                return false;
+
+            // 全てのエラーメッセージをクリア
+            $('#subcontractModalError').remove();
+
+            // モーダルタイトルを更新
+            const modalTitle = subcontractModal.querySelector('#subcontractModalLabel');
+            if (modalTitle) {
+                modalTitle.innerHTML = `<i class="fas fa-user-plus me-2"></i>作業者を追加 (${processName})`;
             }
+
+            // 工程キーをhidden inputに設定（step_プレフィックス付きで保存）
+            const stepInput = subcontractModal.querySelector('#subcontractStep');
+            if (stepInput) {
+                // processKeyをそのまま使用（既にstep_プレフィックスが含まれている）
+                stepInput.value = processKey;
+                console.log('📝 Step value set:', processKey);
+            }
+
+            // 発注先表示フィールドをリセット
+            const selectedContractorDisplay = document.getElementById('selectedContractorDisplay');
+            if (selectedContractorDisplay) {
+                selectedContractorDisplay.value = '';
+            }
+
+            // 発注先hidden inputをリセット
+            $('#subcontractContractor').val('');
+
+            // 発注先情報をリセット
+            const contractorPaymentInfo = document.getElementById('contractorPaymentInfo');
+            if (contractorPaymentInfo) {
+                contractorPaymentInfo.style.display = 'none';
+            }
+
+            // 金額設定方法セクションをリセット
+            $('#costAllocationSection').hide();
+            $('#perStepAmountsSection').hide();
+            $('#costMethodLumpSum').prop('checked', true);
+
+            // 契約金額フィールドの状態をリセット（編集可能に戻す）
+            $('#subcontractContractAmount').prop('readonly', false);
+            $('#subcontractContractAmount').removeClass('bg-light');
+            $('#subcontractContractAmount').attr('placeholder', '');
+            $('#subcontractContractAmount').val('');
+
+            // 基準日ドロップダウンを初期化（現在の工程を自動選択）
+            console.log('🔍 基準日ドロップダウン初期化チェック - populateModalBaseDateOptions 存在:', typeof window.populateModalBaseDateOptions);
+            if (typeof window.populateModalBaseDateOptions === 'function') {
+                console.log('✅ populateModalBaseDateOptions を呼び出します - processKey:', processKey);
+                window.populateModalBaseDateOptions(processKey);
+            } else {
+                console.error('❌ populateModalBaseDateOptions 関数が見つかりません');
+            }
+
+            // 計算ボタンを初期状態で無効化（業者未選択）
+            $('#modalCalculatePaymentDueDate').prop('disabled', true);
+
+            // 計算結果メッセージを非表示
+            $('#modalCalculationResult').hide();
+
+            // 他の工程のチェックボックスを生成
+            // タイムライン生成と同じロジックで実際に存在する工程を取得
+            let allSteps = [];
+
+            // 1. プロジェクト段階管理の工程を取得（DOMから）
+            $('#formActiveSteps .progress-step').each(function() {
+                const stepKey = $(this).data('step');
+                const stepName = $(this).find('.progress-step-label').text().trim();
+                if (stepKey && stepName) {
+                    // stepKeyが既にstep_で始まっている場合は二重にしない
+                    const normalizedKey = stepKey.startsWith('step_') ? stepKey : `step_${stepKey}`;
+                    allSteps.push({
+                        key: normalizedKey,
+                        label: stepName
+                    });
+                }
+            });
+
+            // 2. スケジュール工程を取得
+            if (typeof window.scheduleSteps !== 'undefined' && window.scheduleSteps) {
+                window.scheduleSteps.forEach(step => {
+                    // step.idが既にstep_で始まっている場合は二重にしない
+                    const normalizedKey = step.id.startsWith('step_') ? step.id : `step_${step.id}`;
+                    allSteps.push({
+                        key: normalizedKey,
+                        label: step.name || '工程名未設定'
+                    });
+                });
+            }
+
+            // 外注が必要な工程のみをフィルタリング
+            const outsourcingSteps = allSteps.filter(step => isOutsourcingProcess(step.label));
+
+            // 外注が必要な工程でチェックボックスを生成（現在の工程はチェック済み＆グレーアウト）
+            if (outsourcingSteps.length > 0) {
+                let checkboxesHtml = '<div class="row">';
+                outsourcingSteps.forEach(step => {
+                    const isCurrentStep = step.key === processKey;
+                    const disabledAttr = isCurrentStep ? 'disabled' : '';
+                    const checkedAttr = isCurrentStep ? 'checked' : '';
+                    const grayedClass = isCurrentStep ? 'text-muted' : '';
+
+                    checkboxesHtml += `
+                        <div class="col-md-6 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input additional-step-checkbox"
+                                       type="checkbox"
+                                       name="additional_steps[]"
+                                       value="${step.key}"
+                                       id="addStep_${step.key}"
+                                       data-label="${step.label}"
+                                       ${disabledAttr}
+                                       ${checkedAttr}>
+                                <label class="form-check-label ${grayedClass}" for="addStep_${step.key}">
+                                    <i class="fas fa-calendar-check me-1"></i>${step.label}
+                                    ${isCurrentStep ? '<small class="ms-1">(選択中)</small>' : ''}
+                                </label>
+                            </div>
+                        </div>
+                    `;
+                });
+                checkboxesHtml += '</div>';
+
+                $('#additionalStepsCheckboxes').html(checkboxesHtml);
+                $('#additionalStepsSection').show();
+
+                // チェックボックスの変更イベントを監視
+                $('.additional-step-checkbox').on('change', function() {
+                    console.log('🔔 工程チェックボックス変更イベント発火');
+
+                    if (typeof handleAdditionalStepsChange === 'function') {
+                        handleAdditionalStepsChange();
+                    }
+
+                    // 支払い管理の基準日ドロップダウンと連動
+                    // 少し遅延させて、DOM更新が完了してから実行
+                    setTimeout(function() {
+                        console.log('⏰ 基準日ドロップダウン同期を開始');
+                        if (typeof window.syncBaseDateCheckboxes === 'function') {
+                            window.syncBaseDateCheckboxes();
+                        } else {
+                            console.error('❌ syncBaseDateCheckboxes 関数が見つかりません');
+                        }
+                    }, 100);
+                });
+            } else {
+                $('#additionalStepsSection').hide();
+            }
+
+            // 金額設定セクションを確実に非表示にする（チェックボックス生成後に再度実行）
+            $('#costAllocationSection').hide();
+            $('#perStepAmountsSection').hide();
+
+            // 総コスト計算をリセット（モーダルを開く前に実行）
+            if (typeof window.calculateModalTotalCost === 'function') {
+                // 少し遅延させて確実に実行
+                setTimeout(function() {
+                    window.calculateModalTotalCost();
+                }, 100);
+            }
+
+            // モーダルを開く
+            const bsModal = new bootstrap.Modal(subcontractModal);
+
+            // モーダルが完全に表示された後に基準日ドロップダウンを再初期化
+            $(subcontractModal).one('shown.bs.modal', function() {
+                console.log('🎯 モーダル表示完了 - 基準日ドロップダウンを再初期化');
+
+                // エラーメッセージを非表示
+                if (typeof window.hideModalPaymentError === 'function') {
+                    window.hideModalPaymentError();
+                }
+
+                if (typeof window.populateModalBaseDateOptions === 'function') {
+                    window.populateModalBaseDateOptions(processKey);
+                }
+
+                // 既にチェックされている工程があれば、基準日を自動選択
+                setTimeout(function() {
+                    console.log('🔍 モーダル表示後の自動選択チェック');
+                    if (typeof window.syncBaseDateCheckboxes === 'function') {
+                        window.syncBaseDateCheckboxes();
+                    }
+                }, 200);
+            });
+
+            bsModal.show();
+
+            // モーダルを開いた後、既にチェックされている工程に応じて金額設定セクションを表示
+            // （チェックボックスのchangeイベントは既にチェック済みの項目では発火しないため）
+            setTimeout(function() {
+                if (typeof handleAdditionalStepsChange === 'function') {
+                    console.log('📊 初期状態の金額設定セクション表示チェック');
+                    handleAdditionalStepsChange();
+                }
+            }, 150);
+
+            console.log('✅ サブコントラクトモーダルを開きました');
+        } else {
+            console.error('❌ subcontractModal が見つかりません');
+            alert('サブコントラクトモーダルが見つかりません。ページをリロードしてください。');
         }
-        return true;
-    }
+    };
+
+    // 工程から作業者削除確認モーダルを開く
+    window.removeWorkerFromProcess = function(processKey, workerIndex) {
+        const worker = window.processWorkers[processKey][workerIndex];
+        const workerName = worker ? worker.contractorName : '不明な作業者';
+
+        // モーダルに情報をセット
+        $('#workerNameToDelete').text(workerName);
+        $('#workerProcessKeyToDelete').val(processKey);
+        $('#workerIndexToDelete').val(workerIndex);
+
+        // モーダルを表示
+        const modal = new bootstrap.Modal(document.getElementById('deleteWorkerModal'));
+        modal.show();
+    };
+
+    // 作業者削除を実行
+    window.confirmDeleteWorker = function() {
+        const processKey = $('#workerProcessKeyToDelete').val();
+        const workerIndex = parseInt($('#workerIndexToDelete').val());
+
+        // モーダルを閉じる
+        const modal = bootstrap.Modal.getInstance(document.getElementById('deleteWorkerModal'));
+        if (modal) {
+            modal.hide();
+        }
+
+        // 作業者を削除
+        window.processWorkers[processKey].splice(workerIndex, 1);
+        generateImplementationTimeline();
+
+        toastr.success('作業者を削除しました');
+    };
+
+    // ==========================================
+    // 作業者サブモーダル: 既存のサブコントラクトモーダルを使用
+    // ==========================================
+    // 注: サブモーダルのステップナビゲーションは不要
+    // 既存のサブコントラクトモーダルが独自のUIを持っているため
 
     // リソースタイプ切り替え
     $('input[name="modal_implementation_type"]').change(function() {
@@ -145,14 +753,12 @@ $(document).ready(function() {
     // 料金体系切り替え
     $('input[name="modal_pricing_type"]').change(function() {
         const isHourly = $(this).val() === 'hourly';
-        $('#modalHourlySettings').toggleClass('d-none', !isHourly);
-        $('#modalProjectSettings').toggleClass('d-none', isHourly);
+        $('#modalHourlySettings').toggle(isHourly);
+        $('#modalProjectSettings').toggle(!isHourly);
 
         // カードのハイライト
         $('.pricing-card').removeClass('selected');
         $(this).closest('.pricing-card').addClass('selected');
-
-        calculateModalTotal();
     });
 
     // 時給・工数変更時の自動計算
@@ -161,55 +767,24 @@ $(document).ready(function() {
         const hours = parseFloat($('#modalEstimatedHours').val()) || 0;
         const base = rate * hours;
         $('#modalBaseAmount').val(base.toLocaleString());
-        calculateModalTotal();
     });
 
-    // 部材費トグル
-    window.toggleModalMaterialCosts = function() {
-        const isChecked = $('#modalShowMaterialCosts').is(':checked');
-        $('#modalMaterialCostSection').toggleClass('d-none', !isChecked);
-        calculateModalTotal();
-    };
+    // 被請求額セクションのトグル
+    window.toggleBilledAmountSection = function() {
+        const section = $('#billedAmountSection');
+        const icon = $('#billedAmountToggleIcon');
+        const btn = $('#billedAmountToggleBtn');
 
-    // 合計金額の計算
-    function calculateModalTotal() {
-        const pricingType = $('input[name="modal_pricing_type"]:checked').val();
-        let base = 0;
-
-        if (pricingType === 'hourly') {
-            const rate = parseFloat($('#modalHourlyRate').val()) || 0;
-            const hours = parseFloat($('#modalEstimatedHours').val()) || 0;
-            base = rate * hours;
+        if (section.is(':visible')) {
+            section.slideUp(200);
+            icon.removeClass('fa-minus').addClass('fa-plus');
+            btn.removeClass('btn-outline-primary').addClass('btn-outline-secondary');
         } else {
-            base = parseFloat($('#modalContractAmount').val()) || 0;
+            section.slideDown(200);
+            icon.removeClass('fa-plus').addClass('fa-minus');
+            btn.removeClass('btn-outline-secondary').addClass('btn-outline-primary');
         }
-
-        // 追加費用の計算（既存のaddModalCostItem機能を利用）
-        let additional = 0;
-        $('#modalAdditionalCostList .cost-item-row').each(function() {
-            const amount = parseFloat($(this).find('input[name="cost_amount[]"]').val()) || 0;
-            additional += amount;
-        });
-
-        // 部材費の計算
-        let materials = 0;
-        if ($('#modalShowMaterialCosts').is(':checked')) {
-            $('#modalMaterialCostTableBody tr').each(function() {
-                const subtotal = parseFloat($(this).find('.material-subtotal').text().replace(/[¥,]/g, '')) || 0;
-                materials += subtotal;
-            });
-        }
-
-        const total = base + additional + materials;
-
-        $('#modalSummaryBase').text(base.toLocaleString());
-        $('#modalSummaryAdditional').text(additional.toLocaleString());
-        $('#modalSummaryMaterials').text(materials.toLocaleString());
-        $('#modalSummaryTotal').text(total.toLocaleString());
-    }
-
-    // 金額入力時の自動計算
-    $(document).on('input', '#modalContractAmount, #modalAdditionalCostList input', calculateModalTotal);
+    };
 
     // 社内リソース選択時の自動入力
     $('#modalInternalSelect').change(function() {
@@ -223,21 +798,113 @@ $(document).ready(function() {
         }
     });
 
-    // モーダルリセット
-    $('#addImplementationModal').on('hidden.bs.modal', function() {
-        showModalStep(1);
-        $('#improvedImplementationForm')[0].reset();
-        $('#modalAdditionalCostList').empty();
-        $('#modalMaterialCostTableBody').empty();
-        $('#modalShowMaterialCosts').prop('checked', false);
-        $('#modalMaterialCostSection').addClass('d-none');
-        calculateModalTotal();
+    // 締日の基準日の処理
+    function updatePaymentBaseDate() {
+        const baseDateType = $('#modalPaymentBaseDateType').val();
+        let baseDate = null;
 
-        // 工程選択のリセット
-        clearModalStepSelection();
+        if (baseDateType === 'contract') {
+            // 契約日を取得（プロジェクトフォームから）
+            baseDate = $('#id_contract_date').val() || $('#contract_date').val();
+        } else if (baseDateType === 'completion') {
+            // 完工日を取得（プロジェクトフォームから）
+            baseDate = $('#id_completion_date').val() || $('#completion_date').val();
+        } else if (baseDateType === 'custom') {
+            // 任意日を取得
+            baseDate = $('#modalPaymentCustomBaseDate').val();
+        }
+
+        // 基準日の表示を更新
+        if (baseDate) {
+            $('#modalPaymentBaseDateDisplay').text(baseDate);
+        } else {
+            $('#modalPaymentBaseDateDisplay').text('-');
+        }
+    }
+
+    // 基準日タイプの変更
+    $('#modalPaymentBaseDateType').change(function() {
+        const type = $(this).val();
+        if (type === 'custom') {
+            $('#modalPaymentCustomBaseDate').show();
+        } else {
+            $('#modalPaymentCustomBaseDate').hide();
+        }
+        updatePaymentBaseDate();
     });
 
-    // 初期化
-    showModalStep(1);
-});
+    // 任意日の変更
+    $('#modalPaymentCustomBaseDate').change(function() {
+        updatePaymentBaseDate();
+    });
+
+    // メインモーダルが開かれたときの初期化（旧バージョン - 削除予定）
+    $('#addImplementationModal').on('shown.bs.modal', function() {
+        console.log('🚀 実施体制モーダルが開かれました - タイムライン生成');
+        generateImplementationTimeline();
+    });
+
+    // メインモーダルリセット（旧バージョン - 削除予定）
+    $('#addImplementationModal').on('hidden.bs.modal', function() {
+        // タイムラインクリア
+        $('#implementationTimeline').empty();
+    });
+
+    // 業者・担当タブが表示されたときにタイムラインを生成
+    $(document).on('shown.bs.tab', '#staff-tab', function() {
+        console.log('🚀 業者・担当タブが表示されました - タイムライン生成');
+        if (typeof generateImplementationTimeline === 'function') {
+            generateImplementationTimeline();
+        }
+    });
+
+    // サブモーダルリセット（既存のサブコントラクトモーダルを使用するため不要）
+
+    // 実施体制プラン保存
+    window.saveImplementationPlan = function() {
+        console.log('💾 実施体制プランを保存:', window.processWorkers);
+
+        // 作業者の数をカウント
+        let totalWorkers = 0;
+        for (const key in window.processWorkers) {
+            totalWorkers += window.processWorkers[key].length;
+        }
+
+        // 成功メッセージを表示
+        if (typeof toastr !== 'undefined') {
+            toastr.success(`実施体制プランを保存しました（${totalWorkers}件の作業者）`);
+        } else {
+            alert('実施体制プランが保存されました。');
+        }
+
+        $('#addImplementationModal').modal('hide');
+    };
+
+    // 案件単価をデフォルトで表示
+    $('#modalHourlySettings').hide();
+    $('#modalProjectSettings').show();
+
+    // 初期タイムライン生成
+    console.log('✅ モーダルスクリプトの初期化が完了しました');
+
+    // DOMが完全に読み込まれた後にタイムラインを初期化
+    $(document).ready(function() {
+        console.log('🔍 DOM読み込み完了 - タイムライン初期化チェック');
+
+        // ページ読み込み時にタイムラインを初期化（業者・担当タブがアクティブな場合）
+        setTimeout(function() {
+            if ($('#staff').hasClass('active') || $('#staff').hasClass('show')) {
+                console.log('🚀 ページ読み込み時 - 業者・担当タブがアクティブ - タイムライン生成');
+                if (typeof generateImplementationTimeline === 'function') {
+                    generateImplementationTimeline();
+                }
+            } else {
+                console.log('📌 業者・担当タブは非アクティブ - タブクリック時に生成されます');
+            }
+        }, 500);
+    });
+}
+
+// 初期化関数を実行
+initializeModalScript();
 </script>

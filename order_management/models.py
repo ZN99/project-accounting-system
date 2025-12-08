@@ -21,6 +21,18 @@ class Project(models.Model):
     site_name = models.CharField(max_length=200, verbose_name='現場名')
     site_address = models.TextField(verbose_name='現場住所', blank=True)  # 任意に変更
     work_type = models.CharField(max_length=50, verbose_name='施工種別')  # 旧: 種別
+    material_labor_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('material_labor', '材工'),
+            ('labor_only', '手間'),
+            ('', '-'),
+        ],
+        default='',
+        blank=True,
+        verbose_name='材工/手間区分',
+        help_text='材工=資材発注含む、手間=材料支給のみ'
+    )
 
     # 受注・見積情報
     project_status = models.CharField(  # 旧: order_status
@@ -29,9 +41,7 @@ class Project(models.Model):
         default='ネタ',  # 旧: 検討中
         verbose_name='受注ヨミ'
     )
-    estimate_issued_date = models.DateField(
-        null=True, blank=True, verbose_name='見積書発行日'
-    )
+    # DEPRECATED: estimate_issued_date moved to ProjectProgressStep (SSOT)
     estimate_not_required = models.BooleanField(
         default=False, verbose_name='見積書不要'
     )
@@ -62,18 +72,7 @@ class Project(models.Model):
         help_text='施工日を具体的に指定する'
     )
 
-    work_start_date = models.DateField(
-        null=True, blank=True, verbose_name='工事開始日'
-    )
-    work_start_completed = models.BooleanField(
-        default=False, verbose_name='工事開始完了'
-    )
-    work_end_date = models.DateField(
-        null=True, blank=True, verbose_name='工事終了日'
-    )
-    work_end_completed = models.BooleanField(
-        default=False, verbose_name='工事終了完了'
-    )
+    # DEPRECATED: work_start_date, work_end_date, and completion flags moved to ProjectProgressStep (SSOT)
     contract_date = models.DateField(
         null=True, blank=True, verbose_name='契約日'
     )
@@ -127,44 +126,9 @@ class Project(models.Model):
         default='not_required',
         verbose_name='現地調査ステータス'
     )
-    survey_date = models.DateField(
-        null=True, blank=True, verbose_name='現調日'
-    )
-    survey_assignees = models.JSONField(
-        default=list, blank=True,
-        verbose_name='現調担当者',
-        help_text='現地調査の担当者リスト（職人）'
-    )
+    # DEPRECATED: survey_date and survey_assignees moved to ProjectProgressStep (SSOT)
 
-    # 立ち会い関連 - Phase 11 追加
-    witness_date = models.DateField(
-        null=True, blank=True, verbose_name='立ち会い日'
-    )
-    witness_status = models.CharField(
-        max_length=20,
-        choices=[
-            ('waiting', '立ち会い待ち'),
-            ('in_progress', '立ち会い中'),
-            ('completed', '完了'),
-            ('cancelled', 'キャンセル'),
-        ],
-        default='waiting',
-        verbose_name='立ち会いステータス'
-    )
-    witness_assignees = models.JSONField(
-        default=list, blank=True,
-        verbose_name='立ち会い担当者',
-        help_text='立ち会いの担当者リスト（自社または職人）'
-    )
-    witness_assignee_type = models.CharField(
-        max_length=20,
-        choices=[
-            ('internal', '自社'),
-            ('contractor', '職人'),
-        ],
-        default='internal',
-        verbose_name='立ち会い担当者タイプ'
-    )
+    # DEPRECATED: witness_date, witness_status, witness_assignees, witness_assignee_type moved to ProjectProgressStep (SSOT)
 
     # 見積もりステータス拡張 - Phase 11 追加
     estimate_status = models.CharField(
@@ -452,6 +416,7 @@ class Project(models.Model):
     detailed_comments = models.JSONField(default=list, blank=True, verbose_name='詳細コメント履歴', help_text='複数の詳細コメントを時系列で保存')
     notes = models.TextField(blank=True, verbose_name='備考')
     additional_items = models.JSONField(default=dict, blank=True, verbose_name="追加項目")
+    is_draft = models.BooleanField(default=False, verbose_name='下書き', help_text='下書き保存されたプロジェクト')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='作成日時')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新日時')
 
@@ -462,6 +427,38 @@ class Project(models.Model):
 
     def __str__(self):
         return f"{self.management_no} - {self.site_name}"
+
+    def save(self, *args, **kwargs):
+        """
+        プロジェクト保存時に、レガシーフィールド（work_start_date/work_end_date）を
+        ProjectProgressStep（SSOT）に自動同期する。
+        """
+        # まず親のsave()を呼んでモデルを保存（pkが確定する）
+        super().save(*args, **kwargs)
+
+        # pkが確定した後、レガシーフィールドをSSOTに同期
+        if self.pk:
+            from order_management.services.progress_step_service import set_step_scheduled_date
+
+            try:
+                # work_start_date → construction_start ステップに同期
+                if self.work_start_date:
+                    set_step_scheduled_date(
+                        self,
+                        'construction_start',
+                        self.work_start_date.strftime('%Y-%m-%d')
+                    )
+
+                # work_end_date → completion ステップに同期
+                if self.work_end_date:
+                    set_step_scheduled_date(
+                        self,
+                        'completion',
+                        self.work_end_date.strftime('%Y-%m-%d')
+                    )
+            except Exception as e:
+                # 同期エラーが発生しても保存処理は継続
+                print(f"⚠ Warning: Failed to sync dates to ProjectProgressStep: {e}")
 
     def generate_management_no(self):
         """管理No自動採番"""
@@ -765,10 +762,10 @@ class Project(models.Model):
         # step_orderが空の場合は、デフォルト4ステップを使用（survey除く）
         if not step_order:
             step_order = [
-                {'step': 'attendance'},
-                {'step': 'estimate'},
-                {'step': 'construction_start'},
-                {'step': 'completion'}
+                {'step': 'step_attendance'},
+                {'step': 'step_estimate'},
+                {'step': 'step_construction_start'},
+                {'step': 'step_completion'}
             ]
 
         total_steps = len(step_order)
@@ -784,7 +781,7 @@ class Project(models.Model):
         for step_info in step_order:
             step_key = step_info.get('step')
 
-            if step_key == 'attendance':
+            if step_key == 'step_attendance':
                 # 予定日ベース：completedがtrueまたは予定日が過去なら完了
                 attendance_completed_str = complex_fields.get('attendance_completed')
                 attendance_completed = attendance_completed_str == 'true' or attendance_completed_str == True
@@ -802,7 +799,7 @@ class Project(models.Model):
 
                 if attendance_completed or is_scheduled_past:
                     completed_count += 1
-            elif step_key == 'survey':
+            elif step_key == 'step_survey':
                 # 予定日ベース：completedがtrueまたは予定日が過去なら完了
                 survey_completed_str = complex_fields.get('survey_completed')
                 survey_completed = survey_completed_str == 'true' or survey_completed_str == True
@@ -819,10 +816,10 @@ class Project(models.Model):
 
                 if survey_completed or is_scheduled_past:
                     completed_count += 1
-            elif step_key == 'estimate':
+            elif step_key == 'step_estimate':
                 if self.estimate_issued_date or self.estimate_not_required:
                     completed_count += 1
-            elif step_key == 'construction_start':
+            elif step_key == 'step_construction_start':
                 # 予定日ベース：completedがtrueまたは予定日が過去なら完了
                 construction_start_completed_str = complex_fields.get('construction_start_completed')
                 construction_start_completed = construction_start_completed_str == 'true' or construction_start_completed_str == True
@@ -839,7 +836,7 @@ class Project(models.Model):
 
                 if construction_start_completed or is_scheduled_past:
                     completed_count += 1
-            elif step_key == 'completion':
+            elif step_key == 'step_completion':
                 completion_completed_str = complex_fields.get('completion_completed')
                 completion_completed = completion_completed_str == 'true' or completion_completed_str == True
                 completion_scheduled = complex_fields.get('completion_scheduled_date')
@@ -861,142 +858,82 @@ class Project(models.Model):
         return {'phase': phase, 'color': color, 'percentage': percentage}
 
     def get_progress_details(self):
-        """進捗の詳細情報を返す（新しいフィールドベースシステムを使用）"""
-        # additional_itemsのstep_orderから動的ステップを取得
-        step_order = []
-        if self.additional_items and 'step_order' in self.additional_items:
-            step_order = self.additional_items.get('step_order', [])
+        """進捗の詳細情報を返す（ProjectProgressStepから読み込み）"""
+        from order_management.services.progress_step_service import STEP_TEMPLATES
+        from datetime import datetime, date
 
-        total_steps = len(step_order)
-        completed_steps_count = 0
+        # ProjectProgressStepから読み込み
+        progress_steps = ProjectProgressStep.objects.filter(
+            project=self,
+            is_active=True
+        ).select_related('template').order_by('order')
+
+        # ステップテンプレートのマッピング（テンプレート名 -> キー）
+        template_to_key = {}
+        for key, config in STEP_TEMPLATES.items():
+            template_to_key[config['name']] = key
+
         steps = []
+        completed_steps_count = 0
 
-        for step_item in step_order:
-            step_key = step_item.get('step', '')
-            is_completed = False
-            completed_date = None
-            scheduled_date = None
-            actual_date = None
-            completed_checkbox = False
-            has_not_required = False
-            step_type = None
+        for progress_step in progress_steps:
+            # テンプレート名からキーを取得
+            step_key_without_prefix = template_to_key.get(progress_step.template.name)
+            if not step_key_without_prefix:
+                continue
 
-            # 各ステップタイプごとに完了判定と詳細情報を取得
-            if step_key == 'estimate':
-                # 見積書発行: estimate_issued_date OR estimate_not_required
-                scheduled_date = None  # 見積は予定日なし
-                actual_date = self.estimate_issued_date
-                has_not_required = self.estimate_not_required
-                is_completed = bool(self.estimate_issued_date or self.estimate_not_required)
-                completed_date = self.estimate_issued_date
-                step_type = 'estimate'
-            elif step_key == 'contract':
-                # 契約: contract_date
-                scheduled_date = None  # 契約は予定日なし
-                actual_date = self.contract_date
-                is_completed = bool(self.contract_date)
-                completed_date = self.contract_date
-                step_type = 'contract'
-            elif step_key == 'work_start':
-                # 着工: work_start_completed のみ（詳細画面のJavaScriptと同じ）
-                scheduled_date = None  # work_startは予定日なし
-                actual_date = self.work_start_date
-                completed_checkbox = self.work_start_completed
-                is_completed = bool(self.work_start_completed)
-                completed_date = self.work_start_date
-                step_type = 'work_start'
-            elif step_key == 'work_end':
-                # 完工: work_end_completed のみ（詳細画面のJavaScriptと同じ）
-                scheduled_date = None  # work_endは予定日なし
-                actual_date = self.work_end_date
-                completed_checkbox = self.work_end_completed
-                is_completed = bool(self.work_end_completed)
-                completed_date = self.work_end_date
-                step_type = 'work_end'
-            elif step_key == 'invoice':
-                # 請求書発行: invoice_issued
-                scheduled_date = None  # invoiceは予定日なし
-                actual_date = None
-                completed_checkbox = self.invoice_issued
-                is_completed = bool(self.invoice_issued)
-                step_type = 'invoice'
-            elif step_key in ['attendance', 'survey', 'construction_start', 'completion']:
-                # 複合ステップ: complex_step_fieldsを確認（予定日ベースのロジック）
-                complex_fields = self.additional_items.get('complex_step_fields', {}) if self.additional_items else {}
-                scheduled_date = complex_fields.get(f'{step_key}_scheduled_date')
-                actual_date = None  # 実施日は廃止（+ボタンで追加可能だが完了判定には使わない）
+            # step_プレフィックスを付ける
+            step_key = f'step_{step_key_without_prefix}'
 
-                # completedチェックボックスの値を取得
-                completed_str = complex_fields.get(f'{step_key}_completed')
-                completed_checkbox = completed_str == 'true' or completed_str == True
+            # scheduled_dateを取得
+            scheduled_date = ''
+            if progress_step.value and isinstance(progress_step.value, dict):
+                scheduled_date = progress_step.value.get('scheduled_date', '')
 
-                # 予定日ベース：completedチェックボックスがtrueまたは予定日が過去なら完了
-                is_scheduled_past = False
-                if scheduled_date:
-                    try:
-                        from datetime import datetime, date
-                        scheduled_date_obj = datetime.strptime(scheduled_date, '%Y-%m-%d').date()
-                        is_scheduled_past = scheduled_date_obj < date.today()
-                    except:
-                        pass
+            # 完了判定: is_completedまたは予定日が過去
+            is_scheduled_past = False
+            if scheduled_date:
+                try:
+                    scheduled_date_obj = datetime.strptime(scheduled_date, '%Y-%m-%d').date()
+                    is_scheduled_past = scheduled_date_obj < date.today()
+                except:
+                    pass
 
-                is_completed = bool(completed_checkbox or is_scheduled_past)
-
-                # 完了日は予定日を使用（実施日がある場合はそちらを優先）
-                actual_date_from_field = complex_fields.get(f'{step_key}_actual_date')
-                completed_date = actual_date_from_field if actual_date_from_field else scheduled_date
-                step_type = 'complex'
-            else:
-                # その他の動的ステップ: dynamic_stepsから取得
-                dynamic_steps = self.additional_items.get('dynamic_steps', {}) if self.additional_items else {}
-                step_data = dynamic_steps.get(step_key, {})
-
-                scheduled_date = None  # 動的ステップは予定日なし
-                actual_date = step_data.get('date')
-                completed_checkbox = step_data.get('completed')
-
-                # completed OR date OR value のいずれかがあれば完了（詳細画面と同じロジック）
-                is_completed = bool(
-                    step_data.get('completed') or
-                    step_data.get('date') or
-                    step_data.get('value')
-                )
-                completed_date = step_data.get('date')
-                step_type = 'dynamic'
+            is_completed = progress_step.is_completed or is_scheduled_past
 
             if is_completed:
                 completed_steps_count += 1
 
             # ステップキーから日本語名へのマッピング
             step_name_mapping = {
-                'estimate': '見積書発行',
-                'contract': '契約',
-                'attendance': '着手',
+                'attendance': '立ち会い',
                 'survey': '現調',
+                'estimate': '見積書発行',
                 'construction_start': '着工',
-                'work_start': '工事開始',
                 'completion': '完工',
-                'work_end': '工事終了',
-                'invoice': '請求書発行'
+                'contract': '契約',
+                'invoice': '請求書発行',
+                'permit_application': '許可申請',
+                'material_order': '資材発注',
+                'inspection': '検査'
             }
 
-            # step_itemのnameを優先、なければマッピングから取得、それもなければstep_key
-            japanese_name = step_item.get('name')
-            if not japanese_name or japanese_name == step_key:
-                japanese_name = step_name_mapping.get(step_key, step_key)
+            japanese_name = step_name_mapping.get(step_key_without_prefix, progress_step.template.name)
 
             steps.append({
                 'key': step_key,
                 'name': japanese_name,
                 'completed': is_completed,
-                'completed_date': completed_date,
+                'completed_date': scheduled_date if is_completed else None,
                 'scheduled_date': scheduled_date,
-                'actual_date': actual_date,
-                'completed_checkbox': completed_checkbox,
-                'has_not_required': has_not_required,
-                'step_type': step_type,
-                'icon': 'fa-check'  # デフォルトアイコン
+                'actual_date': None,
+                'completed_checkbox': progress_step.is_completed,
+                'has_not_required': False,
+                'step_type': 'complex',
+                'icon': 'fa-check'
             })
+
+        total_steps = len(steps)
 
         return {
             'total_steps': total_steps,
@@ -1163,8 +1100,8 @@ class Project(models.Model):
     def get_current_project_stage(self):
         """現在のプロジェクト段階を返す
 
-        NOTE: 進捗状況はJavaScriptで計算され、データベースに保存されます。
-        このメソッドは保存された値を返すだけです。
+        DEPRECATED: This method returns cached values from current_stage field.
+        Use calculate_current_stage() for dynamic calculation from ProjectProgressStep.
 
         カラーコード統一ルール:
         - verified (濃い緑): 完了チェックボックスON
@@ -1183,6 +1120,117 @@ class Project(models.Model):
             'stage': self.current_stage,
             'color': self.current_stage_color
         }
+
+    def calculate_current_stage(self):
+        """
+        現在のプロジェクト段階を動的に計算（SSOT: Server-Side Truth）
+
+        ProjectProgressStepから動的に進捗を計算し、JavaScriptに依存しない。
+        これが唯一の真実の源（Single Source of Truth）となる。
+
+        Returns:
+            dict: {'stage': str, 'color': str}
+
+        カラーコード:
+        - 'verified' (濃い緑): 完了チェックボックスON
+        - 'success' (緑): 実施日があるまたは予定日が過去
+        - 'warning' (黄色): 予定日が未来（待機中）
+        - 'secondary' (グレー): 未開始
+        """
+        from datetime import datetime
+
+        # NGステータスの場合は特別扱い
+        if self.project_status == 'NG':
+            return {'stage': 'NG', 'color': 'secondary'}
+
+        today = datetime.now().date()
+
+        # Priority 1: 完工日チェック
+        completion_step = self._get_step_by_key('completion')
+        if completion_step:
+            if completion_step.is_completed:
+                return {'stage': '完工', 'color': 'verified'}
+            if completion_step.value and completion_step.value.get('actual_date'):
+                return {'stage': '完工', 'color': 'success'}
+
+        # Priority 2: 着工日チェック
+        construction_step = self._get_step_by_key('construction_start')
+        if construction_step:
+            scheduled_date_str = construction_step.value.get('scheduled_date') if construction_step.value else None
+
+            if construction_step.is_completed:
+                return {'stage': '工事中', 'color': 'verified'}
+            if construction_step.value and construction_step.value.get('actual_date'):
+                return {'stage': '工事中', 'color': 'success'}
+            if scheduled_date_str:
+                try:
+                    scheduled_date = datetime.strptime(scheduled_date_str, '%Y-%m-%d').date()
+                    if scheduled_date < today:
+                        return {'stage': '工事中の予定', 'color': 'success'}
+                    else:
+                        return {'stage': '着工日待ち', 'color': 'warning'}
+                except (ValueError, TypeError):
+                    pass
+
+        # Priority 3: 見積もりチェック
+        estimate_step = self._get_step_by_key('estimate')
+        if estimate_step and estimate_step.value and estimate_step.value.get('scheduled_date'):
+            return {'stage': '見積もり審査中', 'color': 'warning'}
+
+        # Priority 4: 現調チェック
+        survey_step = self._get_step_by_key('survey')
+        if survey_step:
+            scheduled_date_str = survey_step.value.get('scheduled_date') if survey_step.value else None
+
+            if survey_step.is_completed:
+                return {'stage': '現調済み', 'color': 'success'}
+            if survey_step.value and survey_step.value.get('actual_date'):
+                return {'stage': '現調済み', 'color': 'success'}
+            if scheduled_date_str:
+                try:
+                    scheduled_date = datetime.strptime(scheduled_date_str, '%Y-%m-%d').date()
+                    if scheduled_date < today:
+                        return {'stage': '現調済み', 'color': 'success'}
+                    else:
+                        return {'stage': '現調待ち', 'color': 'warning'}
+                except (ValueError, TypeError):
+                    pass
+
+        # Priority 5: 立ち会いチェック
+        attendance_step = self._get_step_by_key('attendance')
+        if attendance_step:
+            scheduled_date_str = attendance_step.value.get('scheduled_date') if attendance_step.value else None
+
+            if attendance_step.is_completed:
+                return {'stage': '立ち会い済み', 'color': 'success'}
+            if attendance_step.value and attendance_step.value.get('actual_date'):
+                return {'stage': '立ち会い済み', 'color': 'success'}
+            if scheduled_date_str:
+                try:
+                    scheduled_date = datetime.strptime(scheduled_date_str, '%Y-%m-%d').date()
+                    if scheduled_date < today:
+                        return {'stage': '立ち会い済み', 'color': 'success'}
+                    else:
+                        return {'stage': '立ち会い待ち', 'color': 'warning'}
+                except (ValueError, TypeError):
+                    pass
+
+        return {'stage': '未開始', 'color': 'secondary'}
+
+    def get_progress_percentage(self):
+        """
+        進捗率を計算（ProjectProgressStepから動的に計算）
+
+        Returns:
+            int: 進捗率（0-100）
+        """
+        active_steps = self.progress_steps.filter(is_active=True)
+        total = active_steps.count()
+        if total == 0:
+            return 0
+
+        completed = active_steps.filter(is_completed=True).count()
+        return round((completed / total) * 100)
 
     def get_days_until_deadline(self):
         """締切までの日数を返す"""
@@ -1217,11 +1265,27 @@ class Project(models.Model):
         additional_items = self.additional_items or {}
         complex_step_fields = additional_items.get('complex_step_fields', {})
 
-        # complex_step_fieldsから着工日と完工日を取得
-        construction_start_scheduled = complex_step_fields.get('construction_start_scheduled_date')
-        construction_start_actual = complex_step_fields.get('construction_start_actual_date')
-        completion_scheduled = complex_step_fields.get('completion_scheduled_date')
-        completion_actual = complex_step_fields.get('completion_actual_date')
+        # complex_step_fieldsから着工日と完工日を取得（dynamic_field_, step_ prefix付き/なし全てをサポート）
+        construction_start_scheduled = (
+            complex_step_fields.get('dynamic_field_step_construction_start_scheduled_date') or
+            complex_step_fields.get('step_construction_start_scheduled_date') or
+            complex_step_fields.get('construction_start_scheduled_date')
+        )
+        construction_start_actual = (
+            complex_step_fields.get('dynamic_field_step_construction_start_actual_date') or
+            complex_step_fields.get('step_construction_start_actual_date') or
+            complex_step_fields.get('construction_start_actual_date')
+        )
+        completion_scheduled = (
+            complex_step_fields.get('dynamic_field_step_completion_scheduled_date') or
+            complex_step_fields.get('step_completion_scheduled_date') or
+            complex_step_fields.get('completion_scheduled_date')
+        )
+        completion_actual = (
+            complex_step_fields.get('dynamic_field_step_completion_actual_date') or
+            complex_step_fields.get('step_completion_actual_date') or
+            complex_step_fields.get('completion_actual_date')
+        )
 
         # 日付の解析（文字列をdateオブジェクトに変換）
         def parse_date(date_str):
@@ -1299,6 +1363,47 @@ class Project(models.Model):
                 'color': 'success',
                 'icon': 'fa-check-circle'
             }
+
+    def get_comment_count(self):
+        """コメント数を取得"""
+        return self.comments.count()
+
+    def get_grouped_subcontracts(self):
+        """下請を業者・支払日でグループ化して合計金額を返す
+
+        同じ業者・同じ支払日の下請を1つにまとめて表示するため
+        """
+        from collections import defaultdict
+        from subcontract_management.models import Subcontract
+
+        subcontracts = Subcontract.objects.filter(project=self).select_related('contractor', 'internal_worker')
+        grouped = defaultdict(lambda: {
+            'contractor': None,
+            'internal_worker': None,
+            'payment_due_date': None,
+            'total_amount': 0,
+            'count': 0
+        })
+
+        for sub in subcontracts:
+            # グループキー: contractor_id or internal_worker_id + payment_due_date
+            if sub.contractor:
+                key = f"contractor_{sub.contractor.id}_{sub.payment_due_date}"
+                if not grouped[key]['contractor']:
+                    grouped[key]['contractor'] = sub.contractor
+            elif sub.internal_worker:
+                key = f"internal_{sub.internal_worker.id}_{sub.payment_due_date}"
+                if not grouped[key]['internal_worker']:
+                    grouped[key]['internal_worker'] = sub.internal_worker
+            else:
+                continue
+
+            grouped[key]['payment_due_date'] = sub.payment_due_date
+            amount = sub.billed_amount or sub.contract_amount or 0
+            grouped[key]['total_amount'] += amount
+            grouped[key]['count'] += 1
+
+        return list(grouped.values())
 
     def get_material_status(self):
         """資材連携状況を返す"""
@@ -1558,6 +1663,190 @@ class Project(models.Model):
             'net_cash': revenue_status['cash'] - expense_status['cash'],
             'working_capital': revenue_status['receivable'] - expense_status['payable']
         }
+
+    # ============================================================================
+    # Property Adapters for SSOT Architecture (Single Source of Truth)
+    # ============================================================================
+    # These properties provide backward compatibility by dynamically reading
+    # values from ProjectProgressStep instead of deprecated database fields.
+    # This ensures data consistency and eliminates synchronization issues.
+    # ============================================================================
+
+    def _get_step_by_key(self, step_key):
+        """
+        Helper: 指定されたステップキーに対応するProjectProgressStepを取得
+
+        Args:
+            step_key: ステップキー（例: 'attendance', 'survey', 'estimate'）
+
+        Returns:
+            ProjectProgressStep or None
+        """
+        from order_management.services.progress_step_service import get_step
+        return get_step(self, step_key)
+
+    def _get_step_date_value(self, step_key, date_type='scheduled_date'):
+        """
+        Helper: ステップの日付を取得（date objectとして返す）
+
+        Args:
+            step_key: ステップキー
+            date_type: 'scheduled_date' or 'actual_date'
+
+        Returns:
+            date object or None
+        """
+        step = self._get_step_by_key(step_key)
+        if step and step.value and isinstance(step.value, dict):
+            date_str = step.value.get(date_type)
+            if date_str:
+                from datetime import datetime
+                try:
+                    return datetime.strptime(date_str, '%Y-%m-%d').date()
+                except (ValueError, TypeError):
+                    return None
+        return None
+
+    # ===== Computed Properties (Read from ProjectProgressStep) =====
+
+    @property
+    def witness_date(self):
+        """立ち会い日（ProjectProgressStepから計算）"""
+        return self._get_step_date_value('attendance', 'scheduled_date')
+
+    @property
+    def witness_actual_date(self):
+        """立ち会い実施日（ProjectProgressStepから計算）"""
+        return self._get_step_date_value('attendance', 'actual_date')
+
+    @property
+    def witness_assignees(self):
+        """立ち会い担当者（ProjectProgressStepから計算）"""
+        from order_management.services.progress_step_service import get_step_assignees
+        return get_step_assignees(self, 'attendance')
+
+    @property
+    def witness_status(self):
+        """立ち会いステータス（ProjectProgressStepから計算）"""
+        step = self._get_step_by_key('attendance')
+        if not step:
+            return 'waiting'
+        if step.is_completed:
+            return 'completed'
+        if step.value and step.value.get('scheduled_date'):
+            return 'waiting'
+        return 'waiting'
+
+    @property
+    def survey_date(self):
+        """現調日（ProjectProgressStepから計算）"""
+        return self._get_step_date_value('survey', 'scheduled_date')
+
+    @property
+    def survey_actual_date(self):
+        """現調実施日（ProjectProgressStepから計算）"""
+        return self._get_step_date_value('survey', 'actual_date')
+
+    @property
+    def survey_assignees(self):
+        """現調担当者（ProjectProgressStepから計算）"""
+        from order_management.services.progress_step_service import get_step_assignees
+        return get_step_assignees(self, 'survey')
+
+    @property
+    def survey_status(self):
+        """現地調査ステータス（ProjectProgressStepから計算）"""
+        step = self._get_step_by_key('survey')
+        if not step:
+            return 'not_required'
+        if step.is_completed:
+            return 'completed'
+        if step.value and step.value.get('actual_date'):
+            return 'in_progress'
+        if step.value and step.value.get('scheduled_date'):
+            return 'scheduled'
+        return 'required'
+
+    @property
+    def estimate_issued_date(self):
+        """見積書発行日（ProjectProgressStepから計算）"""
+        return self._get_step_date_value('estimate', 'scheduled_date')
+
+    @property
+    def estimate_actual_date(self):
+        """見積書実施日（ProjectProgressStepから計算）"""
+        return self._get_step_date_value('estimate', 'actual_date')
+
+    @property
+    def estimate_status_computed(self):
+        """見積もりステータス（ProjectProgressStepから計算）"""
+        step = self._get_step_by_key('estimate')
+        if not step:
+            return 'not_issued'
+        if step.is_completed:
+            return 'approved'
+        if step.value and step.value.get('actual_date'):
+            return 'under_review'
+        if step.value and step.value.get('scheduled_date'):
+            return 'issued'
+        return 'not_issued'
+
+    @property
+    def work_start_date(self):
+        """着工日（ProjectProgressStepから計算）"""
+        return self._get_step_date_value('construction_start', 'scheduled_date')
+
+    @property
+    def work_start_actual_date(self):
+        """着工実施日（ProjectProgressStepから計算）"""
+        return self._get_step_date_value('construction_start', 'actual_date')
+
+    @property
+    def work_start_completed(self):
+        """着工完了フラグ（ProjectProgressStepから計算）"""
+        step = self._get_step_by_key('construction_start')
+        return step.is_completed if step else False
+
+    @property
+    def construction_assignees_computed(self):
+        """施工担当者（ProjectProgressStepから計算）"""
+        from order_management.services.progress_step_service import get_step_assignees
+        return get_step_assignees(self, 'construction_start')
+
+    @property
+    def construction_status_computed(self):
+        """工事ステータス（ProjectProgressStepから計算）"""
+        step = self._get_step_by_key('construction_start')
+        if not step:
+            return 'waiting'
+        if step.is_completed:
+            return 'completed'
+        if step.value and step.value.get('actual_date'):
+            return 'in_progress'
+        if step.value and step.value.get('scheduled_date'):
+            return 'waiting'
+        return 'waiting'
+
+    @property
+    def work_end_date(self):
+        """完工日（ProjectProgressStepから計算）"""
+        return self._get_step_date_value('completion', 'scheduled_date')
+
+    @property
+    def work_end_actual_date(self):
+        """完工実施日（ProjectProgressStepから計算）"""
+        return self._get_step_date_value('completion', 'actual_date')
+
+    @property
+    def work_end_completed(self):
+        """完工完了フラグ（ProjectProgressStepから計算）"""
+        step = self._get_step_by_key('completion')
+        return step.is_completed if step else False
+
+    @property
+    def contract_date_computed(self):
+        """契約日（ProjectProgressStepから計算）"""
+        return self._get_step_date_value('contract', 'scheduled_date')
 
 
 class ProgressStepTemplate(models.Model):
@@ -2811,6 +3100,8 @@ class CommentAttachment(models.Model):
     def get_file_size_display(self):
         """ファイルサイズを読みやすい形式で表示"""
         size = self.file_size
+        if size is None:
+            return "不明"
         for unit in ['B', 'KB', 'MB', 'GB']:
             if size < 1024.0:
                 return f"{size:.1f} {unit}"
@@ -2825,6 +3116,21 @@ class CommentAttachment(models.Model):
     def is_pdf(self):
         """PDFファイルかどうか"""
         return 'pdf' in self.file_type.lower() or self.file_name.lower().endswith('.pdf')
+
+
+class CommentReadStatus(models.Model):
+    """コメント既読状態管理"""
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='comment_read_statuses', verbose_name="案件")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comment_read_statuses', verbose_name="ユーザー")
+    last_read_at = models.DateTimeField(auto_now=True, verbose_name="最終既読日時")
+
+    class Meta:
+        verbose_name = "コメント既読状態"
+        verbose_name_plural = "コメント既読状態一覧"
+        unique_together = [['project', 'user']]
+
+    def __str__(self):
+        return f"{self.project.site_name} - {self.user.username} - {self.last_read_at.strftime('%Y-%m-%d %H:%M')}"
 
 
 class Notification(models.Model):
@@ -3514,6 +3820,8 @@ class ProjectFile(models.Model):
     def get_file_size_display(self):
         """ファイルサイズを人間が読める形式で表示"""
         size = self.file_size
+        if size is None:
+            return "不明"
         for unit in ['B', 'KB', 'MB', 'GB']:
             if size < 1024.0:
                 return f"{size:.1f} {unit}"

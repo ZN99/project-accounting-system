@@ -325,6 +325,9 @@ urlpatterns = [
     path('api/notifications/<int:notification_id>/read/', views_comment.mark_notification_read, name='api_mark_notification_read'),
     path('api/notifications/read-all/', views_comment.mark_all_notifications_read, name='api_mark_all_notifications_read'),
 
+    # コメント既読機能
+    path('projects/<int:project_id>/mark-comments-read/', views.mark_comments_read, name='mark_comments_read'),
+
     # プロフィール設定
     path('profile/settings/', profile_settings, name='profile_settings'),
 

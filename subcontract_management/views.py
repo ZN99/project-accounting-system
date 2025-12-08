@@ -120,7 +120,8 @@ def subcontract_create(request, project_id):
 
             # 工程ごとの金額設定の場合、メイン工程の金額を個別金額に上書き
             if cost_allocation_method == 'per_step' and step in step_amounts:
-                subcontract.contract_amount = int(step_amounts[step])
+                from decimal import Decimal
+                subcontract.contract_amount = Decimal(str(step_amounts[step]))
 
             # 動的部材費データを保存
             dynamic_materials_data = request.POST.get('dynamic_materials_data', '[]')
@@ -141,6 +142,7 @@ def subcontract_create(request, project_id):
             # 追加のステップにも同じ内容で保存
             additional_steps = request.POST.getlist('additional_steps[]')
             created_steps = [step] if step else []
+            created_subcontracts = [subcontract]  # 作成されたsubcontractsを収集
 
             if additional_steps:
 
@@ -148,7 +150,17 @@ def subcontract_create(request, project_id):
                     'attendance': '立ち会い',
                     'survey': '現調',
                     'construction_start': '着工',
-                    'material_order': '資材発注'
+                    'material_order': '資材発注',
+                    'step_attendance': '立ち会い',
+                    'step_survey': '現調',
+                    'step_construction_start': '着工',
+                    'step_material_order': '資材発注',
+                    'step_estimate': '見積書発行',
+                    'step_completion': '完工',
+                    'step_contract': '契約',
+                    'step_invoice': '請求書発行',
+                    'step_permit_application': '許可申請',
+                    'step_inspection': '検査',
                 }
 
                 # プロジェクトのステップ構成を確認・更新
@@ -179,7 +191,8 @@ def subcontract_create(request, project_id):
                     # 金額を決定
                     if cost_allocation_method == 'per_step' and add_step in step_amounts:
                         # 工程ごとに金額を設定する場合
-                        step_contract_amount = int(step_amounts[add_step])
+                        from decimal import Decimal
+                        step_contract_amount = Decimal(str(step_amounts[add_step]))
                         step_billed_amount = 0  # 請求額はデフォルト0
                         notes_suffix = f'工程別設定'
                     else:
@@ -216,27 +229,71 @@ def subcontract_create(request, project_id):
                     )
                     additional_subcontract.save()
                     created_steps.append(add_step)
+                    created_subcontracts.append(additional_subcontract)  # 追加された subcontract を収集
 
             # 成功メッセージ
             step_names = {
                 'attendance': '立ち会い',
                 'survey': '現調',
                 'construction_start': '着工',
-                'material_order': '資材発注'
+                'material_order': '資材発注',
+                'step_attendance': '立ち会い',
+                'step_survey': '現調',
+                'step_construction_start': '着工',
+                'step_material_order': '資材発注',
+                'step_estimate': '見積書発行',
+                'step_completion': '完工',
+                'step_contract': '契約',
+                'step_invoice': '請求書発行',
+                'step_permit_application': '許可申請',
+                'step_inspection': '検査',
+                'estimate': '見積書発行',
+                'completion': '完工',
+                'contract': '契約',
+                'invoice': '請求書発行',
+                'permit_application': '許可申請',
+                'inspection': '検査',
             }
-            created_step_labels = [step_names.get(s, s) for s in created_steps if s]
+            # プレフィックスなしのキーでマッピングを試みる
+            created_step_labels = []
+            for s in created_steps:
+                if s:
+                    # まずそのままのキーで検索
+                    label = step_names.get(s)
+                    # 見つからない場合はstep_プレフィックスを削除して再検索
+                    if not label and s.startswith('step_'):
+                        label = step_names.get(s.replace('step_', '', 1))
+                    # それでも見つからない場合はキーをそのまま使用
+                    created_step_labels.append(label or s)
             steps_text = '、'.join(created_step_labels) if created_step_labels else ''
 
-            success_message = f'外注先「{subcontract.contractor.name}」を追加しました。'
+            success_message = f'「{subcontract.contractor.name}」を外注先として登録しました。'
             if steps_text:
-                success_message = f'外注先「{subcontract.contractor.name}」を {steps_text} に追加しました。'
+                success_message = f'「{subcontract.contractor.name}」を {steps_text} の外注先として登録しました。'
 
             # AJAXリクエストの場合はJSONレスポンスを返す
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accepts('application/json'):
+                # 作成されたすべての subcontract をレスポンスに含める
+                subcontracts_data = []
+                for sc in created_subcontracts:
+                    subcontracts_data.append({
+                        'id': sc.id,
+                        'contractor_id': sc.contractor.id if sc.contractor else None,
+                        'contractor_name': sc.contractor.name if sc.contractor else '',
+                        'contract_amount': str(sc.contract_amount) if sc.contract_amount else '0',
+                        'billed_amount': str(sc.billed_amount) if sc.billed_amount else '0',
+                        'payment_due_date': sc.payment_due_date.strftime('%Y-%m-%d') if sc.payment_due_date else '',
+                        'payment_status': sc.payment_status,
+                        'work_description': sc.work_description or '',
+                        'step': sc.step
+                    })
+
                 return JsonResponse({
                     'status': 'success',
                     'message': success_message,
-                    'subcontract_id': subcontract.id
+                    'subcontract_id': subcontract.id,
+                    'subcontract': subcontracts_data[0] if subcontracts_data else None,  # 後方互換性のため
+                    'subcontracts': subcontracts_data  # 作成されたすべての subcontract
                 })
 
             messages.success(request, success_message)

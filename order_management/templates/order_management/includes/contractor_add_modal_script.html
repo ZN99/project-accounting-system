@@ -33,7 +33,20 @@ window.openAddContractorModal = function() {
     toggleHourlyRateField();
 
     // モーダルを表示
-    const modal = new bootstrap.Modal(document.getElementById('addContractorModal'));
+    const modalElement = document.getElementById('addContractorModal');
+    const modal = new bootstrap.Modal(modalElement, {
+        backdrop: true,
+        keyboard: true,
+        focus: true
+    });
+
+    // モーダルが完全に表示された後、業者名inputにフォーカスを設定
+    $(modalElement).one('shown.bs.modal', function() {
+        setTimeout(function() {
+            $('#contractorName').focus();
+        }, 100);
+    });
+
     modal.show();
 };
 

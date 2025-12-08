@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q, Count, Sum, Avg, Prefetch, OuterRef, Exists, Subquery, Max
+from django.db.models import Q, Count, Sum, Avg
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -12,7 +12,7 @@ from django.urls import reverse
 from datetime import datetime, timedelta
 import json
 from decimal import Decimal
-from .models import Project, Invoice, InvoiceItem, ClientCompany, WorkType, Comment, CommentReadStatus
+from .models import Project, Invoice, InvoiceItem, ClientCompany, WorkType
 from subcontract_management.models import Contractor
 
 try:
@@ -102,30 +102,9 @@ def project_list(request):
     """案件一覧表示"""
     # パフォーマンス最適化：関連データを事前取得
     # 下書きを除外
-
-    # コメント情報の取得用サブクエリ
-    latest_comment_subquery = Comment.objects.filter(
-        project=OuterRef('pk')
-    ).order_by('-created_at')
-
-    # 既読状態の取得
-    read_status_subquery = CommentReadStatus.objects.filter(
-        project=OuterRef('pk'),
-        user=request.user
-    )
-
     projects = Project.objects.filter(is_draft=False).select_related().prefetch_related(
         'progress_steps',
-        'progress_steps__template',
-        Prefetch(
-            'comments',
-            queryset=Comment.objects.select_related('author').order_by('-created_at')[:1],
-            to_attr='latest_comment_list'
-        )
-    ).annotate(
-        comment_count=Count('comments'),
-        last_read_at=Subquery(read_status_subquery.values('last_read_at')[:1]),
-        latest_comment_date=Subquery(latest_comment_subquery.values('created_at')[:1])
+        'progress_steps__template'
     )
 
     # フィルタリング
@@ -587,8 +566,6 @@ def project_save_as_draft(request, pk=None):
             project = form.save(commit=False)
             project.is_draft = True
             project.save()
-            # ManyToManyフィールドを保存（work_typesなど）
-            form.save_m2m()
 
             # 営業担当者の保存
             sales_manager_id = request.POST.get('sales_manager')
@@ -629,7 +606,7 @@ def project_save_as_draft(request, pk=None):
             })
         else:
             # バリデーションエラーがあっても下書きとして保存を試みる
-            from django.db.models import ForeignKey, ManyToManyField, DecimalField, IntegerField, CharField, TextField
+            from django.db.models import ForeignKey, DecimalField, IntegerField, CharField, TextField
             from decimal import Decimal, InvalidOperation
 
             project = Project()
@@ -638,7 +615,6 @@ def project_save_as_draft(request, pk=None):
 
             # モデルのフィールド情報を取得
             fk_fields = {}
-            m2m_fields = {}
             decimal_fields = set()
             integer_fields = set()
             char_text_fields = set()
@@ -646,8 +622,6 @@ def project_save_as_draft(request, pk=None):
             for field in Project._meta.get_fields():
                 if isinstance(field, ForeignKey):
                     fk_fields[field.name] = field.related_model
-                elif isinstance(field, ManyToManyField):
-                    m2m_fields[field.name] = field
                 elif isinstance(field, DecimalField):
                     decimal_fields.add(field.name)
                 elif isinstance(field, IntegerField):
@@ -655,14 +629,10 @@ def project_save_as_draft(request, pk=None):
                 elif isinstance(field, (CharField, TextField)):
                     char_text_fields.add(field.name)
 
-            # フォームデータを手動で設定（ManyToManyフィールド以外）
+            # フォームデータを手動で設定
             for field_name in form.fields:
                 if field_name in request.POST:
                     value = request.POST.get(field_name)
-
-                    # ManyToManyフィールドはスキップ（後で処理）
-                    if field_name in m2m_fields:
-                        continue
 
                     # ForeignKeyフィールドの特別処理
                     if field_name in fk_fields and value:
@@ -720,17 +690,6 @@ def project_save_as_draft(request, pk=None):
             project.is_draft = True
             project.save()
 
-            # ManyToManyフィールドの保存（プロジェクトが保存された後に実行）
-            for field_name in m2m_fields:
-                if field_name in request.POST:
-                    values = request.POST.getlist(field_name)
-                    if values:
-                        try:
-                            m2m_manager = getattr(project, field_name)
-                            m2m_manager.set(values)
-                        except Exception as e:
-                            print(f"⚠ Error setting M2M field {field_name}: {e}")
-
             # スケジュールステップデータの保存（下書きでも保存）
             if 'schedule_steps_data' in request.POST:
                 schedule_steps_json = request.POST.get('schedule_steps_data', '')
@@ -749,9 +708,6 @@ def project_save_as_draft(request, pk=None):
             })
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        print(f"❌ Auto-save error: {str(e)}")
         return JsonResponse({
             'success': False,
             'error': str(e)
@@ -1090,15 +1046,21 @@ def update_progress(request, pk):
         completion_report_notes = request.POST.get('completion_report_notes')
 
         # 日付フィールドの更新（空文字列も処理）
-        # DEPRECATED: estimate_issued_date, work_start_date, work_end_date moved to ProjectProgressStep
+        if estimate_issued_date is not None:
+            project.estimate_issued_date = estimate_issued_date if estimate_issued_date else None
         if contract_date is not None:
             project.contract_date = contract_date if contract_date else None
+        if work_start_date is not None:
+            project.work_start_date = work_start_date if work_start_date else None
+        if work_end_date is not None:
+            project.work_end_date = work_end_date if work_end_date else None
         if invoice_issued is not None:
             # Boolean値に変換
             project.invoice_issued = invoice_issued.lower() == 'true' if invoice_issued else False
 
         # 完了チェックボックスの更新
-        # DEPRECATED: work_start_completed, work_end_completed moved to ProjectProgressStep
+        project.work_start_completed = work_start_completed == 'on'
+        project.work_end_completed = work_end_completed == 'on'
         project.estimate_not_required = estimate_not_required == 'on'
 
         # 見積もり関連テキストフィールドの更新
@@ -1106,6 +1068,10 @@ def update_progress(request, pk):
             project.estimate_notes = estimate_notes
         if contractor_estimate_amount is not None:
             project.contractor_estimate_amount = contractor_estimate_amount
+
+        # 見積書不要の場合は見積書発行日をクリア
+        if project.estimate_not_required:
+            project.estimate_issued_date = None
 
         # 完了報告フィールドの更新
         if completion_report_date is not None:
@@ -1174,33 +1140,13 @@ def update_progress(request, pk):
         from order_management.models import ProgressStepTemplate
 
         for step_key, template_name in key_to_template.items():
-            # 🔧 FIX: step_プレフィックスありとなし両方をサポート
-            # HTMLから送信されるキーは "step_attendance_scheduled_date" の形式
+            # step_プレフィックスなしのキーで確認
             scheduled_date_key = f'{step_key}_scheduled_date'
-            scheduled_date_key_with_prefix = f'step_{step_key}_scheduled_date'
             completed_key = f'{step_key}_completed'
-            completed_key_with_prefix = f'step_{step_key}_completed'
-            actual_date_key_with_prefix = f'step_{step_key}_actual_date'
 
-            # 両方の形式をチェック（step_プレフィックスありを優先）
-            scheduled_date = (complex_step_fields.get(scheduled_date_key_with_prefix) or
-                            complex_step_fields.get(scheduled_date_key))
-            actual_date = complex_step_fields.get(actual_date_key_with_prefix)
-            completed_str = (complex_step_fields.get(completed_key_with_prefix) or
-                           complex_step_fields.get(completed_key))
+            scheduled_date = complex_step_fields.get(scheduled_date_key)
+            completed_str = complex_step_fields.get(completed_key)
             completed = completed_str in ['on', 'true', True]
-
-            # 🔧 FIX: このステップに関するフィールドが送信されていない場合はスキップ
-            # これにより、ユーザーが追加していないステップのProjectProgressStepが勝手に作成されるのを防ぐ
-            has_scheduled_date = (scheduled_date_key_with_prefix in complex_step_fields or
-                                scheduled_date_key in complex_step_fields)
-            has_completed = (completed_key_with_prefix in complex_step_fields or
-                           completed_key in complex_step_fields)
-            has_actual_date = actual_date_key_with_prefix in complex_step_fields
-
-            if not has_scheduled_date and not has_completed and not has_actual_date:
-                # このステップに関するデータが送信されていないのでスキップ
-                continue
 
             # テンプレートを取得
             try:
@@ -1216,29 +1162,9 @@ def update_progress(request, pk):
             )
 
             # 値を更新
-            if has_completed:
-                progress_step.is_completed = completed
-
-            # valueフィールドの初期化
-            if not progress_step.value:
-                progress_step.value = {}
-
-            # 予定日を更新
-            if has_scheduled_date:
-                if scheduled_date:
-                    progress_step.value['scheduled_date'] = scheduled_date
-                elif 'scheduled_date' in progress_step.value:
-                    # 空にされた場合は削除
-                    del progress_step.value['scheduled_date']
-
-            # 実施日を更新
-            if has_actual_date:
-                if actual_date:
-                    progress_step.value['actual_date'] = actual_date
-                elif 'actual_date' in progress_step.value:
-                    # 空にされた場合は削除
-                    del progress_step.value['actual_date']
-
+            progress_step.is_completed = completed
+            if scheduled_date:
+                progress_step.value = {'scheduled_date': scheduled_date}
             progress_step.save()
 
         # 既存の追加項目と新しい項目をマージ
@@ -1253,7 +1179,25 @@ def update_progress(request, pk):
         if complex_step_fields:
             project.additional_items['complex_step_fields'] = complex_step_fields
 
-            # DEPRECATED: Dual-write to old fields removed - data now only in ProjectProgressStep
+            # 着工予定日を work_start_date にマッピング（カレンダー表示用）
+            if 'construction_start_scheduled_date' in complex_step_fields:
+                construction_start_date = complex_step_fields['construction_start_scheduled_date']
+                project.work_start_date = construction_start_date if construction_start_date else None
+
+            # 着工完了チェックボックスを work_start_completed にマッピング
+            if 'construction_start_completed' in complex_step_fields:
+                value = complex_step_fields['construction_start_completed']
+                project.work_start_completed = value in ['on', 'true', True]
+
+            # 完工予定日を work_end_date にマッピング（通知システム用）
+            if 'completion_scheduled_date' in complex_step_fields:
+                completion_date = complex_step_fields['completion_scheduled_date']
+                project.work_end_date = completion_date if completion_date else None
+
+            # 完工済みチェックボックスを work_end_completed にマッピング
+            if 'completion_completed' in complex_step_fields:
+                value = complex_step_fields['completion_completed']
+                project.work_end_completed = value in ['on', 'true', True]
 
         project.save()
         project.refresh_from_db()
@@ -1662,33 +1606,65 @@ def project_update(request, pk):
                 # 立ち会い（attendance）
                 witness_date = request.POST.get('witness_date')
                 if witness_date:
-                    # Write to ProjectProgressStep (SSOT)
+                    # New: Write to ProjectProgressStep
                     set_step_scheduled_date(project, 'attendance', witness_date)
+                    # Legacy: Write to old field (for backward compatibility)
+                    from datetime import datetime
+                    try:
+                        project.witness_date = datetime.strptime(witness_date, '%Y-%m-%d').date()
+                    except (ValueError, TypeError):
+                        pass
 
                 witness_assignees_str = request.POST.get('witness_assignees', '')
                 if witness_assignees_str:
                     witness_assignees = [name.strip() for name in witness_assignees_str.split(',') if name.strip()]
-                    # Write to ProjectProgressStep (SSOT)
+                    # New: Write to ProjectProgressStep
                     set_step_assignees(project, 'attendance', witness_assignees)
+                    # Legacy: Write to old field
+                    project.witness_assignees = witness_assignees
+
+                # Legacy fields
+                project.witness_status = request.POST.get('witness_status', 'waiting')
+                project.witness_assignee_type = request.POST.get('witness_assignee_type', 'internal')
 
                 # 現地調査（survey）
                 survey_date = request.POST.get('survey_date')
                 if survey_date:
-                    # Write to ProjectProgressStep (SSOT)
+                    # New: Write to ProjectProgressStep
                     set_step_scheduled_date(project, 'survey', survey_date)
+                    # Legacy: Write to old field
+                    from datetime import datetime
+                    try:
+                        project.survey_date = datetime.strptime(survey_date, '%Y-%m-%d').date()
+                    except (ValueError, TypeError):
+                        pass
 
                 survey_assignees_str = request.POST.get('survey_assignees', '')
                 if survey_assignees_str:
                     survey_assignees = [name.strip() for name in survey_assignees_str.split(',') if name.strip()]
-                    # Write to ProjectProgressStep (SSOT)
+                    # New: Write to ProjectProgressStep
                     set_step_assignees(project, 'survey', survey_assignees)
+                    # Legacy: Write to old field
+                    project.survey_assignees = survey_assignees
+
+                # Legacy field
+                project.survey_status = request.POST.get('survey_status', 'not_required')
+
+                # 見積もり（estimate）
+                # Legacy field
+                project.estimate_status = request.POST.get('estimate_status', 'not_issued')
 
                 # 着工（construction_start）
                 construction_assignees_str = request.POST.get('construction_assignees', '')
                 if construction_assignees_str:
                     construction_assignees = [name.strip() for name in construction_assignees_str.split(',') if name.strip()]
-                    # Write to ProjectProgressStep (SSOT)
+                    # New: Write to ProjectProgressStep
                     set_step_assignees(project, 'construction_start', construction_assignees)
+                    # Legacy: Write to old field
+                    project.construction_assignees = construction_assignees
+
+                # Legacy field
+                project.construction_status = request.POST.get('construction_status', 'waiting')
 
                 project.save()
 
@@ -1724,10 +1700,40 @@ def project_update(request, pk):
                 except InternalWorker.DoesNotExist:
                     pass
 
-            # DEPRECATED: Detailed schedule management fields now handled by ProjectProgressStep (SSOT)
-            # Legacy status fields kept for backward compatibility
+            # Phase 11: 詳細スケジュール管理フィールドの保存
+            # 立ち会い
+            if request.POST.get('witness_date'):
+                from datetime import datetime
+                try:
+                    project.witness_date = datetime.strptime(request.POST.get('witness_date'), '%Y-%m-%d').date()
+                except (ValueError, TypeError):
+                    pass
+            project.witness_status = request.POST.get('witness_status', 'waiting')
+            project.witness_assignee_type = request.POST.get('witness_assignee_type', 'internal')
+            witness_assignees_str = request.POST.get('witness_assignees', '')
+            if witness_assignees_str:
+                project.witness_assignees = [name.strip() for name in witness_assignees_str.split(',') if name.strip()]
+
+            # 現地調査
+            if request.POST.get('survey_date'):
+                from datetime import datetime
+                try:
+                    project.survey_date = datetime.strptime(request.POST.get('survey_date'), '%Y-%m-%d').date()
+                except (ValueError, TypeError):
+                    pass
             project.survey_status = request.POST.get('survey_status', 'not_required')
+            survey_assignees_str = request.POST.get('survey_assignees', '')
+            if survey_assignees_str:
+                project.survey_assignees = [name.strip() for name in survey_assignees_str.split(',') if name.strip()]
+
+            # 見積もり
             project.estimate_status = request.POST.get('estimate_status', 'not_issued')
+
+            # 着工
+            project.construction_status = request.POST.get('construction_status', 'waiting')
+            construction_assignees_str = request.POST.get('construction_assignees', '')
+            if construction_assignees_str:
+                project.construction_assignees = [name.strip() for name in construction_assignees_str.split(',') if name.strip()]
 
             project.save()
 
@@ -2712,29 +2718,3 @@ def update_project_field(request, pk):
         return JsonResponse({'success': False, 'error': f'値の形式が正しくありません: {str(e)}'}, status=400)
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
-
-
-@login_required
-@require_POST
-def mark_comments_read(request, project_id):
-    """プロジェクトのコメントを既読にする"""
-    try:
-        project = get_object_or_404(Project, pk=project_id)
-
-        # CommentReadStatusを作成または更新
-        read_status, created = CommentReadStatus.objects.update_or_create(
-            project=project,
-            user=request.user,
-            defaults={'last_read_at': timezone.now()}
-        )
-
-        return JsonResponse({
-            'success': True,
-            'message': 'コメントを既読にしました'
-        })
-
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
