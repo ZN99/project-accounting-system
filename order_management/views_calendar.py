@@ -56,12 +56,20 @@ class WorkerResourceCalendarView(LoginRequiredMixin, TemplateView):
 
         for worker in internal_workers:
             # この職人が担当している案件数（期間内）
-            active_projects = Subcontract.objects.filter(
+            # アクティブな案件に関連する下請けを取得
+            subcontracts = Subcontract.objects.filter(
                 worker_type='internal',
                 internal_worker=worker,
-                project__work_start_date__lte=end_date,
-                project__work_end_date__gte=start_date
-            ).count()
+                project__project_status='受注確定'
+            ).select_related('project')
+
+            # 期間内の案件をPythonでフィルタ
+            active_projects = 0
+            for sc in subcontracts:
+                period = sc.project.get_construction_period()
+                if period.get('start_date') and period.get('end_date'):
+                    if period['start_date'] <= end_date and period['end_date'] >= start_date:
+                        active_projects += 1
 
             # 稼働率を簡易的に計算（より詳細な計算が必要な場合は調整）
             utilization_rate = min(active_projects * 25, 100)  # 1案件=25%として計算
@@ -84,12 +92,18 @@ class WorkerResourceCalendarView(LoginRequiredMixin, TemplateView):
 
         for contractor in individual_contractors:
             # この職人が担当している案件数（期間内）
-            active_projects = Subcontract.objects.filter(
+            subcontracts = Subcontract.objects.filter(
                 worker_type='external',
                 contractor=contractor,
-                project__work_start_date__lte=end_date,
-                project__work_end_date__gte=start_date
-            ).count()
+                project__project_status='受注確定'
+            ).select_related('project')
+
+            active_projects = 0
+            for sc in subcontracts:
+                period = sc.project.get_construction_period()
+                if period.get('start_date') and period.get('end_date'):
+                    if period['start_date'] <= end_date and period['end_date'] >= start_date:
+                        active_projects += 1
 
             # 稼働率を簡易的に計算
             utilization_rate = min(active_projects * 25, 100)
@@ -112,12 +126,18 @@ class WorkerResourceCalendarView(LoginRequiredMixin, TemplateView):
 
         for contractor in company_contractors:
             # この職人が担当している案件数（期間内）
-            active_projects = Subcontract.objects.filter(
+            subcontracts = Subcontract.objects.filter(
                 worker_type='external',
                 contractor=contractor,
-                project__work_start_date__lte=end_date,
-                project__work_end_date__gte=start_date
-            ).count()
+                project__project_status='受注確定'
+            ).select_related('project')
+
+            active_projects = 0
+            for sc in subcontracts:
+                period = sc.project.get_construction_period()
+                if period.get('start_date') and period.get('end_date'):
+                    if period['start_date'] <= end_date and period['end_date'] >= start_date:
+                        active_projects += 1
 
             # 稼働率を簡易的に計算
             utilization_rate = min(active_projects * 25, 100)
@@ -384,16 +404,18 @@ def performance_monthly_api(request):
     else:
         end_date = datetime(int(year), int(month) + 1, 1)
 
+    # アクティブな案件を取得
     projects = Project.objects.filter(
-        work_start_date__gte=start_date,
-        work_start_date__lt=end_date
+        project_status='受注確定',
+        created_at__gte=start_date,
+        created_at__lt=end_date
     )
 
     # 統計データを集計
     stats = {
         'total_projects': projects.count(),
-        'total_amount': sum(p.total_amount or 0 for p in projects),
-        'completed_projects': projects.filter(work_end_date__isnull=False).count(),
+        'total_amount': sum(p.order_amount or 0 for p in projects),
+        'completed_projects': projects.filter(current_stage='完工').count(),
     }
 
     return JsonResponse(stats)
@@ -479,10 +501,20 @@ def worker_resource_data_api(request):
     end = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
 
     # 職人と案件のマッピングを取得
+    # アクティブな案件に関連する下請けを取得し、後でPythonで期間フィルタ
     subcontracts = Subcontract.objects.filter(
-        project__work_start_date__lte=end,
-        project__work_end_date__gte=start
+        project__project_status='受注確定'
     ).select_related('contractor', 'internal_worker', 'project')
+
+    # 期間内の下請けのみをフィルタ
+    filtered_subcontracts = []
+    for sc in subcontracts:
+        period = sc.project.get_construction_period()
+        if period.get('start_date') and period.get('end_date'):
+            if period['start_date'] <= end.date() and period['end_date'] >= start.date():
+                filtered_subcontracts.append(sc)
+
+    subcontracts = filtered_subcontracts
 
     # データ構造を構築（社内職人・個人職人・協力会社別）
     worker_schedules = {
