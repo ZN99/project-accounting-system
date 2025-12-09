@@ -46,8 +46,11 @@ class UltimateDashboardView(TemplateView):
 
         # プロジェクト基本統計
         total_projects = Project.objects.count()
+        # アクティブな案件：受注確定でNGでないもの
         active_projects = Project.objects.filter(
-            Q(work_start_date__lte=today) & Q(work_end_date__gte=today)
+            project_status='受注確定'
+        ).exclude(
+            project_status='NG'
         ).count()
 
         # 受注ヨミ別統計
@@ -78,9 +81,9 @@ class UltimateDashboardView(TemplateView):
         approval_filter = self.request.GET.get('approval_status')
 
         # 進行中案件（工事中）- Phase 8: 優先度順にソート
+        # 受注確定の案件を進行中とみなす
         ongoing_query = Project.objects.filter(
-            work_start_date__lte=today,
-            work_end_date__gte=today
+            project_status='受注確定'
         )
 
         if priority_filter == 'high':
@@ -93,12 +96,12 @@ class UltimateDashboardView(TemplateView):
         if approval_filter:
             ongoing_query = ongoing_query.filter(approval_status=approval_filter)
 
-        ongoing_projects = ongoing_query.order_by('-priority_score', 'work_end_date')[:10]
+        ongoing_projects = ongoing_query.order_by('-priority_score', '-created_at')[:10]
 
         # 近日開始予定案件 - Phase 8: 優先度順にソート
+        # 受注確度が高い案件（A, B）を開始予定とみなす
         upcoming_query = Project.objects.filter(
-            work_start_date__gt=today,
-            work_start_date__lte=today + timedelta(days=30)
+            project_status__in=['A', 'B']
         )
 
         if priority_filter == 'high':
@@ -111,7 +114,7 @@ class UltimateDashboardView(TemplateView):
         if approval_filter:
             upcoming_query = upcoming_query.filter(approval_status=approval_filter)
 
-        upcoming_projects = upcoming_query.order_by('-priority_score', 'work_start_date')[:10]
+        upcoming_projects = upcoming_query.order_by('-priority_score', '-created_at')[:10]
 
         # Phase 8: 高優先度案件（priority_score >= 70）
         high_priority_projects = Project.objects.filter(
@@ -147,9 +150,10 @@ class UltimateDashboardView(TemplateView):
         monthly_trends.reverse()
 
         # プロジェクト完了率
+        # current_stageが完工になっている案件を完了とみなす
         completed_projects = Project.objects.filter(
-            work_end_completed=True,
-            work_end_date__year=year
+            current_stage='完工',
+            created_at__year=year
         ).count()
 
         completion_rate = 0
@@ -173,7 +177,8 @@ class UltimateDashboardView(TemplateView):
         for project in receipt_projects:
             amount = project.billing_amount or project.order_amount or 0
             receipt_total += amount
-            if project.work_end_completed:
+            # 入金済みかどうかは payment_received_date で判定
+            if project.payment_received_date:
                 receipt_received += amount
             else:
                 receipt_pending += amount
@@ -214,7 +219,7 @@ class UltimateDashboardView(TemplateView):
                     'client': client_company_name,
                     'type': 'receipt',
                     'amount': amount,
-                    'status': 'completed' if project.work_end_completed else 'pending',
+                    'status': 'completed' if project.payment_received_date else 'pending',
                     'project': project,
                     'client_company': project.client_company  # 元請業者オブジェクトも追加
                 })
@@ -493,7 +498,7 @@ class UltimateDashboardView(TemplateView):
                 created_at__month=data['month']
             )
             data['new_projects'] = month_projects.count()
-            data['completed_projects'] = month_projects.filter(work_end_completed=True).count()
+            data['completed_projects'] = month_projects.filter(current_stage='完工').count()
 
         # 売上高・売上原価の計算
         revenue_projects = Project.objects.filter(
