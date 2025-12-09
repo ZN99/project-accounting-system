@@ -405,9 +405,9 @@ def get_outgoing_unfilled(year, month):
     start_date, end_date = get_month_range(year, month)
 
     # 今月の案件に関連する発注で、出金情報が未入力のものを取得
+    # アクティブな案件（受注確定）に関連する下請けを取得
     subcontracts = Subcontract.objects.filter(
-        project__work_start_date__lte=end_date,
-        project__work_end_date__gte=start_date
+        project__project_status='受注確定'
     ).select_related('project', 'contractor', 'internal_worker')
 
     unfilled_sites = []
