@@ -21,7 +21,7 @@ class ContractorCreateView(LoginRequiredMixin, CreateView):
         # 銀行口座情報
         'bank_name', 'branch_name', 'account_type', 'account_number', 'account_holder'
     ]
-    success_url = reverse_lazy('order_management:ordering_dashboard')
+    success_url = reverse_lazy('order_management:external_contractor_management')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -43,7 +43,7 @@ class ContractorCreateView(LoginRequiredMixin, CreateView):
             context['page_title'] = '新規業者追加'
             context['contractor_type'] = 'company'  # デフォルトは協力会社
 
-        context['back_url'] = self.request.GET.get('back', reverse_lazy('order_management:ordering_dashboard'))
+        context['back_url'] = self.request.GET.get('back', reverse_lazy('order_management:external_contractor_management'))
 
         # カスタムフィールド定義をカテゴリごとに取得
         categories = ContractorFieldCategory.objects.filter(
