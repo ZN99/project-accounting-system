@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import RedirectView
 from . import views
 from .views_auth import HeadquartersLoginView, HeadquartersLogoutView
 from .views_permission import PermissionDeniedView
@@ -178,7 +179,8 @@ urlpatterns = [
     path('archived-features/', ArchivedFeaturesView.as_view(), name='archived_features'),
 
     # ダッシュボード・案件管理
-    path('', UltimateDashboardView.as_view(), name='dashboard'),
+    # ARCHIVED: ルートパスは案件一覧にリダイレクト（旧ダッシュボードはアーカイブ済み）
+    path('', RedirectView.as_view(pattern_name='order_management:project_list', permanent=False), name='dashboard'),
     path('legacy/', views.dashboard, name='legacy_dashboard'),
     path('contractor-dashboard/', ContractorDashboardView.as_view(), name='contractor_dashboard'),
     path('ordering-dashboard/', OrderingDashboardView.as_view(), name='ordering_dashboard'),
