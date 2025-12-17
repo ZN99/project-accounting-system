@@ -68,19 +68,19 @@ class BackupValidator:
             ('order_management.ProjectProgressStep', 'project', 'order_management.Project'),
             ('order_management.ProjectProgressStep', 'template', 'order_management.ProgressStepTemplate'),
             ('order_management.MaterialOrder', 'project', 'order_management.Project'),
-            ('order_management.MaterialOrderItem', 'material_order', 'order_management.MaterialOrder'),
-            ('order_management.Invoice', 'project', 'order_management.Project'),
+            ('order_management.MaterialOrderItem', 'order', 'order_management.MaterialOrder'),
             ('order_management.InvoiceItem', 'invoice', 'order_management.Invoice'),
             ('order_management.Comment', 'project', 'order_management.Project'),
-            ('order_management.Comment', 'user', 'auth.User'),
-            ('order_management.Notification', 'user', 'auth.User'),
+            ('order_management.Comment', 'author', 'auth.User'),
+            ('order_management.Notification', 'recipient', 'auth.User'),
             ('order_management.ProjectFile', 'project', 'order_management.Project'),
             ('order_management.ProjectChecklist', 'project', 'order_management.Project'),
             ('order_management.ProjectChecklist', 'template', 'order_management.ChecklistTemplate'),
             ('order_management.ApprovalLog', 'project', 'order_management.Project'),
-            ('order_management.ApprovalLog', 'user', 'auth.User'),
+            ('order_management.ApprovalLog', 'requester', 'auth.User'),
+            ('order_management.ApprovalLog', 'approver', 'auth.User'),
             ('order_management.ContractorReview', 'project', 'order_management.Project'),
-            ('order_management.ContactPerson', 'company', 'order_management.ClientCompany'),
+            ('order_management.ContactPerson', 'client_company', 'order_management.ClientCompany'),
 
             # subcontract_management
             ('subcontract_management.Subcontract', 'project', 'order_management.Project'),
@@ -143,7 +143,7 @@ class BackupValidator:
             ('subcontract_management.ContractorFieldDefinition', 'category', 'subcontract_management.ContractorFieldCategory'),
 
             # 会社が削除されている連絡先
-            ('order_management.ContactPerson', 'company', 'order_management.ClientCompany'),
+            ('order_management.ContactPerson', 'client_company', 'order_management.ClientCompany'),
         ]
 
         for child_model, parent_field, parent_model in orphan_checks:
@@ -173,9 +173,9 @@ class BackupValidator:
         # 重要なモデルの必須フィールドをチェック
         required_field_checks = [
             ('order_management.Project', ['management_no', 'site_name']),
-            ('order_management.ClientCompany', ['name']),
+            ('order_management.ClientCompany', ['company_name']),
             ('subcontract_management.Contractor', ['name']),
-            ('order_management.Invoice', ['project', 'invoice_number']),
+            ('order_management.Invoice', ['invoice_number']),
         ]
 
         for model_name, required_fields in required_field_checks:
