@@ -682,6 +682,15 @@
     <div id="listView" style="display: none;">
         <!-- リスト表示のヘッダー行 -->
         <div class="mb-3 p-3 bg-white rounded shadow-sm border">
+            <!-- 現場名ヘッダー -->
+            <div class="row mb-2">
+                <div class="col-md-12">
+                    <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('name')">
+                        <i class="fas fa-building me-1"></i>現場名・管理No <i class="fas fa-sort"></i>
+                    </small>
+                </div>
+            </div>
+            <!-- その他のカラムヘッダー -->
             <div class="row align-items-center">
                 <div class="col-md-2">
                     <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('client')">
@@ -703,9 +712,14 @@
                         <i class="fas fa-tools me-1"></i>種別 <i class="fas fa-sort"></i>
                     </small>
                 </div>
-                <div class="col-md-5">
+                <div class="col-md-4">
                     <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('stage')">
                         <i class="fas fa-tasks me-1"></i>案件進捗 <i class="fas fa-sort"></i>
+                    </small>
+                </div>
+                <div class="col-md-1">
+                    <small class="text-muted fw-bold">
+                        <i class="fas fa-comment me-1"></i>コメント
                     </small>
                 </div>
             </div>
