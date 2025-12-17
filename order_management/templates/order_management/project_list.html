@@ -684,23 +684,23 @@
         <div class="mb-3 p-3 bg-white rounded shadow-sm border">
             <div class="row align-items-center">
                 <div class="col-md-2">
-                    <small class="text-muted fw-bold">
-                        <i class="fas fa-building me-1"></i>元請
+                    <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('client')">
+                        <i class="fas fa-building me-1"></i>元請 <i class="fas fa-sort"></i>
                     </small>
                 </div>
                 <div class="col-md-2">
-                    <small class="text-muted fw-bold">
-                        <i class="fas fa-users me-1"></i>下請
+                    <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('contractor')">
+                        <i class="fas fa-users me-1"></i>下請 <i class="fas fa-sort"></i>
                     </small>
                 </div>
                 <div class="col-md-2">
-                    <small class="text-muted fw-bold">
-                        <i class="fas fa-calendar me-1"></i>工期・利益
+                    <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('schedule')">
+                        <i class="fas fa-calendar me-1"></i>工期・利益 <i class="fas fa-sort"></i>
                     </small>
                 </div>
                 <div class="col-md-1">
-                    <small class="text-muted fw-bold">
-                        <i class="fas fa-tools me-1"></i>種別
+                    <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('work_type')">
+                        <i class="fas fa-tools me-1"></i>種別 <i class="fas fa-sort"></i>
                     </small>
                 </div>
                 <div class="col-md-5">
@@ -712,11 +712,15 @@
         </div>
         <div id="summaryListItems">
             {% for project in projects %}
-            {% with stage=project.get_current_project_stage details=project.get_progress_details revenue=project.get_revenue_breakdown %}
+            {% with stage=project.get_current_project_stage details=project.get_progress_details revenue=project.get_revenue_breakdown period=project.get_construction_period grouped_subs=project.get_grouped_subcontracts %}
             <div class="list-view-item"
                  onclick="window.location='{% url 'order_management:project_detail' project.pk %}'"
                  style="border-left-color: {% if project.project_status == '受注確定' %}#28a745{% elif project.project_status == 'A' %}#dc3545{% elif project.project_status == 'B' %}#ffc107{% elif project.project_status == 'NG' %}#6c757d{% else %}#e9d5ff{% endif %};"
                  data-name="{{ project.site_name }}"
+                 data-client="{% if project.client_company %}{{ project.client_company.company_name }}{% else %}{{ project.client_name|default:'' }}{% endif %}"
+                 data-contractor="{% if grouped_subs %}{{ grouped_subs|length }}{% else %}0{% endif %}"
+                 data-schedule="{% if period.start_date %}{{ period.start_date|date:'Y-m-d' }}{% else %}9999-12-31{% endif %}"
+                 data-profit="{{ revenue.gross_profit|default:0 }}"
                  data-work-type="{{ project.work_type|default:'' }}"
                  data-stage="{{ stage.stage }}"
                  data-progress="{% if details.total_steps > 0 %}{% widthratio details.completed_steps details.total_steps 100 %}{% else %}0{% endif %}"
@@ -1231,6 +1235,22 @@ function sortSummaryList(field) {
             case 'name':
                 aValue = $(a).data('name') || '';
                 bValue = $(b).data('name') || '';
+                break;
+            case 'client':
+                aValue = $(a).data('client') || '';
+                bValue = $(b).data('client') || '';
+                break;
+            case 'contractor':
+                aValue = parseInt($(a).data('contractor')) || 0;
+                bValue = parseInt($(b).data('contractor')) || 0;
+                break;
+            case 'schedule':
+                aValue = $(a).data('schedule') || '9999-12-31';
+                bValue = $(b).data('schedule') || '9999-12-31';
+                break;
+            case 'profit':
+                aValue = parseFloat($(a).data('profit')) || 0;
+                bValue = parseFloat($(b).data('profit')) || 0;
                 break;
             case 'work_type':
                 aValue = $(a).data('work-type') || '';
