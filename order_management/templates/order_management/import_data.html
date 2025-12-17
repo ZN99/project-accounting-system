@@ -17,16 +17,25 @@
                 <div class="card-body">
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>完全バックアップファイル（JSON形式）をアップロードしてデータをインポートします。</strong><br>
+                        <strong>完全バックアップファイルをアップロードしてデータをインポートします。</strong><br>
                         <small>含まれるデータ: ユーザー情報、案件管理、下請け管理、資材発注、経理情報など全てのデータ</small>
+                    </div>
+
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>ZIP形式（推奨）</strong><br>
+                        <small>
+                            データベース + メディアファイル（画像、PDF等）を含む完全バックアップ。<br>
+                            ZIPファイルを使用すると、メディアファイルも自動的に復元されます。✅
+                        </small>
                     </div>
 
                     <div class="alert alert-warning">
                         <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>重要：メディアファイルについて</strong><br>
+                        <strong>JSON形式（後方互換性）</strong><br>
                         <small>
-                            JSONバックアップには、アップロードされた画像やPDFファイルの<strong>パスのみ</strong>が含まれます。<br>
-                            実際のファイルは含まれないため、クリーンインストール後は別途 <code>media/</code> フォルダを復元する必要があります。
+                            JSONバックアップには、データベースデータのみが含まれます。<br>
+                            メディアファイル（画像やPDF）は含まれないため、別途 <code>media/</code> フォルダを復元する必要があります。⚠️
                         </small>
                     </div>
 
@@ -34,9 +43,9 @@
                         {% csrf_token %}
                         <div class="mb-3">
                             <label for="backup_file" class="form-label">バックアップファイル</label>
-                            <input type="file" class="form-control" id="backup_file" name="backup_file" accept=".json" required>
+                            <input type="file" class="form-control" id="backup_file" name="backup_file" accept=".zip,.json" required>
                             <small class="form-text text-muted">
-                                JSON形式のバックアップファイルを選択してください
+                                ZIP形式（推奨）またはJSON形式のバックアップファイルを選択してください
                             </small>
                         </div>
 
