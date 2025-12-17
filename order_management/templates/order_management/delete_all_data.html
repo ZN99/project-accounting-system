@@ -1,0 +1,231 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+
+{% block title %}全データ削除 - 建築派遣管理システム{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>全データ削除（危険）</h4>
+                    <a href="{% url 'order_management:dashboard' %}" class="btn btn-light btn-sm">
+                        <i class="fas fa-times me-2"></i>キャンセル
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if error %}
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            <strong>エラー:</strong> {{ error }}
+                        </div>
+                    {% endif %}
+
+                    <div class="alert alert-danger">
+                        <i class="fas fa-radiation me-2"></i>
+                        <strong>⚠️ 警告: この操作は非常に危険です！</strong><br>
+                        <small>全てのデータベースデータが削除されます。この操作は取り消せません。</small>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>安全機能:</strong><br>
+                        <ul class="mb-0 mt-2">
+                            <li>削除前に自動バックアップが作成されます</li>
+                            <li>ユーザーアカウント（auth.User）は保持されます</li>
+                            <li>確認コード "DELETE" の入力が必要です</li>
+                        </ul>
+                    </div>
+
+                    <!-- 削除対象のプレビュー -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-warning">
+                            <h5 class="mb-0"><i class="fas fa-list me-2"></i>削除対象のプレビュー</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if deletion_preview %}
+                                <div class="alert alert-warning">
+                                    <strong>合計: {{ total_records|default:0 }}件のレコードが削除されます</strong>
+                                </div>
+
+                                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                    <table class="table table-sm table-striped">
+                                        <thead class="sticky-top bg-light">
+                                            <tr>
+                                                <th>モデル</th>
+                                                <th class="text-end">レコード数</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for model_label, count in deletion_preview.items %}
+                                                {% if count > 0 %}
+                                                    <tr>
+                                                        <td><code>{{ model_label }}</code></td>
+                                                        <td class="text-end"><strong>{{ count }}件</strong></td>
+                                                    </tr>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="alert alert-success">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    削除対象のデータがありません
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- 削除実行フォーム -->
+                    {% if total_records > 0 %}
+                        <form id="deleteForm" method="post">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="confirmation_code" class="form-label">
+                                    <strong>確認コード</strong>
+                                </label>
+                                <input
+                                    type="text"
+                                    class="form-control form-control-lg"
+                                    id="confirmation_code"
+                                    name="confirmation_code"
+                                    placeholder='削除するには "DELETE" と入力してください'
+                                    required
+                                    autocomplete="off"
+                                >
+                                <small class="form-text text-muted">
+                                    確認のため、<strong>DELETE</strong> と正確に入力してください（大文字）
+                                </small>
+                            </div>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <a href="{% url 'order_management:dashboard' %}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-2"></i>キャンセル
+                                </a>
+                                <button type="submit" class="btn btn-danger btn-lg">
+                                    <i class="fas fa-trash-alt me-2"></i>全データを削除
+                                </button>
+                            </div>
+                        </form>
+
+                        <div id="deleteResult" class="mt-4" style="display: none;">
+                            <div class="alert" role="alert">
+                                <span id="resultMessage"></span>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 注意事項 -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-book me-2"></i>注意事項</h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i> 削除されるデータ</h6>
+                    <ul>
+                        <li><strong>案件管理データ</strong>: プロジェクト、進捗ステップ、チェックリスト、ファイル等</li>
+                        <li><strong>下請け管理データ</strong>: 下請け業者情報、契約情報、カスタムフィールド等</li>
+                        <li><strong>経理データ</strong>: 請求書、資材発注、キャッシュフロー、原価管理等</li>
+                        <li><strong>元請情報</strong>: 取引先企業、担当者情報等</li>
+                        <li><strong>その他</strong>: 通知、コメント、レビュー、レポート等</li>
+                    </ul>
+
+                    <h6 class="text-success mt-3"><i class="fas fa-shield-alt me-1"></i> 保持されるデータ</h6>
+                    <ul>
+                        <li><strong>ユーザーアカウント</strong>: auth.User テーブルは削除されません</li>
+                        <li><strong>システム設定</strong>: セッション情報、管理ログ等は保持されます</li>
+                    </ul>
+
+                    <h6 class="text-warning mt-3"><i class="fas fa-life-ring me-1"></i> 復元方法</h6>
+                    <ol>
+                        <li>削除前に作成された自動バックアップファイルを確認</li>
+                        <li>バックアップファイルは <code>./backups/pre_delete_backup_YYYYMMDD_HHMMSS.zip</code> に保存されます</li>
+                        <li>復元するには、<a href="{% url 'order_management:import_data' %}">データインポート画面</a>からバックアップファイルをアップロード</li>
+                    </ol>
+
+                    <h6 class="text-primary mt-3"><i class="fas fa-terminal me-1"></i> CLI コマンド</h6>
+                    <p>コマンドラインからも削除できます:</p>
+                    <pre class="bg-light p-2"><code>python manage.py delete_all_data
+python manage.py delete_all_data --force      # 確認なし
+python manage.py delete_all_data --no-backup  # バックアップなし（非推奨）</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('deleteForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const resultDiv = document.getElementById('deleteResult');
+    const resultMessage = document.getElementById('resultMessage');
+    const confirmationCode = formData.get('confirmation_code');
+
+    // 確認コードのチェック（クライアント側）
+    if (confirmationCode !== 'DELETE') {
+        resultDiv.style.display = 'block';
+        resultDiv.querySelector('.alert').className = 'alert alert-danger';
+        resultMessage.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>確認コードが正しくありません。"DELETE" と正確に入力してください。';
+        return;
+    }
+
+    // 最終確認（ブラウザの機能を使わない、インライン確認）
+    if (!confirm('本当に全データを削除しますか？この操作は取り消せません。\n\n自動バックアップは作成されますが、削除されたデータは元に戻せません。\n\n続行するには OK をクリックしてください。')) {
+        return;
+    }
+
+    // ローディング表示
+    resultDiv.style.display = 'block';
+    resultDiv.querySelector('.alert').className = 'alert alert-info';
+    resultMessage.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>削除処理中...<br><small>バックアップ作成とデータ削除を実行しています。しばらくお待ちください。</small>';
+
+    // フォームを無効化
+    document.getElementById('deleteForm').querySelectorAll('input, button').forEach(el => el.disabled = true);
+
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            resultDiv.querySelector('.alert').className = 'alert alert-success';
+            resultMessage.innerHTML =
+                '<i class="fas fa-check-circle me-2"></i><strong>' + data.message + '</strong><br>' +
+                '<small>' + data.details + '</small><br>' +
+                '<small class="mt-2 d-block"><strong>バックアップ:</strong> ' + data.backup_path + '</small><br>' +
+                '<a href="{% url 'order_management:dashboard' %}" class="btn btn-primary btn-sm mt-2">ダッシュボードへ戻る</a>';
+
+            // フォームをリセット
+            document.getElementById('deleteForm').reset();
+        } else {
+            resultDiv.querySelector('.alert').className = 'alert alert-danger';
+            resultMessage.innerHTML =
+                '<i class="fas fa-exclamation-circle me-2"></i><strong>エラー:</strong> ' + data.message + '<br>' +
+                (data.details ? '<small>' + data.details + '</small>' : '');
+
+            // フォームを再度有効化
+            document.getElementById('deleteForm').querySelectorAll('input, button').forEach(el => el.disabled = false);
+        }
+    })
+    .catch(error => {
+        resultDiv.querySelector('.alert').className = 'alert alert-danger';
+        resultMessage.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>エラーが発生しました: ' + error;
+
+        // フォームを再度有効化
+        document.getElementById('deleteForm').querySelectorAll('input, button').forEach(el => el.disabled = false);
+    });
+});
+</script>
+{% endblock %}

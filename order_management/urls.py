@@ -152,7 +152,8 @@ from .views_file import (
 )
 from .views_backup import (
     export_data,
-    import_data_view
+    import_data_view,
+    delete_all_data_view
 )
 
 app_name = 'order_management'
@@ -408,4 +409,5 @@ urlpatterns = [
     # データバックアップ・復元
     path('backup/export/', export_data, name='export_data'),
     path('backup/import/', import_data_view, name='import_data'),
+    path('backup/delete/', delete_all_data_view, name='delete_all_data'),
 ]

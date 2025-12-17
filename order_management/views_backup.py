@@ -350,3 +350,180 @@ def _restore_from_json(json_file_path: str) -> JsonResponse:
         'details': f'{installed_count}個のオブジェクトがインポートされました',
         'warnings': '⚠️ メディアファイルは復元されていません。ZIPバックアップを使用してください。'
     })
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def delete_all_data_view(request):
+    """
+    全データ削除ビュー - データベースの全データを削除（ユーザーテーブルは保持）
+
+    注意:
+    - 削除前に自動バックアップを作成
+    - 削除対象のプレビューを表示
+    - 確認コードの入力が必要
+    - ユーザーテーブル（auth.User）は保持される
+    """
+    from django.apps import apps
+
+    if request.method == 'GET':
+        # 削除対象のプレビューを取得
+        try:
+            deletion_preview = {}
+
+            # 削除対象のモデルを取得（authアプリのUserは除く）
+            for app_config in apps.get_app_configs():
+                if app_config.name in ['order_management', 'subcontract_management']:
+                    for model in app_config.get_models():
+                        model_label = f'{app_config.label}.{model._meta.model_name}'
+                        try:
+                            count = model.objects.count()
+                            if count > 0:
+                                deletion_preview[model_label] = count
+                        except Exception:
+                            deletion_preview[model_label] = 0
+
+            # レコード数でソート
+            deletion_preview = dict(sorted(deletion_preview.items(), key=lambda x: x[1], reverse=True))
+            total_records = sum(deletion_preview.values())
+
+            return render(request, 'order_management/delete_all_data.html', {
+                'deletion_preview': deletion_preview,
+                'total_records': total_records
+            })
+
+        except Exception as e:
+            import traceback
+            logger.error(f'削除プレビューエラー: {str(e)}\n{traceback.format_exc()}')
+
+            return render(request, 'order_management/delete_all_data.html', {
+                'error': f'削除対象の取得中にエラーが発生しました: {str(e)}',
+                'deletion_preview': {},
+                'total_records': 0
+            })
+
+    elif request.method == 'POST':
+        try:
+            # 確認コードの検証
+            confirmation_code = request.POST.get('confirmation_code', '').strip()
+
+            if confirmation_code != 'DELETE':
+                return JsonResponse({
+                    'status': 'error',
+                    'message': '確認コードが正しくありません。"DELETE" と入力してください。'
+                }, status=400)
+
+            # 1. 削除前の自動バックアップを作成
+            logger.info('削除前の自動バックアップを作成中...')
+
+            try:
+                backups_dir = Path('./backups')
+                backups_dir.mkdir(parents=True, exist_ok=True)
+                backup_path = backups_dir / f'pre_delete_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.zip'
+
+                # backup_data コマンドを呼び出し
+                call_command(
+                    'backup_data',
+                    output=str(backup_path),
+                    verbosity=0
+                )
+
+                logger.info(f'バックアップ作成完了: {backup_path}')
+
+            except Exception as e:
+                logger.error(f'バックアップ作成エラー: {str(e)}')
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'削除前のバックアップ作成に失敗しました: {str(e)}',
+                    'details': 'データの安全性を確保するため、削除をキャンセルしました'
+                }, status=500)
+
+            # 2. データ削除の実行
+            logger.info('データ削除を開始...')
+
+            deleted_counts = {}
+
+            # 削除順序（FK制約を考慮）
+            deletion_order = [
+                # order_management
+                ('order_management', 'CommentAttachment'),
+                ('order_management', 'CommentReadStatus'),
+                ('order_management', 'Comment'),
+                ('order_management', 'Notification'),
+                ('order_management', 'ProjectFile'),
+                ('order_management', 'ProjectChecklist'),
+                ('order_management', 'InvoiceItem'),
+                ('order_management', 'Invoice'),
+                ('order_management', 'MaterialOrderItem'),
+                ('order_management', 'MaterialOrder'),
+                ('order_management', 'ApprovalLog'),
+                ('order_management', 'ContractorReview'),
+                ('order_management', 'ProjectProgressStep'),
+                ('order_management', 'CashFlowTransaction'),
+                ('order_management', 'FixedCost'),
+                ('order_management', 'VariableCost'),
+                ('order_management', 'ProjectProgress'),
+                ('order_management', 'Report'),
+                ('order_management', 'SeasonalityIndex'),
+                ('order_management', 'ForecastScenario'),
+
+                # subcontract_management
+                ('subcontract_management', 'ProjectProfitAnalysis'),
+                ('subcontract_management', 'Subcontract'),
+
+                # order_management (FK依存がないもの)
+                ('order_management', 'Project'),
+                ('order_management', 'ContactPerson'),
+                ('order_management', 'ClientCompany'),
+                ('order_management', 'WorkType'),
+                ('order_management', 'ChecklistTemplate'),
+                ('order_management', 'ProgressStepTemplate'),
+                ('order_management', 'RatingCriteria'),
+                ('order_management', 'CompanySettings'),
+                ('order_management', 'UserProfile'),
+                ('order_management', 'Contractor'),  # Legacy model
+
+                # subcontract_management
+                ('subcontract_management', 'ContractorFieldDefinition'),
+                ('subcontract_management', 'ContractorFieldCategory'),
+                ('subcontract_management', 'Contractor'),
+                ('subcontract_management', 'InternalWorker'),
+            ]
+
+            # 順番に削除
+            for app_label, model_name in deletion_order:
+                try:
+                    Model = apps.get_model(app_label, model_name)
+                    count = Model.objects.count()
+
+                    if count > 0:
+                        Model.objects.all().delete()
+                        deleted_counts[f'{app_label}.{model_name}'] = count
+
+                except LookupError:
+                    # モデルが存在しない場合はスキップ
+                    pass
+                except Exception as e:
+                    logger.warning(f'{app_label}.{model_name} の削除に失敗: {str(e)}')
+
+            total_deleted = sum(deleted_counts.values())
+
+            logger.info(f'データ削除完了: {total_deleted}件のレコードを削除')
+
+            return JsonResponse({
+                'status': 'success',
+                'message': f'データの削除が完了しました',
+                'details': f'{total_deleted}件のレコードを削除しました',
+                'backup_path': str(backup_path),
+                'deleted_counts': deleted_counts
+            })
+
+        except Exception as e:
+            import traceback
+            logger.error(f'削除処理エラー: {str(e)}\n{traceback.format_exc()}')
+
+            return JsonResponse({
+                'status': 'error',
+                'message': f'削除処理中にエラーが発生しました: {str(e)}',
+                'details': 'サーバーログを確認してください'
+            }, status=500)
