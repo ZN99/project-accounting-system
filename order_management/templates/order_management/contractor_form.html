@@ -1,12 +1,115 @@
 {% extends "order_management/base.html" %}
 {% load static %}
 
-{% block title %}業者情報編集 - {{ contractor.name }}{% endblock %}
+{% block title %}
+{% if contractor %}
+業者情報編集 - {{ contractor.name }} - 建築派遣管理システム
+{% else %}
+{{ page_title }} - 建築派遣管理システム
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-card {
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: none;
+    }
+
+    .form-header {
+        border-radius: 10px 10px 0 0;
+        padding: 20px;
+        margin: 0;
+        color: white;
+    }
+
+    .external-header {
+        background: linear-gradient(135deg, #42a5f5 0%, #1e88e5 100%);
+    }
+    .supplier-header {
+        background: linear-gradient(135deg, #ffa726 0%, #ff9800 100%);
+    }
+    .receiving-header {
+        background: linear-gradient(135deg, #66bb6a 0%, #43a047 100%);
+    }
+    .general-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .form-control, .form-select, .form-check-input {
+        border-radius: 0.375rem;
+        border: 1px solid #ddd;
+        transition: all 0.2s;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+
+    .form-label {
+        font-weight: 500;
+        color: #495057;
+        margin-bottom: 8px;
+    }
+
+    .form-check-label {
+        font-weight: 500;
+        color: #495057;
+    }
+
+    .required-asterisk {
+        color: #dc3545;
+        font-weight: bold;
+    }
+
+    .btn-save {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        padding: 12px 30px;
+        font-weight: 600;
+        border-radius: 8px;
+        transition: all 0.2s;
+    }
+
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+    }
+
+    /* ドラッグアンドドロップ用スタイル */
+    .sortable-ghost {
+        opacity: 0.4;
+        background: #f8f9fa;
+    }
+
+    .drag-handle {
+        cursor: move;
+        transition: color 0.2s;
+    }
+
+    .drag-handle:hover {
+        color: #667eea !important;
+    }
+
+    .list-group-item {
+        transition: background-color 0.2s;
+    }
+
+    .list-group-item:hover .drag-handle {
+        color: #667eea !important;
+    }
+
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- ヘッダー -->
-    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+<div class="container-fluid py-4">
+
+    {% if contractor %}
+    <!-- 編集モード: ヘッダー -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
         <h1 class="h2">
             <i class="fas fa-edit me-2"></i>業者情報編集 - {{ contractor.name }}
         </h1>
@@ -18,50 +121,95 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
-    <!-- 編集フォーム -->
-    <div class="row">
-        <div class="col-lg-8 mx-auto">
-            <div class="card shadow-sm">
-                <div class="card-header">
+    <!-- メインフォーム -->
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card form-card">
+                {% if not contractor %}
+                <!-- 新規作成モード: カラフルヘッダー -->
+                <div class="form-header {% if contractor_type == 'individual' %}external-header{% elif contractor_type == 'material' %}supplier-header{% elif contractor_type == 'company' %}general-header{% else %}general-header{% endif %}">
                     <h5 class="mb-0">
-                        <i class="fas fa-building me-2"></i>業者情報
+                        {% if contractor_type == 'individual' %}
+                            <i class="fas fa-user me-2"></i>個人職人情報
+                        {% elif contractor_type == 'material' %}
+                            <i class="fas fa-boxes me-2"></i>資材業者情報
+                        {% elif contractor_type == 'company' %}
+                            <i class="fas fa-building me-2"></i>協力会社情報
+                        {% else %}
+                            <i class="fas fa-users me-2"></i>業者情報
+                        {% endif %}
                     </h5>
                 </div>
-                <div class="card-body">
+                {% endif %}
+                <div class="card-body p-4">
                     <form method="post">
                         {% csrf_token %}
 
-                        <div class="mb-3">
-                            <label for="{{ form.name.id_for_label }}" class="form-label">
-                                業者名 <span class="text-danger">*</span>
-                            </label>
-                            {{ form.name }}
-                            {% if form.name.errors %}
-                                <div class="text-danger mt-1">
-                                    {% for error in form.name.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
+                        <!-- 基本情報 -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.name.id_for_label }}" class="form-label">
+                                    <i class="fas fa-building me-1"></i>業者名 <span class="required-asterisk">*</span>
+                                </label>
+                                {{ form.name }}
+                                {% if form.name.errors %}
+                                    <div class="text-danger mt-1">
+                                        {% for error in form.name.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.contact_person.id_for_label }}" class="form-label">
+                                    <i class="fas fa-user me-1"></i>担当者名
+                                </label>
+                                {{ form.contact_person }}
+                                {% if form.contact_person.errors %}
+                                    <div class="text-danger mt-1">
+                                        {% for error in form.contact_person.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.phone.id_for_label }}" class="form-label">
+                                    <i class="fas fa-phone me-1"></i>電話番号
+                                </label>
+                                {{ form.phone }}
+                                {% if form.phone.errors %}
+                                    <div class="text-danger mt-1">
+                                        {% for error in form.phone.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.email.id_for_label }}" class="form-label">
+                                    <i class="fas fa-envelope me-1"></i>メールアドレス
+                                </label>
+                                {{ form.email }}
+                                {% if form.email.errors %}
+                                    <div class="text-danger mt-1">
+                                        {% for error in form.email.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
                         </div>
 
                         <div class="mb-3">
-                            <label for="{{ form.contractor_type.id_for_label }}" class="form-label">
-                                業者種別 <span class="text-danger">*</span>
+                            <label for="{{ form.address.id_for_label }}" class="form-label">
+                                <i class="fas fa-map-marker-alt me-1"></i>住所 <span class="text-danger">*</span>
                             </label>
-                            {{ form.contractor_type }}
-                            {% if form.contractor_type.errors %}
-                                <div class="text-danger mt-1">
-                                    {% for error in form.contractor_type.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="{{ form.address.id_for_label }}" class="form-label">住所</label>
                             {{ form.address }}
                             {% if form.address.errors %}
                                 <div class="text-danger mt-1">
@@ -72,57 +220,10 @@
                             {% endif %}
                         </div>
 
-                        <div class="mb-3">
-                            <label for="{{ form.phone.id_for_label }}" class="form-label">電話番号</label>
-                            {{ form.phone }}
-                            {% if form.phone.errors %}
-                                <div class="text-danger mt-1">
-                                    {% for error in form.phone.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="{{ form.email.id_for_label }}" class="form-label">メールアドレス</label>
-                            {{ form.email }}
-                            {% if form.email.errors %}
-                                <div class="text-danger mt-1">
-                                    {% for error in form.email.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="{{ form.contact_person.id_for_label }}" class="form-label">担当者名</label>
-                            {{ form.contact_person }}
-                            {% if form.contact_person.errors %}
-                                <div class="text-danger mt-1">
-                                    {% for error in form.contact_person.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="mb-3" id="hourlyRateField" style="display: none;">
-                            <label for="{{ form.hourly_rate.id_for_label }}" class="form-label">時給単価（円）</label>
-                            {{ form.hourly_rate }}
-                            {% if form.hourly_rate.errors %}
-                                <div class="text-danger mt-1">
-                                    {% for error in form.hourly_rate.errors %}
-                                        <small>{{ error }}</small>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                            <small class="form-text text-muted">任意: コスト計算用（個人職人のみ）</small>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="{{ form.specialties.id_for_label }}" class="form-label">専門分野</label>
+                        <div class="mb-4">
+                            <label for="{{ form.specialties.id_for_label }}" class="form-label">
+                                <i class="fas fa-tools me-1"></i>専門分野
+                            </label>
                             {{ form.specialties }}
                             {% if form.specialties.errors %}
                                 <div class="text-danger mt-1">
@@ -131,21 +232,51 @@
                                     {% endfor %}
                                 </div>
                             {% endif %}
-                            <small class="form-text text-muted">任意: カンマ区切りで複数入力可</small>
+                            <div class="form-text">例：建築工事、電気工事、内装工事など</div>
                         </div>
 
-                        <div class="form-check mb-3">
-                            {{ form.is_active }}
-                            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
-                                アクティブ
+                        <!-- 業者種別 -->
+                        <div class="mb-4">
+                            <label for="{{ form.contractor_type.id_for_label }}" class="form-label">
+                                <i class="fas fa-user-tag me-1"></i>業者種別 <span class="required-asterisk">*</span>
                             </label>
-                            {% if form.is_active.errors %}
+                            {{ form.contractor_type }}
+                            {% if form.contractor_type.errors %}
                                 <div class="text-danger mt-1">
-                                    {% for error in form.is_active.errors %}
+                                    {% for error in form.contractor_type.errors %}
                                         <small>{{ error }}</small>
                                     {% endfor %}
                                 </div>
                             {% endif %}
+                            <div class="form-text">協力会社、個人職人、または資材を選択してください</div>
+                        </div>
+
+                        <!-- 時給単価（折りたたみ可能） -->
+                        <div class="mb-4">
+                            <!-- 折りたたみトグルボタン -->
+                            <div class="d-flex align-items-center mb-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleHourlyRateSection()" id="hourlyRateToggleBtn">
+                                    <i class="fas fa-plus me-1" id="hourlyRateToggleIcon"></i>
+                                    <i class="fas fa-yen-sign me-1"></i>時給単価を追加
+                                </button>
+                                <small class="text-muted ms-2">（個人職人の場合は入力してください）</small>
+                            </div>
+
+                            <!-- 折りたたみ可能な設定エリア -->
+                            <div id="hourlyRateSection" style="display: none;">
+                                <label for="{{ form.hourly_rate.id_for_label }}" class="form-label">
+                                    <i class="fas fa-yen-sign me-1"></i>時給単価
+                                </label>
+                                {{ form.hourly_rate }}
+                                {% if form.hourly_rate.errors %}
+                                    <div class="text-danger mt-1">
+                                        {% for error in form.hourly_rate.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">時給単価を円単位で入力してください</div>
+                            </div>
                         </div>
 
                         <!-- 支払い情報 -->
@@ -194,7 +325,7 @@
                                             {% endfor %}
                                         </div>
                                     {% endif %}
-                                    <small class="form-text text-muted">当月、翌月、翌々月など</small>
+                                    <small class="form-text text-muted">当月、翌月、翌々月</small>
                                 </div>
                             </div>
                             <div class="col-md-3">
@@ -302,7 +433,6 @@
                         </div>
 
                         {% if custom_fields_by_category %}
-
                         {% for cat_data in custom_fields_by_category %}
                         <div class="card mb-3">
                             <div class="card-header bg-light">
@@ -314,7 +444,9 @@
                             <div class="card-body">
                                 <div class="row">
                                     {% for field in cat_data.fields %}
-                                    <div class="col-md-6 mb-3">
+                                    <div class="{% if field.definition.field_type == 'textarea' or field.definition.slug == 'has_wholesale_contract' %}col-md-12{% else %}col-md-6{% endif %} mb-3 {% if field.definition.slug == 'wholesale_contract_details' %}d-none{% endif %} {% if field.definition.slug == 'scaffolding_whole_house_cost' %}d-none{% endif %}"
+                                         {% if field.definition.slug == 'wholesale_contract_details' %}id="wholesale_contract_details_wrapper"{% endif %}
+                                         {% if field.definition.slug == 'scaffolding_whole_house_cost' %}id="scaffolding_whole_house_cost_wrapper"{% endif %}>
                                         {% if field.definition.field_type == 'text' %}
                                             <label class="form-label">
                                                 {{ field.definition.name }}
@@ -395,20 +527,66 @@
                                             {% endif %}
 
                                         {% elif field.definition.field_type == 'multiselect' %}
-                                            <label class="form-label">
+                                            <label class="form-label d-block">
                                                 {{ field.definition.name }}
                                                 {% if field.definition.is_required %}<span class="text-danger">*</span>{% endif %}
                                             </label>
-                                            <select name="custom_{{ field.definition.slug }}"
-                                                    class="form-select"
-                                                    multiple
-                                                    {% if field.definition.is_required %}required{% endif %}>
-                                                {% for choice in field.definition.choices %}
-                                                    <option value="{{ choice }}" {% if choice in field.current_value %}selected{% endif %}>
-                                                        {{ choice }}
-                                                    </option>
-                                                {% endfor %}
-                                            </select>
+
+                                            {% if field.definition.slug == 'service_areas' or field.definition.slug == 'travel_expense_areas' %}
+                                                <!-- 地方ごとの一括選択機能付き表示 -->
+                                                <div class="checkbox-group-regions" id="{{ field.definition.slug }}_container">
+                                                    {% for region, prefectures in regions_mapping.items %}
+                                                    <div class="region-group mb-3 border-start border-primary border-3 ps-3">
+                                                        <div class="form-check mb-2">
+                                                            <input type="checkbox"
+                                                                   class="form-check-input region-toggle"
+                                                                   id="region_{{ field.definition.slug }}_{{ forloop.counter }}"
+                                                                   data-region="{{ region }}"
+                                                                   data-field-slug="{{ field.definition.slug }}"
+                                                                   onchange="toggleRegionPrefectures(this)">
+                                                            <label class="form-check-label fw-bold" for="region_{{ field.definition.slug }}_{{ forloop.counter }}">
+                                                                <i class="fas fa-map-marked-alt me-1"></i>{{ region }}（全選択/解除）
+                                                            </label>
+                                                        </div>
+                                                        <div class="prefecture-checkboxes ps-4">
+                                                            {% for prefecture in prefectures %}
+                                                            <div class="form-check form-check-inline">
+                                                                <input type="checkbox"
+                                                                       class="form-check-input prefecture-checkbox"
+                                                                       name="custom_{{ field.definition.slug }}"
+                                                                       value="{{ prefecture }}"
+                                                                       id="custom_{{ field.definition.slug }}_{{ prefecture }}"
+                                                                       data-region="{{ region }}"
+                                                                       data-field-slug="{{ field.definition.slug }}"
+                                                                       {% if prefecture in field.current_value %}checked{% endif %}>
+                                                                <label class="form-check-label" for="custom_{{ field.definition.slug }}_{{ prefecture }}">
+                                                                    {{ prefecture }}
+                                                                </label>
+                                                            </div>
+                                                            {% endfor %}
+                                                        </div>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            {% else %}
+                                                <!-- 通常のmultiselect表示 -->
+                                                <div class="checkbox-group">
+                                                    {% for choice in field.definition.choices %}
+                                                    <div class="form-check form-check-inline">
+                                                        <input type="checkbox"
+                                                               class="form-check-input"
+                                                               name="custom_{{ field.definition.slug }}"
+                                                               value="{{ choice }}"
+                                                               id="custom_{{ field.definition.slug }}_{{ forloop.counter }}"
+                                                               {% if choice in field.current_value %}checked{% endif %}>
+                                                        <label class="form-check-label" for="custom_{{ field.definition.slug }}_{{ forloop.counter }}">
+                                                            {{ choice }}
+                                                        </label>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+
                                             {% if field.definition.help_text %}
                                                 <small class="form-text text-muted">{{ field.definition.help_text }}</small>
                                             {% endif %}
@@ -437,60 +615,36 @@
 
                         <hr class="my-4">
 
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-1"></i>更新
+                        <!-- アクティブ状態 -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                {{ form.is_active }}
+                                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                    <i class="fas fa-check-circle me-1"></i>アクティブ状態
+                                </label>
+                            </div>
+                            <div class="form-text">チェックを外すと業者一覧に表示されなくなります</div>
+                        </div>
+
+                        <!-- 送信ボタン -->
+                        <div class="d-flex gap-3 justify-content-center">
+                            <button type="submit" class="btn btn-primary btn-save">
+                                <i class="fas fa-save me-2"></i>
+                                {% if contractor %}業者を更新{% else %}業者を登録{% endif %}
                             </button>
-                            <a href="javascript:window.history.back();" class="btn btn-secondary">
-                                <i class="fas fa-times me-1"></i>キャンセル
+                            {% if contractor %}
+                            <a href="javascript:window.history.back();" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>キャンセル
                             </a>
+                            {% else %}
+                            <a href="{{ back_url }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>キャンセル
+                            </a>
+                            {% endif %}
                         </div>
                     </form>
                 </div>
             </div>
-
-            <!-- 業者情報サマリー -->
-            {% if contractor.id %}
-            <div class="card shadow-sm mt-3">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="fas fa-info-circle me-2"></i>業者情報
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6 mb-2">
-                            <small class="text-muted">登録日</small>
-                            <div>{{ contractor.created_at|date:"Y年m月d日" }}</div>
-                        </div>
-                        <div class="col-md-6 mb-2">
-                            <small class="text-muted">最終更新</small>
-                            <div>{{ contractor.updated_at|date:"Y年m月d日 H:i" }}</div>
-                        </div>
-                        <div class="col-md-6 mb-2">
-                            <small class="text-muted">業者種別</small>
-                            <div>
-                                {% if contractor.contractor_type == 'individual' %}
-                                    <span class="badge bg-info">個人職人</span>
-                                {% else %}
-                                    <span class="badge bg-primary">協力会社</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-md-6 mb-2">
-                            <small class="text-muted">状態</small>
-                            <div>
-                                {% if contractor.is_active %}
-                                    <span class="badge bg-success">アクティブ</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">無効</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>
@@ -678,7 +832,31 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- SortableJS for drag and drop -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
 <script>
+// 時給単価セクションのトグル
+window.toggleHourlyRateSection = function() {
+    const section = document.getElementById('hourlyRateSection');
+    const toggleBtn = document.getElementById('hourlyRateToggleBtn');
+    const toggleIcon = document.getElementById('hourlyRateToggleIcon');
+
+    if (section.style.display === 'none') {
+        // 展開
+        section.style.display = 'block';
+        toggleIcon.classList.remove('fa-plus');
+        toggleIcon.classList.add('fa-minus');
+        toggleBtn.innerHTML = '<i class="fas fa-minus me-1" id="hourlyRateToggleIcon"></i><i class="fas fa-yen-sign me-1"></i>時給単価を閉じる';
+    } else {
+        // 折りたたみ
+        section.style.display = 'none';
+        toggleIcon.classList.remove('fa-minus');
+        toggleIcon.classList.add('fa-plus');
+        toggleBtn.innerHTML = '<i class="fas fa-plus me-1" id="hourlyRateToggleIcon"></i><i class="fas fa-yen-sign me-1"></i>時給単価を追加';
+    }
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     // ========================================
     // ユーティリティ関数
@@ -728,26 +906,80 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.show();
     }
 
-    // 業者種別に応じて時給単価フィールドを表示/非表示
-    const contractorTypeField = document.getElementById('{{ form.contractor_type.id_for_label }}');
-    const hourlyRateField = document.getElementById('hourlyRateField');
-
-    function toggleHourlyRateField() {
-        if (contractorTypeField && hourlyRateField) {
-            if (contractorTypeField.value === 'individual') {
-                hourlyRateField.style.display = 'block';
-            } else {
-                hourlyRateField.style.display = 'none';
-            }
-        }
+    // 時給単価の初期状態チェック（値があれば展開）
+    const hourlyRateField = document.getElementById('{{ form.hourly_rate.id_for_label }}');
+    const hourlyRateSection = document.getElementById('hourlyRateSection');
+    if (hourlyRateField && hourlyRateField.value && hourlyRateField.value !== '') {
+        toggleHourlyRateSection();
     }
 
-    // 初期状態を設定
-    toggleHourlyRateField();
+    // ========================================
+    // インボイス番号の自動フォーマット
+    // ========================================
+    const invoiceField = document.querySelector('input[name="custom_invoice_number"]');
+    if (invoiceField) {
+        invoiceField.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/[^0-9T]/g, ''); // T と数字のみ
 
-    // 業者種別変更時のイベントリスナー
-    if (contractorTypeField) {
-        contractorTypeField.addEventListener('change', toggleHourlyRateField);
+            if (value.startsWith('T')) {
+                let numbers = value.substring(1);
+                // 最大12桁まで
+                numbers = numbers.substring(0, 12);
+
+                if (numbers.length > 8) {
+                    value = 'T' + numbers.substring(0, 4) + '-' + numbers.substring(4, 8) + '-' + numbers.substring(8);
+                } else if (numbers.length > 4) {
+                    value = 'T' + numbers.substring(0, 4) + '-' + numbers.substring(4);
+                } else {
+                    value = 'T' + numbers;
+                }
+            } else if (value.length > 0) {
+                // T がない場合は先頭に追加
+                value = 'T' + value.replace(/[^0-9]/g, '').substring(0, 12);
+            }
+
+            e.target.value = value;
+        });
+    }
+
+    // ========================================
+    // 問屋契約の条件付き表示
+    // ========================================
+    const wholesaleContractSelect = document.querySelector('select[name="custom_has_wholesale_contract"]');
+    if (wholesaleContractSelect) {
+        function toggleWholesaleDetails() {
+            const detailsField = document.getElementById('wholesale_contract_details_wrapper');
+            if (detailsField) {
+                if (wholesaleContractSelect.value === 'あり') {
+                    detailsField.classList.remove('d-none');
+                } else {
+                    detailsField.classList.add('d-none');
+                }
+            }
+        }
+
+        wholesaleContractSelect.addEventListener('change', toggleWholesaleDetails);
+        toggleWholesaleDetails(); // 初期状態を設定
+    }
+
+    // ========================================
+    // 足場契約の条件付き表示
+    // ========================================
+    const scaffoldingCheckbox = document.querySelector('input[name="custom_scaffolding_contract"]');
+    if (scaffoldingCheckbox) {
+        function toggleScaffoldingCost() {
+            const costField = document.getElementById('scaffolding_whole_house_cost_wrapper');
+            if (costField) {
+                if (scaffoldingCheckbox.checked) {
+                    costField.classList.remove('d-none');
+                } else {
+                    costField.classList.add('d-none');
+                }
+            }
+        }
+
+        scaffoldingCheckbox.addEventListener('change', toggleScaffoldingCost);
+        toggleScaffoldingCost(); // 初期状態を設定
     }
 
     // ========================================
@@ -799,12 +1031,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         categoriesList.innerHTML = categoriesData.map(cat => `
-            <div class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                    <strong>${cat.name}</strong>
-                    <br>
-                    <small class="text-muted">スラッグ: ${cat.slug}</small>
-                    ${cat.description ? '<br><small class="text-muted">' + cat.description + '</small>' : ''}
+            <div class="list-group-item d-flex justify-content-between align-items-center" data-id="${cat.id}">
+                <div class="d-flex align-items-center flex-grow-1">
+                    <i class="fas fa-grip-vertical text-muted me-3 drag-handle" style="cursor: move;" title="ドラッグして並び替え"></i>
+                    <div>
+                        <strong>${cat.name}</strong>
+                        <br>
+                        <small class="text-muted">スラッグ: ${cat.slug}</small>
+                        ${cat.description ? '<br><small class="text-muted">' + cat.description + '</small>' : ''}
+                    </div>
                 </div>
                 <div class="btn-group">
                     <button class="btn btn-sm btn-outline-primary" onclick="editCategory(${cat.id})">
@@ -816,6 +1051,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
         `).join('');
+
+        // Sortableを初期化
+        initCategorySortable();
     }
 
     function updateCategorySelects() {
@@ -998,23 +1236,27 @@ document.addEventListener('DOMContentLoaded', function() {
                     <h6 class="text-primary mb-2">
                         <i class="fas fa-folder me-1"></i>${category.name}
                     </h6>
-                    <div class="list-group">
-                        ${categoryFields.map(field => `
-                            <div class="list-group-item">
+                    <div class="list-group sortable-field-list" data-category-id="${category.id}">
+                        ${categoryFields.map((field, index) => `
+                            <div class="list-group-item" data-id="${field.id}">
                                 <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <strong>${field.name}</strong>
-                                        <span class="badge bg-secondary ms-2">${field.field_type}</span>
-                                        <br>
-                                        <small class="text-muted">スラッグ: ${field.slug}</small>
-                                        ${field.help_text ? '<br><small class="text-muted">' + field.help_text + '</small>' : ''}
-                                        ${field.choices && field.choices.length > 0 ? '<br><small class="text-muted">選択肢: ' + field.choices.join(', ') + '</small>' : ''}
+                                    <div class="d-flex align-items-start flex-grow-1">
+                                        <i class="fas fa-grip-vertical text-muted me-3 drag-handle" style="cursor: move; margin-top: 4px;" title="ドラッグして並び替え"></i>
+                                        <div>
+                                            <strong>${field.name}</strong>
+                                            <span class="badge bg-secondary ms-2">${field.field_type}</span>
+                                            ${field.is_required ? '<span class="badge bg-danger ms-1">必須</span>' : ''}
+                                            <br>
+                                            <small class="text-muted">スラッグ: ${field.slug}</small>
+                                            ${field.help_text ? '<br><small class="text-muted">' + field.help_text + '</small>' : ''}
+                                            ${field.choices && field.choices.length > 0 ? '<br><small class="text-muted">選択肢: ' + field.choices.join(', ') + '</small>' : ''}
+                                        </div>
                                     </div>
                                     <div class="btn-group">
-                                        <button class="btn btn-sm btn-outline-primary" onclick="editField(${field.id})">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="editField(${field.id})" title="編集">
                                             <i class="fas fa-edit"></i>
                                         </button>
-                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteField(${field.id}, '${field.name}')">
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteField(${field.id}, '${field.name}')" title="削除">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </div>
@@ -1027,6 +1269,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         fieldsList.innerHTML = html;
+
+        // Sortableを初期化（各カテゴリのフィールドリストに対して）
+        initFieldSortable();
     }
 
     // フィールドタイプ変更時に選択肢入力の表示/非表示を切り替え
@@ -1178,6 +1423,103 @@ document.addEventListener('DOMContentLoaded', function() {
         );
     };
 
+    // ========================================
+    // Sortable初期化関数
+    // ========================================
+
+    // カテゴリリストのSortableを初期化
+    function initCategorySortable() {
+        const categoriesList = document.getElementById('categoriesList');
+        if (!categoriesList || categoriesList.children.length === 0) return;
+
+        new Sortable(categoriesList, {
+            handle: '.drag-handle',
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            onEnd: function(evt) {
+                // 新しい順序を取得
+                const items = Array.from(categoriesList.children).map((el, index) => ({
+                    id: parseInt(el.dataset.id),
+                    order: index
+                }));
+
+                // サーバーに送信
+                fetch('/orders/api/contractor-field-reorder/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: JSON.stringify({
+                        type: 'category',
+                        items: items
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('カテゴリの並び替えを保存しました', 'success');
+                        loadCategories();
+                    } else {
+                        showToast('エラー: ' + (data.error || '並び替えに失敗しました'), 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('並び替えエラー:', error);
+                    showToast('並び替えに失敗しました', 'error');
+                });
+            }
+        });
+    }
+
+    // フィールドリストのSortableを初期化
+    function initFieldSortable() {
+        const fieldLists = document.querySelectorAll('.sortable-field-list');
+
+        fieldLists.forEach(list => {
+            new Sortable(list, {
+                handle: '.drag-handle',
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                onEnd: function(evt) {
+                    const categoryId = parseInt(list.dataset.categoryId);
+
+                    // このカテゴリのフィールドの新しい順序を取得
+                    const items = Array.from(list.children).map((el, index) => ({
+                        id: parseInt(el.dataset.id),
+                        order: index
+                    }));
+
+                    // サーバーに送信
+                    fetch('/orders/api/contractor-field-reorder/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCsrfToken()
+                        },
+                        body: JSON.stringify({
+                            type: 'field',
+                            items: items
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showToast('フィールドの並び替えを保存しました', 'success');
+                            loadFields();
+                        } else {
+                            showToast('エラー: ' + (data.error || '並び替えに失敗しました'), 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('並び替えエラー:', error);
+                        showToast('並び替えに失敗しました', 'error');
+                    });
+                }
+            });
+        });
+    }
+
     // フィールドフォームリセット
     const cancelFieldEdit = document.getElementById('cancelFieldEdit');
     if (cancelFieldEdit) {
@@ -1206,6 +1548,72 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // ========================================
+    // 地方ごとの都道府県一括選択/解除機能
+    // ========================================
+
+    /**
+     * 地方チェックボックスの切り替え時に、その地方の全都道府県をチェック/解除
+     */
+    window.toggleRegionPrefectures = function(regionCheckbox) {
+        const region = regionCheckbox.dataset.region;
+        const fieldSlug = regionCheckbox.dataset.fieldSlug;
+        const isChecked = regionCheckbox.checked;
+
+        // 同じ地方の都道府県チェックボックスを取得
+        const prefectureCheckboxes = document.querySelectorAll(
+            `input.prefecture-checkbox[data-region="${region}"][data-field-slug="${fieldSlug}"]`
+        );
+
+        // すべての都道府県チェックボックスを一括で変更
+        prefectureCheckboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+        });
+    };
+
+    /**
+     * ページ読み込み時に、既にチェックされている都道府県に基づいて地方チェックボックスの状態を更新
+     */
+    function updateRegionCheckboxStates() {
+        const regionToggles = document.querySelectorAll('.region-toggle');
+
+        regionToggles.forEach(regionToggle => {
+            const region = regionToggle.dataset.region;
+            const fieldSlug = regionToggle.dataset.fieldSlug;
+
+            // この地方の都道府県チェックボックスを取得
+            const prefectureCheckboxes = document.querySelectorAll(
+                `input.prefecture-checkbox[data-region="${region}"][data-field-slug="${fieldSlug}"]`
+            );
+
+            // すべての都道府県がチェックされているか確認
+            const allChecked = Array.from(prefectureCheckboxes).every(cb => cb.checked);
+            const someChecked = Array.from(prefectureCheckboxes).some(cb => cb.checked);
+
+            // 地方チェックボックスの状態を更新
+            if (allChecked && prefectureCheckboxes.length > 0) {
+                regionToggle.checked = true;
+                regionToggle.indeterminate = false;
+            } else if (someChecked) {
+                regionToggle.checked = false;
+                regionToggle.indeterminate = true;  // 一部のみチェックされている場合は不確定状態
+            } else {
+                regionToggle.checked = false;
+                regionToggle.indeterminate = false;
+            }
+        });
+    }
+
+    // ページ読み込み時に地方チェックボックスの状態を初期化
+    updateRegionCheckboxStates();
+
+    // 都道府県チェックボックスの変更を監視して、地方チェックボックスの状態を更新
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('prefecture-checkbox')) {
+            updateRegionCheckboxStates();
+        }
+    });
 });
 </script>
 {% endblock %}

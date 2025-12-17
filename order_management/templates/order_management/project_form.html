@@ -6247,68 +6247,68 @@ window.moveWorkType = function(id, direction) {
 
 // フォーム送信
 $(document).ready(function() {
-$('#workTypeForm').on('submit', function(e) {
-    e.preventDefault();
+    $('#workTypeForm').on('submit', function(e) {
+        e.preventDefault();
 
-    const workTypeId = $('#workTypeId').val();
-    const isUpdate = workTypeId !== '';
-    const url = isUpdate
-        ? '{% url "order_management:work_type_update_ajax" %}'
-        : '{% url "order_management:work_type_create_ajax" %}';
+        const workTypeId = $('#workTypeId').val();
+        const isUpdate = workTypeId !== '';
+        const url = isUpdate
+            ? '{% url "order_management:work_type_update_ajax" %}'
+            : '{% url "order_management:work_type_create_ajax" %}';
 
-    // メッセージを非表示
-    $('#workTypeError').hide();
-    $('#workTypeSuccess').hide();
+        // メッセージを非表示
+        $('#workTypeError').hide();
+        $('#workTypeSuccess').hide();
 
-    // ボタンを無効化
-    const submitBtn = $('#workTypeSubmitBtn');
-    submitBtn.prop('disabled', true);
-    submitBtn.html('<i class="fas fa-spinner fa-spin me-2"></i>保存中...');
+        // ボタンを無効化
+        const submitBtn = $('#workTypeSubmitBtn');
+        submitBtn.prop('disabled', true);
+        submitBtn.html('<i class="fas fa-spinner fa-spin me-2"></i>保存中...');
 
-    // データを準備
-    const formData = {
-        name: $('#workTypeName').val(),
-        description: $('#workTypeDescription').val(),
-        csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
-    };
+        // データを準備（フォーム内のCSRFトークンを確実に取得）
+        const formData = {
+            name: $('#workTypeName').val(),
+            description: $('#workTypeDescription').val(),
+            csrfmiddlewaretoken: $('#workTypeForm [name=csrfmiddlewaretoken]').val()
+        };
 
-    if (isUpdate) {
-        formData.id = workTypeId;
-    }
-
-    $.ajax({
-        url: url,
-        type: 'POST',
-        data: formData,
-        success: function(response) {
-            if (response.success) {
-                const message = isUpdate ? '工事種別を更新しました' : '工事種別を追加しました';
-                $('#workTypeSuccess').html('<i class="fas fa-check-circle me-2"></i>' + message).show();
-                setTimeout(function() { $('#workTypeSuccess').hide(); }, 3000);
-
-                // フォームをリセット
-                cancelWorkTypeEdit();
-
-                // 一覧を再読み込み
-                loadWorkTypeList();
-
-                // ドロップダウンを更新
-                refreshWorkTypeDropdown(response.work_type.id);
-            } else {
-                $('#workTypeError').html('<i class="fas fa-exclamation-circle me-2"></i>' + response.error).show();
-            }
-        },
-        error: function(xhr) {
-            $('#workTypeError').html('<i class="fas fa-exclamation-circle me-2"></i>' + (xhr.responseJSON?.error || 'エラーが発生しました')).show();
-        },
-        complete: function() {
-            // ボタンを有効化
-            submitBtn.prop('disabled', false);
-            const buttonText = isUpdate ? '更新する' : '保存する';
-            submitBtn.html('<i class="fas fa-save me-2"></i>' + buttonText);
+        if (isUpdate) {
+            formData.id = workTypeId;
         }
+
+        $.ajax({
+            url: url,
+            type: 'POST',
+            data: formData,
+            success: function(response) {
+                if (response.success) {
+                    const message = isUpdate ? '工事種別を更新しました' : '工事種別を追加しました';
+                    $('#workTypeSuccess').html('<i class="fas fa-check-circle me-2"></i>' + message).show();
+                    setTimeout(function() { $('#workTypeSuccess').hide(); }, 3000);
+
+                    // フォームをリセット
+                    cancelWorkTypeEdit();
+
+                    // 一覧を再読み込み
+                    loadWorkTypeList();
+
+                    // ドロップダウンを更新
+                    refreshWorkTypeDropdown(response.work_type.id);
+                } else {
+                    $('#workTypeError').html('<i class="fas fa-exclamation-circle me-2"></i>' + response.error).show();
+                }
+            },
+            error: function(xhr) {
+                $('#workTypeError').html('<i class="fas fa-exclamation-circle me-2"></i>' + (xhr.responseJSON?.error || 'エラーが発生しました')).show();
+            },
+            complete: function() {
+                // ボタンを有効化
+                submitBtn.prop('disabled', false);
+                const buttonText = isUpdate ? '更新する' : '保存する';
+                submitBtn.html('<i class="fas fa-save me-2></i>' + buttonText);
+            }
+        });
     });
-});
 });
 
 // 工事種別ドロップダウンを更新
