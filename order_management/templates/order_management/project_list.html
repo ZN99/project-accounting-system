@@ -232,18 +232,22 @@
     <div class="card-body py-3">
         <form method="get" id="searchForm">
             <div class="row g-2 align-items-center">
-                <!-- キーワード検索 -->
-                <div class="col-md-4">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white border-end-0">
-                            <i class="fas fa-search text-muted"></i>
-                        </span>
-                        <input type="text"
-                               name="search"
-                               class="form-control border-start-0 ps-0"
-                               placeholder="現場名、住所、管理No で検索..."
-                               value="{{ search_query|default_if_none:'' }}">
-                    </div>
+                <!-- 管理No検索 -->
+                <div class="col-md-2">
+                    <input type="text"
+                           name="management_no"
+                           class="form-control"
+                           placeholder="管理No..."
+                           value="{{ management_no|default_if_none:'' }}">
+                </div>
+
+                <!-- 現場名検索 -->
+                <div class="col-md-2">
+                    <input type="text"
+                           name="site_name"
+                           class="form-control"
+                           placeholder="現場名、顧客名..."
+                           value="{{ site_name|default_if_none:'' }}">
                 </div>
 
                 <!-- クイックフィルター -->
@@ -282,7 +286,7 @@
                                 aria-expanded="false">
                             <i class="fas fa-sliders-h"></i>
                         </button>
-                        {% if search_query or stage_filter or order_forecast or work_type or project_manager or witness_status or survey_status or estimate_status or construction_status or assignee_name %}
+                        {% if management_no or site_name or stage_filter or order_forecast or work_type or project_manager or witness_status or survey_status or estimate_status or construction_status or assignee_name or work_period_from or work_period_to or profit_min or profit_max %}
                         <a href="{% url 'order_management:project_list' %}"
                            class="btn btn-outline-danger"
                            title="クリア">
@@ -360,11 +364,45 @@
                                    value="{{ assignee_name|default_if_none:'' }}"
                                    placeholder="担当者名で絞り込み">
                         </div>
-                        <div class="col-md-7 d-flex align-items-end">
+                    </div>
+                    <!-- 工期・利益フィルタ（2行目） -->
+                    <div class="row g-2 mt-2">
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted">工期（開始）</label>
+                            <input type="date"
+                                   name="work_period_from"
+                                   class="form-control form-control-sm"
+                                   value="{{ work_period_from|default_if_none:'' }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted">工期（終了）</label>
+                            <input type="date"
+                                   name="work_period_to"
+                                   class="form-control form-control-sm"
+                                   value="{{ work_period_to|default_if_none:'' }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted">利益（最小）</label>
+                            <input type="number"
+                                   name="profit_min"
+                                   class="form-control form-control-sm"
+                                   value="{{ profit_min|default_if_none:'' }}"
+                                   placeholder="円">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted">利益（最大）</label>
+                            <input type="number"
+                                   name="profit_max"
+                                   class="form-control form-control-sm"
+                                   value="{{ profit_max|default_if_none:'' }}"
+                                   placeholder="円">
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary btn-sm">
                                 <i class="fas fa-filter me-1"></i>フィルター適用
                             </button>
                         </div>
+                    </div>
                     </div>
                 </div>
             </div>

@@ -158,15 +158,33 @@ def project_list(request):
             Q(construction_assignees__icontains=assignee_name)
         )
 
-    # 検索
-    search_query = request.GET.get('search')
-    if search_query:
+    # 検索 - 管理Noと現場名を別々にフィルタ
+    management_no_query = request.GET.get('management_no')
+    if management_no_query:
+        projects = projects.filter(management_no__icontains=management_no_query)
+
+    site_name_query = request.GET.get('site_name')
+    if site_name_query:
         projects = projects.filter(
-            Q(management_no__icontains=search_query) |
-            Q(site_name__icontains=search_query) |
-            Q(client_name__icontains=search_query) |
-            Q(project_manager__icontains=search_query)
+            Q(site_name__icontains=site_name_query) |
+            Q(client_name__icontains=site_name_query)
         )
+
+    # 工期フィルタ (work_start_date と work_end_date)
+    work_period_from = request.GET.get('work_period_from')
+    work_period_to = request.GET.get('work_period_to')
+    if work_period_from:
+        projects = projects.filter(work_start_date__gte=work_period_from)
+    if work_period_to:
+        projects = projects.filter(work_end_date__lte=work_period_to)
+
+    # 利益フィルタ (profit_amount)
+    profit_min = request.GET.get('profit_min')
+    profit_max = request.GET.get('profit_max')
+    if profit_min:
+        projects = projects.filter(profit_amount__gte=profit_min)
+    if profit_max:
+        projects = projects.filter(profit_amount__lte=profit_max)
 
     # プロジェクトステータス（自動計算）フィルター
     stage_filter = request.GET.get('stage_filter')
@@ -262,7 +280,15 @@ def project_list(request):
         'order_forecast': order_forecast,
         'work_type': work_type,
         'project_manager': project_manager,
-        'search_query': search_query,
+        # 検索フィルタ（分離）
+        'management_no': management_no_query,
+        'site_name': site_name_query,
+        # 工期フィルタ
+        'work_period_from': work_period_from,
+        'work_period_to': work_period_to,
+        # 利益フィルタ
+        'profit_min': profit_min,
+        'profit_max': profit_max,
         'total_count': total_count,
         'received_count': received_count,
         'in_progress_count': in_progress_count,
