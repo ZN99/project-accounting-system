@@ -1,0 +1,218 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+
+{% block title %}CSV一括インポート{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-file-csv me-2"></i>
+                        CSV一括インポート
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <!-- 説明 -->
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>受注側CSV</strong>と<strong>依頼側CSV</strong>の2つのファイルをアップロードして、プロジェクトデータを一括インポートします。
+                        <ul class="mb-0 mt-2">
+                            <li>管理番号は <strong>M25xxxx</strong> 形式で自動変換されます</li>
+                            <li>現場名が空のデータは自動的にスキップされます</li>
+                            <li>Dry-runモードでは、実際にデータを保存せずに処理をテストできます</li>
+                            <li>インポート前に自動的にバックアップが作成されます</li>
+                        </ul>
+                    </div>
+
+                    <!-- アップロードフォーム -->
+                    <form method="post" enctype="multipart/form-data" id="uploadForm">
+                        {% csrf_token %}
+
+                        <div class="row">
+                            <!-- 受注側CSV -->
+                            <div class="col-md-6 mb-3">
+                                <label for="order_csv" class="form-label fw-bold">
+                                    <i class="fas fa-file-upload me-2"></i>
+                                    受注側CSV（元請データ）
+                                </label>
+                                <input
+                                    type="file"
+                                    class="form-control"
+                                    id="order_csv"
+                                    name="order_csv"
+                                    accept=".csv"
+                                    required
+                                >
+                                <div class="form-text">
+                                    プロジェクト情報を含むCSVファイル
+                                </div>
+                            </div>
+
+                            <!-- 依頼側CSV -->
+                            <div class="col-md-6 mb-3">
+                                <label for="subcontract_csv" class="form-label fw-bold">
+                                    <i class="fas fa-file-upload me-2"></i>
+                                    依頼側CSV（下請データ）
+                                </label>
+                                <input
+                                    type="file"
+                                    class="form-control"
+                                    id="subcontract_csv"
+                                    name="subcontract_csv"
+                                    accept=".csv"
+                                    required
+                                >
+                                <div class="form-text">
+                                    下請契約情報を含むCSVファイル
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dry-runオプション -->
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input
+                                    class="form-check-input"
+                                    type="checkbox"
+                                    id="dry_run"
+                                    name="dry_run"
+                                >
+                                <label class="form-check-label" for="dry_run">
+                                    <strong>Dry-runモード</strong>（テスト実行：データを保存せずに処理を確認）
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 実行ボタン -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                                <i class="fas fa-upload me-2"></i>
+                                CSVをインポート
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- 処理中表示 -->
+                    <div id="processingAlert" class="alert alert-warning mt-3" style="display: none;">
+                        <div class="d-flex align-items-center">
+                            <div class="spinner-border spinner-border-sm me-3" role="status">
+                                <span class="visually-hidden">処理中...</span>
+                            </div>
+                            <div>
+                                <strong>処理中です...</strong><br>
+                                <small>大量のデータの場合、数分かかることがあります。このページを閉じないでください。</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- インポート結果 -->
+    {% if import_result %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card {% if import_result.success %}border-success{% else %}border-danger{% endif %}">
+                <div class="card-header {% if import_result.success %}bg-success{% else %}bg-danger{% endif %} text-white">
+                    <h5 class="mb-0">
+                        {% if import_result.success %}
+                            <i class="fas fa-check-circle me-2"></i>
+                            {% if import_result.dry_run %}
+                                Dry-run結果
+                            {% else %}
+                                インポート結果
+                            {% endif %}
+                        {% else %}
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            エラー
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if import_result.success %}
+                        <!-- 統計情報 -->
+                        <div class="row text-center mb-3">
+                            <div class="col-md-3">
+                                <div class="border rounded p-3">
+                                    <h2 class="text-primary mb-0">{{ import_result.stats.projects|default:0 }}</h2>
+                                    <small class="text-muted">プロジェクト</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border rounded p-3">
+                                    <h2 class="text-success mb-0">{{ import_result.stats.subcontracts|default:0 }}</h2>
+                                    <small class="text-muted">下請契約</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border rounded p-3">
+                                    <h2 class="text-warning mb-0">{{ import_result.stats.skipped|default:0 }}</h2>
+                                    <small class="text-muted">スキップ</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border rounded p-3">
+                                    <h2 class="{% if import_result.stats.errors > 0 %}text-danger{% else %}text-muted{% endif %} mb-0">
+                                        {{ import_result.stats.errors|default:0 }}
+                                    </h2>
+                                    <small class="text-muted">エラー</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if import_result.dry_run %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Dry-runモードで実行されました。</strong>データは保存されていません。<br>
+                            実際にインポートする場合は、Dry-runチェックを外して再度実行してください。
+                        </div>
+                        {% else %}
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle me-2"></i>
+                            インポートが正常に完了しました。<br>
+                            <a href="{% url 'project_list' %}" class="alert-link">プロジェクト一覧</a>で確認できます。
+                        </div>
+                        {% endif %}
+
+                        <!-- ログダウンロード -->
+                        <div class="mt-3">
+                            <a href="{% url 'csv_import_download_log' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-download me-2"></i>
+                                ログをダウンロード
+                            </a>
+                        </div>
+
+                    {% else %}
+                        <!-- エラー表示 -->
+                        <div class="alert alert-danger">
+                            <h5 class="alert-heading">エラーが発生しました</h5>
+                            <p class="mb-0">{{ import_result.error }}</p>
+                        </div>
+
+                        {% if import_result.output %}
+                        <div class="mt-3">
+                            <h6>詳細ログ:</h6>
+                            <pre class="bg-light p-3 rounded" style="max-height: 300px; overflow-y: auto;">{{ import_result.output }}</pre>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    // 処理中表示
+    document.getElementById('processingAlert').style.display = 'block';
+    document.getElementById('submitBtn').disabled = true;
+    document.getElementById('submitBtn').innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>処理中...';
+});
+</script>
+{% endblock %}

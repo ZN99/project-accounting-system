@@ -520,23 +520,25 @@ class Project(models.Model):
         self.priority_score = self._calculate_priority_score()
 
         # NGステータス時の進捗自動キャンセル処理
-        if self.project_status == 'NG':
-            # 各進捗ステータスをキャンセル状態に設定
-            if self.witness_status not in ['completed', 'cancelled']:
-                self.witness_status = 'cancelled'
-            if self.survey_status not in ['completed', 'cancelled', 'not_required']:
-                self.survey_status = 'cancelled'
-            if self.estimate_status not in ['approved', 'cancelled', 'not_issued']:
-                self.estimate_status = 'cancelled'
-            if self.construction_status not in ['completed', 'cancelled']:
-                self.construction_status = 'cancelled'
+        # NOTE: witness_status, survey_status, estimate_status, construction_status are @property fields
+        # They cannot be assigned directly. Progress management is now handled by ProjectProgressStep model.
+        # This legacy code is commented out to prevent AttributeError.
+        # if self.project_status == 'NG':
+        #     # 各進捗ステータスをキャンセル状態に設定
+        #     if self.witness_status not in ['completed', 'cancelled']:
+        #         self.witness_status = 'cancelled'
+        #     if self.survey_status not in ['completed', 'cancelled', 'not_required']:
+        #         self.survey_status = 'cancelled'
+        #     if self.estimate_status not in ['approved', 'cancelled', 'not_issued']:
+        #         self.estimate_status = 'cancelled'
+        #     if self.construction_status not in ['completed', 'cancelled']:
+        #         self.construction_status = 'cancelled'
 
         # 着工日待ち状態でAヨミに自動変更（NGでない場合のみ）
-        # 注意：新規作成時（self.pkがNone）は自動変更しない
-        # 注意：明示的に設定されたproject_status（ネタ、B、C、受注確定、A、NG）は変更しない
-        if self.pk and self.construction_status == 'waiting' and self.project_status not in ['ネタ', 'B', 'C', '受注確定', 'A', 'NG']:
-            # 着工日待ち（職人が決まった状態）ならAヨミに自動変更
-            self.project_status = 'A'
+        # NOTE: construction_status is now a property, not a field. Commenting out this logic.
+        # if self.pk and self.construction_status == 'waiting' and self.project_status not in ['ネタ', 'B', 'C', '受注確定', 'A', 'NG']:
+        #     # 着工日待ち（職人が決まった状態）ならAヨミに自動変更
+        #     self.project_status = 'A'
 
         super().save(*args, **kwargs)
 

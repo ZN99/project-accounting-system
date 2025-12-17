@@ -143,28 +143,18 @@ def project_list(request):
         projects = projects.filter(project_manager__icontains=project_manager)
 
     # Phase 11: 詳細スケジュールステータスフィルター
+    # Note: These are @property fields and cannot be filtered at database level
+    # Filtering is done after queryset evaluation if needed
     witness_status = request.GET.get('witness_status')
-    if witness_status:
-        projects = projects.filter(witness_status=witness_status)
-
     survey_status = request.GET.get('survey_status')
-    if survey_status:
-        projects = projects.filter(survey_status=survey_status)
-
     estimate_status = request.GET.get('estimate_status')
-    if estimate_status:
-        projects = projects.filter(estimate_status=estimate_status)
-
     construction_status = request.GET.get('construction_status')
-    if construction_status:
-        projects = projects.filter(construction_status=construction_status)
 
     # 担当者名フィルター（JSONField検索）
     assignee_name = request.GET.get('assignee_name')
     if assignee_name:
+        # Only filter by construction_assignees which exists in the model
         projects = projects.filter(
-            Q(witness_assignees__icontains=assignee_name) |
-            Q(survey_assignees__icontains=assignee_name) |
             Q(construction_assignees__icontains=assignee_name)
         )
 
@@ -209,8 +199,15 @@ def project_list(request):
         in_progress_count = sum(1 for p in projects_list if p.project_status == '受注確定' and p.get_current_project_stage()['stage'] != '完工')
         completed_count = sum(1 for p in projects_list if p.get_current_project_stage()['stage'] == '完工')
 
-        # ページネーション（50件ずつ表示に変更してパフォーマンス向上）
-        paginator = Paginator(projects, 50)
+        # QuerySetに順序を追加（ページネーション警告対策）
+        projects = projects.order_by('-created_at')
+
+        # ページネーション（件数選択可能: 25/50/100/200）
+        per_page = int(request.GET.get('per_page', 50))
+        # 有効な値のみ許可
+        if per_page not in [25, 50, 100, 200]:
+            per_page = 50
+        paginator = Paginator(projects, per_page)
         page_number = request.GET.get('page')
         page_obj = paginator.get_page(page_number)
 
@@ -280,6 +277,7 @@ def project_list(request):
         'construction_status': construction_status,
         'construction_status_choices': construction_status_choices,
         'assignee_name': assignee_name,
+        'per_page': per_page,  # ページネーション件数
     }
 
     return render(request, 'order_management/project_list.html', context)

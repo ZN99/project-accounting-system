@@ -85,3 +85,4 @@ Pipfile.lock
 # Temporary files
 *.tmp
 *.tempCREDENTIALS.md
+backups/

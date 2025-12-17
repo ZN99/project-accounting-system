@@ -40,6 +40,7 @@ from . import views_material
 from . import views_comment
 from .views_notification import NotificationListView, mark_as_read_and_archive
 from .views_profile import profile_settings
+from .views_csv_import import csv_import_view, csv_import_download_log
 # ARCHIVED: 旧予測機能のインポート（アーカイブ済み）
 # from .views_forecast import (
 #     ForecastDashboardView,
@@ -412,4 +413,8 @@ urlpatterns = [
     path('backup/export/', export_data, name='export_data'),
     path('backup/import/', import_data_view, name='import_data'),
     path('backup/delete/', delete_all_data_view, name='delete_all_data'),
+
+    # CSV一括インポート
+    path('csv-import/', csv_import_view, name='csv_import'),
+    path('csv-import/download-log/', csv_import_download_log, name='csv_import_download_log'),
 ]

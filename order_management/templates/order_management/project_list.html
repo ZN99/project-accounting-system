@@ -533,13 +533,29 @@
             </table>
         </div>
 
+        <!-- 表示件数選択 -->
+        <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
+            <div class="d-flex align-items-center">
+                <label for="perPageSelect" class="me-2 mb-0">表示件数:</label>
+                <select id="perPageSelect" class="form-select form-select-sm" style="width: auto;" onchange="changePerPage(this.value)">
+                    <option value="25" {% if per_page == 25 %}selected{% endif %}>25件</option>
+                    <option value="50" {% if per_page == 50 %}selected{% endif %}>50件</option>
+                    <option value="100" {% if per_page == 100 %}selected{% endif %}>100件</option>
+                    <option value="200" {% if per_page == 200 %}selected{% endif %}>200件</option>
+                </select>
+            </div>
+            <div class="text-muted">
+                全{{ page_obj.paginator.count }}件中 {{ page_obj.start_index }}〜{{ page_obj.end_index }}件表示
+            </div>
+        </div>
+
         <!-- ページネーション -->
         {% if page_obj.has_other_pages %}
-        <nav class="mt-4">
+        <nav class="mt-3">
             <ul class="pagination justify-content-center">
                 {% if page_obj.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}&stage_filter={{ stage_filter }}&order_forecast={{ order_forecast }}&work_type={{ work_type }}&project_manager={{ project_manager }}&search={{ search_query }}&witness_status={{ witness_status }}&survey_status={{ survey_status }}&estimate_status={{ estimate_status }}&construction_status={{ construction_status }}&assignee_name={{ assignee_name }}">前へ</a>
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}&per_page={{ per_page }}&stage_filter={{ stage_filter }}&order_forecast={{ order_forecast }}&work_type={{ work_type }}&project_manager={{ project_manager }}&search={{ search_query }}&witness_status={{ witness_status }}&survey_status={{ survey_status }}&estimate_status={{ estimate_status }}&construction_status={{ construction_status }}&assignee_name={{ assignee_name }}">前へ</a>
                 </li>
                 {% endif %}
 
@@ -547,13 +563,13 @@
                     {% if page_obj.number == num %}
                     <li class="page-item active"><span class="page-link">{{ num }}</span></li>
                     {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                    <li class="page-item"><a class="page-link" href="?page={{ num }}&stage_filter={{ stage_filter }}&order_forecast={{ order_forecast }}&work_type={{ work_type }}&project_manager={{ project_manager }}&search={{ search_query }}&witness_status={{ witness_status }}&survey_status={{ survey_status }}&estimate_status={{ estimate_status }}&construction_status={{ construction_status }}&assignee_name={{ assignee_name }}">{{ num }}</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}&per_page={{ per_page }}&stage_filter={{ stage_filter }}&order_forecast={{ order_forecast }}&work_type={{ work_type }}&project_manager={{ project_manager }}&search={{ search_query }}&witness_status={{ witness_status }}&survey_status={{ survey_status }}&estimate_status={{ estimate_status }}&construction_status={{ construction_status }}&assignee_name={{ assignee_name }}">{{ num }}</a></li>
                     {% endif %}
                 {% endfor %}
 
                 {% if page_obj.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.next_page_number }}&stage_filter={{ stage_filter }}&order_forecast={{ order_forecast }}&work_type={{ work_type }}&project_manager={{ project_manager }}&search={{ search_query }}&witness_status={{ witness_status }}&survey_status={{ survey_status }}&estimate_status={{ estimate_status }}&construction_status={{ construction_status }}&assignee_name={{ assignee_name }}">次へ</a>
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}&per_page={{ per_page }}&stage_filter={{ stage_filter }}&order_forecast={{ order_forecast }}&work_type={{ work_type }}&project_manager={{ project_manager }}&search={{ search_query }}&witness_status={{ witness_status }}&survey_status={{ survey_status }}&estimate_status={{ estimate_status }}&construction_status={{ construction_status }}&assignee_name={{ assignee_name }}">次へ</a>
                 </li>
                 {% endif %}
             </ul>
@@ -997,7 +1013,7 @@
         <ul class="pagination justify-content-center">
             {% if page_obj.has_previous %}
             <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&stage_filter={{ stage_filter }}&order_forecast={{ order_forecast }}&work_type={{ work_type }}&project_manager={{ project_manager }}&search={{ search_query }}&witness_status={{ witness_status }}&survey_status={{ survey_status }}&estimate_status={{ estimate_status }}&construction_status={{ construction_status }}&assignee_name={{ assignee_name }}">前へ</a>
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&per_page={{ per_page }}&stage_filter={{ stage_filter }}&order_forecast={{ order_forecast }}&work_type={{ work_type }}&project_manager={{ project_manager }}&search={{ search_query }}&witness_status={{ witness_status }}&survey_status={{ survey_status }}&estimate_status={{ estimate_status }}&construction_status={{ construction_status }}&assignee_name={{ assignee_name }}">前へ</a>
             </li>
             {% endif %}
 
@@ -1005,13 +1021,13 @@
                 {% if page_obj.number == num %}
                 <li class="page-item active"><span class="page-link">{{ num }}</span></li>
                 {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                <li class="page-item"><a class="page-link" href="?page={{ num }}&stage_filter={{ stage_filter }}&order_forecast={{ order_forecast }}&work_type={{ work_type }}&project_manager={{ project_manager }}&search={{ search_query }}&witness_status={{ witness_status }}&survey_status={{ survey_status }}&estimate_status={{ estimate_status }}&construction_status={{ construction_status }}&assignee_name={{ assignee_name }}">{{ num }}</a></li>
+                <li class="page-item"><a class="page-link" href="?page={{ num }}&per_page={{ per_page }}&stage_filter={{ stage_filter }}&order_forecast={{ order_forecast }}&work_type={{ work_type }}&project_manager={{ project_manager }}&search={{ search_query }}&witness_status={{ witness_status }}&survey_status={{ survey_status }}&estimate_status={{ estimate_status }}&construction_status={{ construction_status }}&assignee_name={{ assignee_name }}">{{ num }}</a></li>
                 {% endif %}
             {% endfor %}
 
             {% if page_obj.has_next %}
             <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.next_page_number }}&stage_filter={{ stage_filter }}&order_forecast={{ order_forecast }}&work_type={{ work_type }}&project_manager={{ project_manager }}&search={{ search_query }}&witness_status={{ witness_status }}&survey_status={{ survey_status }}&estimate_status={{ estimate_status }}&construction_status={{ construction_status }}&assignee_name={{ assignee_name }}">次へ</a>
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}&per_page={{ per_page }}&stage_filter={{ stage_filter }}&order_forecast={{ order_forecast }}&work_type={{ work_type }}&project_manager={{ project_manager }}&search={{ search_query }}&witness_status={{ witness_status }}&survey_status={{ survey_status }}&estimate_status={{ estimate_status }}&construction_status={{ construction_status }}&assignee_name={{ assignee_name }}">次へ</a>
             </li>
             {% endif %}
         </ul>
@@ -1022,6 +1038,14 @@
 
 {% block extra_js %}
 <script>
+// ページネーション件数変更
+function changePerPage(perPage) {
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('per_page', perPage);
+    urlParams.delete('page');  // Reset to page 1 when changing per_page
+    window.location.search = urlParams.toString();
+}
+
 // モード切り替え機能
 function switchMode(mode) {
     if (mode === 'detail') {
