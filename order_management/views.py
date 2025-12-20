@@ -186,6 +186,12 @@ def project_list(request):
     if profit_max:
         projects = projects.filter(profit_amount__lte=profit_max)
 
+    # ページネーション件数を事前に取得（stage_filterの有無に関わらず使用）
+    per_page = int(request.GET.get('per_page', 50))
+    # 有効な値のみ許可
+    if per_page not in [25, 50, 100, 200]:
+        per_page = 50
+
     # プロジェクトステータス（自動計算）フィルター
     stage_filter = request.GET.get('stage_filter')
     if stage_filter:
@@ -203,7 +209,7 @@ def project_list(request):
         # 完了済み: 動的ステップシステムで「完工」段階の案件
         completed_count = sum(1 for p in projects_list if p.get_current_project_stage()['stage'] == '完工')
 
-        paginator = ListPaginator(projects_list, 50)
+        paginator = ListPaginator(projects_list, per_page)
         page_number = request.GET.get('page')
         page_obj = paginator.get_page(page_number)
     else:
@@ -220,11 +226,7 @@ def project_list(request):
         # QuerySetに順序を追加（ページネーション警告対策）
         projects = projects.order_by('-created_at')
 
-        # ページネーション（件数選択可能: 25/50/100/200）
-        per_page = int(request.GET.get('per_page', 50))
-        # 有効な値のみ許可
-        if per_page not in [25, 50, 100, 200]:
-            per_page = 50
+        # ページネーション（per_pageは既に上で設定済み）
         paginator = Paginator(projects, per_page)
         page_number = request.GET.get('page')
         page_obj = paginator.get_page(page_number)
