@@ -253,6 +253,9 @@ def calendar_events_api(request):
             from datetime import date
             today = date.today()
 
+            # is_completed変数を定義（extendedPropsで使用）
+            is_completed = project.work_end_completed
+
             # 完了判定: verified (濃い緑) > success (緑) > 進行中 (青)
             if project.work_end_completed:
                 # チェックボックスON → 濃い緑（確定的完了）
