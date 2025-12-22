@@ -166,7 +166,6 @@ class WorkerResourceCalendarView(LoginRequiredMixin, TemplateView):
 @login_required
 def calendar_events_api(request):
     """カレンダーイベントをJSON形式で返す - 主要マイルストーン対応"""
-    from datetime import timedelta
     from django.db.models import Q
 
     # 日付範囲を取得
@@ -180,23 +179,16 @@ def calendar_events_api(request):
             end_date = datetime.fromisoformat(end.replace('Z', '')).date()
 
             # 期間内に関連するプロジェクトのみ取得
-            # - 工期が期間内にある
-            # - 見積発行日が期間内
-            # - 契約日が期間内
-            # NGステータスは最初から除外
-            projects = Project.objects.filter(
-                Q(work_start_date__lte=end_date, work_end_date__gte=start_date) |
-                Q(work_start_date__isnull=False, work_start_date__range=(start_date, end_date)) |
-                Q(work_end_date__isnull=False, work_end_date__range=(start_date, end_date)) |
-                Q(estimate_issued_date__range=(start_date, end_date)) |
-                Q(contract_date__range=(start_date, end_date))
-            ).exclude(
+            # Note: work_start_date/work_end_dateはDEPRECATED（ProjectProgressStepに移行済み）
+            # 現時点では全プロジェクト取得後、Python側でフィルタリング
+            # TODO: ProjectProgressStepを使った効率的なクエリに変更
+            projects = Project.objects.exclude(
                 project_status='NG'
             ).prefetch_related(
                 'subcontract_set__contractor',
                 'subcontract_set__internal_worker',
                 'progress_steps__template'  # N+1問題の解消
-            ).distinct()
+            )
         except (ValueError, TypeError):
             # 日付パースエラー時は全件取得（フォールバック）
             projects = Project.objects.prefetch_related(
@@ -418,7 +410,7 @@ def calendar_events_api(request):
 
             if scheduled_date:
                 # ステップの完了状態に応じて色を決定（3段階）
-                from datetime import datetime, date
+                from datetime import date
                 today = date.today()
 
                 # 基本色（ステップ種別ごと）
