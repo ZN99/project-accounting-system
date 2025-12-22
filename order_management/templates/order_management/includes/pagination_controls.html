@@ -1,0 +1,130 @@
+{# Reusable pagination controls with per-page selector #}
+{#
+Usage:
+{% include 'order_management/includes/pagination_controls.html' with page_obj=page_obj per_page=per_page per_page_options="10,25,50,100" %}
+
+Parameters:
+- page_obj: Django Paginator page object (required)
+- per_page: Current per-page count (default: 20)
+- per_page_options: Comma-separated list of options (default: "10,25,50,100")
+- show_item_count: Show "X-Y of Z items" text (default: True)
+- position: "top" or "bottom" for styling (default: "bottom")
+#}
+
+{% if page_obj.paginator.count > 0 %}
+<div class="pagination-wrapper d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 my-3">
+
+    {# Per-page selector #}
+    <div class="d-flex align-items-center">
+        <label for="perPageSelect{{ position|default:'bottom' }}" class="me-2 mb-0 text-nowrap">
+            <i class="fas fa-list me-1"></i>表示件数:
+        </label>
+        <select
+            id="perPageSelect{{ position|default:'bottom' }}"
+            class="form-select form-select-sm"
+            style="width: auto;"
+            onchange="changePerPage(this.value)">
+            {% with current_per_page=per_page|default:20 %}
+                <option value="10" {% if current_per_page == 10 %}selected{% endif %}>10件</option>
+                <option value="25" {% if current_per_page == 25 %}selected{% endif %}>25件</option>
+                <option value="50" {% if current_per_page == 50 %}selected{% endif %}>50件</option>
+                <option value="100" {% if current_per_page == 100 %}selected{% endif %}>100件</option>
+                <option value="200" {% if current_per_page == 200 %}selected{% endif %}>200件</option>
+            {% endwith %}
+        </select>
+    </div>
+
+    {# Item count display #}
+    {% if show_item_count|default:True %}
+    <div class="text-muted small">
+        <i class="fas fa-info-circle me-1"></i>
+        全{{ page_obj.paginator.count }}件中
+        <strong>{{ page_obj.start_index }}〜{{ page_obj.end_index }}件</strong>を表示
+    </div>
+    {% endif %}
+
+    {# Pagination controls #}
+    {% if page_obj.paginator.num_pages > 1 %}
+    <nav aria-label="ページネーション">
+        <ul class="pagination pagination-sm mb-0">
+            {# First page #}
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1&per_page={{ per_page|default:20 }}" aria-label="最初">
+                        <i class="fas fa-angle-double-left"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}&per_page={{ per_page|default:20 }}">
+                        <i class="fas fa-angle-left"></i> 前へ
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="fas fa-angle-double-left"></i></span>
+                </li>
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="fas fa-angle-left"></i> 前へ</span>
+                </li>
+            {% endif %}
+
+            {# Page numbers - show current page and 2 pages before/after #}
+            {% for num in page_obj.paginator.page_range %}
+                {% if num == page_obj.number %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}&per_page={{ per_page|default:20 }}">
+                            {{ num }}
+                        </a>
+                    </li>
+                {% elif num == 1 or num == page_obj.paginator.num_pages %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}&per_page={{ per_page|default:20 }}">
+                            {{ num }}
+                        </a>
+                    </li>
+                {% elif num == page_obj.number|add:'-3' or num == page_obj.number|add:'2' %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            {# Next and Last page #}
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}&per_page={{ per_page|default:20 }}">
+                        次へ <i class="fas fa-angle-right"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.paginator.num_pages }}&per_page={{ per_page|default:20 }}" aria-label="最後">
+                        <i class="fas fa-angle-double-right"></i>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">次へ <i class="fas fa-angle-right"></i></span>
+                </li>
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="fas fa-angle-double-right"></i></span>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+{# JavaScript for changing per-page count #}
+<script>
+function changePerPage(perPage) {
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('per_page', perPage);
+    urlParams.delete('page');  // Reset to page 1 when changing per-page count
+    window.location.search = urlParams.toString();
+}
+</script>
+{% endif %}

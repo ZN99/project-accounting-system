@@ -11,9 +11,10 @@ from datetime import datetime, timedelta
 from .models import FixedCost, VariableCost, Project
 from .forms import FixedCostForm, VariableCostForm, FixedCostFilterForm, VariableCostFilterForm
 from .user_roles import has_role, UserRole, executive_required
+from .mixins import PerPageMixin
 
 
-class FixedCostListView(LoginRequiredMixin, ListView):
+class FixedCostListView(LoginRequiredMixin, PerPageMixin, ListView):
     """固定費一覧表示"""
     model = FixedCost
     template_name = 'order_management/cost/fixed_cost_list.html'
@@ -131,7 +132,7 @@ class FixedCostDeleteView(LoginRequiredMixin, DeleteView):
         return super().delete(request, *args, **kwargs)
 
 
-class VariableCostListView(LoginRequiredMixin, ListView):
+class VariableCostListView(LoginRequiredMixin, PerPageMixin, ListView):
     """変動費一覧表示"""
     model = VariableCost
     template_name = 'order_management/cost/variable_cost_list.html'

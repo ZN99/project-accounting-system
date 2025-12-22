@@ -413,27 +413,7 @@
                 {% endfor %}
 
                 <!-- ページネーション -->
-                {% if subcontracts_page.has_other_pages %}
-                <nav aria-label="案件ページネーション" class="mt-4">
-                    <ul class="pagination justify-content-center">
-                        {% if subcontracts_page.has_previous %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ subcontracts_page.previous_page_number }}&per_page={{ per_page }}">前へ</a>
-                        </li>
-                        {% endif %}
-
-                        <li class="page-item disabled">
-                            <span class="page-link">{{ subcontracts_page.number }} / {{ subcontracts_page.paginator.num_pages }}</span>
-                        </li>
-
-                        {% if subcontracts_page.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ subcontracts_page.next_page_number }}&per_page={{ per_page }}">次へ</a>
-                        </li>
-                        {% endif %}
-                    </ul>
-                </nav>
-                {% endif %}
+                {% include 'order_management/includes/pagination_controls.html' with page_obj=subcontracts_page per_page=per_page %}
             {% else %}
                 <p class="text-muted text-center py-4">外注案件はありません</p>
             {% endif %}

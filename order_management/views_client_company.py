@@ -11,9 +11,10 @@ from django.http import JsonResponse
 from .models import ClientCompany, Project, ContactPerson
 from .forms import ClientCompanyForm, ClientCompanyFilterForm
 from .user_roles import has_role, UserRole
+from .mixins import PerPageMixin
 
 
-class ClientCompanyListView(LoginRequiredMixin, ListView):
+class ClientCompanyListView(LoginRequiredMixin, PerPageMixin, ListView):
     """元請会社一覧表示 - Phase 8"""
     model = ClientCompany
     template_name = 'order_management/client_company/client_company_list.html'
