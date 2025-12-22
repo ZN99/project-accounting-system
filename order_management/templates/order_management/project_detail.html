@@ -10188,12 +10188,25 @@ function openSubcontractModal(stepKey) {
     $('#subcontractContractAmount').removeClass('bg-light');
     $('#subcontractContractAmount').attr('placeholder', '');
 
-    // 基準日を今日の日付に設定
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    $('#modalReferenceDate').val(`${year}-${month}-${day}`);
+    // 基準日を着工日（work_start_date）に設定、未設定の場合は今日
+    let referenceDateValue = '';
+    const workStartDate = $('input[name="work_start_date"]').val();
+
+    if (workStartDate) {
+        // 着工日が設定されている場合はそれを使用
+        referenceDateValue = workStartDate;
+        console.log('💰 基準日を着工日に設定:', workStartDate);
+    } else {
+        // 着工日が未設定の場合は今日を使用
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        referenceDateValue = `${year}-${month}-${day}`;
+        console.log('💰 着工日未設定のため、基準日を今日に設定:', referenceDateValue);
+    }
+
+    $('#modalReferenceDate').val(referenceDateValue);
 
     // 計算ボタンを初期状態で無効化（業者未選択）
     $('#modalCalculatePaymentDueDate').prop('disabled', true);

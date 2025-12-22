@@ -2307,7 +2307,7 @@
 
 <!-- 業者追加モーダル（/orders/contractors/new/ と同じフォーム） -->
 <div class="modal fade" id="contractorModal" tabindex="-1" aria-labelledby="contractorModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="contractorModalTitle">業者を追加</h5>
@@ -2467,6 +2467,199 @@
                         <input type="text" class="form-control" id="contractorAccountHolder" name="account_holder">
                         <small class="form-text text-muted">任意: カタカナで入力（例: カ）マルマルケンセツ）</small>
                     </div>
+
+                    <!-- カスタムフィールド（追加情報） -->
+                    {% if contractor_custom_fields_by_category %}
+                    <hr class="my-4">
+                    <h6 class="mb-3">
+                        <i class="fas fa-star me-2"></i>追加情報
+                    </h6>
+
+                    {% for cat_data in contractor_custom_fields_by_category %}
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">{{ cat_data.category.name }}</h6>
+                            {% if cat_data.category.description %}
+                            <small class="text-muted">{{ cat_data.category.description }}</small>
+                            {% endif %}
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                {% for field in cat_data.fields %}
+                                <div class="{% if field.definition.field_type == 'textarea' or field.definition.slug == 'has_wholesale_contract' %}col-md-12{% else %}col-md-6{% endif %} mb-3 {% if field.definition.slug == 'wholesale_contract_details' %}d-none{% endif %} {% if field.definition.slug == 'scaffolding_whole_house_cost' %}d-none{% endif %}"
+                                     {% if field.definition.slug == 'wholesale_contract_details' %}id="modal_wholesale_contract_details_wrapper"{% endif %}
+                                     {% if field.definition.slug == 'scaffolding_whole_house_cost' %}id="modal_scaffolding_whole_house_cost_wrapper"{% endif %}>
+                                    {% if field.definition.field_type == 'text' %}
+                                        <label class="form-label">
+                                            {{ field.definition.name }}
+                                            {% if field.definition.is_required %}<span class="text-danger">*</span>{% endif %}
+                                        </label>
+                                        <input type="text"
+                                               name="custom_{{ field.definition.slug }}"
+                                               id="modal_custom_{{ field.definition.slug }}"
+                                               class="form-control"
+                                               value="{{ field.current_value }}"
+                                               placeholder="{{ field.definition.placeholder }}"
+                                               {% if field.definition.is_required %}required{% endif %}>
+                                        {% if field.definition.help_text %}
+                                            <small class="form-text text-muted">{{ field.definition.help_text }}</small>
+                                        {% endif %}
+
+                                    {% elif field.definition.field_type == 'number' %}
+                                        <label class="form-label">
+                                            {{ field.definition.name }}
+                                            {% if field.definition.is_required %}<span class="text-danger">*</span>{% endif %}
+                                        </label>
+                                        <input type="number"
+                                               name="custom_{{ field.definition.slug }}"
+                                               id="modal_custom_{{ field.definition.slug }}"
+                                               class="form-control"
+                                               value="{{ field.current_value }}"
+                                               placeholder="{{ field.definition.placeholder }}"
+                                               {% if field.definition.min_value %}min="{{ field.definition.min_value }}"{% endif %}
+                                               {% if field.definition.max_value %}max="{{ field.definition.max_value }}"{% endif %}
+                                               {% if field.definition.is_required %}required{% endif %}>
+                                        {% if field.definition.help_text %}
+                                            <small class="form-text text-muted">{{ field.definition.help_text }}</small>
+                                        {% endif %}
+
+                                    {% elif field.definition.field_type == 'date' %}
+                                        <label class="form-label">
+                                            {{ field.definition.name }}
+                                            {% if field.definition.is_required %}<span class="text-danger">*</span>{% endif %}
+                                        </label>
+                                        <input type="date"
+                                               name="custom_{{ field.definition.slug }}"
+                                               id="modal_custom_{{ field.definition.slug }}"
+                                               class="form-control"
+                                               value="{{ field.current_value }}"
+                                               {% if field.definition.is_required %}required{% endif %}>
+                                        {% if field.definition.help_text %}
+                                            <small class="form-text text-muted">{{ field.definition.help_text }}</small>
+                                        {% endif %}
+
+                                    {% elif field.definition.field_type == 'textarea' %}
+                                        <label class="form-label">
+                                            {{ field.definition.name }}
+                                            {% if field.definition.is_required %}<span class="text-danger">*</span>{% endif %}
+                                        </label>
+                                        <textarea name="custom_{{ field.definition.slug }}"
+                                                  id="modal_custom_{{ field.definition.slug }}"
+                                                  class="form-control"
+                                                  rows="3"
+                                                  placeholder="{{ field.definition.placeholder }}"
+                                                  {% if field.definition.is_required %}required{% endif %}>{{ field.current_value }}</textarea>
+                                        {% if field.definition.help_text %}
+                                            <small class="form-text text-muted">{{ field.definition.help_text }}</small>
+                                        {% endif %}
+
+                                    {% elif field.definition.field_type == 'select' %}
+                                        <label class="form-label">
+                                            {{ field.definition.name }}
+                                            {% if field.definition.is_required %}<span class="text-danger">*</span>{% endif %}
+                                        </label>
+                                        <select name="custom_{{ field.definition.slug }}"
+                                                id="modal_custom_{{ field.definition.slug }}"
+                                                class="form-select"
+                                                {% if field.definition.is_required %}required{% endif %}>
+                                            <option value="">選択してください</option>
+                                            {% for choice in field.definition.choices %}
+                                                <option value="{{ choice }}" {% if field.current_value == choice %}selected{% endif %}>
+                                                    {{ choice }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                        {% if field.definition.help_text %}
+                                            <small class="form-text text-muted">{{ field.definition.help_text }}</small>
+                                        {% endif %}
+
+                                    {% elif field.definition.field_type == 'multiselect' %}
+                                        <label class="form-label d-block">
+                                            {{ field.definition.name }}
+                                            {% if field.definition.is_required %}<span class="text-danger">*</span>{% endif %}
+                                        </label>
+
+                                        {% if field.definition.slug == 'service_areas' or field.definition.slug == 'travel_expense_areas' %}
+                                            <!-- 地方ごとの一括選択機能付き表示 -->
+                                            <div class="checkbox-group-regions" id="modal_{{ field.definition.slug }}_container">
+                                                {% for region, prefectures in regions_mapping.items %}
+                                                <div class="region-group mb-2 border-start border-primary border-3 ps-2">
+                                                    <div class="form-check mb-1">
+                                                        <input type="checkbox"
+                                                               class="form-check-input region-toggle"
+                                                               id="modal_region_{{ field.definition.slug }}_{{ forloop.counter }}"
+                                                               data-region="{{ region }}"
+                                                               data-field-slug="modal_{{ field.definition.slug }}"
+                                                               onchange="toggleModalRegionPrefectures(this)">
+                                                        <label class="form-check-label fw-bold" for="modal_region_{{ field.definition.slug }}_{{ forloop.counter }}">
+                                                            <i class="fas fa-map-marked-alt me-1"></i>{{ region }}（全選択/解除）
+                                                        </label>
+                                                    </div>
+                                                    <div class="prefecture-checkboxes ps-3" style="max-height: 150px; overflow-y: auto;">
+                                                        {% for prefecture in prefectures %}
+                                                        <div class="form-check form-check-inline">
+                                                            <input type="checkbox"
+                                                                   class="form-check-input prefecture-checkbox"
+                                                                   name="custom_{{ field.definition.slug }}"
+                                                                   value="{{ prefecture }}"
+                                                                   id="modal_custom_{{ field.definition.slug }}_{{ prefecture }}"
+                                                                   data-region="{{ region }}"
+                                                                   data-field-slug="modal_{{ field.definition.slug }}"
+                                                                   {% if prefecture in field.current_value %}checked{% endif %}>
+                                                            <label class="form-check-label" for="modal_custom_{{ field.definition.slug }}_{{ prefecture }}">
+                                                                {{ prefecture }}
+                                                            </label>
+                                                        </div>
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <!-- 通常のmultiselect表示 -->
+                                            <div class="checkbox-group">
+                                                {% for choice in field.definition.choices %}
+                                                <div class="form-check form-check-inline">
+                                                    <input type="checkbox"
+                                                           class="form-check-input"
+                                                           name="custom_{{ field.definition.slug }}"
+                                                           value="{{ choice }}"
+                                                           id="modal_custom_{{ field.definition.slug }}_{{ forloop.counter }}"
+                                                           {% if choice in field.current_value %}checked{% endif %}>
+                                                    <label class="form-check-label" for="modal_custom_{{ field.definition.slug }}_{{ forloop.counter }}">
+                                                        {{ choice }}
+                                                    </label>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+
+                                        {% if field.definition.help_text %}
+                                            <small class="form-text text-muted">{{ field.definition.help_text }}</small>
+                                        {% endif %}
+
+                                    {% elif field.definition.field_type == 'checkbox' %}
+                                        <div class="form-check">
+                                            <input type="checkbox"
+                                                   name="custom_{{ field.definition.slug }}"
+                                                   id="modal_custom_{{ field.definition.slug }}"
+                                                   class="form-check-input"
+                                                   {% if field.current_value %}checked{% endif %}>
+                                            <label class="form-check-label">
+                                                {{ field.definition.name }}
+                                            </label>
+                                        </div>
+                                        {% if field.definition.help_text %}
+                                            <small class="form-text text-muted">{{ field.definition.help_text }}</small>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
                 </form>
             </div>
             <div class="modal-footer">
@@ -3671,6 +3864,9 @@ window.addNewContractor = function() {
     console.log('新規業者追加モーダルを開きました');
 };
 
+// エイリアス：業者管理モーダルの「新規業者追加」ボタンから呼ばれる
+window.openAddContractorModal = window.addNewContractor;
+
 // モーダルの時給単価フィールドの表示/非表示を切り替え
 window.toggleModalHourlyRateField = function() {
     const contractorType = $('#contractorType').val();
@@ -3684,10 +3880,91 @@ window.toggleModalHourlyRateField = function() {
     }
 };
 
+// モーダル内の地方ごとの都道府県一括選択/解除機能
+window.toggleModalRegionPrefectures = function(regionCheckbox) {
+    const region = regionCheckbox.dataset.region;
+    const fieldSlug = regionCheckbox.dataset.fieldSlug;
+    const isChecked = regionCheckbox.checked;
+
+    // 同じ地方の都道府県チェックボックスを取得
+    const prefectureCheckboxes = document.querySelectorAll(
+        `input.prefecture-checkbox[data-region="${region}"][data-field-slug="${fieldSlug}"]`
+    );
+
+    // すべての都道府県チェックボックスを一括で変更
+    prefectureCheckboxes.forEach(checkbox => {
+        checkbox.checked = isChecked;
+    });
+};
+
+// モーダルのカスタムフィールド初期化（DOMContentLoaded時に実行）
+$(document).ready(function() {
+    // 問屋契約の条件付き表示
+    const modalWholesaleContractSelect = document.querySelector('select#modal_custom_has_wholesale_contract');
+    if (modalWholesaleContractSelect) {
+        function toggleModalWholesaleDetails() {
+            const detailsField = document.getElementById('modal_wholesale_contract_details_wrapper');
+            if (detailsField) {
+                if (modalWholesaleContractSelect.value === 'あり') {
+                    detailsField.classList.remove('d-none');
+                } else {
+                    detailsField.classList.add('d-none');
+                }
+            }
+        }
+        modalWholesaleContractSelect.addEventListener('change', toggleModalWholesaleDetails);
+        toggleModalWholesaleDetails(); // 初期状態を設定
+    }
+
+    // 足場契約の条件付き表示
+    const modalScaffoldingCheckbox = document.querySelector('input#modal_custom_scaffolding_contract');
+    if (modalScaffoldingCheckbox) {
+        function toggleModalScaffoldingCost() {
+            const costField = document.getElementById('modal_scaffolding_whole_house_cost_wrapper');
+            if (costField) {
+                if (modalScaffoldingCheckbox.checked) {
+                    costField.classList.remove('d-none');
+                } else {
+                    costField.classList.add('d-none');
+                }
+            }
+        }
+        modalScaffoldingCheckbox.addEventListener('change', toggleModalScaffoldingCost);
+        toggleModalScaffoldingCost(); // 初期状態を設定
+    }
+
+    // インボイス番号の自動フォーマット
+    const modalInvoiceField = document.querySelector('input#modal_custom_invoice_number');
+    if (modalInvoiceField) {
+        modalInvoiceField.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/[^0-9T]/g, ''); // T と数字のみ
+
+            if (value.startsWith('T')) {
+                let numbers = value.substring(1);
+                // 最大12桁まで
+                numbers = numbers.substring(0, 12);
+
+                if (numbers.length > 8) {
+                    value = 'T' + numbers.substring(0, 4) + '-' + numbers.substring(4, 8) + '-' + numbers.substring(8);
+                } else if (numbers.length > 4) {
+                    value = 'T' + numbers.substring(0, 4) + '-' + numbers.substring(4);
+                } else {
+                    value = 'T' + numbers;
+                }
+            } else if (value.length > 0) {
+                // T がない場合は先頭に追加
+                value = 'T' + value.replace(/[^0-9]/g, '').substring(0, 12);
+            }
+
+            e.target.value = value;
+        });
+    }
+});
+
 window.saveContractor = function() {
     console.log('✅ saveContractor called');
 
-    // フォームデータを取得（正しいフィールド名で）
+    // 基本フォームデータを取得
     const formData = {
         name: $('#contractorName').val(),
         contractor_type: $('#contractorType').val(),
@@ -3708,6 +3985,50 @@ window.saveContractor = function() {
         account_number: $('#contractorAccountNumber').val(),
         account_holder: $('#contractorAccountHolder').val()
     };
+
+    // カスタムフィールドのデータを収集
+    const customFields = {};
+
+    // テキスト、数値、日付、テキストエリアフィールド
+    $('input[name^="custom_"], select[name^="custom_"], textarea[name^="custom_"]').each(function() {
+        const fieldName = $(this).attr('name');
+        if (!fieldName) return;
+
+        const fieldSlug = fieldName.replace('custom_', '');
+
+        // チェックボックス以外の input, select, textarea
+        if ($(this).attr('type') === 'checkbox' && !$(this).hasClass('form-check-input')) {
+            customFields[fieldSlug] = $(this).is(':checked');
+        } else if ($(this).attr('type') !== 'checkbox') {
+            const value = $(this).val();
+            if (value) {
+                customFields[fieldSlug] = value;
+            }
+        }
+    });
+
+    // 複数選択フィールド（multiselect）を収集
+    const multiselectFields = {};
+    $('input[name^="custom_"][type="checkbox"].form-check-input:checked').each(function() {
+        const fieldName = $(this).attr('name');
+        if (!fieldName) return;
+
+        const fieldSlug = fieldName.replace('custom_', '');
+        if (!multiselectFields[fieldSlug]) {
+            multiselectFields[fieldSlug] = [];
+        }
+        multiselectFields[fieldSlug].push($(this).val());
+    });
+
+    // multiselectフィールドをcustomFieldsに追加
+    Object.keys(multiselectFields).forEach(slug => {
+        customFields[slug] = multiselectFields[slug];
+    });
+
+    // customFieldsをformDataに追加
+    formData.custom_fields = customFields;
+
+    console.log('📦 Form data with custom fields:', formData);
 
     // バリデーション
     if (!formData.name) {
@@ -5761,6 +6082,23 @@ function escapeHtml(text) {
                         <small class="text-muted">会社のウェブサイトURL（例：https://example.com）</small>
                     </div>
 
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="newInvoiceSubmissionDeadline" class="form-label" style="font-weight: 500;">
+                                請求書提出期限（日）
+                            </label>
+                            <input type="number" class="form-control" id="newInvoiceSubmissionDeadline" name="invoice_submission_deadline" min="1" max="31">
+                            <small class="text-muted">毎月の請求書提出期限日（例：25日提出の場合は25）</small>
+                        </div>
+                        <div class="col-md-8 mb-3">
+                            <label for="newInvoiceSubmissionNotes" class="form-label" style="font-weight: 500;">
+                                請求書提出期限 補足説明
+                            </label>
+                            <input type="text" class="form-control" id="newInvoiceSubmissionNotes" name="invoice_submission_notes">
+                            <small class="text-muted">例：毎月25日必着、月末必着など</small>
+                        </div>
+                    </div>
+
                     <!-- 支払いサイクル設定 -->
                     <div style="border-bottom: 2px solid #3b82f6; padding-bottom: 0.5rem; margin-bottom: 1.5rem; margin-top: 2rem;">
                         <h6 class="mb-0" style="font-weight: 600; color: #374151;">
@@ -5773,7 +6111,7 @@ function escapeHtml(text) {
                     </div>
 
                     <div class="row">
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label for="newPaymentCycle" class="form-label" style="font-weight: 500;">
                                 支払サイクル
                             </label>
@@ -5787,14 +6125,27 @@ function escapeHtml(text) {
                                 <option value="other">その他</option>
                             </select>
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3">
                             <label for="newClosingDay" class="form-label" style="font-weight: 500;">
                                 締め日
                             </label>
                             <input type="number" class="form-control" id="newClosingDay" name="closing_day" min="1" max="31">
                             <small class="text-muted">月末締めの場合は31、20日締めの場合は20</small>
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-3 mb-3">
+                            <label for="newPaymentOffsetMonths" class="form-label" style="font-weight: 500;">
+                                支払月
+                            </label>
+                            <select class="form-select" id="newPaymentOffsetMonths" name="payment_offset_months">
+                                <option value="">選択してください</option>
+                                <option value="0">当月</option>
+                                <option value="1">翌月</option>
+                                <option value="2">翌々月</option>
+                                <option value="3">3ヶ月後</option>
+                            </select>
+                            <small class="text-muted">締日から何ヶ月後に支払うか</small>
+                        </div>
+                        <div class="col-md-3 mb-3">
                             <label for="newPaymentDay" class="form-label" style="font-weight: 500;">
                                 支払日
                             </label>
@@ -5846,6 +6197,102 @@ function escapeHtml(text) {
                         </label>
                         <textarea class="form-control" id="newCompletionReportNotes" name="completion_report_notes" rows="3"></textarea>
                         <small class="text-muted">案件登録時に完了報告内容として自動入力されます（案件ごとに変更可能）</small>
+                    </div>
+
+                    <!-- 業務情報 -->
+                    <div style="border-bottom: 2px solid #3b82f6; padding-bottom: 0.5rem; margin-bottom: 1.5rem; margin-top: 2rem;">
+                        <h6 class="mb-0" style="font-weight: 600; color: #374151;">
+                            <i class="fas fa-briefcase me-2"></i>業務情報
+                        </h6>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight: 500;">
+                            対応可能な工事種別
+                        </label>
+                        <select class="form-select" id="newWorkTypes" name="work_types" multiple size="5">
+                            <option value="">工事種別を選択してください</option>
+                        </select>
+                        <small class="text-muted">この元請から依頼される工事の種類を選択（複数選択可）</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="newPricingTier" class="form-label" style="font-weight: 500;">
+                            単価帯・共有単価表
+                        </label>
+                        <input type="text" class="form-control" id="newPricingTier" name="pricing_tier">
+                        <small class="text-muted">例：A単価表、B単価のみ共有、1式◯万円など</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="newSiteRules" class="form-label" style="font-weight: 500;">
+                            現場ルール
+                        </label>
+                        <textarea class="form-control" id="newSiteRules" name="site_rules" rows="3"></textarea>
+                        <small class="text-muted">現場での注意事項やルールを箇条書きで入力</small>
+                    </div>
+
+                    <!-- 品質・コミュニケーション -->
+                    <div style="border-bottom: 2px solid #3b82f6; padding-bottom: 0.5rem; margin-bottom: 1.5rem; margin-top: 2rem;">
+                        <h6 class="mb-0" style="font-weight: 600; color: #374151;">
+                            <i class="fas fa-comments me-2"></i>品質・コミュニケーション
+                        </h6>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="newTroubleTendencies" class="form-label" style="font-weight: 500;">
+                            トラブル傾向
+                        </label>
+                        <textarea class="form-control" id="newTroubleTendencies" name="trouble_tendencies" rows="2"></textarea>
+                        <small class="text-muted">例：追加書類が多い、現場変更が急、指示内容が曖昧など</small>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="newResponseEaseRating" class="form-label" style="font-weight: 500;">
+                                対応のしやすさ
+                            </label>
+                            <select class="form-select" id="newResponseEaseRating" name="response_ease_rating">
+                                <option value="">選択してください</option>
+                                <option value="1">1 - 非常に困難</option>
+                                <option value="2">2 - やや困難</option>
+                                <option value="3">3 - 普通</option>
+                                <option value="4">4 - やや容易</option>
+                                <option value="5">5 - 非常に容易</option>
+                            </select>
+                            <small class="text-muted">連絡対応や意思決定のスムーズさを5段階で評価</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="newResponseEaseNotes" class="form-label" style="font-weight: 500;">
+                                対応のしやすさ 補足
+                            </label>
+                            <input type="text" class="form-control" id="newResponseEaseNotes" name="response_ease_notes">
+                            <small class="text-muted">対応のしやすさに関する具体的な情報</small>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="newWorkEaseRating" class="form-label" style="font-weight: 500;">
+                                作業のしやすさ
+                            </label>
+                            <select class="form-select" id="newWorkEaseRating" name="work_ease_rating">
+                                <option value="">選択してください</option>
+                                <option value="1">1 - 非常に困難</option>
+                                <option value="2">2 - やや困難</option>
+                                <option value="3">3 - 普通</option>
+                                <option value="4">4 - やや容易</option>
+                                <option value="5">5 - 非常に容易</option>
+                            </select>
+                            <small class="text-muted">現場での作業のしやすさを5段階で評価</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="newWorkEaseNotes" class="form-label" style="font-weight: 500;">
+                                作業のしやすさ 補足
+                            </label>
+                            <input type="text" class="form-control" id="newWorkEaseNotes" name="work_ease_notes">
+                            <small class="text-muted">作業のしやすさに関する具体的な情報</small>
+                        </div>
                     </div>
 
                     <!-- 運用ルール・特記事項 -->
@@ -5900,10 +6347,38 @@ window.openClientCompanyCreateModal = function() {
     // エラーメッセージを非表示
     $('#clientCompanyCreateError').hide();
 
+    // 工事種別を読み込み
+    loadWorkTypesForClientModal();
+
     // モーダルを表示
     const modal = new bootstrap.Modal(document.getElementById('clientCompanyCreateModal'));
     modal.show();
 };
+
+// 工事種別をモーダルのドロップダウンに読み込む
+function loadWorkTypesForClientModal() {
+    $.ajax({
+        url: '{% url "order_management:work_type_list_ajax" %}',
+        type: 'GET',
+        success: function(response) {
+            if (response.success) {
+                const select = $('#newWorkTypes');
+                select.empty();
+                response.work_types.forEach(function(workType) {
+                    select.append(
+                        $('<option></option>')
+                            .attr('value', workType.id)
+                            .text(workType.name)
+                    );
+                });
+                console.log('✅ 工事種別を読み込みました:', response.work_types.length, '件');
+            }
+        },
+        error: function() {
+            console.error('❌ 工事種別の読み込みに失敗しました');
+        }
+    });
+}
 
 // 元請会社を新規作成
 window.submitNewClientCompany = function() {

@@ -271,6 +271,15 @@ def project_list(request):
         ('completed', '完工'),
     ]
 
+    # デバッグ：page_objの内容を確認
+    print(f"🔍 DEBUG: page_obj type: {type(page_obj)}")
+    print(f"🔍 DEBUG: page_obj.object_list type: {type(page_obj.object_list)}")
+    print(f"🔍 DEBUG: page_obj has {len(page_obj.object_list)} items")
+    if len(page_obj.object_list) > 0:
+        print(f"🔍 DEBUG: First 3 projects: {[p.management_no for p in list(page_obj.object_list)[:3]]}")
+    else:
+        print(f"⚠️  DEBUG: page_obj.object_list is EMPTY!")
+
     context = {
         'page_obj': page_obj,
         'projects': page_obj,
@@ -507,10 +516,42 @@ def project_create(request):
         form = ProjectForm()
 
     # フォーム表示用のデータを準備
-    from .models import ClientCompany
+    from .models import ClientCompany, ContractorFieldCategory
     client_companies = ClientCompany.objects.prefetch_related('contact_persons').filter(is_active=True).order_by('company_name')
     contractors = Contractor.objects.filter(is_active=True)  # 協力会社（作業者追加用）
     internal_workers = InternalWorker.objects.filter(is_active=True)
+
+    # カスタムフィールド定義をカテゴリごとに取得（業者モーダル用）
+    contractor_categories = ContractorFieldCategory.objects.filter(
+        is_active=True
+    ).prefetch_related('field_definitions').order_by('order')
+
+    contractor_custom_fields_by_category = []
+    for category in contractor_categories:
+        fields_data = []
+        for field_def in category.field_definitions.filter(is_active=True).order_by('order'):
+            fields_data.append({
+                'definition': field_def,
+                'current_value': ''  # 新規作成なので空
+            })
+
+        if fields_data:  # フィールドがある場合のみ追加
+            contractor_custom_fields_by_category.append({
+                'category': category,
+                'fields': fields_data
+            })
+
+    # 地方ごとの都道府県マッピング（業者モーダルの対応地域用）
+    regions_mapping = {
+        '北海道': ['北海道'],
+        '東北': ['青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県'],
+        '関東': ['茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県'],
+        '中部': ['新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県', '岐阜県', '静岡県', '愛知県'],
+        '近畿': ['三重県', '滋賀県', '京都府', '大阪府', '兵庫県', '奈良県', '和歌山県'],
+        '中国': ['鳥取県', '島根県', '岡山県', '広島県', '山口県'],
+        '四国': ['徳島県', '香川県', '愛媛県', '高知県'],
+        '九州': ['福岡県', '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県']
+    }
 
     # internal_workersをJSON形式でシリアライズ
     import json
@@ -578,6 +619,8 @@ def project_create(request):
         'contractors_json': contractors_json,  # Phase 1.2で追加
         'internal_workers': internal_workers,
         'internal_workers_json': internal_workers_json,
+        'contractor_custom_fields_by_category': contractor_custom_fields_by_category,  # 業者モーダル用カスタムフィールド
+        'regions_mapping': regions_mapping,  # 都道府県マッピング
     })
 
 
@@ -1025,10 +1068,34 @@ def project_detail(request, pk):
 
     # 元請会社情報を取得してJSON化（JavaScript用）
     client_companies = ClientCompany.objects.all().order_by('company_name')
+
+    # 支払いサイクルの日本語マッピング
+    payment_cycle_labels = {
+        'monthly': '月1回',
+        'bimonthly': '月2回',
+        'weekly': '週1回',
+        'custom': 'その他'
+    }
+
+    def get_primary_contact(company):
+        """主担当者を取得するヘルパー関数"""
+        primary = company.contact_persons.filter(is_primary=True).first()
+        if not primary:
+            primary = company.contact_persons.first()
+        return primary
+
     client_companies_json = json.dumps([{
         'id': c.id,
         'company_name': c.company_name,
-        'address': c.address,
+        'address': c.address or '',
+        'phone': get_primary_contact(c).phone if get_primary_contact(c) else '',
+        'contact_person': get_primary_contact(c).name if get_primary_contact(c) else '',
+        'payment_cycle': c.payment_cycle or '',
+        'payment_cycle_label': payment_cycle_labels.get(c.payment_cycle, c.payment_cycle) if c.payment_cycle else '',
+        'closing_day': c.closing_day,
+        'payment_offset_months': c.payment_offset_months,
+        'payment_day': c.payment_day,
+        'is_active': c.is_active
     } for c in client_companies])
 
     # 工事種別マスターを取得してJSON化（JavaScript用）
