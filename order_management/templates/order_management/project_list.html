@@ -6,6 +6,11 @@
 
 {% block extra_css %}
 <style>
+    /* 案件一覧ページでは main-content の min-height を無効化 */
+    .main-content {
+        min-height: auto !important;
+    }
+
     .progress-cell {
         min-width: 120px;
     }
@@ -411,7 +416,7 @@
 </div>
 
 <!-- データテーブル（詳細モード） -->
-<div class="card" id="detailMode">
+<div class="card" id="detailMode" style="display: none;">
     <div class="card-body">
         <div class="table-responsive">
             <table id="projectTable" class="table table-striped table-hover" style="width:100%">
@@ -617,7 +622,7 @@
 </div>
 
 <!-- サマリーモード -->
-<div class="container-fluid" id="summaryMode" style="display: none;">
+<div class="container-fluid" id="summaryMode" style="display: block;">
     <!-- タイル表示 -->
     <div class="row g-3" id="tileView">
         {% for project in projects %}
@@ -1095,6 +1100,9 @@ function switchMode(mode) {
         document.getElementById('summaryModeBtn').classList.remove('btn-primary');
         document.getElementById('summaryModeBtn').classList.add('btn-outline-secondary');
         localStorage.setItem('projectViewMode', 'detail');
+
+        // 詳細モードに切り替えた時にDataTablesを初期化（遅延初期化）
+        initializeDataTable();
     } else {
         document.getElementById('detailMode').style.display = 'none';
         document.getElementById('summaryMode').style.display = 'block';
@@ -1133,9 +1141,15 @@ function switchSummaryView(view) {
     }
 }
 
-$(document).ready(function() {
-    // DataTableの初期化（レスポンシブ対応強化）
-    // DataTablesエラーのデバッグ情報を出力
+// DataTables初期化フラグ
+var dataTableInitialized = false;
+
+// DataTablesを初期化する関数
+function initializeDataTable() {
+    if (dataTableInitialized) {
+        return; // Already initialized
+    }
+
     console.log('DEBUG: Initializing projectTable');
     console.log('DEBUG: thead th count:', $('#projectTable thead th').length);
     console.log('DEBUG: tbody first row td count:', $('#projectTable tbody tr:first td').length);
@@ -1170,6 +1184,12 @@ $(document).ready(function() {
             console.log('DEBUG: Columns count:', settings.aoColumns.length);
         }
     });
+
+    dataTableInitialized = true;
+}
+
+$(document).ready(function() {
+    // DataTablesの初期化は詳細モードに切り替えた時のみ行う（遅延初期化）
 
     // 保存されたモードの復元（デフォルトをサマリーのリストモードに）
     // バージョン管理：デフォルトをサマリーモードに変更（一度だけ実行）

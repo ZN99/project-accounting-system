@@ -509,12 +509,13 @@ function initializeModalScript() {
                 modalTitle.innerHTML = `<i class="fas fa-user-plus me-2"></i>作業者を追加 (${processName})`;
             }
 
-            // 工程キーをhidden inputに設定（step_プレフィックス付きで保存）
+            // 工程キーをhidden inputに設定（step_プレフィックスを削除）
             const stepInput = subcontractModal.querySelector('#subcontractStep');
             if (stepInput) {
-                // processKeyをそのまま使用（既にstep_プレフィックスが含まれている）
-                stepInput.value = processKey;
-                console.log('📝 Step value set:', processKey);
+                // processKeyから step_ プレフィックスを削除
+                const stepValue = processKey.replace(/^step_/, '');
+                stepInput.value = stepValue;
+                console.log('📝 Step value set:', stepValue, '(original:', processKey, ')');
             }
 
             // 発注先表示フィールドをリセット

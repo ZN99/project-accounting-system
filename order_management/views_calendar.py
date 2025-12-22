@@ -354,6 +354,17 @@ def calendar_events_api(request):
             if not step_key or step_key not in step_names:
                 continue
 
+            # 基本フィールドと重複するステップをスキップ
+            # estimate: estimate_issued_date がある場合はスキップ
+            # construction_start: work_start_date がある場合はスキップ
+            # completion: work_end_date がある場合はスキップ
+            if step_key == 'estimate' and project.estimate_issued_date:
+                continue
+            if step_key == 'construction_start' and project.work_start_date:
+                continue
+            if step_key == 'completion' and project.work_end_date:
+                continue
+
             # scheduled_dateを取得
             scheduled_date = ''
             if progress_step.value and isinstance(progress_step.value, dict):
