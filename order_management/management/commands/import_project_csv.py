@@ -255,16 +255,24 @@ class DataParser:
         受注ヨミ → project_status変換
 
         受注 → 受注確定
+        A → A（そのまま保存）
+        B → B（そのまま保存）
+        ネタ → ネタ（そのまま保存）
         NG → NG
-        その他 → 立ち会い待ち
+        その他・空 → 立ち会い待ち
         """
+        value = value.strip()
+
         status_map = {
             '受注': '受注確定',
+            'A': 'A',
+            'B': 'B',
+            'ネタ': 'ネタ',
             'NG': 'NG',
             '': '立ち会い待ち'
         }
 
-        return status_map.get(value.strip(), '立ち会い待ち')
+        return status_map.get(value, '立ち会い待ち')
 
     @staticmethod
     def map_payment_status(value: str) -> str:
