@@ -12,9 +12,10 @@ import json
 from .models import ChecklistTemplate, ProjectChecklist, Project, Notification
 from .forms import ChecklistTemplateForm, ProjectChecklistSelectForm
 from .user_roles import has_role, UserRole
+from .mixins import PerPageMixin
 
 
-class ChecklistTemplateListView(LoginRequiredMixin, ListView):
+class ChecklistTemplateListView(LoginRequiredMixin, PerPageMixin, ListView):
     """チェックリストテンプレート一覧 - Phase 8"""
     model = ChecklistTemplate
     template_name = 'order_management/checklist/template_list.html'

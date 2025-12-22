@@ -9,6 +9,7 @@ from django.db.models import Q
 
 from .models import UserProfile
 from .user_roles import UserRole, has_role
+from .mixins import PerPageMixin
 
 
 class ExecutiveRequiredMixin(UserPassesTestMixin):
@@ -22,7 +23,7 @@ class ExecutiveRequiredMixin(UserPassesTestMixin):
         return redirect('order_management:dashboard')
 
 
-class UserManagementDashboardView(LoginRequiredMixin, ExecutiveRequiredMixin, ListView):
+class UserManagementDashboardView(LoginRequiredMixin, ExecutiveRequiredMixin, PerPageMixin, ListView):
     """ユーザー管理ダッシュボード"""
     model = User
     template_name = 'order_management/user_management_dashboard.html'

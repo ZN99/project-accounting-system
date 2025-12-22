@@ -5,9 +5,10 @@ from django.views.generic import ListView, DetailView
 from django.db.models import Q, Avg, Count
 from .models import Contractor
 from order_management.models import ContractorReview
+from .mixins import PerPageMixin
 
 
-class ContractorSkillsDashboardView(LoginRequiredMixin, ListView):
+class ContractorSkillsDashboardView(LoginRequiredMixin, PerPageMixin, ListView):
     """職人スキル管理ダッシュボード - Phase 8"""
     model = Contractor
     template_name = 'subcontract_management/contractor_skills_dashboard.html'

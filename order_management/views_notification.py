@@ -8,9 +8,10 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from .models import Notification
+from .mixins import PerPageMixin
 
 
-class NotificationListView(LoginRequiredMixin, ListView):
+class NotificationListView(LoginRequiredMixin, PerPageMixin, ListView):
     """通知一覧ページ"""
     model = Notification
     template_name = 'order_management/notifications.html'
