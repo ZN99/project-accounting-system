@@ -111,6 +111,22 @@ class Project(models.Model):
         max_digits=10, decimal_places=0, default=0, verbose_name='増減'
     )
 
+    # 利益関連（自動計算・キャッシュ）
+    gross_profit = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        verbose_name='粗利額',
+        help_text='売上 - 売上原価（自動計算・キャッシュ）'
+    )
+    profit_margin = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        verbose_name='粗利率（%）',
+        help_text='粗利額 / 売上 × 100（自動計算・キャッシュ）'
+    )
+
     # 現地調査関連
     survey_required = models.BooleanField(default=False, verbose_name='現地調査必要')
     survey_status = models.CharField(
@@ -496,6 +512,11 @@ class Project(models.Model):
             Decimal(str(self.order_amount))
         )
 
+        # 利益計算（既存プロジェクトの場合のみ）
+        # Note: 新規作成時はpkがないため、シグナルで後から計算
+        if self.pk:
+            self._update_profit_cache()
+
         # Phase 8: 元請会社連携処理
         if self.client_company:
             # 鍵受け渡し場所のデフォルト値設定
@@ -541,6 +562,18 @@ class Project(models.Model):
         #     self.project_status = 'A'
 
         super().save(*args, **kwargs)
+
+    def _update_profit_cache(self):
+        """利益額と利益率をキャッシュフィールドに更新"""
+        try:
+            revenue_breakdown = self.get_revenue_breakdown()
+            self.gross_profit = revenue_breakdown.get('gross_profit', Decimal('0'))
+            self.profit_margin = revenue_breakdown.get('profit_margin', Decimal('0'))
+        except Exception as e:
+            # エラー時はゼロに設定（新規作成時など）
+            self.gross_profit = Decimal('0')
+            self.profit_margin = Decimal('0')
+            print(f"⚠ Warning: Failed to calculate profit for project {self.pk}: {e}")
 
     def _calculate_priority_score(self):
         """優先度スコアを計算（高いほど優先）"""

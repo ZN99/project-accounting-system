@@ -184,7 +184,7 @@ def project_list(request):
     # if work_period_to:
     #     projects = projects.filter(work_end_date__lte=work_period_to)
 
-    # 利益フィルタ (profit_min/max) - 後でPython側でフィルタリング
+    # 利益フィルタ (gross_profit) - データベースレベルでフィルタ
     profit_min = request.GET.get('profit_min')
     profit_max = request.GET.get('profit_max')
     # "None"文字列や空文字列を除外
@@ -192,8 +192,11 @@ def project_list(request):
         profit_min = None
     if profit_max in ['None', '', None]:
         profit_max = None
-    # Note: profit_amountはDBフィールドではなく計算値のため、
-    # ページネーション後にPython側でフィルタリングを行います
+    # キャッシュされたgross_profitフィールドでフィルタ（高速）
+    if profit_min:
+        projects = projects.filter(gross_profit__gte=Decimal(str(profit_min)))
+    if profit_max:
+        projects = projects.filter(gross_profit__lte=Decimal(str(profit_max)))
 
     # ページネーション件数を事前に取得（stage_filterの有無に関わらず使用）
     per_page = int(request.GET.get('per_page', 50))
@@ -209,14 +212,6 @@ def project_list(request):
         # 各プロジェクトのステージを計算してフィルタリング
         projects_list = [p for p in projects_list if p.get_current_project_stage()['stage'] == stage_filter]
 
-        # 利益フィルタ（Python側でフィルタリング）
-        if profit_min:
-            profit_min_decimal = Decimal(str(profit_min))
-            projects_list = [p for p in projects_list if p.get_revenue_breakdown().get('gross_profit', 0) >= profit_min_decimal]
-        if profit_max:
-            profit_max_decimal = Decimal(str(profit_max))
-            projects_list = [p for p in projects_list if p.get_revenue_breakdown().get('gross_profit', 0) <= profit_max_decimal]
-
         # リストをページネーション可能な形式に変換
         from django.core.paginator import Paginator as ListPaginator
         total_count = len(projects_list)
@@ -231,48 +226,23 @@ def project_list(request):
         page_number = request.GET.get('page')
         page_obj = paginator.get_page(page_number)
     else:
-        # 利益フィルタがある場合はPython側でフィルタリングが必要
-        if profit_min or profit_max:
-            # クエリセットを評価してリストに変換
-            projects_list = list(projects)
+        # 統計情報を計算（フィルター適用後の全体から）
+        total_count = projects.count()
+        # 受注済み: 受注確定の案件のみ（A/Bはまだ受注が決まっていない）
+        received_count = projects.filter(project_status='受注確定').count()
+        # 進行中・完了済みはget_current_project_stage()を使用するため全件評価が必要
+        projects_list = list(projects)
+        # 進行中: 受注確定したが、まだ完工していない案件
+        in_progress_count = sum(1 for p in projects_list if p.project_status == '受注確定' and p.get_current_project_stage()['stage'] != '完工')
+        completed_count = sum(1 for p in projects_list if p.get_current_project_stage()['stage'] == '完工')
 
-            # 利益フィルタ（Python側でフィルタリング）
-            if profit_min:
-                profit_min_decimal = Decimal(str(profit_min))
-                projects_list = [p for p in projects_list if p.get_revenue_breakdown().get('gross_profit', 0) >= profit_min_decimal]
-            if profit_max:
-                profit_max_decimal = Decimal(str(profit_max))
-                projects_list = [p for p in projects_list if p.get_revenue_breakdown().get('gross_profit', 0) <= profit_max_decimal]
+        # QuerySetに順序を追加（ページネーション警告対策）
+        projects = projects.order_by('-created_at')
 
-            # 統計情報を計算
-            total_count = len(projects_list)
-            received_count = sum(1 for p in projects_list if p.project_status == '受注確定')
-            in_progress_count = sum(1 for p in projects_list if p.project_status == '受注確定' and p.get_current_project_stage()['stage'] != '完工')
-            completed_count = sum(1 for p in projects_list if p.get_current_project_stage()['stage'] == '完工')
-
-            # リストをページネーション
-            from django.core.paginator import Paginator as ListPaginator
-            paginator = ListPaginator(projects_list, per_page)
-            page_number = request.GET.get('page')
-            page_obj = paginator.get_page(page_number)
-        else:
-            # 統計情報を計算（フィルター適用後の全体から）
-            total_count = projects.count()
-            # 受注済み: 受注確定の案件のみ（A/Bはまだ受注が決まっていない）
-            received_count = projects.filter(project_status='受注確定').count()
-            # 進行中・完了済みはget_current_project_stage()を使用するため全件評価が必要
-            projects_list = list(projects)
-            # 進行中: 受注確定したが、まだ完工していない案件
-            in_progress_count = sum(1 for p in projects_list if p.project_status == '受注確定' and p.get_current_project_stage()['stage'] != '完工')
-            completed_count = sum(1 for p in projects_list if p.get_current_project_stage()['stage'] == '完工')
-
-            # QuerySetに順序を追加（ページネーション警告対策）
-            projects = projects.order_by('-created_at')
-
-            # ページネーション（per_pageは既に上で設定済み）
-            paginator = Paginator(projects, per_page)
-            page_number = request.GET.get('page')
-            page_obj = paginator.get_page(page_number)
+        # ページネーション（per_pageは既に上で設定済み）
+        paginator = Paginator(projects, per_page)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
 
     # プロジェクトステージの選択肢（自動計算）
     stage_choices = [
