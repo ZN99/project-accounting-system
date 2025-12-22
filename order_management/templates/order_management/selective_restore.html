@@ -1,0 +1,346 @@
+{% extends 'order_management/base.html' %}
+{% load static %}
+
+{% block title %}選択的リストア - 建築派遣管理システム{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <div class="card">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="fas fa-file-import me-2"></i>選択的リストア</h4>
+                    <div>
+                        <a href="{% url 'order_management:import_data' %}" class="btn btn-light btn-sm me-2">
+                            <i class="fas fa-upload me-2"></i>完全復元
+                        </a>
+                        <a href="{% url 'order_management:export_data' %}" class="btn btn-light btn-sm">
+                            <i class="fas fa-download me-2"></i>エクスポート
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>バックアップファイルから特定のデータのみを選択して復元します。</strong><br>
+                        <small>例: 下請け業者の追加項目設定のみを復元、プロジェクトデータのみを復元など</small>
+                    </div>
+
+                    <!-- Step 1: ファイルアップロード -->
+                    <div id="uploadSection">
+                        <h5 class="mb-3"><i class="fas fa-upload me-2"></i>ステップ1: バックアップファイルを選択</h5>
+                        <form id="analyzeForm" method="post" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="analyze">
+                            <div class="mb-3">
+                                <label for="backup_file" class="form-label">バックアップファイル</label>
+                                <input type="file" class="form-control" id="backup_file" name="backup_file" accept=".zip,.json" required>
+                                <small class="form-text text-muted">
+                                    ZIP形式またはJSON形式のバックアップファイルを選択してください
+                                </small>
+                            </div>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <a href="{% url 'order_management:dashboard' %}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-2"></i>キャンセル
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search me-2"></i>ファイルを分析
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Step 2: モデル選択 -->
+                    <div id="selectionSection" style="display: none;">
+                        <h5 class="mb-3"><i class="fas fa-tasks me-2"></i>ステップ2: 復元するデータを選択</h5>
+                        <form id="restoreForm" method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="restore">
+                            <input type="hidden" id="backup_file_path" name="backup_file_path" value="">
+
+                            <div id="modelList">
+                                <!-- JavaScriptで動的に生成 -->
+                            </div>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                                <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                                    <i class="fas fa-undo me-2"></i>最初に戻る
+                                </button>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-check me-2"></i>選択したデータを復元
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- 結果表示 -->
+                    <div id="resultSection" class="mt-4" style="display: none;">
+                        <div class="alert" role="alert">
+                            <span id="resultMessage"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>使用方法</h5>
+                </div>
+                <div class="card-body">
+                    <ol>
+                        <li><strong>ファイル選択</strong>: バックアップファイル（ZIP または JSON）を選択します</li>
+                        <li><strong>分析</strong>: 「ファイルを分析」ボタンをクリックして、バックアップ内のデータを確認します</li>
+                        <li><strong>選択</strong>: 復元したいデータカテゴリにチェックを入れます（複数選択可能）</li>
+                        <li><strong>復元</strong>: 「選択したデータを復元」ボタンをクリックして復元を実行します</li>
+                    </ol>
+
+                    <h6 class="text-primary mt-3"><i class="fas fa-database me-1"></i> データカテゴリ</h6>
+                    <ul>
+                        <li><strong>下請け業者追加項目</strong>: 下請け業者に関するカスタムフィールド定義</li>
+                        <li><strong>案件データ</strong>: プロジェクト情報、進捗ステップなど</li>
+                        <li><strong>業者データ</strong>: 下請け業者、内部作業員の情報</li>
+                        <li><strong>設定データ</strong>: 各種マスター設定、テンプレートなど</li>
+                        <li><strong>その他</strong>: 上記以外のデータ</li>
+                    </ul>
+
+                    <h6 class="text-warning mt-3"><i class="fas fa-exclamation-triangle me-1"></i> 注意事項</h6>
+                    <ul>
+                        <li>選択したデータのみが復元されます（選択していないデータは変更されません）</li>
+                        <li>同じIDのデータが存在する場合、上書きされる可能性があります</li>
+                        <li>復元前に現在のデータのバックアップを取ることを推奨します</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ページロード時に初期状態を設定
+document.addEventListener('DOMContentLoaded', function() {
+    // 初期状態: アップロードセクションのみ表示
+    document.getElementById('uploadSection').style.display = 'block';
+    document.getElementById('selectionSection').style.display = 'none';
+    document.getElementById('resultSection').style.display = 'none';
+});
+
+// フォームリセット
+function resetForm() {
+    document.getElementById('uploadSection').style.display = 'block';
+    document.getElementById('selectionSection').style.display = 'none';
+    document.getElementById('resultSection').style.display = 'none';
+    document.getElementById('analyzeForm').reset();
+    document.getElementById('modelList').innerHTML = '';
+}
+
+// ステップ1: ファイル分析
+document.getElementById('analyzeForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const resultDiv = document.getElementById('resultSection');
+    const resultMessage = document.getElementById('resultMessage');
+
+    // ローディング表示
+    resultDiv.style.display = 'block';
+    resultDiv.querySelector('.alert').className = 'alert alert-info';
+    resultMessage.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>バックアップファイルを分析中...';
+
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('サーバーエラー: ' + response.status);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.status === 'success') {
+            // 分析成功 - モデル一覧を表示
+            resultDiv.style.display = 'none';
+            document.getElementById('uploadSection').style.display = 'none';
+            document.getElementById('selectionSection').style.display = 'block';
+
+            // バックアップファイルパスを保存
+            document.getElementById('backup_file_path').value = data.backup_file_path || '';
+
+            // モデル一覧を生成
+            if (data.models) {
+                displayModelList(data.models);
+            } else {
+                console.error('No models data returned');
+                resultDiv.querySelector('.alert').className = 'alert alert-danger';
+                resultMessage.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>モデルデータが取得できませんでした';
+                resultDiv.style.display = 'block';
+            }
+        } else {
+            resultDiv.querySelector('.alert').className = 'alert alert-danger';
+            resultMessage.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + (data.message || 'エラーが発生しました');
+        }
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);
+        resultDiv.querySelector('.alert').className = 'alert alert-danger';
+        resultMessage.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>エラーが発生しました: ' + error.message;
+    });
+});
+
+// モデル一覧を表示
+function displayModelList(models) {
+    const container = document.getElementById('modelList');
+    container.innerHTML = '';
+
+    // modelsが未定義またはnullの場合はエラー
+    if (!models || typeof models !== 'object') {
+        console.error('Invalid models data:', models);
+        return;
+    }
+
+    // カテゴリー定義
+    const categoryConfig = {
+        'subcontract_custom_fields': {
+            title: '下請け業者追加項目',
+            icon: 'fas fa-user-cog',
+            color: 'primary'
+        },
+        'project_data': {
+            title: '案件データ',
+            icon: 'fas fa-project-diagram',
+            color: 'success'
+        },
+        'contractor_data': {
+            title: '業者データ',
+            icon: 'fas fa-users',
+            color: 'info'
+        },
+        'settings': {
+            title: '設定データ',
+            icon: 'fas fa-cog',
+            color: 'warning'
+        },
+        'other': {
+            title: 'その他',
+            icon: 'fas fa-boxes',
+            color: 'secondary'
+        }
+    };
+
+    // カテゴリーごとにカードを生成
+    for (const [categoryKey, categoryModels] of Object.entries(models)) {
+        if (categoryModels.length === 0) continue;
+
+        const config = categoryConfig[categoryKey];
+        const card = document.createElement('div');
+        card.className = 'card mb-3';
+
+        const totalCount = categoryModels.reduce((sum, model) => sum + model.count, 0);
+
+        card.innerHTML = `
+            <div class="card-header bg-${config.color} text-white">
+                <div class="form-check">
+                    <input class="form-check-input category-checkbox" type="checkbox"
+                           id="category_${categoryKey}" data-category="${categoryKey}">
+                    <label class="form-check-label fw-bold" for="category_${categoryKey}">
+                        <i class="${config.icon} me-2"></i>${config.title}
+                        <span class="badge bg-light text-dark ms-2">${categoryModels.length}モデル / ${totalCount}件</span>
+                    </label>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row" id="models_${categoryKey}">
+                    ${categoryModels.map(model => `
+                        <div class="col-md-6 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input model-checkbox" type="checkbox"
+                                       name="models" value="${model.model}"
+                                       data-category="${categoryKey}"
+                                       id="model_${model.model}">
+                                <label class="form-check-label" for="model_${model.model}">
+                                    ${model.name}
+                                    <span class="badge bg-secondary">${model.count}件</span>
+                                </label>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+
+        container.appendChild(card);
+    }
+
+    // カテゴリーチェックボックスで一括選択
+    document.querySelectorAll('.category-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const category = this.dataset.category;
+            const checked = this.checked;
+            document.querySelectorAll(`.model-checkbox[data-category="${category}"]`).forEach(cb => {
+                cb.checked = checked;
+            });
+        });
+    });
+}
+
+// ステップ2: 復元実行
+document.getElementById('restoreForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const resultDiv = document.getElementById('resultSection');
+    const resultMessage = document.getElementById('resultMessage');
+
+    // 選択されたモデルをチェック
+    const selectedModels = Array.from(document.querySelectorAll('.model-checkbox:checked')).length;
+    if (selectedModels === 0) {
+        alert('復元するデータを少なくとも1つ選択してください。');
+        return;
+    }
+
+    // 確認ダイアログ
+    const confirmMessage = `${selectedModels}個のモデルを復元します。\n既存のデータが上書きされる可能性があります。\n続行しますか？`;
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+
+    // ローディング表示
+    resultDiv.style.display = 'block';
+    resultDiv.querySelector('.alert').className = 'alert alert-info';
+    resultMessage.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>選択したデータを復元中...';
+
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            resultDiv.querySelector('.alert').className = 'alert alert-success';
+            resultMessage.innerHTML = '<i class="fas fa-check-circle me-2"></i>' + data.message;
+
+            // フォームをリセット
+            setTimeout(() => {
+                resetForm();
+            }, 3000);
+        } else {
+            resultDiv.querySelector('.alert').className = 'alert alert-danger';
+            resultMessage.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + data.message;
+        }
+    })
+    .catch(error => {
+        resultDiv.querySelector('.alert').className = 'alert alert-danger';
+        resultMessage.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>エラーが発生しました: ' + error;
+    });
+});
+</script>
+{% endblock %}

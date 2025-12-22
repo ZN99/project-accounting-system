@@ -416,7 +416,7 @@
                         <i class="fas fa-arrow-up me-1"></i>出金済み合計
                     </div>
                     <div class="metric-sub-value text-muted small mt-1">
-                        済+予定: ¥{{ outgoing_total_with_scheduled|floatformat:0|default:"0" }}
+                        済: ¥{{ outgoing_paid_total|floatformat:0|default:"0" }} / 予定: ¥{{ outgoing_scheduled_total|floatformat:0|default:"0" }}
                     </div>
                 </div>
             </div>
@@ -431,7 +431,7 @@
                         <i class="fas fa-arrow-down me-1"></i>入金済み合計
                     </div>
                     <div class="metric-sub-value text-muted small mt-1">
-                        済+予定: ¥{{ incoming_total_with_scheduled|floatformat:0|default:"0" }}
+                        済: ¥{{ incoming_received_total|floatformat:0|default:"0" }} / 予定: ¥{{ incoming_scheduled_total|floatformat:0|default:"0" }}
                     </div>
                 </div>
             </div>
@@ -926,21 +926,41 @@ function renderPaymentDateGroups(sitesByDate, paymentDates, type, contractorId) 
     return html;
 }
 
-function renderBulkActionBar(accordionId) {
+function renderBulkActionBar(accordionId, isIncoming = false) {
     // デフォルトの日付を今日に設定
     const today = new Date().toISOString().split('T')[0];
+
+    // 入金/出金に応じてラベルとステータスオプションを変更
+    const dateLabel = isIncoming ? '入金日:' : '出金日:';
+
+    // ステータスオプションを入金/出金で切り替え
+    let statusOptions = '';
+    if (isIncoming) {
+        // 入金の場合
+        statusOptions = `
+            <option value="">ステータスを選択</option>
+            <option value="pending">入金待ち</option>
+            <option value="partial">一部入金</option>
+            <option value="received">入金済み</option>
+        `;
+    } else {
+        // 出金の場合
+        statusOptions = `
+            <option value="">ステータスを選択</option>
+            <option value="pending">未払い</option>
+            <option value="processing">処理中</option>
+            <option value="paid">支払済</option>
+        `;
+    }
 
     return `
         <div class="bulk-action-bar">
             <span class="me-2">選択した案件：</span>
-            <select class="form-select" id="${accordionId}_status" onchange="togglePaymentDateField('${accordionId}')">
-                <option value="">ステータスを選択</option>
-                <option value="pending">未払い</option>
-                <option value="processing">処理中</option>
-                <option value="paid">支払済</option>
+            <select class="form-select" id="${accordionId}_status" onchange="togglePaymentDateField('${accordionId}', ${isIncoming})">
+                ${statusOptions}
             </select>
             <div id="${accordionId}_payment_date_wrapper" style="display: none;">
-                <label class="form-label mb-0 me-2">出金日:</label>
+                <label class="form-label mb-0 me-2">${dateLabel}</label>
                 <input type="date" class="form-control" id="${accordionId}_payment_date" value="${today}">
             </div>
             <button class="btn btn-primary" onclick="bulkUpdateStatus('${accordionId}')">
@@ -950,11 +970,16 @@ function renderBulkActionBar(accordionId) {
     `;
 }
 
-function togglePaymentDateField(accordionId) {
+function togglePaymentDateField(accordionId, isIncoming = false) {
     const statusSelect = document.getElementById(accordionId + '_status');
     const paymentDateWrapper = document.getElementById(accordionId + '_payment_date_wrapper');
 
-    if (statusSelect.value === 'paid') {
+    // 出金済み（paid）または入金済み（received）の場合に日付フィールドを表示
+    const shouldShowDate = isIncoming ?
+        (statusSelect.value === 'received') :
+        (statusSelect.value === 'paid');
+
+    if (shouldShowDate) {
         paymentDateWrapper.style.display = 'flex';
         paymentDateWrapper.style.alignItems = 'center';
         paymentDateWrapper.style.gap = '0.5rem';
@@ -995,23 +1020,33 @@ function bulkUpdateStatus(accordionId) {
 
     const body = document.getElementById(accordionId);
     const checkedBoxes = body.querySelectorAll('input.site-checkbox:checked:not(.select-all-date)');
-    const subcontractIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
+    const ids = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
 
-    if (subcontractIds.length === 0) {
+    if (ids.length === 0) {
         if (typeof toastr !== 'undefined') {
             toastr.warning('更新する案件を選択してください');
         }
         return;
     }
 
+    // 入金/出金を判定（accordionIdが"incoming"で始まるかどうか）
+    const isIncoming = accordionId.startsWith('incoming');
+
     // リクエストボディを作成
     const requestBody = {
-        subcontract_ids: subcontractIds,
         status: newStatus
     };
 
-    // 「支払済」の場合、選択された日付を含める
-    if (newStatus === 'paid') {
+    // 入金/出金に応じてIDキーを変更
+    if (isIncoming) {
+        requestBody.project_ids = ids;
+    } else {
+        requestBody.subcontract_ids = ids;
+    }
+
+    // 完了ステータスの場合、選択された日付を含める
+    const isCompleteStatus = isIncoming ? (newStatus === 'received') : (newStatus === 'paid');
+    if (isCompleteStatus) {
         const paymentDateInput = document.getElementById(accordionId + '_payment_date');
         if (paymentDateInput && paymentDateInput.value) {
             requestBody.payment_date = paymentDateInput.value;
@@ -1219,6 +1254,7 @@ function renderIncomingReceivedByClient(data) {
                 </div>
                 <div class="contractor-accordion-body" id="${accordionId}">
                     ${renderIncomingPaymentDateGroups(client.projects_by_date, client.payment_dates, client.client_id)}
+                    ${renderBulkActionBar(accordionId, true)}
                 </div>
             </div>
         `;
@@ -1253,6 +1289,10 @@ function renderIncomingPaymentDateGroups(projectsByDate, paymentDates, clientId)
                 <table class="table site-list-table">
                     <thead>
                         <tr>
+                            <th style="width: 40px;">
+                                <input type="checkbox" class="form-check-input site-checkbox select-all-date"
+                                       onchange="toggleDateSelection(this, '${dateStr}')">
+                            </th>
                             <th>現場名</th>
                             <th class="text-end">金額</th>
                             <th>ステータス</th>
@@ -1262,6 +1302,10 @@ function renderIncomingPaymentDateGroups(projectsByDate, paymentDates, clientId)
                     <tbody>
                         ${projects.map(proj => `
                             <tr>
+                                <td>
+                                    <input type="checkbox" class="form-check-input site-checkbox"
+                                           value="${proj.id}" data-date="${dateStr}">
+                                </td>
                                 <td>${proj.site_name}</td>
                                 <td class="text-end amount-display">${formatCurrency(proj.billing_amount)}</td>
                                 <td>${getStatusBadge(proj.payment_status)}</td>
@@ -1308,6 +1352,7 @@ function renderIncomingScheduledByClient(data) {
                 </div>
                 <div class="contractor-accordion-body" id="${accordionId}">
                     ${renderIncomingScheduledPaymentDateGroups(client.projects_by_date, client.payment_due_dates, client.client_id)}
+                    ${renderBulkActionBar(accordionId, true)}
                 </div>
             </div>
         `;
@@ -1342,6 +1387,10 @@ function renderIncomingScheduledPaymentDateGroups(projectsByDate, paymentDueDate
                 <table class="table site-list-table">
                     <thead>
                         <tr>
+                            <th style="width: 40px;">
+                                <input type="checkbox" class="form-check-input site-checkbox select-all-date"
+                                       onchange="toggleDateSelection(this, '${dateStr}')">
+                            </th>
                             <th>現場名</th>
                             <th class="text-end">金額</th>
                             <th>ステータス</th>
@@ -1351,6 +1400,10 @@ function renderIncomingScheduledPaymentDateGroups(projectsByDate, paymentDueDate
                     <tbody>
                         ${projects.map(proj => `
                             <tr>
+                                <td>
+                                    <input type="checkbox" class="form-check-input site-checkbox"
+                                           value="${proj.id}" data-date="${dateStr}">
+                                </td>
                                 <td>${proj.site_name}</td>
                                 <td class="text-end amount-display">${formatCurrency(proj.billing_amount)}</td>
                                 <td>${getStatusBadge(proj.payment_status)}</td>

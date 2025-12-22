@@ -354,6 +354,253 @@ def _restore_from_json(json_file_path: str) -> JsonResponse:
 
 @login_required
 @require_http_methods(["GET", "POST"])
+def selective_restore_view(request):
+    """
+    選択的リストアビュー - バックアップから特定のモデルのみを復元
+
+    機能:
+    - バックアップファイル内のモデル一覧を表示
+    - 復元するモデルを選択（チェックボックス）
+    - 選択されたモデルのみをインポート
+
+    使用例:
+    - 下請け業者の追加項目設定のみを復元
+    - プロジェクトデータのみを復元
+    """
+    if request.method == 'GET':
+        return render(request, 'order_management/selective_restore.html')
+
+    elif request.method == 'POST':
+        try:
+            # アクションタイプの判定
+            action = request.POST.get('action', 'analyze')
+
+            if action == 'analyze':
+                # バックアップファイルの分析
+                return _analyze_backup_file(request)
+            elif action == 'restore':
+                # 選択されたモデルの復元
+                return _selective_restore(request)
+            else:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': '無効なアクションです'
+                }, status=400)
+
+        except Exception as e:
+            import traceback
+            logger.error(f'選択的リストアエラー: {str(e)}\n{traceback.format_exc()}')
+
+            return JsonResponse({
+                'status': 'error',
+                'message': f'エラーが発生しました: {str(e)}'
+            }, status=500)
+
+
+def _analyze_backup_file(request) -> JsonResponse:
+    """バックアップファイルを分析してモデル一覧を返す"""
+    uploaded_file = request.FILES.get('backup_file')
+
+    if not uploaded_file:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'ファイルが選択されていません'
+        }, status=400)
+
+    if not (uploaded_file.name.endswith('.zip') or uploaded_file.name.endswith('.json')):
+        return JsonResponse({
+            'status': 'error',
+            'message': 'ZIPまたはJSONファイルのみ対応しています'
+        }, status=400)
+
+    # 一時ファイルに保存
+    with tempfile.NamedTemporaryFile(mode='wb', suffix=os.path.splitext(uploaded_file.name)[1], delete=False) as temp_file:
+        for chunk in uploaded_file.chunks():
+            temp_file.write(chunk)
+        temp_file_path = temp_file.name
+
+    try:
+        # バックアップファイルからデータを読み込み
+        if uploaded_file.name.endswith('.zip'):
+            with tempfile.TemporaryDirectory() as temp_dir:
+                with zipfile.ZipFile(temp_file_path, 'r') as zip_file:
+                    zip_file.extractall(temp_dir)
+
+                data_json_path = os.path.join(temp_dir, 'data.json')
+
+                with open(data_json_path, 'r', encoding='utf-8') as json_file:
+                    data_list = json.load(json_file)
+        else:
+            # JSON形式
+            with open(temp_file_path, 'r', encoding='utf-8') as json_file:
+                data_list = json.load(json_file)
+
+        # モデルごとの統計を集計
+        model_stats = {}
+        for item in data_list:
+            model_name = item.get('model')
+            if model_name:
+                if model_name not in model_stats:
+                    model_stats[model_name] = {
+                        'count': 0,
+                        'app_label': model_name.split('.')[0],
+                        'model_name': model_name.split('.')[1] if '.' in model_name else model_name
+                    }
+                model_stats[model_name]['count'] += 1
+
+        # カテゴリー別に整理
+        categorized_models = {
+            'subcontract_custom_fields': [],  # 下請け業者追加項目
+            'project_data': [],               # 案件データ
+            'contractor_data': [],            # 業者データ
+            'settings': [],                   # 設定データ
+            'other': []                       # その他
+        }
+
+        for model_name, stats in model_stats.items():
+            # 表示用の名前を生成
+            display_name = stats['model_name'].replace('_', ' ').title()
+
+            model_info = {
+                'model': model_name,
+                'name': display_name,  # フロントエンドが期待する表示名
+                'count': stats['count'],
+                'app_label': stats['app_label'],
+                'model_name': stats['model_name']
+            }
+
+            # カテゴリー振り分け
+            if 'contractorfield' in model_name.lower():
+                categorized_models['subcontract_custom_fields'].append(model_info)
+            elif 'project' in model_name.lower():
+                categorized_models['project_data'].append(model_info)
+            elif 'contractor' in model_name.lower() or 'internalworker' in model_name.lower():
+                categorized_models['contractor_data'].append(model_info)
+            elif 'settings' in model_name.lower() or 'template' in model_name.lower():
+                categorized_models['settings'].append(model_info)
+            else:
+                categorized_models['other'].append(model_info)
+
+        # セッションに一時ファイルパスを保存（後で復元時に使用）
+        request.session['temp_backup_file'] = temp_file_path
+        request.session['backup_filename'] = uploaded_file.name
+
+        return JsonResponse({
+            'status': 'success',
+            'message': 'バックアップファイルを分析しました',
+            'total_objects': len(data_list),
+            'total_models': len(model_stats),
+            'models': categorized_models,  # フロントエンドが期待するキー名
+            'backup_file_path': temp_file_path,  # フロントエンドが期待するキー名
+            'backup_filename': uploaded_file.name
+        })
+
+    except Exception as e:
+        # エラー時は一時ファイルを削除
+        if os.path.exists(temp_file_path):
+            os.unlink(temp_file_path)
+        raise
+
+
+def _selective_restore(request) -> JsonResponse:
+    """選択されたモデルのみを復元"""
+    temp_file_path = request.session.get('temp_backup_file')
+
+    if not temp_file_path or not os.path.exists(temp_file_path):
+        return JsonResponse({
+            'status': 'error',
+            'message': 'バックアップファイルが見つかりません。再度アップロードしてください。'
+        }, status=400)
+
+    # 選択されたモデルを取得（チェックボックスから複数選択される）
+    selected_models_list = request.POST.getlist('models')
+
+    if not selected_models_list:
+        return JsonResponse({
+            'status': 'error',
+            'message': '復元するモデルを選択してください'
+        }, status=400)
+
+    try:
+        # バックアップファイルからデータを読み込み
+        if temp_file_path.endswith('.zip'):
+            with tempfile.TemporaryDirectory() as temp_dir:
+                with zipfile.ZipFile(temp_file_path, 'r') as zip_file:
+                    zip_file.extractall(temp_dir)
+
+                data_json_path = os.path.join(temp_dir, 'data.json')
+
+                with open(data_json_path, 'r', encoding='utf-8') as json_file:
+                    all_data = json.load(json_file)
+        else:
+            with open(temp_file_path, 'r', encoding='utf-8') as json_file:
+                all_data = json.load(json_file)
+
+        # 選択されたモデルのデータのみをフィルタリング
+        filtered_data = [
+            item for item in all_data
+            if item.get('model') in selected_models_list
+        ]
+
+        if not filtered_data:
+            return JsonResponse({
+                'status': 'error',
+                'message': '選択されたモデルのデータが見つかりませんでした'
+            }, status=400)
+
+        # フィルタリングされたデータを一時JSONファイルに保存
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as temp_json:
+            json.dump(filtered_data, temp_json, ensure_ascii=False, indent=2)
+            filtered_json_path = temp_json.name
+
+        try:
+            # loaddataコマンドで選択されたデータのみをインポート
+            output = io.StringIO()
+            error_output = io.StringIO()
+
+            call_command(
+                'loaddata',
+                filtered_json_path,
+                verbosity=2,
+                stdout=output,
+                stderr=error_output
+            )
+
+            output_text = output.getvalue()
+            error_text = error_output.getvalue()
+
+            # インポートされたオブジェクト数を数える
+            import re
+            installed_match = re.search(r'Installed (\d+) object', output_text)
+            installed_count = installed_match.group(1) if installed_match else len(filtered_data)
+
+            logger.info(f'選択的リストア完了: {installed_count}個のオブジェクトを復元 (モデル: {", ".join(selected_models_list)})')
+
+            return JsonResponse({
+                'status': 'success',
+                'message': '選択されたデータの復元が完了しました',
+                'details': f'{installed_count}個のオブジェクトを復元しました',
+                'restored_models': selected_models_list,
+                'warnings': error_text if error_text else None
+            })
+
+        finally:
+            # 一時JSONファイルを削除
+            if os.path.exists(filtered_json_path):
+                os.unlink(filtered_json_path)
+
+    finally:
+        # 元の一時バックアップファイルを削除
+        if os.path.exists(temp_file_path):
+            os.unlink(temp_file_path)
+
+        # セッションをクリア
+        request.session.pop('temp_backup_file', None)
+        request.session.pop('backup_filename', None)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
 def delete_all_data_view(request):
     """
     全データ削除ビュー - データベースの全データを削除（ユーザーテーブルは保持）

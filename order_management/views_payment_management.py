@@ -28,6 +28,7 @@ from order_management.services.cashflow_service import (
     get_incoming_scheduled_by_client,
 )
 from subcontract_management.models import Subcontract
+from order_management.models import Project
 
 
 class PaymentManagementView(LoginRequiredMixin, TemplateView):
@@ -503,16 +504,20 @@ def get_incoming_scheduled_by_client_api(request):
 @require_http_methods(["POST"])
 @csrf_exempt
 def bulk_update_payment_status_api(request):
-    """複数案件の支払いステータスを一括更新するAPI"""
+    """複数案件の支払いステータスを一括更新するAPI（出金・入金両方対応）"""
     try:
         # JSONデータを解析
         data = json.loads(request.body)
         subcontract_ids = data.get('subcontract_ids', [])
+        project_ids = data.get('project_ids', [])
         new_status = data.get('status')
         payment_date_str = data.get('payment_date')
 
+        # 入金か出金かを判定
+        is_incoming = bool(project_ids)
+
         # バリデーション
-        if not subcontract_ids:
+        if not subcontract_ids and not project_ids:
             return JsonResponse({
                 'success': False,
                 'error': '更新する案件を選択してください'
@@ -524,35 +529,64 @@ def bulk_update_payment_status_api(request):
                 'error': 'ステータスを選択してください'
             }, status=400)
 
-        # ステータスの妥当性チェック
-        valid_statuses = ['pending', 'processing', 'paid']
-        if new_status not in valid_statuses:
-            return JsonResponse({
-                'success': False,
-                'error': f'無効なステータスです: {new_status}'
-            }, status=400)
+        # ステータスの妥当性チェック（入金/出金で異なる）
+        if is_incoming:
+            # 入金の場合
+            valid_statuses = ['pending', 'partial', 'received']
+            if new_status not in valid_statuses:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'無効なステータスです: {new_status}'
+                }, status=400)
 
-        # 一括更新
-        subcontracts = Subcontract.objects.filter(id__in=subcontract_ids)
+            # プロジェクトの入金ステータスを更新
+            projects = Project.objects.filter(id__in=project_ids)
 
-        if new_status == 'paid':
-            # 「支払済」に変更する場合、payment_dateを設定
-            if payment_date_str:
-                # リクエストから日付が提供された場合、それを使用
-                from datetime import datetime as dt
-                payment_date = dt.strptime(payment_date_str, '%Y-%m-%d').date()
+            if new_status == 'received':
+                # 「入金済み」に変更する場合、incoming_payment_dateを設定
+                if payment_date_str:
+                    from datetime import datetime as dt
+                    payment_date = dt.strptime(payment_date_str, '%Y-%m-%d').date()
+                else:
+                    from datetime import date
+                    payment_date = date.today()
+
+                updated_count = projects.update(
+                    incoming_payment_status=new_status,
+                    payment_received_date=payment_date
+                )
             else:
-                # 日付が提供されていない場合、今日の日付を使用
-                from datetime import date
-                payment_date = date.today()
+                # その他のステータスの場合は、ステータスのみ更新
+                updated_count = projects.update(incoming_payment_status=new_status)
 
-            updated_count = subcontracts.update(
-                payment_status=new_status,
-                payment_date=payment_date
-            )
         else:
-            # その他のステータスの場合は、ステータスのみ更新
-            updated_count = subcontracts.update(payment_status=new_status)
+            # 出金の場合
+            valid_statuses = ['pending', 'processing', 'paid']
+            if new_status not in valid_statuses:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'無効なステータスです: {new_status}'
+                }, status=400)
+
+            # 下請契約の支払いステータスを更新
+            subcontracts = Subcontract.objects.filter(id__in=subcontract_ids)
+
+            if new_status == 'paid':
+                # 「支払済」に変更する場合、payment_dateを設定
+                if payment_date_str:
+                    from datetime import datetime as dt
+                    payment_date = dt.strptime(payment_date_str, '%Y-%m-%d').date()
+                else:
+                    from datetime import date
+                    payment_date = date.today()
+
+                updated_count = subcontracts.update(
+                    payment_status=new_status,
+                    payment_date=payment_date
+                )
+            else:
+                # その他のステータスの場合は、ステータスのみ更新
+                updated_count = subcontracts.update(payment_status=new_status)
 
         return JsonResponse({
             'success': True,

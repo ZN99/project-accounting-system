@@ -767,6 +767,16 @@
                     </small>
                 </div>
                 <div class="col-md-1">
+                    <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('revenue')">
+                        <i class="fas fa-yen-sign me-1"></i>売上 <i class="fas fa-sort"></i>
+                    </small>
+                </div>
+                <div class="col-md-1">
+                    <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('cost')">
+                        <i class="fas fa-yen-sign me-1"></i>原価 <i class="fas fa-sort"></i>
+                    </small>
+                </div>
+                <div class="col-md-1">
                     <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('profit')">
                         <i class="fas fa-yen-sign me-1"></i>利益 <i class="fas fa-sort"></i>
                     </small>
@@ -776,7 +786,7 @@
                         <i class="fas fa-tools me-1"></i>種別 <i class="fas fa-sort"></i>
                     </small>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-2">
                     <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('stage')">
                         <i class="fas fa-tasks me-1"></i>案件進捗 <i class="fas fa-sort"></i>
                     </small>
@@ -798,11 +808,12 @@
                  data-client="{% if project.client_company %}{{ project.client_company.company_name }}{% else %}{{ project.client_name|default:'' }}{% endif %}"
                  data-contractor="{% if grouped_subs %}{{ grouped_subs|length }}{% else %}0{% endif %}"
                  data-schedule="{% if period.start_date %}{{ period.start_date|date:'Y-m-d' }}{% else %}9999-12-31{% endif %}"
+                 data-revenue="{{ revenue.revenue|default:0 }}"
+                 data-cost="{{ revenue.cost_of_sales|default:0 }}"
                  data-profit="{{ revenue.gross_profit|default:0 }}"
                  data-work-type="{{ project.work_type|default:'' }}"
                  data-stage="{{ stage.stage }}"
-                 data-progress="{% if details.total_steps > 0 %}{% widthratio details.completed_steps details.total_steps 100 %}{% else %}0{% endif %}"
-                 data-revenue="{{ revenue.revenue }}">
+                 data-progress="{% if details.total_steps > 0 %}{% widthratio details.completed_steps details.total_steps 100 %}{% else %}0{% endif %}">
                 <div class="row align-items-center">
                     <!-- 現場名・管理No -->
                     <div class="col-md-12 mb-2">
@@ -1374,6 +1385,10 @@ function sortSummaryList(field) {
             case 'revenue':
                 aValue = parseFloat($(a).data('revenue')) || 0;
                 bValue = parseFloat($(b).data('revenue')) || 0;
+                break;
+            case 'cost':
+                aValue = parseFloat($(a).data('cost')) || 0;
+                bValue = parseFloat($(b).data('cost')) || 0;
                 break;
             default:
                 return 0;

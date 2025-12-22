@@ -58,18 +58,20 @@ def dashboard(request):
     monthly_stats.reverse()
 
     # 進行中案件（工事中・下書きを除外）
+    # NOTE: work_start_date/work_end_date は @property のため、QuerySetフィルタでは使用できない
+    # 代わりに、プロジェクトステータスでフィルタする
     ongoing_projects = Project.objects.filter(
         is_draft=False,
-        work_start_date__lte=today,
-        work_end_date__gte=today
-    ).order_by('work_end_date')
+        project_status='受注確定'
+    ).order_by('-created_at')[:10]  # 最新10件
 
     # 近日開始予定（下書きを除外）
+    # NOTE: work_start_date は @property のため、QuerySetフィルタでは使用できない
+    # 代わりに、受注確定の案件を表示
     upcoming_projects = Project.objects.filter(
         is_draft=False,
-        work_start_date__gt=today,
-        work_start_date__lte=today + timedelta(days=30)
-    ).order_by('work_start_date')
+        project_status='受注確定'
+    ).order_by('-created_at')[:10]  # 最新10件
 
     # 売上統計（下書きを除外）
     revenue_stats = {
@@ -171,12 +173,16 @@ def project_list(request):
         )
 
     # 工期フィルタ (work_start_date と work_end_date)
+    # NOTE: work_start_date と work_end_date は @property のため、QuerySetフィルタでは使用できない
+    # これらは ProjectProgressStep から計算される値であり、データベースフィールドではない
+    # 必要であれば、ProjectProgressStep を直接フィルタする必要がある
     work_period_from = request.GET.get('work_period_from')
     work_period_to = request.GET.get('work_period_to')
-    if work_period_from:
-        projects = projects.filter(work_start_date__gte=work_period_from)
-    if work_period_to:
-        projects = projects.filter(work_end_date__lte=work_period_to)
+    # FIXME: 以下のフィルタは FieldError を引き起こすため、コメントアウト
+    # if work_period_from:
+    #     projects = projects.filter(work_start_date__gte=work_period_from)
+    # if work_period_to:
+    #     projects = projects.filter(work_end_date__lte=work_period_to)
 
     # 利益フィルタ (profit_amount)
     profit_min = request.GET.get('profit_min')
@@ -1117,6 +1123,9 @@ def project_detail(request, pk):
         'uploaded_by': f.uploaded_by.username if f.uploaded_by else '不明'
     } for f in estimate_files])
 
+    # プロジェクトの現在の進捗状況を取得（キャッシュされた値）
+    stage = project.get_current_project_stage()
+
     return render(request, 'order_management/project_detail.html', {
         'project': project,
         'subcontracts': subcontracts,
@@ -1144,6 +1153,7 @@ def project_detail(request, pk):
         'complex_step_fields_json': json.dumps(complex_step_fields),
         'estimate_files': estimate_files,
         'estimate_files_json': estimate_files_json,
+        'stage': stage,  # プロジェクト進捗状況（キャッシュ値）
         # ステップ別下請け情報
         'attendance_subcontracts': attendance_subcontracts,
         'survey_subcontracts': survey_subcontracts,

@@ -1249,95 +1249,35 @@ class Project(models.Model):
         return days is not None and 0 <= days <= 7  # 1週間以内
 
     def get_construction_period(self):
-        """工期を計算して返す
+        """工期を計算して返す（SSOT対応版）
 
-        優先順位：
-        1. 着工実施日と完工日が両方ある場合
-        2. 着工実施日と完工予定日が両方ある場合
-        3. 着工予定日と完工予定日が両方ある場合
+        work_start_date と work_end_date プロパティから工期データを取得します。
+        これらのプロパティはProjectProgressStepモデルから自動的に読み取ります。
 
         Returns:
             dict: {
                 'days': 日数（整数）,
                 'start_date': 開始日,
                 'end_date': 終了日,
-                'type': 'actual' | 'mixed' | 'planned'
+                'type': 'planned'  # 常に'planned'（将来的に実施日も対応可能）
             }
         """
-        additional_items = self.additional_items or {}
-        complex_step_fields = additional_items.get('complex_step_fields', {})
+        # SSOT: work_start_date と work_end_date プロパティから取得
+        # これらは @property デコレータで ProjectProgressStep から自動取得
+        start_date = self.work_start_date  # construction_start ステップの scheduled_date
+        end_date = self.work_end_date      # completion ステップの scheduled_date
 
-        # complex_step_fieldsから着工日と完工日を取得（dynamic_field_, step_ prefix付き/なし全てをサポート）
-        construction_start_scheduled = (
-            complex_step_fields.get('dynamic_field_step_construction_start_scheduled_date') or
-            complex_step_fields.get('step_construction_start_scheduled_date') or
-            complex_step_fields.get('construction_start_scheduled_date')
-        )
-        construction_start_actual = (
-            complex_step_fields.get('dynamic_field_step_construction_start_actual_date') or
-            complex_step_fields.get('step_construction_start_actual_date') or
-            complex_step_fields.get('construction_start_actual_date')
-        )
-        completion_scheduled = (
-            complex_step_fields.get('dynamic_field_step_completion_scheduled_date') or
-            complex_step_fields.get('step_completion_scheduled_date') or
-            complex_step_fields.get('completion_scheduled_date')
-        )
-        completion_actual = (
-            complex_step_fields.get('dynamic_field_step_completion_actual_date') or
-            complex_step_fields.get('step_completion_actual_date') or
-            complex_step_fields.get('completion_actual_date')
-        )
-
-        # 日付の解析（文字列をdateオブジェクトに変換）
-        def parse_date(date_str):
-            if not date_str:
-                return None
-            if isinstance(date_str, str):
-                from datetime import datetime
-                try:
-                    return datetime.strptime(date_str, '%Y-%m-%d').date()
-                except:
-                    return None
-            return date_str
-
-        construction_start_scheduled = parse_date(construction_start_scheduled)
-        construction_start_actual = parse_date(construction_start_actual)
-        completion_scheduled = parse_date(completion_scheduled)
-        completion_actual = parse_date(completion_actual)
-
-        # 優先順位に従って工期を計算
-        # パターン1: 着工実施日と完工日
-        if construction_start_actual and completion_actual:
-            delta = completion_actual - construction_start_actual
+        # 両方の日付がある場合のみ工期を計算
+        if start_date and end_date:
+            delta = end_date - start_date
             return {
                 'days': delta.days,
-                'start_date': construction_start_actual,
-                'end_date': completion_actual,
-                'type': 'actual'
-            }
-
-        # パターン2: 着工実施日と完工予定日
-        if construction_start_actual and completion_scheduled:
-            delta = completion_scheduled - construction_start_actual
-            return {
-                'days': delta.days,
-                'start_date': construction_start_actual,
-                'end_date': completion_scheduled,
-                'type': 'mixed'
-            }
-
-        # パターン3: 着工予定日と完工予定日
-        if construction_start_scheduled and completion_scheduled:
-            delta = completion_scheduled - construction_start_scheduled
-            return {
-                'days': delta.days,
-                'start_date': construction_start_scheduled,
-                'end_date': completion_scheduled,
+                'start_date': start_date,
+                'end_date': end_date,
                 'type': 'planned'
             }
 
-        # どのパターンにも該当しない場合
+        # どちらか一方しかない場合
         return {
             'days': None,
             'start_date': None,
