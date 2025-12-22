@@ -97,14 +97,47 @@
 
                     <!-- 処理中表示 -->
                     <div id="processingAlert" class="alert alert-warning mt-3" style="display: none;">
-                        <div class="d-flex align-items-center">
-                            <div class="spinner-border spinner-border-sm me-3" role="status">
+                        <div class="text-center mb-3">
+                            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
                                 <span class="visually-hidden">処理中...</span>
                             </div>
-                            <div>
-                                <strong>処理中です...</strong><br>
-                                <small>大量のデータの場合、数分かかることがあります。このページを閉じないでください。</small>
+                            <h5 class="mb-2"><i class="fas fa-cog fa-spin me-2"></i>CSVデータをインポート中...</h5>
+                            <p class="mb-3">大量のデータの場合、数分かかることがあります。<br>このページを閉じないでください。</p>
+                        </div>
+
+                        <!-- プログレスバー（アニメーション） -->
+                        <div class="progress mb-3" style="height: 25px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                                 role="progressbar"
+                                 id="progressBar"
+                                 style="width: 0%;"
+                                 aria-valuenow="0"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">
+                                <span id="progressText">0%</span>
                             </div>
+                        </div>
+
+                        <!-- 処理ステータス -->
+                        <div class="small">
+                            <ul class="list-unstyled mb-0" id="statusList">
+                                <li><i class="fas fa-spinner fa-spin text-primary me-2"></i><span id="statusText">CSVファイルを読み込んでいます...</span></li>
+                            </ul>
+                        </div>
+
+                        <!-- 推定時間とハートビート -->
+                        <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
+                            <div class="small text-muted">
+                                <i class="fas fa-clock me-1"></i>推定残り時間: <span id="estimatedTime">計算中...</span>
+                            </div>
+                            <div class="small text-success">
+                                <i class="fas fa-circle" id="heartbeat"></i> 処理中
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>処理中:</strong> データベースにデータを保存しています。ブラウザの戻るボタンや再読み込みは行わないでください。
                         </div>
                     </div>
                 </div>
@@ -213,6 +246,81 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
     document.getElementById('processingAlert').style.display = 'block';
     document.getElementById('submitBtn').disabled = true;
     document.getElementById('submitBtn').innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>処理中...';
+
+    // プログレスバーアニメーション
+    let progress = 0;
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const statusText = document.getElementById('statusText');
+
+    // 処理ステップ定義
+    const steps = [
+        { progress: 10, text: 'CSVファイルを読み込んでいます...', duration: 2000 },
+        { progress: 25, text: 'データの検証を行っています...', duration: 3000 },
+        { progress: 40, text: '元請業者データを処理しています...', duration: 4000 },
+        { progress: 55, text: '下請け業者データを処理しています...', duration: 4000 },
+        { progress: 70, text: 'プロジェクトデータを作成しています...', duration: 5000 },
+        { progress: 85, text: '下請け契約データを保存しています...', duration: 4000 },
+        { progress: 95, text: '最終確認を行っています...', duration: 3000 }
+    ];
+
+    let currentStep = 0;
+
+    function updateProgress() {
+        if (currentStep < steps.length) {
+            const step = steps[currentStep];
+
+            // プログレスバーを滑らかに更新
+            const interval = setInterval(() => {
+                if (progress < step.progress) {
+                    progress++;
+                    progressBar.style.width = progress + '%';
+                    progressBar.setAttribute('aria-valuenow', progress);
+                    progressText.textContent = progress + '%';
+                } else {
+                    clearInterval(interval);
+                }
+            }, step.duration / (step.progress - progress));
+
+            // ステータステキスト更新
+            statusText.innerHTML = `<i class="fas fa-spinner fa-spin text-primary me-2"></i>${step.text}`;
+
+            currentStep++;
+
+            // 次のステップへ
+            setTimeout(updateProgress, step.duration);
+        } else {
+            // 最後のステップ
+            statusText.innerHTML = `<i class="fas fa-check-circle text-success me-2"></i>処理を完了しています...`;
+        }
+    }
+
+    // プログレスアニメーション開始
+    updateProgress();
+
+    // ハートビートアニメーション（処理が進んでいることを視覚的に示す）
+    const heartbeat = document.getElementById('heartbeat');
+    setInterval(() => {
+        heartbeat.style.opacity = heartbeat.style.opacity === '0.3' ? '1' : '0.3';
+    }, 800);
+
+    // 推定時間の計算と表示
+    const estimatedTimeElement = document.getElementById('estimatedTime');
+    const totalDuration = steps.reduce((sum, step) => sum + step.duration, 0);
+    let elapsedTime = 0;
+
+    setInterval(() => {
+        elapsedTime += 1000;
+        const remainingTime = Math.max(0, totalDuration - elapsedTime);
+        const minutes = Math.floor(remainingTime / 60000);
+        const seconds = Math.floor((remainingTime % 60000) / 1000);
+
+        if (remainingTime > 0) {
+            estimatedTimeElement.textContent = `約${minutes > 0 ? minutes + '分' : ''}${seconds}秒`;
+        } else {
+            estimatedTimeElement.textContent = 'まもなく完了します...';
+        }
+    }, 1000);
 });
 </script>
 {% endblock %}
