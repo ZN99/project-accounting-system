@@ -430,6 +430,11 @@ def project_create(request):
                 if contractor and contract_amount:
                     work_description = request.POST.get('external_work_description', '')
 
+                    # stepフィールドを処理（プレフィックスがなければ追加）
+                    step_value = request.POST.get('step', '')
+                    if step_value and not step_value.startswith('step_'):
+                        step_value = f'step_{step_value}'
+
                     Subcontract.objects.create(
                         project=project,
                         contractor=contractor,
@@ -439,7 +444,8 @@ def project_create(request):
                         billed_amount=float(billed_amount) if billed_amount else 0,
                         payment_due_date=payment_due_date if payment_due_date else None,
                         payment_status=payment_status,
-                        purchase_order_issued=purchase_order_issued
+                        purchase_order_issued=purchase_order_issued,
+                        step=step_value if step_value else None
                     )
 
             elif implementation_type == 'internal':
@@ -478,6 +484,11 @@ def project_create(request):
                     internal_payment_due_date = request.POST.get('internal_payment_due_date')
                     internal_payment_status = request.POST.get('internal_payment_status', 'pending')
 
+                    # stepフィールドを処理（プレフィックスがなければ追加）
+                    step_value = request.POST.get('step', '')
+                    if step_value and not step_value.startswith('step_'):
+                        step_value = f'step_{step_value}'
+
                     Subcontract.objects.create(
                         project=project,
                         internal_worker=internal_worker,
@@ -489,7 +500,8 @@ def project_create(request):
                         contract_amount=float(internal_contract_amount) if internal_contract_amount else 0,
                         billed_amount=float(internal_contract_amount) if internal_contract_amount else 0,
                         payment_due_date=internal_payment_due_date if internal_payment_due_date else None,
-                        payment_status=internal_payment_status
+                        payment_status=internal_payment_status,
+                        step=step_value if step_value else None
                     )
 
             # スケジュールステップデータの保存
