@@ -187,6 +187,11 @@ def project_list(request):
     # 利益フィルタ (profit_min/max) - 後でPython側でフィルタリング
     profit_min = request.GET.get('profit_min')
     profit_max = request.GET.get('profit_max')
+    # "None"文字列や空文字列を除外
+    if profit_min in ['None', '', None]:
+        profit_min = None
+    if profit_max in ['None', '', None]:
+        profit_max = None
     # Note: profit_amountはDBフィールドではなく計算値のため、
     # ページネーション後にPython側でフィルタリングを行います
 
