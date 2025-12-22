@@ -10,12 +10,13 @@
 from django.core.management.base import BaseCommand
 from django.core import serializers
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from order_management.models import (
     ClientCompany, Project, ProjectProgressStep, ProgressStepTemplate
 )
 from subcontract_management.models import Contractor, Subcontract
 from decimal import Decimal
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 import random
 import json
 
@@ -368,6 +369,13 @@ class Command(BaseCommand):
                 template = templates[step_name]
                 value = {'scheduled_date': scheduled_date.isoformat() if scheduled_date else ''}
 
+                # completed_dateはDateTimeFieldなので、timezone-awareなdatetimeに変換
+                completed_datetime = None
+                if is_completed and scheduled_date:
+                    completed_datetime = timezone.make_aware(
+                        datetime.combine(scheduled_date, datetime.min.time())
+                    )
+
                 step, created = ProjectProgressStep.objects.get_or_create(
                     project=project,
                     template=template,
@@ -375,7 +383,7 @@ class Command(BaseCommand):
                         'order': order,
                         'is_active': True,
                         'is_completed': is_completed,
-                        'completed_date': scheduled_date if is_completed else None,
+                        'completed_date': completed_datetime,
                         'value': value,
                     }
                 )
