@@ -318,7 +318,7 @@ class Project(models.Model):
         null=True,
         blank=True,
         verbose_name='支払日',
-        help_text='毎月の支払日（1-31）。例：25日払いの場合は25'
+        help_text='支払月の何日に支払うか（1-31）。例：25日払いの場合は25'
     )
 
     # 鍵受け渡し管理 - Phase 8 追加
@@ -1922,7 +1922,7 @@ class Contractor(models.Model):
     payment_day = models.IntegerField(
         null=True, blank=True,
         verbose_name='支払日',
-        help_text='毎月の支払日（1-31）。例：25日払いの場合は25'
+        help_text='支払月の何日に支払うか（1-31）。例：25日払いの場合は25'
     )
     payment_cycle = models.CharField(
         max_length=20,
@@ -3213,7 +3213,7 @@ class ClientCompany(models.Model):
         null=True,
         blank=True,
         verbose_name='支払日',
-        help_text='毎月の支払日（1-31）。例：25日払いの場合は25'
+        help_text='支払月の何日に支払うか（1-31）。例：25日払いの場合は25'
     )
     payment_offset_months = models.IntegerField(
         null=True,
