@@ -516,7 +516,8 @@ def project_create(request):
         form = ProjectForm()
 
     # フォーム表示用のデータを準備
-    from .models import ClientCompany, ContractorFieldCategory
+    from .models import ClientCompany
+    from subcontract_management.models import ContractorFieldCategory
     client_companies = ClientCompany.objects.prefetch_related('contact_persons').filter(is_active=True).order_by('company_name')
     contractors = Contractor.objects.filter(is_active=True)  # 協力会社（作業者追加用）
     internal_workers = InternalWorker.objects.filter(is_active=True)
