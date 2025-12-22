@@ -381,6 +381,9 @@
         <div class="container-fluid">
             <ul class="subnav-items">
                 <li class="subnav-item"><a href="{% url 'order_management:payment_management' %}"><i class="fas fa-money-bill-wave me-1"></i>出金/入金管理</a></li>
+                {% if user|has_role:'accounting' or user|has_role:'executive' %}
+                <li class="subnav-item"><a href="{% url 'order_management:csv_import' %}"><i class="fas fa-file-csv me-1"></i>CSV一括インポート</a></li>
+                {% endif %}
             </ul>
         </div>
     </div>
@@ -411,7 +414,7 @@
             'clients': ['/orders/client-companies', '/orders/client_company', '/orders/contractor-dashboard'],
             'contractors': ['/orders/external-contractors', '/orders/contractors/', '/subcontract/contractors'],
             'calendar': ['/orders/calendar', '/orders/gantt'],
-            'accounting': ['/orders/accounting', '/orders/payment', '/orders/receipt', '/orders/cashflow', '/orders/forecast', '/orders/cost', '/orders/reports'],
+            'accounting': ['/orders/accounting', '/orders/payment', '/orders/receipt', '/orders/cashflow', '/orders/forecast', '/orders/cost', '/orders/reports', '/orders/csv-import'],
             'system': ['/orders/users', '/orders/approvals', '/orders/backup', '/orders/company-settings']
         };
 

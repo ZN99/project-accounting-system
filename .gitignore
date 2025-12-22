@@ -85,4 +85,7 @@ Pipfile.lock
 # Temporary files
 *.tmp
 *.tempCREDENTIALS.md
+
+# Sensitive data files
 backups/
+*.csv
