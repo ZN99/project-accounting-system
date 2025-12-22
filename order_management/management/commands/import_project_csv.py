@@ -458,6 +458,18 @@ class ProjectImporter:
                 if self.progress_tracker:
                     self.progress_tracker.add_log(f'{app_mgmt_no}: 進捗状態計算エラー', 'warning')
 
+            # 利益を計算してキャッシュに保存
+            try:
+                if self.progress_tracker:
+                    self.progress_tracker.add_log(f'{app_mgmt_no}: 利益を計算中...', 'info')
+                project._update_profit_cache()
+                project.save(update_fields=['gross_profit', 'profit_margin'])
+            except Exception as profit_error:
+                if self.verbosity >= 2:
+                    self.log(f'    ⚠ 利益計算エラー: {str(profit_error)}')
+                if self.progress_tracker:
+                    self.progress_tracker.add_log(f'{app_mgmt_no}: 利益計算エラー', 'warning')
+
             self.stats['projects_created'] += 1
 
             if self.verbosity >= 1:
