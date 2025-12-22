@@ -57,8 +57,8 @@
         border: 2px solid #dee2e6;
         border-left: 5px solid transparent;
         border-radius: 8px;
-        margin-bottom: 12px;
-        padding: 16px !important;
+        margin-bottom: 10px;
+        padding: 12px !important;
         background: white;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
@@ -743,9 +743,14 @@
         <div class="mb-3 p-3 bg-white rounded shadow-sm border">
             <!-- 現場名ヘッダー -->
             <div class="row mb-2">
-                <div class="col-md-12">
+                <div class="col-md-10">
                     <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('name')">
                         <i class="fas fa-building me-1"></i>現場名・管理No <i class="fas fa-sort"></i>
+                    </small>
+                </div>
+                <div class="col-md-2">
+                    <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('created')">
+                        <i class="fas fa-clock me-1"></i>登録日時 <i class="fas fa-sort"></i>
                     </small>
                 </div>
             </div>
@@ -813,7 +818,8 @@
                  data-profit="{{ revenue.gross_profit|default:0 }}"
                  data-work-type="{{ project.work_type|default:'' }}"
                  data-stage="{{ stage.stage }}"
-                 data-progress="{% if details.total_steps > 0 %}{% widthratio details.completed_steps details.total_steps 100 %}{% else %}0{% endif %}">
+                 data-progress="{% if details.total_steps > 0 %}{% widthratio details.completed_steps details.total_steps 100 %}{% else %}0{% endif %}"
+                 data-created="{{ project.created_at|date:'Y-m-d H:i:s' }}">
                 <div class="row align-items-center">
                     <!-- 現場名・管理No -->
                     <div class="col-md-12 mb-2">
@@ -826,6 +832,9 @@
                                     {{ project.get_project_status_display }}
                                 </span>
                                 <small class="text-muted"><i class="fas fa-hashtag me-1"></i>{{ project.management_no }}</small>
+                                <small class="text-muted ms-2" style="font-size: 0.6rem;" title="案件登録日時">
+                                    <i class="fas fa-clock me-1"></i>{{ project.created_at|date:"Y/m/d H:i" }}
+                                </small>
                             </div>
                             {% with comment_count=project.get_comment_count %}
                             {% if comment_count > 0 %}
@@ -847,7 +856,7 @@
                     <!-- 3カラムレイアウト開始 -->
                     <div class="col-md-2">
                         <!-- Column 1: 元請情報 -->
-                        <div class="border-end pe-2" style="min-height: 80px;">
+                        <div class="border-end pe-2" style="min-height: 60px;">
                             <small class="text-muted d-block mb-1" style="font-size: 0.65rem;">
                                 <i class="fas fa-building me-1"></i>元請
                             </small>
@@ -881,7 +890,7 @@
 
                     <div class="col-md-2">
                         <!-- Column 2: 下請情報 -->
-                        <div class="border-end pe-2" style="min-height: 80px;">
+                        <div class="border-end pe-2" style="min-height: 60px;">
                             <small class="text-muted d-block mb-1" style="font-size: 0.65rem;">
                                 <i class="fas fa-users me-1"></i>下請
                             </small>
@@ -924,7 +933,7 @@
 
                     <div class="col-md-1">
                         <!-- Column 3A: 工期 -->
-                        <div class="border-end pe-2" style="min-height: 80px;">
+                        <div class="border-end pe-2" style="min-height: 60px;">
                             <small class="text-muted d-block mb-1" style="font-size: 0.65rem;"><i class="fas fa-calendar me-1"></i>工期</small>
                             {% with period=project.get_construction_period %}
                             <div style="font-size: 0.7rem; line-height: 1.2;">
@@ -945,7 +954,7 @@
 
                     <div class="col-md-1">
                         <!-- Column 3B: 利益 -->
-                        <div class="border-end pe-2" style="min-height: 80px;">
+                        <div class="border-end pe-2" style="min-height: 60px;">
                             {% with revenue=project.get_revenue_breakdown %}
                             <div style="font-size: 0.7rem;">
                                 <small class="text-muted d-block mb-1" style="font-size: 0.65rem;"><i class="fas fa-yen-sign me-1"></i>利益</small>
@@ -960,7 +969,7 @@
 
                     <div class="col-md-1">
                         <!-- Column 4: 工種 -->
-                        <div class="border-end pe-2" style="min-height: 80px;">
+                        <div class="border-end pe-2" style="min-height: 60px;">
                             <small class="text-muted d-block mb-1" style="font-size: 0.65rem;"><i class="fas fa-tools me-1"></i>種別</small>
                             <div style="font-size: 0.75rem; line-height: 1.3;">
                                 <div class="fw-bold mb-1">{{ project.work_type|default:"-" }}</div>
@@ -1389,6 +1398,10 @@ function sortSummaryList(field) {
             case 'cost':
                 aValue = parseFloat($(a).data('cost')) || 0;
                 bValue = parseFloat($(b).data('cost')) || 0;
+                break;
+            case 'created':
+                aValue = $(a).data('created') || '9999-12-31 23:59:59';
+                bValue = $(b).data('created') || '9999-12-31 23:59:59';
                 break;
             default:
                 return 0;
