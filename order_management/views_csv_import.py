@@ -15,10 +15,10 @@ import tempfile
 import os
 import io
 
-from order_management.user_roles import require_role, UserRole
+from order_management.user_roles import role_required, UserRole
 
 
-@require_role([UserRole.ACCOUNTING, UserRole.EXECUTIVE])
+@role_required(UserRole.ACCOUNTING, UserRole.EXECUTIVE)
 def csv_import_view(request):
     """CSV一括インポート画面"""
 
@@ -138,7 +138,7 @@ def csv_import_view(request):
     return render(request, 'order_management/csv_import.html', context)
 
 
-@require_role([UserRole.ACCOUNTING, UserRole.EXECUTIVE])
+@role_required(UserRole.ACCOUNTING, UserRole.EXECUTIVE)
 def csv_import_download_log(request):
     """インポートログのダウンロード"""
 
