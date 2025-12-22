@@ -259,7 +259,8 @@ class DataParser:
         B → B（そのまま保存）
         ネタ → ネタ（そのまま保存）
         NG → NG
-        その他・空 → 立ち会い待ち
+        空欄 → ネタ
+        その他 → ネタ（デフォルト）
         """
         value = value.strip()
 
@@ -269,10 +270,10 @@ class DataParser:
             'B': 'B',
             'ネタ': 'ネタ',
             'NG': 'NG',
-            '': '立ち会い待ち'
+            '': 'ネタ'  # 空欄は「ネタ」として扱う
         }
 
-        return status_map.get(value, '立ち会い待ち')
+        return status_map.get(value, 'ネタ')  # デフォルトも「ネタ」
 
     @staticmethod
     def map_payment_status(value: str) -> str:
