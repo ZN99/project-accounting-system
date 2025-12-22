@@ -477,25 +477,27 @@ class Project(models.Model):
                 print(f"⚠ Warning: Failed to sync dates to ProjectProgressStep: {e}")
 
     def generate_management_no(self):
-        """管理No自動採番（5桁）
+        """管理No自動採番（6桁）
 
-        フォーマット: P{年の下2桁}{5桁連番}
-        例: P2500001, P2500002, ...
+        フォーマット: {年の下2桁}{6桁連番}
+        例: 25000001, 25000002, ...
 
         Note: CSVインポート後も連番を継続するため、
-        プレフィックス（P, Mなど）に関わらず全案件から最大値を取得
+        旧形式のプレフィックス（P, Mなど）付きの番号からも最大値を取得
         """
         current_year = timezone.now().year
         year_suffix = str(current_year)[-2:]  # 下2桁
 
-        # 今年の全案件から最新番号を取得（P, M, A など全プレフィックス対象）
-        # 正規表現でマッチング: [A-Z]{1,2}25XXXXX の形式
+        # 今年の全案件から最新番号を取得（旧形式・新形式両対応）
+        # 旧形式: P2500299, M250298
+        # 新形式: 25000299
         projects = Project.objects.filter(
-            management_no__regex=r'^[A-Z]{1,2}' + year_suffix + r'\d+'
+            management_no__regex=r'^[A-Z]*' + year_suffix + r'\d+'
         ).values_list('management_no', flat=True)
 
         import re
-        pattern = r'^[A-Z]{1,2}' + year_suffix + r'(\d+)$'
+        # 旧形式（プレフィックス有）と新形式（プレフィックス無）両対応
+        pattern = r'^[A-Z]*' + year_suffix + r'(\d+)$'
         max_num = 0
 
         # 全プロジェクトから最大の連番を取得（文字列ソートではなく数値比較）
@@ -507,7 +509,7 @@ class Project(models.Model):
 
         new_num = max_num + 1 if max_num > 0 else 1
 
-        return f'P{year_suffix}{new_num:05d}'
+        return f'{year_suffix}{new_num:06d}'
 
     def save(self, *args, **kwargs):
         # 管理No自動採番
