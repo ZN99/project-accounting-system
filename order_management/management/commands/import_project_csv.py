@@ -128,15 +128,15 @@ class ManagementNoConverter:
         """
         CSV管理番号をアプリ形式に変換
 
-        CSV: 1 → App: M250001
-        CSV: 123 → App: M250123
-        CSV: 5678 → App: M255678
+        CSV: 1 → App: M2500001
+        CSV: 123 → App: M2500123
+        CSV: 5678 → App: M2505678
 
         Args:
             csv_no: CSV管理番号（文字列または数値）
 
         Returns:
-            アプリ形式管理番号（M25xxxx）
+            アプリ形式管理番号（M25xxxxx）
         """
         # 数値部分を抽出
         csv_no_str = str(csv_no).strip()
@@ -147,8 +147,8 @@ class ManagementNoConverter:
         if not numeric_part:
             raise ValueError(f'無効な管理番号: {csv_no}')
 
-        # M25 + 4桁ゼロ埋め
-        return f"M25{numeric_part.zfill(4)}"
+        # M25 + 5桁ゼロ埋め
+        return f"M25{numeric_part.zfill(5)}"
 
 
 class DataMerger:
