@@ -761,9 +761,14 @@
                         <i class="fas fa-users me-1"></i>下請 <i class="fas fa-sort"></i>
                     </small>
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-1">
                     <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('schedule')">
-                        <i class="fas fa-calendar me-1"></i>工期・利益 <i class="fas fa-sort"></i>
+                        <i class="fas fa-calendar me-1"></i>工期 <i class="fas fa-sort"></i>
+                    </small>
+                </div>
+                <div class="col-md-1">
+                    <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('profit')">
+                        <i class="fas fa-yen-sign me-1"></i>利益 <i class="fas fa-sort"></i>
                     </small>
                 </div>
                 <div class="col-md-1">
@@ -906,8 +911,8 @@
                         </div>
                     </div>
 
-                    <div class="col-md-2">
-                        <!-- Column 3: 工期・利益 -->
+                    <div class="col-md-1">
+                        <!-- Column 3A: 工期 -->
                         <div class="border-end pe-2" style="min-height: 80px;">
                             <small class="text-muted d-block mb-1" style="font-size: 0.65rem;"><i class="fas fa-calendar me-1"></i>工期</small>
                             {% with period=project.get_construction_period %}
@@ -924,9 +929,15 @@
                                 {% endif %}
                             </div>
                             {% endwith %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-1">
+                        <!-- Column 3B: 利益 -->
+                        <div class="border-end pe-2" style="min-height: 80px;">
                             {% with revenue=project.get_revenue_breakdown %}
-                            <div class="mt-2" style="font-size: 0.7rem;">
-                                <small class="text-muted d-block" style="font-size: 0.65rem;">利益</small>
+                            <div style="font-size: 0.7rem;">
+                                <small class="text-muted d-block mb-1" style="font-size: 0.65rem;"><i class="fas fa-yen-sign me-1"></i>利益</small>
                                 <div class="text-primary fw-bold">
                                     ¥{{ revenue.gross_profit|floatformat:0|intcomma }}
                                 </div>
