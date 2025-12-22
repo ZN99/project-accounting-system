@@ -414,6 +414,10 @@ class Command(BaseCommand):
                 # 支払い状況（30%の確率で既に支払い済み）
                 is_paid = random.random() > 0.7
 
+                # ステップをランダムに選択（立ち会い、現調、着工のいずれか）
+                step_choices = ['step_attendance', 'step_survey', 'step_construction_start']
+                step = random.choice(step_choices)
+
                 subcontract_data = {
                     'project': project,
                     'contractor': contractor,
@@ -422,7 +426,7 @@ class Command(BaseCommand):
                     'payment_due_date': payment_due_date,
                     'payment_date': payment_due_date if is_paid else None,
                     'payment_status': 'paid' if is_paid else 'unpaid',
-                    'step': 'construction_start',
+                    'step': step,
                 }
 
                 subcontract, created = Subcontract.objects.get_or_create(
