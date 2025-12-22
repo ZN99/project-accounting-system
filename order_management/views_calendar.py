@@ -167,13 +167,50 @@ class WorkerResourceCalendarView(LoginRequiredMixin, TemplateView):
 def calendar_events_api(request):
     """カレンダーイベントをJSON形式で返す - 主要マイルストーン対応"""
     from datetime import timedelta
+    from django.db.models import Q
 
     # 日付範囲を取得
     start = request.GET.get('start')
     end = request.GET.get('end')
 
-    # 全案件を取得（Subcontractも一緒に取得）
-    projects = Project.objects.prefetch_related('subcontract_set__contractor', 'subcontract_set__internal_worker').all()
+    # 日付範囲でフィルタリング（パフォーマンス最適化）
+    if start and end:
+        try:
+            start_date = datetime.fromisoformat(start.replace('Z', '')).date()
+            end_date = datetime.fromisoformat(end.replace('Z', '')).date()
+
+            # 期間内に関連するプロジェクトのみ取得
+            # - 工期が期間内にある
+            # - 見積発行日が期間内
+            # - 契約日が期間内
+            # NGステータスは最初から除外
+            projects = Project.objects.filter(
+                Q(work_start_date__lte=end_date, work_end_date__gte=start_date) |
+                Q(work_start_date__isnull=False, work_start_date__range=(start_date, end_date)) |
+                Q(work_end_date__isnull=False, work_end_date__range=(start_date, end_date)) |
+                Q(estimate_issued_date__range=(start_date, end_date)) |
+                Q(contract_date__range=(start_date, end_date))
+            ).exclude(
+                project_status='NG'
+            ).prefetch_related(
+                'subcontract_set__contractor',
+                'subcontract_set__internal_worker',
+                'progress_steps__template'  # N+1問題の解消
+            ).distinct()
+        except (ValueError, TypeError):
+            # 日付パースエラー時は全件取得（フォールバック）
+            projects = Project.objects.prefetch_related(
+                'subcontract_set__contractor',
+                'subcontract_set__internal_worker',
+                'progress_steps__template'
+            ).exclude(project_status='NG')
+    else:
+        # start/endがない場合は全件取得
+        projects = Project.objects.prefetch_related(
+            'subcontract_set__contractor',
+            'subcontract_set__internal_worker',
+            'progress_steps__template'
+        ).exclude(project_status='NG')
 
     # イベントデータを生成
     events = []
@@ -195,11 +232,7 @@ def calendar_events_api(request):
     }
 
     for project in projects:
-        # NGステータスの案件はスキップ
-        if project.project_status == 'NG':
-            continue
-
-        # 下請業者情報を取得
+        # 下請業者情報を取得（prefetch済み）
         subcontractors = []
         for sc in project.subcontract_set.all():
             if sc.worker_type == 'external' and sc.contractor:
@@ -358,11 +391,8 @@ def calendar_events_api(request):
             'completion': '✅',
         }
 
-        # ProjectProgressStepから読み込み
-        progress_steps = ProjectProgressStep.objects.filter(
-            project=project,
-            is_active=True
-        ).select_related('template')
+        # ProjectProgressStepから読み込み（prefetch済み）
+        progress_steps = [ps for ps in project.progress_steps.all() if ps.is_active]
 
         for progress_step in progress_steps:
             # テンプレート名からキーを取得
@@ -478,66 +508,72 @@ def performance_monthly_api(request):
 @login_required
 def gantt_data_api(request):
     """ガントチャートデータをJSON形式で返す"""
-    projects = Project.objects.prefetch_related('subcontract_set__contractor', 'subcontract_set__internal_worker').all().order_by('id')
+    # NGステータスを除外、工期があるプロジェクトのみ（パフォーマンス最適化）
+    projects = Project.objects.filter(
+        work_start_date__isnull=False,
+        work_end_date__isnull=False
+    ).exclude(
+        project_status='NG'
+    ).prefetch_related(
+        'subcontract_set__contractor',
+        'subcontract_set__internal_worker'
+    ).order_by('id')
 
     # Ganttデータを生成
     tasks = []
     for project in projects:
-        # NGステータスの案件はスキップ
-        if project.project_status == 'NG':
-            continue
-
         # 案件詳細ページと同じwork_start_date/work_end_dateを使用
-        if project.work_start_date and project.work_end_date:
-            # 下請業者情報を取得
-            subcontractors = []
-            for sc in project.subcontract_set.all():
-                if sc.worker_type == 'external' and sc.contractor:
-                    subcontractors.append(sc.contractor.name)
-                elif sc.worker_type == 'internal' and sc.internal_worker:
-                    subcontractors.append(f"{sc.internal_worker.name}(社内)")
-                elif sc.worker_type == 'internal' and sc.internal_worker_name:
-                    subcontractors.append(f"{sc.internal_worker_name}(社内)")
+        # （既にフィルタで工期があるものに絞り込み済み）
 
-            subcontractor_text = ', '.join(subcontractors) if subcontractors else '未割当'
+        # 下請業者情報を取得（prefetch済み）
+        subcontractors = []
+        for sc in project.subcontract_set.all():
+            if sc.worker_type == 'external' and sc.contractor:
+                subcontractors.append(sc.contractor.name)
+            elif sc.worker_type == 'internal' and sc.internal_worker:
+                subcontractors.append(f"{sc.internal_worker.name}(社内)")
+            elif sc.worker_type == 'internal' and sc.internal_worker_name:
+                subcontractors.append(f"{sc.internal_worker_name}(社内)")
 
-            # 元請情報を取得（client_companyを優先、なければclient_name）
-            client_display = '-'
-            if project.client_company:
-                client_display = project.client_company.company_name
-            elif project.client_name:
-                client_display = project.client_name
+        subcontractor_text = ', '.join(subcontractors) if subcontractors else '未割当'
 
-            # 進捗率を取得
-            progress_details = project.get_progress_details()
-            progress_percentage = 0
-            if progress_details['total_steps'] > 0:
-                progress_percentage = int((progress_details['completed_steps'] / progress_details['total_steps']) * 100)
+        # 元請情報を取得（client_companyを優先、なければclient_name）
+        client_display = '-'
+        if project.client_company:
+            client_display = project.client_company.company_name
+        elif project.client_name:
+            client_display = project.client_name
 
-            # 工期の日数を計算
-            construction_days = (project.work_end_date - project.work_start_date).days
+        # 進捗率を取得
+        progress_details = project.get_progress_details()
+        progress_percentage = 0
+        if progress_details['total_steps'] > 0:
+            progress_percentage = int((progress_details['completed_steps'] / progress_details['total_steps']) * 100)
 
-            # 完工済みかどうか
-            period_type = 'actual' if project.work_end_completed else 'planned'
+        # 工期の日数を計算
+        construction_days = (project.work_end_date - project.work_start_date).days
 
-            task = {
-                'id': f'project-{project.id}',
-                'name': project.site_name,
-                'start': project.work_start_date.isoformat(),
-                'end': project.work_end_date.isoformat(),
-                'progress': progress_percentage,
-                'dependencies': '',
-                'construction_period_type': period_type,
-                'construction_period_days': construction_days,
-                'project_id': project.id,
-                'status': project.get_project_status_display(),
-                'client': client_display,
-                'manager': project.project_manager or '-',
-                'amount': float(project.order_amount or 0),
-                'subcontractors': subcontractor_text,
-                'is_completed': project.work_end_completed
-            }
-            tasks.append(task)
+        # 完工済みかどうか
+        period_type = 'actual' if project.work_end_completed else 'planned'
+
+        task = {
+            'id': f'project-{project.id}',
+            'name': project.site_name,
+            'start': project.work_start_date.isoformat(),
+            'end': project.work_end_date.isoformat(),
+            'progress': progress_percentage,
+            'dependencies': '',
+            'construction_period_type': period_type,
+            'construction_period_days': construction_days,
+            'project_id': project.id,
+            'status': project.get_project_status_display(),
+            'client': client_display,
+            'manager': project.project_manager or '-',
+            'amount': float(project.order_amount or 0),
+            'subcontractors': subcontractor_text,
+            'is_completed': project.work_end_completed
+        }
+        tasks.append(task)
 
     return JsonResponse({'tasks': tasks})
 
