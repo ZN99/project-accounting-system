@@ -27,7 +27,7 @@ from order_management.models import (
     Project, ClientCompany, ContactPerson
 )
 from subcontract_management.models import Contractor, Subcontract
-from order_management.services.progress_step_service import set_step_scheduled_date
+from order_management.services.progress_step_service import set_step_scheduled_date, complete_step
 
 
 class CSVReader:
@@ -61,6 +61,10 @@ class CSVReader:
         """
         CSVファイルを読み込んで辞書のリストを返す
 
+        注意: CSVに重複した列名がある場合（例: 「請負業者名」が列7と列16）、
+              最初に出現した列の値を使用します（csv.DictReaderは最後の列を使うため、
+              カスタム実装で対応）
+
         Args:
             file_path: CSVファイルパス
 
@@ -80,10 +84,40 @@ class CSVReader:
             lines = lines[1:]  # メタデータ行をスキップ
 
         # 2行目以降をCSVとして読み込み
+        # csv.reader を使って列インデックスベースで読み込む（重複列名に対応）
         import io
         csv_text = ''.join(lines)
-        reader = csv.DictReader(io.StringIO(csv_text))
-        return list(reader)
+        reader = csv.reader(io.StringIO(csv_text))
+
+        rows_list = list(reader)
+        if not rows_list:
+            return []
+
+        # ヘッダー行（1行目）
+        headers = rows_list[0]
+
+        # 重複した列名の最初の出現インデックスを記録
+        # 例: '請負業者名'が列7と列16にある場合、列7のみを使用
+        header_first_occurrence = {}
+        for idx, header in enumerate(headers):
+            if header and header not in header_first_occurrence:
+                header_first_occurrence[header] = idx
+
+        # データ行を辞書に変換
+        result = []
+        for row in rows_list[1:]:  # ヘッダー行をスキップ
+            row_dict = {}
+
+            # 各ヘッダーに対して、最初に出現した列のインデックスから値を取得
+            for header, first_idx in header_first_occurrence.items():
+                if first_idx < len(row):
+                    row_dict[header] = row[first_idx]
+                else:
+                    row_dict[header] = ''
+
+            result.append(row_dict)
+
+        return result
 
 
 class ManagementNoConverter:
@@ -238,24 +272,25 @@ class DataParser:
         出金状況 → payment_status変換
 
         済 → paid
-        未定 → unpaid
-        その他 → unpaid
+        未定 → pending (未払い)
+        その他 → pending (未払い)
         """
         status_map = {
             '済': 'paid',
-            '未定': 'unpaid',
-            '': 'unpaid'
+            '未定': 'pending',  # 'unpaid'は無効な値 → 'pending'（未払い）を使用
+            '': 'pending'
         }
 
-        return status_map.get(value.strip(), 'unpaid')
+        return status_map.get(value.strip(), 'pending')
 
 
 class ProjectImporter:
     """プロジェクトインポーター"""
 
-    def __init__(self, dry_run: bool = False, verbosity: int = 1):
+    def __init__(self, dry_run: bool = False, verbosity: int = 1, progress_tracker=None):
         self.dry_run = dry_run
         self.verbosity = verbosity
+        self.progress_tracker = progress_tracker
         self.stats = {
             'projects_created': 0,
             'clients_created': 0,
@@ -278,51 +313,99 @@ class ProjectImporter:
         try:
             # 現場名チェック（空の場合はスキップ）
             site_name = project_row.get('現場名', '').strip()
+
+            if self.progress_tracker:
+                self.progress_tracker.add_log(f'管理No.{csv_mgmt_no}: データ検証中...', 'info')
+
             if not site_name:
                 if self.verbosity >= 2:
                     self.log(f'  ⚠ スキップ: 現場名が空')
+                if self.progress_tracker:
+                    self.progress_tracker.add_log(f'管理No.{csv_mgmt_no}: スキップ（現場名が空）', 'warning')
                 self.stats['skipped'] += 1
                 return None
 
             # 管理番号変換
             app_mgmt_no = ManagementNoConverter.convert(csv_mgmt_no)
 
+            if self.progress_tracker:
+                self.progress_tracker.add_log(f'{app_mgmt_no} ({site_name}): 処理開始', 'info')
+
             # 既存チェック
             if Project.objects.filter(management_no=app_mgmt_no).exists():
                 if self.verbosity >= 2:
                     self.log(f'  ⚠ スキップ: {app_mgmt_no} は既に存在')
+                if self.progress_tracker:
+                    self.progress_tracker.add_log(f'{app_mgmt_no}: スキップ（既に存在）', 'warning')
                 self.stats['skipped'] += 1
                 return None
 
             # 元請業者（ClientCompany）取得または作成
-            client_company = self._get_or_create_client(
-                project_row.get('請負業者名', ''),
-                project_row.get('請負業社住所', '')
-            )
+            if self.progress_tracker:
+                self.progress_tracker.add_log(f'{app_mgmt_no}: 元請業者チェック中...', 'info')
+
+            # 注意：CSVに「請負業者名」列が2回出現する場合がある（列7と列16）
+            # CSVReader.read_csv()は最初に出現した列（列7）の値を使用するため、
+            # 列16の「#VALUE!」エラーは読み込まれない
+            client_name = project_row.get('請負業者名', '').strip()
+            client_address = project_row.get('請負業社住所', '').strip()
+
+            if not client_name and self.verbosity >= 2:
+                self.log(f'    ⚠ 元請業者名が空です')
+
+            client_company = self._get_or_create_client(client_name, client_address)
+
+            # デバッグ: CSVから読み込んだ金額を確認
+            order_amount_raw = project_row.get('請求額', '')
+            order_amount = DataParser.parse_currency(order_amount_raw) or Decimal('0')
+
+            if self.progress_tracker and self.verbosity >= 2:
+                self.progress_tracker.add_log(f'{app_mgmt_no}: CSV請求額="{order_amount_raw}" → ¥{order_amount:,}', 'info')
 
             # プロジェクトデータ作成
+            # NOTE: work_start_date と work_end_date は @property (read-only) なので、
+            #       project_dataには含めず、後で _setup_progress_steps() で設定する
+
+            # 諸経費を取得
+            parking_fee = DataParser.parse_currency(project_row.get('駐車場代(税込)', '0')) or Decimal('0')
+            expense_amount_1 = DataParser.parse_currency(project_row.get('諸経費代(税込)①', '0')) or Decimal('0')
+            expense_amount_2 = DataParser.parse_currency(project_row.get('諸経費代(税込)②', '0')) or Decimal('0')
+
+            # billing_amountを事前計算（Project.save()と同じロジック）
+            billing_amount = order_amount + parking_fee + expense_amount_1 + expense_amount_2
+            amount_difference = billing_amount - order_amount
+
+            if self.progress_tracker and self.verbosity >= 2:
+                self.progress_tracker.add_log(
+                    f'{app_mgmt_no}: 請求額計算 = ¥{order_amount:,} + ¥{parking_fee:,} + ¥{expense_amount_1:,} + ¥{expense_amount_2:,} = ¥{billing_amount:,}',
+                    'info'
+                )
+
             project_data = {
                 'management_no': app_mgmt_no,
                 'site_name': site_name,
                 'site_address': project_row.get('現場住所', ''),
                 'work_type': project_row.get('種別', ''),
-                'order_amount': DataParser.parse_currency(project_row.get('請求額', '0')) or Decimal('0'),
+                'order_amount': order_amount,
                 'project_status': DataParser.map_project_status(project_row.get('受注ヨミ', '')),
                 'payment_due_date': DataParser.parse_date(project_row.get('入金予定日', '')),
                 'contract_date': DataParser.parse_date(project_row.get('契約日', '')),
-                'parking_fee': DataParser.parse_currency(project_row.get('駐車場代(税込)', '0')) or Decimal('0'),
-                'amount_difference': DataParser.parse_currency(project_row.get('実請求増減', '0')) or Decimal('0'),
+                'parking_fee': parking_fee,
+                'billing_amount': billing_amount,  # 事前計算された請求額
+                'amount_difference': amount_difference,  # 事前計算された金額差
                 'project_manager': project_row.get('案件担当', ''),
                 'invoice_issued': project_row.get('請求書発行', '0') != '0',
                 'expense_item_1': project_row.get('諸経費項目①', ''),
-                'expense_amount_1': DataParser.parse_currency(project_row.get('諸経費代(税込)①', '0')) or Decimal('0'),
+                'expense_amount_1': expense_amount_1,
                 'expense_item_2': project_row.get('諸経費項目②', ''),
-                'expense_amount_2': DataParser.parse_currency(project_row.get('諸経費代(税込)②', '0')) or Decimal('0'),
+                'expense_amount_2': expense_amount_2,
                 'client_company': client_company,
             }
 
             if self.dry_run:
                 self.log(f'  [DRY-RUN] Project作成: {app_mgmt_no} - {project_data["site_name"]}')
+                if self.progress_tracker:
+                    self.progress_tracker.add_log(f'{app_mgmt_no}: [DRY-RUN] プロジェクト作成完了', 'success')
                 self.stats['projects_created'] += 1
 
                 # Dry-run用にダミーのプロジェクトオブジェクトを返す（下請契約カウント用）
@@ -335,29 +418,52 @@ class ProjectImporter:
                 return DummyProject(app_mgmt_no, project_data["site_name"])
 
             # プロジェクト作成
-            project = Project.objects.create(**project_data)
+            if self.progress_tracker:
+                self.progress_tracker.add_log(f'{app_mgmt_no}: データベースに保存中...', 'info')
 
-            # billing_amountの自動計算のため、再度save()を呼び出す
-            # Project.save()メソッド内でbilling_amount = order_amount + parking_fee + expense_amount_1 + expense_amount_2 が計算される
-            project.save()
+            # billing_amountはproject_dataに事前計算済み
+            project = Project.objects.create(**project_data)
 
             # 進捗ステップ設定（エラーがあっても続行）
             try:
+                if self.progress_tracker:
+                    self.progress_tracker.add_log(f'{app_mgmt_no}: 進捗ステップ設定中...', 'info')
                 self._setup_progress_steps(project, project_row)
             except Exception as step_error:
                 if self.verbosity >= 2:
                     self.log(f'    ⚠ 進捗ステップ設定エラー: {str(step_error)}')
+                if self.progress_tracker:
+                    self.progress_tracker.add_log(f'{app_mgmt_no}: 進捗ステップ設定エラー', 'warning')
+
+            # 進捗状態を計算してキャッシュに保存
+            try:
+                if self.progress_tracker:
+                    self.progress_tracker.add_log(f'{app_mgmt_no}: 進捗状態を計算中...', 'info')
+                result = project.calculate_current_stage()
+                project.current_stage = result['stage']
+                project.current_stage_color = result['color']
+                project.save(update_fields=['current_stage', 'current_stage_color'])
+            except Exception as stage_error:
+                if self.verbosity >= 2:
+                    self.log(f'    ⚠ 進捗状態計算エラー: {str(stage_error)}')
+                if self.progress_tracker:
+                    self.progress_tracker.add_log(f'{app_mgmt_no}: 進捗状態計算エラー', 'warning')
 
             self.stats['projects_created'] += 1
 
             if self.verbosity >= 1:
                 self.log(f'  ✓ Project作成: {app_mgmt_no} - {project.site_name}')
 
+            if self.progress_tracker:
+                self.progress_tracker.add_log(f'{app_mgmt_no}: プロジェクト作成完了 ✓', 'success')
+
             return project
 
         except Exception as e:
             error_msg = f'プロジェクト作成エラー ({csv_mgmt_no}): {str(e)}'
             self.log(f'  ✗ {error_msg}')
+            if self.progress_tracker:
+                self.progress_tracker.add_log(f'{csv_mgmt_no}: エラー - {str(e)}', 'error')
             self.stats['errors'].append(error_msg)
             return None
 
@@ -411,9 +517,10 @@ class ProjectImporter:
 class SubcontractImporter:
     """下請契約インポーター"""
 
-    def __init__(self, dry_run: bool = False, verbosity: int = 1):
+    def __init__(self, dry_run: bool = False, verbosity: int = 1, progress_tracker=None):
         self.dry_run = dry_run
         self.verbosity = verbosity
+        self.progress_tracker = progress_tracker
         self.stats = {
             'subcontracts_created': 0,
             'contractors_created': 0,
@@ -429,12 +536,20 @@ class SubcontractImporter:
             project: 親プロジェクト
             subcontract_rows: 依頼側CSV行データリスト
         """
-        for row in subcontract_rows:
+        if self.progress_tracker and len(subcontract_rows) > 0:
+            self.progress_tracker.add_log(f'{project.management_no}: 下請契約{len(subcontract_rows)}件処理開始', 'info')
+
+        for idx, row in enumerate(subcontract_rows, 1):
             try:
+                if self.progress_tracker:
+                    contractor_name = row.get('工事業者名', '不明')
+                    self.progress_tracker.add_log(f'{project.management_no}: 下請契約{idx}/{len(subcontract_rows)} ({contractor_name})', 'info')
                 self._import_single_subcontract(project, row)
             except Exception as e:
                 error_msg = f'下請契約作成エラー: {str(e)}'
                 self.log(f'  ✗ {error_msg}')
+                if self.progress_tracker:
+                    self.progress_tracker.add_log(f'{project.management_no}: 下請契約エラー - {str(e)}', 'error')
                 self.stats['errors'].append(error_msg)
 
     def _import_single_subcontract(self, project: Project, row: Dict):
@@ -446,6 +561,8 @@ class SubcontractImporter:
         )
 
         if not contractor:
+            if self.progress_tracker:
+                self.progress_tracker.add_log(f'{project.management_no}: 下請業者名が空のためスキップ', 'warning')
             return
 
         # 契約金額
@@ -488,6 +605,8 @@ class SubcontractImporter:
 
         if self.dry_run:
             self.log(f'    [DRY-RUN] Subcontract作成: {contractor.name} - ¥{contract_amount:,}')
+            if self.progress_tracker:
+                self.progress_tracker.add_log(f'{project.management_no}: [DRY-RUN] {contractor.name} ¥{contract_amount:,}', 'success')
             self.stats['subcontracts_created'] += 1
             return
 
@@ -497,6 +616,9 @@ class SubcontractImporter:
 
         if self.verbosity >= 2:
             self.log(f'    ✓ Subcontract作成: {contractor.name} - ¥{contract_amount:,}')
+
+        if self.progress_tracker:
+            self.progress_tracker.add_log(f'{project.management_no}: ✓ {contractor.name} ¥{contract_amount:,}', 'success')
 
     def _get_or_create_contractor(self, contractor_name: str, address: str) -> Optional[Contractor]:
         """下請業者を取得または作成"""
@@ -509,7 +631,7 @@ class SubcontractImporter:
             name=contractor_name,
             defaults={
                 'address': address.strip() if address else '',
-                'contractor_type': 'partner'
+                'contractor_type': 'company'  # 'partner'は無効な値 → 'company'（協力会社）を使用
             }
         )
 
@@ -551,6 +673,12 @@ class Command(BaseCommand):
             action='store_true',
             help='バックアップをスキップ'
         )
+        parser.add_argument(
+            '--progress-file',
+            type=str,
+            help='進捗ファイルパス（ProgressTracker用）',
+            default=None
+        )
 
     def handle(self, *args, **options):
         order_csv = options['order_csv']
@@ -558,6 +686,13 @@ class Command(BaseCommand):
         dry_run = options['dry_run']
         no_backup = options['no_backup']
         verbosity = options['verbosity']
+        progress_file = options.get('progress_file')
+
+        # ProgressTrackerの初期化
+        progress_tracker = None
+        if progress_file:
+            from order_management.utils.progress_tracker import ProgressTracker
+            progress_tracker = ProgressTracker(progress_file)
 
         self.stdout.write('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
         self.stdout.write('CSV一括インポート開始')
@@ -596,8 +731,8 @@ class Command(BaseCommand):
             # 4. インポート処理
             self.stdout.write(f'\n📥 インポート処理中... (0/{len(valid_groups)})')
 
-            project_importer = ProjectImporter(dry_run=dry_run, verbosity=verbosity)
-            subcontract_importer = SubcontractImporter(dry_run=dry_run, verbosity=verbosity)
+            project_importer = ProjectImporter(dry_run=dry_run, verbosity=verbosity, progress_tracker=progress_tracker)
+            subcontract_importer = SubcontractImporter(dry_run=dry_run, verbosity=verbosity, progress_tracker=progress_tracker)
 
             processed = 0
 
