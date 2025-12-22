@@ -1585,6 +1585,11 @@ def add_subcontract(request, pk):
                 except ValueError:
                     pass
 
+            # stepフィールドを処理（プレフィックスがなければ追加）
+            step_value = request.POST.get('step', '')
+            if step_value and not step_value.startswith('step_'):
+                step_value = f'step_{step_value}'
+
             # 作業管理レコードを作成
             subcontract_data = {
                 'project': project,
@@ -1605,7 +1610,8 @@ def add_subcontract(request, pk):
                 'material_cost_3': material_cost_3,
                 'purchase_order_issued': purchase_order_issued,
                 'dynamic_material_costs': dynamic_material_costs,
-                'tax_type': tax_type
+                'tax_type': tax_type,
+                'step': step_value if step_value else None
             }
 
             # 外注の場合

@@ -96,7 +96,9 @@ class SubcontractForm(forms.ModelForm):
             'internal_department', 'internal_pricing_type',
             'internal_hourly_rate', 'estimated_hours',
             'dynamic_cost_items', 'dynamic_material_costs',
-            'dynamic_additional_cost_items', 'tax_type'
+            'dynamic_additional_cost_items', 'tax_type',
+            # stepフィールドはビュー側で処理するためフォームから除外
+            'step'
         ]
         widgets = {
             'payment_due_date': forms.DateInput(attrs={'type': 'date'}),
