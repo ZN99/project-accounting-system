@@ -249,13 +249,26 @@ def calendar_events_api(request):
         # 工期（着工〜完工）を期間イベントとして追加
         # 案件詳細ページと同じwork_start_date/work_end_dateを使用
         if project.work_start_date and project.work_end_date:
-            # 完工済みかどうかで色を変更（完工チェックボックスのみで判定）
-            is_completed = project.work_end_completed
-            work_period_color = '#28a745' if is_completed else '#007bff'  # 完工済み=緑、進行中=青
-            work_period_icon = '✓' if is_completed else '🚧'
+            # 完工済みかどうかで色を変更（3段階判定）
+            from datetime import date
+            today = date.today()
 
-            # 完工チェックで表示を変更
-            period_label = '工期（完工）' if is_completed else '工期（予定・進行中）'
+            # 完了判定: verified (濃い緑) > success (緑) > 進行中 (青)
+            if project.work_end_completed:
+                # チェックボックスON → 濃い緑（確定的完了）
+                work_period_color = '#20c997'  # teal/濃い緑
+                work_period_icon = '✓✓'
+                period_label = '工期（完工確定）'
+            elif project.work_end_date < today:
+                # 予定日が過去 → 緑（推測的完了）
+                work_period_color = '#28a745'  # 緑
+                work_period_icon = '✓'
+                period_label = '工期（完工予定）'
+            else:
+                # 進行中または未来 → 青
+                work_period_color = '#007bff'  # 青
+                work_period_icon = '🚧'
+                period_label = '工期（予定・進行中）'
 
             # 両方ある場合は期間イベント
             event = {
@@ -371,9 +384,36 @@ def calendar_events_api(request):
                 scheduled_date = progress_step.value.get('scheduled_date', '')
 
             if scheduled_date:
-                # ステップに応じた色を取得（デフォルトは青）
-                step_color = dynamic_step_colors.get(step_key, '#007bff')
-                step_icon = step_icons.get(step_key, '📅')
+                # ステップの完了状態に応じて色を決定（3段階）
+                from datetime import datetime, date
+                today = date.today()
+
+                # 基本色（ステップ種別ごと）
+                base_color = dynamic_step_colors.get(step_key, '#007bff')
+
+                # 完了状態で色を上書き
+                if progress_step.is_completed:
+                    # チェックボックスON → 濃い緑（確定的完了）
+                    step_color = '#20c997'
+                    step_icon = '✓✓'
+                elif scheduled_date:
+                    try:
+                        scheduled_date_obj = datetime.strptime(scheduled_date, '%Y-%m-%d').date()
+                        if scheduled_date_obj < today:
+                            # 予定日が過去 → 緑（推測的完了）
+                            step_color = '#28a745'
+                            step_icon = step_icons.get(step_key, '📅')
+                        else:
+                            # 予定日が未来 → ステップ種別の色
+                            step_color = base_color
+                            step_icon = step_icons.get(step_key, '📅')
+                    except (ValueError, TypeError):
+                        # 日付パースエラー → デフォルト色
+                        step_color = base_color
+                        step_icon = step_icons.get(step_key, '📅')
+                else:
+                    step_color = base_color
+                    step_icon = step_icons.get(step_key, '📅')
 
                 event = {
                     'id': f'{project.id}-{step_key}',

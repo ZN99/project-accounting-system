@@ -1194,7 +1194,7 @@
                             <small class="text-muted" style="font-size: 0.7rem;">
                                 <i class="fas fa-chart-line me-1"></i>進捗
                                 <i class="fas fa-question-circle ms-1" style="font-size: 0.6rem; cursor: help;" title="進捗の判定ロジック：&#10;1. 完工日が設定されていれば「完工」&#10;2. 着工日が完了または実施日があれば「工事中」&#10;3. 着工日の予定日が過去なら「工事中の予定」&#10;4. 着工日の予定日が未来なら「着工日待ち」&#10;5. 見積書発行日があれば「見積もり審査中」&#10;6. 現調が完了または予定日が過去なら「現調済み」&#10;7. 現調の予定日があれば「現調待ち」&#10;8. 立ち会いが完了または予定日が過去なら「立ち会い済み」&#10;9. 立ち会いの予定日があれば「立ち会い待ち」&#10;10. それ以外は「未開始」"></i>
-                                <span id="overallPhase" class="badge bg-secondary" style="font-size: 0.6rem; margin-left: 0.3rem;">未開始</span>
+                                <span id="overallPhase" class="badge bg-{{ stage.color }}" style="font-size: 0.6rem; margin-left: 0.3rem;">{{ stage.stage }}</span>
                                 <span id="overallStepCount" style="font-size: 0.65rem; margin-left: 0.3rem;">0/0</span>
                             </small>
                         </div>
@@ -4809,12 +4809,28 @@ $(document).ready(function() {
 
         // 右側のステップから直接完了状況を取得
         const allSteps = [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
         // activeSteps内の全ステップをスキャン
         $('#activeSteps .progress-step').each(function() {
             const $step = $(this);
             const stepKey = $step.data('step');
-            const isCompleted = $step.hasClass('completed');
+            let isCompleted = $step.hasClass('completed');
+
+            // 🔧 FIX: サーバー側と同じロジック - 予定日が過去の場合も完了扱い
+            // 完了判定: is_completed OR scheduled_date が過去
+            if (!isCompleted) {
+                const scheduledDateInput = $step.find('input[name*="scheduled_date"]');
+                if (scheduledDateInput.length > 0 && scheduledDateInput.val()) {
+                    const scheduledDate = new Date(scheduledDateInput.val());
+                    if (scheduledDate < today) {
+                        isCompleted = true;
+                        console.log(`🔧 Progress check - ${stepKey}: 予定日が過去のため完了扱い (${scheduledDateInput.val()})`);
+                    }
+                }
+            }
+
             console.log(`🔍 Progress check - ${stepKey}: completed=${isCompleted}, has class=${$step.hasClass('completed')}`);
             allSteps.push({ key: stepKey, completed: isCompleted });
         });
