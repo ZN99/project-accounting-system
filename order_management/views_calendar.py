@@ -45,8 +45,8 @@ class WorkerResourceCalendarView(LoginRequiredMixin, TemplateView):
 
         # 開始日と終了日（デフォルトは今月の1日から30日後まで）
         today = datetime.now()
-        start_date = today.replace(day=1)
-        end_date = start_date + timedelta(days=30)
+        start_date = today.replace(day=1).date()  # date型に変換
+        end_date = (today.replace(day=1) + timedelta(days=30)).date()  # date型に変換
 
         # 全職人データを統合（社内職人・個人職人・協力会社）
         all_workers = []
