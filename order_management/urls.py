@@ -40,7 +40,7 @@ from . import views_material
 from . import views_comment
 from .views_notification import NotificationListView, mark_as_read_and_archive
 from .views_profile import profile_settings
-from .views_csv_import import csv_import_view, csv_import_download_log
+from .views_csv_import import csv_import_view, csv_import_download_log, csv_import_progress_api, csv_import_cancel_api
 # ARCHIVED: 旧予測機能のインポート（アーカイブ済み）
 # from .views_forecast import (
 #     ForecastDashboardView,
@@ -155,7 +155,8 @@ from .views_file import (
 from .views_backup import (
     export_data,
     import_data_view,
-    delete_all_data_view
+    delete_all_data_view,
+    selective_restore_view
 )
 
 app_name = 'order_management'
@@ -412,9 +413,12 @@ urlpatterns = [
     # データバックアップ・復元
     path('backup/export/', export_data, name='export_data'),
     path('backup/import/', import_data_view, name='import_data'),
+    path('backup/selective-restore/', selective_restore_view, name='selective_restore'),
     path('backup/delete/', delete_all_data_view, name='delete_all_data'),
 
     # CSV一括インポート
     path('csv-import/', csv_import_view, name='csv_import'),
     path('csv-import/download-log/', csv_import_download_log, name='csv_import_download_log'),
+    path('csv-import/progress/', csv_import_progress_api, name='csv_import_progress'),
+    path('csv-import/cancel/', csv_import_cancel_api, name='csv_import_cancel'),
 ]

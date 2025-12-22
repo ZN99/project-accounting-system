@@ -1,19 +1,19 @@
 """
-共通ユーティリティ関数
+Common utility functions
 """
 
 
 def safe_int(value, default=0):
     """
-    文字列を整数に安全に変換（カンマを削除）
-    THOUSAND_SEPARATOR設定の影響を受けないようにする
+    Safely convert a string to integer (removes commas)
+    Avoids issues with THOUSAND_SEPARATOR settings
 
     Args:
-        value: 変換する値（int, str, その他）
-        default: 変換できない場合のデフォルト値
+        value: Value to convert (int, str, or other)
+        default: Default value if conversion fails
 
     Returns:
-        int: 変換された整数値
+        int: Converted integer value
 
     Examples:
         >>> safe_int('2025')
