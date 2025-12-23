@@ -133,14 +133,20 @@ def project_list(request):
     # フィルタリング
     # 受注ヨミフィルター（営業見込み）
     order_forecast = request.GET.get('order_forecast')
+    if order_forecast in ['None', '', None]:
+        order_forecast = None
     if order_forecast:
         projects = projects.filter(project_status=order_forecast)
 
     work_type = request.GET.get('work_type')
+    if work_type in ['None', '', None]:
+        work_type = None
     if work_type:
         projects = projects.filter(work_type__icontains=work_type)
 
     project_manager = request.GET.get('project_manager')
+    if project_manager in ['None', '', None]:
+        project_manager = None
     if project_manager:
         projects = projects.filter(project_manager__icontains=project_manager)
 
@@ -154,6 +160,8 @@ def project_list(request):
 
     # 担当者名フィルター（JSONField検索）
     assignee_name = request.GET.get('assignee_name')
+    if assignee_name in ['None', '', None]:
+        assignee_name = None
     if assignee_name:
         # Only filter by construction_assignees which exists in the model
         projects = projects.filter(
@@ -162,10 +170,14 @@ def project_list(request):
 
     # 検索 - 管理Noと現場名を別々にフィルタ
     management_no_query = request.GET.get('management_no')
+    if management_no_query in ['None', '', None]:
+        management_no_query = None
     if management_no_query:
         projects = projects.filter(management_no__icontains=management_no_query)
 
     site_name_query = request.GET.get('site_name')
+    if site_name_query in ['None', '', None]:
+        site_name_query = None
     if site_name_query:
         projects = projects.filter(
             Q(site_name__icontains=site_name_query) |
@@ -206,6 +218,9 @@ def project_list(request):
 
     # プロジェクトステータス（自動計算）フィルター
     stage_filter = request.GET.get('stage_filter')
+    # "None"文字列や空文字列を除外
+    if stage_filter in ['None', '', None]:
+        stage_filter = None
     if stage_filter:
         # クエリセットを評価してリストに変換
         projects_list = list(projects)
