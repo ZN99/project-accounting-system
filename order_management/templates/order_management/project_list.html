@@ -448,7 +448,9 @@
                             </a>
                         </td>
                         <td style="max-width: 200px;">
-                            <small class="text-muted">{{ project.site_address|default:"-" }}</small>
+                            <div class="text-truncate" style="max-width: 200px;" title="{{ project.site_address }}">
+                                <small class="text-muted">{{ project.site_address|default:"-" }}</small>
+                            </div>
                         </td>
                         <td style="font-size: 0.85rem;">
                             {% if project.client_company %}
