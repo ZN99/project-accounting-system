@@ -1080,6 +1080,27 @@ def project_detail(request, pk):
     survey_subcontracts_json = serialize_subcontracts(survey_subcontracts)
     construction_start_subcontracts_json = serialize_subcontracts(construction_start_subcontracts)
 
+    # すべての工程のSubcontractを工程ごとにグループ化
+    from collections import defaultdict
+    subcontracts_by_step = defaultdict(list)
+    for sc in subcontracts:
+        step_key = sc.step or ''
+        # step_プレフィックスを統一
+        if step_key and not step_key.startswith('step_'):
+            step_key = f'step_{step_key}'
+        subcontracts_by_step[step_key].append({
+            'id': sc.id,
+            'contractor_name': sc.contractor.name if sc.contractor else '業者未設定',
+            'contract_amount': float(sc.contract_amount or 0),
+            'billed_amount': float(sc.billed_amount) if sc.billed_amount else None,
+            'payment_status': sc.payment_status,
+            'payment_status_display': sc.get_payment_status_display(),
+            'payment_status_color': 'success' if sc.payment_status == 'paid' else ('info' if sc.payment_status == 'processing' else 'warning'),
+        })
+
+    # 辞書全体をJSON化
+    all_subcontracts_by_step_json = json.dumps(dict(subcontracts_by_step))
+
     # 資材発注情報をJSON化（JavaScript用）
     material_orders = project.material_orders.all()
     material_orders_json = json.dumps([{
@@ -1199,6 +1220,7 @@ def project_detail(request, pk):
         'attendance_subcontracts_json': attendance_subcontracts_json,
         'survey_subcontracts_json': survey_subcontracts_json,
         'construction_start_subcontracts_json': construction_start_subcontracts_json,
+        'all_subcontracts_by_step_json': all_subcontracts_by_step_json,
         'material_orders_json': material_orders_json,
     })
 

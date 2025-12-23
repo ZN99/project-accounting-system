@@ -285,7 +285,7 @@ def subcontract_create(request, project_id):
                         'payment_due_date': sc.payment_due_date.strftime('%Y-%m-%d') if sc.payment_due_date else '',
                         'payment_status': sc.payment_status,
                         'work_description': sc.work_description or '',
-                        'step': sc.step
+                        'step': sc.step or ''
                     })
 
                 return JsonResponse({

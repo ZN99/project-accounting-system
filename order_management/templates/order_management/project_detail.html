@@ -5282,6 +5282,22 @@ $(document).ready(function() {
         invoice_issued: {% if project.invoice_issued %}true{% else %}false{% endif %}
     };
 
+    // すべての工程の下請け情報を読み込む
+    const allSubcontractsByStep = {{ all_subcontracts_by_step_json|safe }};
+    console.log('📦 All subcontracts by step:', allSubcontractsByStep);
+
+    // 工程ごとの作業者データを初期化
+    window.processWorkers = {};
+    for (const stepKey in allSubcontractsByStep) {
+        window.processWorkers[stepKey] = allSubcontractsByStep[stepKey].map(sc => ({
+            subcontractId: sc.id,
+            contractorName: sc.contractor_name,
+            contractAmount: sc.contract_amount || 0,
+            paymentStatus: sc.payment_status
+        }));
+    }
+    console.log('👷 Initialized processWorkers:', window.processWorkers);
+
     // ステップの初期化
     function initializeSteps() {
         console.log('initializeSteps called');
