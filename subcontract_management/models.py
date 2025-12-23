@@ -286,9 +286,9 @@ class Contractor(models.Model):
     payment_cycle = models.CharField(
         max_length=10,
         choices=[
-            ('monthly', '月払い'),
-            ('bimonthly', '隔月払い'),
-            ('quarterly', '四半期払い'),
+            ('monthly', '月1回'),
+            ('bimonthly', '月2回'),
+            ('weekly', '週1回'),
             ('custom', 'その他'),
         ],
         default='monthly',
@@ -471,9 +471,9 @@ class Subcontract(models.Model):
     payment_cycle = models.CharField(
         max_length=10,
         choices=[
-            ('monthly', '月払い'),
-            ('bimonthly', '隔月払い'),
-            ('quarterly', '四半期払い'),
+            ('monthly', '月1回'),
+            ('bimonthly', '月2回'),
+            ('weekly', '週1回'),
             ('custom', 'その他'),
         ],
         null=True,
