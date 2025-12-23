@@ -2384,12 +2384,12 @@
                                 <label for="contractorPaymentCycle" class="form-label">支払サイクル</label>
                                 <select class="form-select" id="contractorPaymentCycle" name="payment_cycle">
                                     <option value="">-- 選択 --</option>
-                                    <option value="monthly">月払い</option>
-                                    <option value="bimonthly">隔月払い</option>
-                                    <option value="quarterly">四半期払い</option>
+                                    <option value="monthly" selected>月1回</option>
+                                    <option value="bimonthly">月2回</option>
+                                    <option value="weekly">週1回</option>
                                     <option value="custom">その他</option>
                                 </select>
-                                <small class="form-text text-muted">月払い、隔月払いなど</small>
+                                <small class="form-text text-muted">デフォルト: 月1回（月末締め翌月末払い）</small>
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -4087,10 +4087,10 @@ window.addContractorToList = function(contractorData) {
     // 支払サイクル情報（デフォルト値）
     const paymentInfo = `
         <div style="font-size: 0.8rem; line-height: 1.4;">
-            <div>月払い</div>
-            <div class="text-muted">締日: -</div>
-            <div class="text-muted">支払月: -</div>
-            <div class="text-muted">支払日: -</div>
+            <div>月1回</div>
+            <div class="text-muted">締日: 31日（月末）</div>
+            <div class="text-muted">支払月: 翌月</div>
+            <div class="text-muted">支払日: 31日（月末）</div>
         </div>
     `;
 
@@ -4307,9 +4307,9 @@ window.renderContractorTable = function(contractors) {
         // 支払いサイクル情報
         let paymentCycleInfo = '';
         const paymentCycleMap = {
-            'monthly': '月払い',
-            'bimonthly': '隔月払い',
-            'quarterly': '四半期払い',
+            'monthly': '月1回',
+            'bimonthly': '月2回',
+            'weekly': '週1回',
             'custom': 'その他'
         };
         const paymentOffsetMap = {
@@ -5050,9 +5050,9 @@ window.onModalContractorChange = function(selectElement) {
     if (contractorInfoSection) {
         // 支払いサイクルを日本語に変換
         const paymentCycleMap = {
-            'monthly': '月払い',
-            'bimonthly': '隔月払い',
-            'quarterly': '四半期払い',
+            'monthly': '月1回',
+            'bimonthly': '月2回',
+            'weekly': '週1回',
             'custom': 'その他'
         };
         const paymentCycleDisplay = paymentCycleRaw ? (paymentCycleMap[paymentCycleRaw] || paymentCycleRaw) : '-';
@@ -6123,12 +6123,10 @@ function escapeHtml(text) {
                             </label>
                             <select class="form-select" id="newPaymentCycle" name="payment_cycle">
                                 <option value="">選択してください</option>
-                                <option value="monthly">月払い</option>
-                                <option value="bimonthly">隔月払い</option>
-                                <option value="quarterly">四半期払い</option>
-                                <option value="half_yearly">半年払い</option>
-                                <option value="yearly">年払い</option>
-                                <option value="other">その他</option>
+                                <option value="monthly" selected>月1回</option>
+                                <option value="bimonthly">月2回</option>
+                                <option value="weekly">週1回</option>
+                                <option value="custom">その他</option>
                             </select>
                         </div>
                         <div class="col-md-3 mb-3">
