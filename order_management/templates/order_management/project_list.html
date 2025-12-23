@@ -765,9 +765,14 @@
         <div class="mb-3 p-3 bg-white rounded shadow-sm border">
             <!-- 案件名ヘッダー -->
             <div class="row mb-2">
-                <div class="col-md-12">
+                <div class="col-md-2">
                     <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('name')">
                         <i class="fas fa-hashtag me-1"></i>管理No・現場名 <i class="fas fa-sort"></i>
+                    </small>
+                </div>
+                <div class="col-md-2">
+                    <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('created')">
+                        <i class="fas fa-clock me-1"></i>登録日 <i class="fas fa-sort"></i>
                     </small>
                 </div>
             </div>
@@ -781,11 +786,6 @@
                 <div class="col-md-2">
                     <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('contractor')">
                         <i class="fas fa-users me-1"></i>下請 <i class="fas fa-sort"></i>
-                    </small>
-                </div>
-                <div class="col-md-1">
-                    <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('created')">
-                        <i class="fas fa-clock me-1"></i>登録日 <i class="fas fa-sort"></i>
                     </small>
                 </div>
                 <div class="col-md-1">
@@ -803,7 +803,7 @@
                         <i class="fas fa-tools me-1"></i>種別 <i class="fas fa-sort"></i>
                     </small>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <small class="text-muted fw-bold" style="cursor: pointer;" onclick="sortSummaryList('stage')">
                         <i class="fas fa-tasks me-1"></i>案件進捗 <i class="fas fa-sort"></i>
                     </small>
@@ -832,29 +832,21 @@
                  data-stage="{{ stage.stage }}"
                  data-progress="{% if details.total_steps > 0 %}{% widthratio details.completed_steps details.total_steps 100 %}{% else %}0{% endif %}"
                  data-created="{{ project.created_at|date:'Y-m-d H:i:s' }}">
-                <div class="row align-items-center">
-                    <!-- 管理No・現場名 -->
-                    <div class="col-md-12 mb-2">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div class="d-flex align-items-center gap-2">
-                                <h6 class="mb-0 fw-bold" style="color: #2c3e50;">{{ project.site_name }}</h6>
-                                <span class="badge {% if project.project_status == '受注確定' %}bg-success{% elif project.project_status == 'A' %}bg-danger{% elif project.project_status == 'B' %}bg-warning text-dark{% elif project.project_status == 'NG' %}bg-secondary{% else %}text-dark{% endif %}"
-                                      style="font-size: 0.7rem; padding: 0.25rem 0.5rem;{% if project.project_status == 'ネタ' %} background-color: #e9d5ff;{% endif %} cursor: help;"
-                                      title="{% if project.project_status == '受注確定' %}正式に契約が決定した案件。施工準備・実施段階{% elif project.project_status == 'A' %}受注確度【高】見積提出済みで、契約の意向が強く確認できている案件{% elif project.project_status == 'B' %}受注確度【中】見積提出済みだが、他社との競合や不確定要素がある案件{% elif project.project_status == 'NG' %}失注または取り下げた案件。他社受注や予算不成立など{% else %}初期段階の見込み案件。元請からの問い合わせや引き合いがあった段階{% endif %}">
-                                    {{ project.get_project_status_display }}
-                                </span>
-                                <small class="text-muted"><i class="fas fa-hashtag me-1"></i>{{ project.management_no }}</small>
-                                <small class="text-muted ms-2" style="font-size: 0.6rem;" title="案件登録日時">
-                                    <i class="fas fa-clock me-1"></i>{{ project.created_at|date:"Y/m/d H:i" }}
-                                </small>
-                            </div>
-                            {% with comment_count=project.get_comment_count %}
-                            {% if comment_count > 0 %}
-                            <span class="badge bg-secondary">
-                                <i class="fas fa-comment"></i> {{ comment_count }}
+                <!-- 1行目: 管理No・現場名 + 登録日 -->
+                <div class="row align-items-center mb-2">
+                    <div class="col-md-2">
+                        <div>
+                            <small class="text-muted"><i class="fas fa-hashtag me-1"></i>{{ project.management_no }}</small>
+                        </div>
+                        <div class="mt-1">
+                            <h6 class="mb-0 fw-bold" style="color: #2c3e50;">{{ project.site_name }}</h6>
+                        </div>
+                        <div class="mt-1">
+                            <span class="badge {% if project.project_status == '受注確定' %}bg-success{% elif project.project_status == 'A' %}bg-danger{% elif project.project_status == 'B' %}bg-warning text-dark{% elif project.project_status == 'NG' %}bg-secondary{% else %}text-dark{% endif %}"
+                                  style="font-size: 0.7rem; padding: 0.25rem 0.5rem;{% if project.project_status == 'ネタ' %} background-color: #e9d5ff;{% endif %} cursor: help;"
+                                  title="{% if project.project_status == '受注確定' %}正式に契約が決定した案件。施工準備・実施段階{% elif project.project_status == 'A' %}受注確度【高】見積提出済みで、契約の意向が強く確認できている案件{% elif project.project_status == 'B' %}受注確度【中】見積提出済みだが、他社との競合や不確定要素がある案件{% elif project.project_status == 'NG' %}失注または取り下げた案件。他社受注や予算不成立など{% else %}初期段階の見込み案件。元請からの問い合わせや引き合いがあった段階{% endif %}">
+                                {{ project.get_project_status_display }}
                             </span>
-                            {% endif %}
-                            {% endwith %}
                         </div>
                         {% if project.site_address %}
                         <div class="mt-1">
@@ -864,8 +856,15 @@
                         </div>
                         {% endif %}
                     </div>
+                    <div class="col-md-2">
+                        <small class="text-muted" style="font-size: 0.7rem;" title="案件登録日時">
+                            <i class="fas fa-clock me-1"></i>{{ project.created_at|date:"Y/m/d H:i" }}
+                        </small>
+                    </div>
+                </div>
 
-                    <!-- 3カラムレイアウト開始 -->
+                <!-- 2行目: その他の情報 -->
+                <div class="row align-items-center">
                     <div class="col-md-2">
                         <!-- Column 1: 元請情報 -->
                         <div class="border-end pe-2" style="min-height: 60px;">
@@ -944,22 +943,7 @@
                     </div>
 
                     <div class="col-md-1">
-                        <!-- Column 2A: 登録日時 -->
-                        <div class="border-end pe-2" style="min-height: 60px;">
-                            <small class="text-muted d-block mb-1" style="font-size: 0.65rem;"><i class="fas fa-clock me-1"></i>登録日</small>
-                            <div style="font-size: 0.7rem; line-height: 1.2;">
-                                <div class="text-muted">
-                                    {{ project.created_at|date:"Y/m/d" }}
-                                </div>
-                                <div class="text-muted" style="font-size: 0.6rem;">
-                                    {{ project.created_at|date:"H:i" }}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-md-1">
-                        <!-- Column 3A: 工期 -->
+                        <!-- Column 1: 工期 -->
                         <div class="border-end pe-2" style="min-height: 60px;">
                             <small class="text-muted d-block mb-1" style="font-size: 0.65rem;"><i class="fas fa-calendar me-1"></i>工期</small>
                             {% with period=project.get_construction_period %}
@@ -1039,7 +1023,7 @@
                         </div>
                     </div>
 
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <!-- Column 5: 案件進捗 -->
                         <small class="text-muted d-block mb-1" style="font-size: 0.65rem;"><i class="fas fa-tasks me-1"></i>案件進捗</small>
                         {% if project.project_status == 'NG' %}
