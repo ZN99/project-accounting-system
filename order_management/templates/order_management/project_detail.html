@@ -5809,13 +5809,43 @@ $(document).ready(function() {
             `;
         }
 
-        // attendance, survey, construction_start の場合は下請け手配カードを追加
+        // 作業者追加ボタンとリストを表示
         let additionalCardHtml = '';
         const stepKeyNormalized = stepKey.replace('step_', '');
-        if (['attendance', 'survey', 'construction_start'].includes(stepKeyNormalized)) {
-            additionalCardHtml = generateStepSubcontractCardHtml(stepKeyNormalized);
-        } else if (stepKeyNormalized === 'material_order') {
-            additionalCardHtml = generateMaterialOrderCardHtml();
+
+        // すべての工程に作業者追加機能を提供
+        const workers = window.processWorkers[stepKey] || [];
+        let workersHtml = '';
+        if (workers.length > 0) {
+            workersHtml = '<div class="mt-2">';
+            workers.forEach((worker, index) => {
+                workersHtml += `
+                    <div class="card mb-2 border-start border-primary border-3">
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-bold">${worker.contractorName || '業者名未設定'}</div>
+                                    <div class="text-muted small">¥${(worker.contractAmount || 0).toLocaleString()}</div>
+                                </div>
+                                <span class="badge bg-${worker.paymentStatus === 'paid' ? 'success' : 'warning'}">${worker.paymentStatus === 'paid' ? '支払済み' : '未払い'}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            workersHtml += '</div>';
+        }
+
+        additionalCardHtml = `
+            ${workersHtml}
+            <button type="button" class="btn btn-sm btn-outline-primary add-worker-btn mt-2" onclick="event.stopPropagation(); openWorkerSubmodal('${stepKey}', '${stepName}')">
+                <i class="fas fa-user-plus me-1"></i>作業者を追加
+            </button>
+        `;
+
+        // material_orderの場合は資材発注カードも追加
+        if (stepKeyNormalized === 'material_order') {
+            additionalCardHtml += generateMaterialOrderCardHtml();
         }
 
         return `
@@ -6878,15 +6908,41 @@ $(document).ready(function() {
     function generateAvailableStepHtml(stepData) {
         const fieldHtml = generateFieldHtml(stepData);
 
-        // attendance, survey, construction_start の場合は下請け手配カードを追加
-        // material_order の場合は資材発注状況カードを追加
+        // すべての工程に作業者追加機能を提供
         let additionalCardHtml = '';
-        // step_プレフィックスを除去して正規化
         const stepKeyNormalized = stepData.key.replace('step_', '');
-        if (['attendance', 'survey', 'construction_start'].includes(stepKeyNormalized)) {
-            additionalCardHtml = generateStepSubcontractCardHtml(stepKeyNormalized);
-        } else if (stepKeyNormalized === 'material_order') {
-            additionalCardHtml = generateMaterialOrderCardHtml();
+        const workers = window.processWorkers[stepData.key] || [];
+        let workersHtml = '';
+        if (workers.length > 0) {
+            workersHtml = '<div class="mt-2">';
+            workers.forEach((worker, index) => {
+                workersHtml += `
+                    <div class="card mb-2 border-start border-primary border-3">
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-bold">${worker.contractorName || '業者名未設定'}</div>
+                                    <div class="text-muted small">¥${(worker.contractAmount || 0).toLocaleString()}</div>
+                                </div>
+                                <span class="badge bg-${worker.paymentStatus === 'paid' ? 'success' : 'warning'}">${worker.paymentStatus === 'paid' ? '支払済み' : '未払い'}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            workersHtml += '</div>';
+        }
+
+        additionalCardHtml = `
+            ${workersHtml}
+            <button type="button" class="btn btn-sm btn-outline-primary add-worker-btn mt-2" onclick="event.stopPropagation(); openWorkerSubmodal('${stepData.key}', '${stepData.name}')">
+                <i class="fas fa-user-plus me-1"></i>作業者を追加
+            </button>
+        `;
+
+        // material_orderの場合は資材発注カードも追加
+        if (stepKeyNormalized === 'material_order') {
+            additionalCardHtml += generateMaterialOrderCardHtml();
         }
 
         // 🔧 FIX: Generate status HTML based on step's completion state and scheduled date
