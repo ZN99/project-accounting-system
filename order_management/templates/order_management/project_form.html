@@ -2754,17 +2754,23 @@ function updateButtonText() {
 }
 
 // フォーム送信成功時の処理
-function handleFormSubmitSuccess() {
+function handleFormSubmitSuccess(redirectUrl) {
     const submitBtn = document.getElementById('submitBtn');
     const cancelBtn = document.getElementById('cancelBtn');
 
     // 成功メッセージを表示
-    submitBtn.innerHTML = '<i class="fas fa-check"></i> 更新完了';
+    submitBtn.innerHTML = '<i class="fas fa-check"></i> 登録完了';
     submitBtn.className = 'btn btn-success btn-lg me-3';
     submitBtn.disabled = true;
 
-    // キャンセルボタンを「戻る」に変更
-    cancelBtn.innerHTML = '<i class="fas fa-arrow-left"></i> 戻る';
+    // キャンセルボタンを「案件詳細に移動」に変更
+    if (redirectUrl) {
+        cancelBtn.href = redirectUrl;
+        cancelBtn.innerHTML = '<i class="fas fa-eye"></i> 案件詳細に移動';
+        cancelBtn.className = 'btn btn-primary btn-lg';
+    } else {
+        cancelBtn.innerHTML = '<i class="fas fa-arrow-left"></i> 戻る';
+    }
 
     // 保存されたフォーム値をクリア（送信成功なので不要）
     clearSavedFormValues();
@@ -2915,7 +2921,7 @@ $(document).ready(function() {
         .then(data => {
             if (data.success) {
                 // 成功時の処理
-                handleFormSubmitSuccess();
+                handleFormSubmitSuccess(data.redirect_url);
 
                 // 成功メッセージを表示（オプション）
                 if (data.message) {

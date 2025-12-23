@@ -261,11 +261,13 @@ class Contractor(models.Model):
     # 支払い条件
     closing_day = models.IntegerField(
         null=True, blank=True,
+        default=31,
         verbose_name='締日',
-        help_text='毎月の締日（1-31）。例：月末締めの場合は31、20日締めの場合は20'
+        help_text='毎月の締日（1-31）。例：月末締めの場合は31、20日締めの場合は20。デフォルト: 31（月末）'
     )
     payment_offset_months = models.IntegerField(
         null=True, blank=True,
+        default=1,
         choices=[
             (0, '当月'),
             (1, '翌月'),
@@ -273,12 +275,13 @@ class Contractor(models.Model):
             (3, '3ヶ月後'),
         ],
         verbose_name='支払月',
-        help_text='締日から何ヶ月後に支払うか（0=当月、1=翌月、2=翌々月）'
+        help_text='締日から何ヶ月後に支払うか（0=当月、1=翌月、2=翌々月）。デフォルト: 1（翌月）'
     )
     payment_day = models.IntegerField(
         null=True, blank=True,
+        default=31,
         verbose_name='支払日',
-        help_text='毎月の支払日（1-31）。例：25日払いの場合は25'
+        help_text='毎月の支払日（1-31）。例：25日払いの場合は25。デフォルト: 31（月末）'
     )
     payment_cycle = models.CharField(
         max_length=10,
