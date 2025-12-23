@@ -2014,21 +2014,29 @@ def update_forecast(request, pk):
     if request.method == 'POST':
         from django.http import JsonResponse
 
-        project = get_object_or_404(Project, pk=pk)
-        new_status = request.POST.get('project_status')
+        try:
+            project = get_object_or_404(Project, pk=pk)
+            new_status = request.POST.get('project_status')
 
-        # 有効な選択肢かチェック
-        valid_choices = [choice[0] for choice in Project.PROJECT_STATUS_CHOICES]
-        if new_status not in valid_choices:
-            return JsonResponse({'success': False, 'error': '無効な選択肢です'})
+            # 有効な選択肢かチェック
+            valid_choices = [choice[0] for choice in Project.PROJECT_STATUS_CHOICES]
+            if new_status not in valid_choices:
+                return JsonResponse({'success': False, 'error': f'無効な選択肢です: {new_status}'})
 
-        project.project_status = new_status
-        project.save()
+            project.project_status = new_status
+            project.save()
 
-        return JsonResponse({
-            'success': True,
-            'message': f'受注ヨミを「{new_status}」に更新しました'
-        })
+            return JsonResponse({
+                'success': True,
+                'message': f'受注ヨミを「{new_status}」に更新しました'
+            })
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({
+                'success': False,
+                'error': f'エラーが発生しました: {str(e)}'
+            })
 
     return JsonResponse({'success': False, 'error': 'POSTメソッドのみ許可されています'})
 

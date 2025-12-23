@@ -1328,7 +1328,23 @@ $(document).ready(function() {
         var select = $(this);
         var projectId = select.data('project-id');
         var newValue = select.val();
-        var csrfToken = $('[name=csrfmiddlewaretoken]').val() || '{{ csrf_token }}';
+
+        // CSRFトークンを取得
+        function getCookie(name) {
+            var cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                var cookies = document.cookie.split(';');
+                for (var i = 0; i < cookies.length; i++) {
+                    var cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        var csrfToken = getCookie('csrftoken');
 
         // 保存中の表示
         select.prop('disabled', true).css('opacity', '0.5');
@@ -1336,25 +1352,54 @@ $(document).ready(function() {
         $.ajax({
             url: '/orders/' + projectId + '/update-forecast/',
             method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            },
             data: {
-                project_status: newValue,
-                csrfmiddlewaretoken: csrfToken
+                project_status: newValue
             },
             success: function(response) {
                 if (response.success) {
                     // 保存成功時の視覚フィードバック
                     select.css('border-color', '#28a745');
+
+                    // 行の背景色を更新
+                    var tr = select.closest('tr');
+                    var colorMap = {
+                        '受注確定': '#d4edda',
+                        'A': '#f8d7da',
+                        'B': '#fff3cd',
+                        'NG': '#e2e3e5',
+                        'ネタ': '#f3e8ff'
+                    };
+                    var newColor = colorMap[newValue] || '#ffffff';
+                    tr.css('background-color', newColor);
+
                     setTimeout(function() {
                         select.css('border-color', '');
                     }, 1000);
                 } else {
+                    console.error('保存失敗:', response);
                     alert('保存に失敗しました: ' + (response.error || '不明なエラー'));
                     location.reload();
                 }
             },
             error: function(xhr, status, error) {
-                console.error('保存エラー:', error);
-                alert('保存に失敗しました');
+                console.error('AJAX エラー:', {
+                    status: xhr.status,
+                    statusText: xhr.statusText,
+                    responseText: xhr.responseText,
+                    error: error
+                });
+                var errorMsg = '保存に失敗しました';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg += ': ' + xhr.responseJSON.error;
+                } else if (xhr.status === 403) {
+                    errorMsg += ': CSRF検証エラー';
+                } else if (xhr.status === 404) {
+                    errorMsg += ': 案件が見つかりません';
+                }
+                alert(errorMsg);
                 location.reload();
             },
             complete: function() {
