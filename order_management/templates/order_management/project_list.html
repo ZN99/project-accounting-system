@@ -32,8 +32,15 @@
         cursor: pointer;
         transition: all 0.2s;
     }
+    /* 受注ヨミの背景色を強制適用 */
+    #projectTable tbody tr {
+        background-color: inherit;
+    }
+    #projectTable tbody tr td {
+        background-color: transparent !important;
+    }
     .clickable-row:hover {
-        background-color: rgba(0, 123, 255, 0.05) !important;
+        filter: brightness(0.95);
         transform: translateX(2px);
     }
     .summary-card {
@@ -440,7 +447,7 @@
                 </thead>
                 <tbody>
                     {% for project in projects %}
-                    <tr class="clickable-row" style="background-color: {{ project.get_status_color_hex }};" data-href="{% url 'order_management:project_detail' project.pk %}">
+                    <tr class="clickable-row" style="background-color: {{ project.get_status_color_hex }} !important;" data-href="{% url 'order_management:project_detail' project.pk %}">
                         <td><small class="text-muted">{{ project.management_no }}</small></td>
                         <td>
                             <a href="{% url 'order_management:project_detail' project.pk %}" class="fw-bold">
