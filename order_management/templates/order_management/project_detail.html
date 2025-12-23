@@ -8938,7 +8938,7 @@ function confirmFileDelete(fileId, fileName) {
 
 <script>
 // コメント機能のJavaScript - Production Version
-const projectId = {{ project.id }};
+const projectId = {{ project.id|stringformat:'d' }};
 
 // ページ読み込み時にコメントを取得
 document.addEventListener('DOMContentLoaded', function() {
@@ -8947,8 +8947,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // コメント一覧を読み込み
 function loadComments() {
+    console.log('[loadComments] Starting to load comments for project:', projectId);
     fetch(`/orders/api/projects/${projectId}/comments/`)
         .then(response => {
+            console.log('[loadComments] Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
             const contentType = response.headers.get('content-type');
             if (!contentType || !contentType.includes('application/json')) {
                 throw new Error('JSONレスポンスが期待されましたが、別の形式が返されました');
@@ -8956,7 +8961,11 @@ function loadComments() {
             return response.json();
         })
         .then(data => {
-            displayComments(data.comments);
+            console.log('[loadComments] Data received:', data);
+            // data.commentsがundefinedやnullの場合に空配列をデフォルト値として使用
+            const comments = data.comments || [];
+            console.log('[loadComments] Comments loaded:', comments.length);
+            displayComments(comments);
         })
         .catch(error => {
             console.error('[loadComments] Error:', error);
@@ -8964,6 +8973,7 @@ function loadComments() {
                 <div class="text-center text-muted py-3">
                     <i class="fas fa-comment-slash fa-2x mb-2"></i>
                     <p class="small">コメントの読み込みに失敗しました</p>
+                    <p class="small text-danger">${error.message}</p>
                 </div>
             `;
         });
@@ -8978,7 +8988,9 @@ function displayComments(comments) {
         return;
     }
 
-    if (!comments || comments.length === 0) {
+    console.log('[displayComments] Displaying comments:', comments ? comments.length : 0);
+
+    if (!comments || !Array.isArray(comments) || comments.length === 0) {
         container.innerHTML = `
             <div class="text-center text-muted py-5">
                 <i class="fas fa-comment-slash fa-3x mb-3"></i>
@@ -8999,6 +9011,9 @@ function displayComments(comments) {
 
 // 1つのコメントをHTMLに変換（スレッド対応）
 function renderComment(comment, isReply) {
+    // コメントIDを数値として取得（カンマ区切り防止）
+    const commentId = Number(comment.id);
+
     const importantClass = comment.is_important ? 'important' : '';
     const importantBadge = comment.is_important ?
         '<span class="comment-important-badge"><i class="fas fa-exclamation-triangle"></i> 重要</span>' : '';
@@ -9041,15 +9056,16 @@ function renderComment(comment, isReply) {
     let replyToggleHtml = '';
     let repliesHtml = '';
     if (comment.replies && comment.replies.length > 0) {
+        const replyCount = Number(comment.reply_count);
         replyToggleHtml = `
-            <button class="btn btn-link text-muted p-0 toggle-replies" data-comment-id="${comment.id}" title="${comment.reply_count}件の返信">
+            <button class="btn btn-link text-muted p-0 toggle-replies" data-comment-id="${commentId}" title="${replyCount}件の返信">
                 <i class="fas fa-chevron-down" style="font-size: 0.8rem;"></i>
-                <span style="font-size: 0.65rem;">${comment.reply_count}</span>
+                <span style="font-size: 0.65rem;">${replyCount}</span>
             </button>
         `;
 
         // 返信を表示（デフォルトで表示）
-        repliesHtml = `<div class="comment-replies" data-parent-id="${comment.id}">`;
+        repliesHtml = `<div class="comment-replies" data-parent-id="${commentId}">`;
         comment.replies.forEach(reply => {
             repliesHtml += renderComment(reply, true);
         });
@@ -9065,7 +9081,7 @@ function renderComment(comment, isReply) {
         </div>` : '';
 
     return `
-        <div class="comment-item ${importantClass} ${replyClass}" data-comment-id="${comment.id}">
+        <div class="comment-item ${importantClass} ${replyClass}" data-comment-id="${commentId}">
             <div class="comment-header">
                 ${avatarHtml}
                 <div style="flex: 1;">
@@ -9087,23 +9103,23 @@ function renderComment(comment, isReply) {
             ${attachmentsHtml}
             <div class="comment-actions">
                 ${replyToggleHtml}
-                <button class="btn btn-link text-muted p-0 reply-button" data-comment-id="${comment.id}" data-author="${escapeHtml(comment.author)}" title="返信">
+                <button class="btn btn-link text-muted p-0 reply-button" data-comment-id="${commentId}" data-author="${escapeHtml(comment.author)}" title="返信">
                     <i class="fas fa-reply" style="font-size: 0.9rem;"></i>
                 </button>
                 ${comment.can_edit ? `
-                    <button class="btn btn-link text-muted p-0 edit-comment-button" data-comment-id="${comment.id}" title="編集">
+                    <button class="btn btn-link text-muted p-0 edit-comment-button" data-comment-id="${commentId}" title="編集">
                         <i class="fas fa-edit" style="font-size: 0.9rem;"></i>
                     </button>
                 ` : ''}
                 ${comment.can_delete ? `
-                    <button class="btn btn-link text-muted p-0 delete-comment-button" data-comment-id="${comment.id}" title="削除">
+                    <button class="btn btn-link text-muted p-0 delete-comment-button" data-comment-id="${commentId}" title="削除">
                         <i class="fas fa-trash" style="font-size: 0.9rem;"></i>
                     </button>
                 ` : ''}
             </div>
-            <div class="edit-form-container" id="edit-form-${comment.id}" style="display: none;"></div>
+            <div class="edit-form-container" id="edit-form-${commentId}" style="display: none;"></div>
             ${repliesHtml}
-            <div class="reply-form-container" id="reply-form-${comment.id}" style="display: none;"></div>
+            <div class="reply-form-container" id="reply-form-${commentId}" style="display: none;"></div>
         </div>
     `;
 }

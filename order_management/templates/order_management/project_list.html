@@ -501,7 +501,7 @@
                         </td>
                         <td class="text-center" data-order="{{ project.project_status }}" onclick="event.stopPropagation();">
                             <select class="form-select form-select-sm order-forecast-select"
-                                    data-project-id="{{ project.pk }}"
+                                    data-project-id="{{ project.pk|stringformat:'d' }}"
                                     style="width: auto; display: inline-block;">
                                 {% for value, label in order_forecast_choices %}
                                 <option value="{{ value }}" {% if value == project.project_status %}selected{% endif %}>
@@ -565,7 +565,7 @@
                                         </div>
                                     {% endif %}
                                     {% if project.latest_comment_date and project.last_read_at and project.latest_comment_date > project.last_read_at or project.latest_comment_date and not project.last_read_at %}
-                                        <button class="btn btn-sm btn-outline-success mark-as-read-btn" data-project-id="{{ project.pk }}" title="既読にする">
+                                        <button class="btn btn-sm btn-outline-success mark-as-read-btn" data-project-id="{{ project.pk|stringformat:'d' }}" title="既読にする">
                                             <i class="fas fa-check"></i>
                                         </button>
                                     {% endif %}

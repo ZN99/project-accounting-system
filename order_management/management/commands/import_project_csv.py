@@ -24,7 +24,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from order_management.models import (
-    Project, ClientCompany, ContactPerson
+    Project, ClientCompany, ContactPerson, WorkType
 )
 from subcontract_management.models import Contractor, Subcontract
 from order_management.services.progress_step_service import set_step_scheduled_date, complete_step
@@ -305,8 +305,48 @@ class ProjectImporter:
             'clients_created': 0,
             'clients_existing': 0,
             'skipped': 0,
-            'errors': []
+            'errors': [],
+            'work_types_created': 0,
         }
+
+    def ensure_work_type_exists(self, work_type_name: str) -> None:
+        """
+        工事種別が存在しない場合は作成する
+
+        Args:
+            work_type_name: 工事種別名
+        """
+        if not work_type_name or work_type_name.strip() == '':
+            return
+
+        work_type_name = work_type_name.strip()
+
+        if self.dry_run:
+            # Dry-runモードでは存在チェックのみ
+            exists = WorkType.objects.filter(name=work_type_name).exists()
+            if not exists:
+                if self.verbosity >= 2:
+                    self.log(f'    [DRY-RUN] WorkType作成予定: {work_type_name}')
+                if self.progress_tracker:
+                    self.progress_tracker.add_log(f'[DRY-RUN] WorkType作成予定: {work_type_name}', 'info')
+            return
+
+        # 既存のWorkTypeを取得または新規作成
+        work_type, created = WorkType.objects.get_or_create(
+            name=work_type_name,
+            defaults={
+                'description': f'CSVインポートにより自動作成',
+                'is_active': True,
+                'display_order': 0
+            }
+        )
+
+        if created:
+            self.stats['work_types_created'] += 1
+            if self.verbosity >= 2:
+                self.log(f'    ✅ WorkType作成: {work_type_name}')
+            if self.progress_tracker:
+                self.progress_tracker.add_log(f'WorkType作成: {work_type_name}', 'success')
 
     def import_project(self, csv_mgmt_no: str, project_row: Dict) -> Optional[Project]:
         """
@@ -390,11 +430,16 @@ class ProjectImporter:
                     'info'
                 )
 
+            # 工事種別をWorkTypeマスターに登録（存在しない場合）
+            work_type_name = project_row.get('種別', '').strip()
+            if work_type_name:
+                self.ensure_work_type_exists(work_type_name)
+
             project_data = {
                 'management_no': app_mgmt_no,
                 'site_name': site_name,
                 'site_address': project_row.get('現場住所', ''),
-                'work_type': project_row.get('種別', ''),
+                'work_type': work_type_name,
                 'order_amount': order_amount,
                 'project_status': DataParser.map_project_status(project_row.get('受注ヨミ', '')),
                 'payment_due_date': DataParser.parse_date(project_row.get('入金予定日', '')),
@@ -810,6 +855,7 @@ class Command(BaseCommand):
         self.stdout.write(f'プロジェクト: {project_importer.stats["projects_created"]}件作成')
         self.stdout.write(f'元請業者: {project_importer.stats["clients_created"]}件作成, '
                          f'{project_importer.stats["clients_existing"]}件既存')
+        self.stdout.write(f'工事種別: {project_importer.stats["work_types_created"]}件作成')
         self.stdout.write(f'下請業者: {subcontract_importer.stats["contractors_created"]}件作成, '
                          f'{subcontract_importer.stats["contractors_existing"]}件既存')
         self.stdout.write(f'下請契約: {subcontract_importer.stats["subcontracts_created"]}件作成')

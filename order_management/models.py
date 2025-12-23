@@ -116,6 +116,7 @@ class Project(models.Model):
         max_digits=12,
         decimal_places=2,
         default=0,
+        blank=True,
         verbose_name='粗利額',
         help_text='売上 - 売上原価（自動計算・キャッシュ）'
     )
@@ -123,25 +124,15 @@ class Project(models.Model):
         max_digits=5,
         decimal_places=2,
         default=0,
+        blank=True,
         verbose_name='粗利率（%）',
         help_text='粗利額 / 売上 × 100（自動計算・キャッシュ）'
     )
 
     # 現地調査関連
     survey_required = models.BooleanField(default=False, verbose_name='現地調査必要')
-    survey_status = models.CharField(
-        max_length=20,
-        choices=[
-            ('not_required', '不要'),
-            ('required', '必要'),
-            ('scheduled', '予定済み'),
-            ('in_progress', '調査中'),
-            ('completed', '完了'),
-            ('cancelled', 'キャンセル'),
-        ],
-        default='not_required',
-        verbose_name='現地調査ステータス'
-    )
+    # DEPRECATED: survey_status was removed in migration 0059
+    # Now computed via @property survey_status_computed from ProjectProgressStep (SSOT)
     # DEPRECATED: survey_date and survey_assignees moved to ProjectProgressStep (SSOT)
 
     # DEPRECATED: witness_date, witness_status, witness_assignees, witness_assignee_type moved to ProjectProgressStep (SSOT)
@@ -1536,7 +1527,10 @@ class Project(models.Model):
         }
 
     def get_survey_status_display_with_color(self):
-        """現地調査ステータスの表示名と色を返す"""
+        """現地調査ステータスの表示名と色を返す
+
+        Note: Uses survey_status_computed which is calculated from ProjectProgressStep (SSOT)
+        """
         status_info = {
             'not_required': {'display': '不要', 'color': 'secondary'},
             'required': {'display': '必要', 'color': 'warning'},
@@ -1544,7 +1538,7 @@ class Project(models.Model):
             'in_progress': {'display': '調査中', 'color': 'primary'},
             'completed': {'display': '完了', 'color': 'success'},
         }
-        return status_info.get(self.survey_status, {'display': '不明', 'color': 'secondary'})
+        return status_info.get(self.survey_status_computed, {'display': '不明', 'color': 'secondary'})
 
     def get_latest_survey(self):
         """最新の現地調査を取得"""
@@ -1753,8 +1747,12 @@ class Project(models.Model):
         return get_step_assignees(self, 'survey')
 
     @property
-    def survey_status(self):
-        """現地調査ステータス（ProjectProgressStepから計算）"""
+    def survey_status_computed(self):
+        """現地調査ステータス（ProjectProgressStepから計算）
+
+        Note: This is a computed property based on ProjectProgressStep.
+        The actual survey_status field (line 134) is still used for backward compatibility.
+        """
         step = self._get_step_by_key('survey')
         if not step:
             return 'not_required'

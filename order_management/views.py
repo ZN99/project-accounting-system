@@ -1873,8 +1873,8 @@ def project_update(request, pk):
                     pass
 
             # DEPRECATED: Detailed schedule management fields now handled by ProjectProgressStep (SSOT)
-            # Legacy status fields kept for backward compatibility
-            project.survey_status = request.POST.get('survey_status', 'not_required')
+            # survey_status was removed in migration 0059, now computed via @property
+            # estimate_status is still a DB field for backward compatibility
             project.estimate_status = request.POST.get('estimate_status', 'not_issued')
 
             project.save()
