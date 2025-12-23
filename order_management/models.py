@@ -651,13 +651,13 @@ class Project(models.Model):
         return color_map.get(self.project_status, '')
 
     def get_status_color_hex(self):
-        """ステータスに応じた背景色（Hex）を返す"""
+        """受注ヨミ（project_status）に応じた背景色（Hex）を返す"""
         color_map = {
-            '完工': '#28a745',       # 緑（旧: 受注）
-            'NG': '#6c757d',        # グレー
-            '施工日待ち': '#dc3545', # ピンク/赤（旧: A）
-            'ネタ': '#ffc107',      # 黄色（旧: 検討中）
-            '進行中': '#17a2b8'     # 青（新規）
+            'ネタ': '#fff3cd',       # 薄い黄色（見込み案件）
+            'A': '#d1ecf1',          # 薄い青（受注確度高）
+            'B': '#d4edda',          # 薄い緑（受注確度中）
+            '受注確定': '#cfe2ff',   # 薄い紫（受注決定）
+            'NG': '#f8d7da',        # 薄い赤（受注できず）
         }
         return color_map.get(self.project_status, '#ffffff')
 
