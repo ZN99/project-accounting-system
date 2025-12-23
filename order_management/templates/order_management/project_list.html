@@ -440,7 +440,7 @@
                 </thead>
                 <tbody>
                     {% for project in projects %}
-                    <tr class="clickable-row" style="background-color: {{ project.get_status_color_hex }}20;" data-href="{% url 'order_management:project_detail' project.pk %}">
+                    <tr class="clickable-row" style="background-color: {{ project.get_status_color_hex }};" data-href="{% url 'order_management:project_detail' project.pk %}">
                         <td><small class="text-muted">{{ project.management_no }}</small></td>
                         <td>
                             <a href="{% url 'order_management:project_detail' project.pk %}" class="fw-bold">
