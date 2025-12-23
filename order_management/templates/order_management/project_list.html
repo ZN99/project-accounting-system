@@ -836,10 +836,10 @@
                 <div class="row align-items-center mb-2">
                     <div class="col-md-2">
                         <div>
-                            <small class="text-muted"><i class="fas fa-hashtag me-1"></i>{{ project.management_no }}</small>
-                        </div>
-                        <div class="mt-1">
-                            <h6 class="mb-0 fw-bold" style="color: #2c3e50;">{{ project.site_name }}</h6>
+                            <h6 class="mb-0 fw-bold" style="color: #2c3e50;">
+                                <small class="text-muted"><i class="fas fa-hashtag me-1"></i>{{ project.management_no }}</small>
+                                {{ project.site_name }}
+                            </h6>
                         </div>
                         <div class="mt-1">
                             <span class="badge {% if project.project_status == '受注確定' %}bg-success{% elif project.project_status == 'A' %}bg-danger{% elif project.project_status == 'B' %}bg-warning text-dark{% elif project.project_status == 'NG' %}bg-secondary{% else %}text-dark{% endif %}"
