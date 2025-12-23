@@ -651,13 +651,21 @@ class Project(models.Model):
         return color_map.get(self.project_status, '')
 
     def get_status_color_hex(self):
-        """受注ヨミ（project_status）に応じた背景色（Hex）を返す"""
+        """受注ヨミ（project_status）に応じた背景色（Hex）を返す
+
+        サマリーモードのバッジ色を薄くした色を使用：
+        - 受注確定: 緑系 (bg-success)
+        - A: 赤系 (bg-danger)
+        - B: 黄色系 (bg-warning)
+        - NG: グレー系 (bg-secondary)
+        - ネタ: 紫系 (カスタム)
+        """
         color_map = {
-            'ネタ': '#fff3cd',       # 薄い黄色（見込み案件）
-            'A': '#d1ecf1',          # 薄い青（受注確度高）
-            'B': '#d4edda',          # 薄い緑（受注確度中）
-            '受注確定': '#cfe2ff',   # 薄い紫（受注決定）
-            'NG': '#f8d7da',        # 薄い赤（受注できず）
+            '受注確定': '#d4edda',   # 薄い緑 (success系)
+            'A': '#f8d7da',          # 薄い赤 (danger系)
+            'B': '#fff3cd',          # 薄い黄色 (warning系)
+            'NG': '#e2e3e5',        # 薄いグレー (secondary系)
+            'ネタ': '#f3e8ff',       # 薄い紫 (カスタム)
         }
         return color_map.get(self.project_status, '#ffffff')
 
