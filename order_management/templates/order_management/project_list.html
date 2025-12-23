@@ -1326,8 +1326,22 @@ $(document).ready(function() {
         e.stopPropagation();  // 行クリックイベントを防ぐ
 
         var select = $(this);
-        var projectId = select.data('project-id');
+        // DataTablesを使用している場合、.data()が正しく動作しないことがあるため.attr()を使用
+        var projectId = select.attr('data-project-id');
         var newValue = select.val();
+
+        // デバッグ情報
+        console.log('受注ヨミ変更:', {
+            projectId: projectId,
+            newValue: newValue,
+            url: '/orders/' + projectId + '/update-forecast/'
+        });
+
+        if (!projectId) {
+            alert('エラー: プロジェクトIDが取得できませんでした');
+            select.prop('disabled', false).css('opacity', '1');
+            return;
+        }
 
         // CSRFトークンを取得
         function getCookie(name) {
