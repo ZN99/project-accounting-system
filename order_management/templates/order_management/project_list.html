@@ -450,7 +450,7 @@
                         <td style="max-width: 200px;">
                             <small class="text-muted">{{ project.site_address|default:"-" }}</small>
                         </td>
-                        <td>
+                        <td style="font-size: 0.85rem;">
                             {% if project.client_company %}
                                 {{ project.client_company.company_name }}
                             {% else %}
@@ -479,8 +479,8 @@
                                 {% endif %}
                             {% endwith %}
                         </td>
-                        <td>{{ project.project_manager|default:"-" }}</td>
-                        <td>{{ project.work_type|default:"-" }}</td>
+                        <td style="font-size: 0.85rem;">{{ project.project_manager|default:"-" }}</td>
+                        <td style="font-size: 0.85rem;">{{ project.work_type|default:"-" }}</td>
                         <td>
                             {% with stage=project.get_current_project_stage %}
                             <span class="badge bg-{{ stage.color }}">
