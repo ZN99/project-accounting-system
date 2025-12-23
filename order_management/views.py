@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 import json
 from decimal import Decimal
 from .models import Project, Invoice, InvoiceItem, ClientCompany, WorkType, Comment, CommentReadStatus
-from subcontract_management.models import Contractor
+from subcontract_management.models import Contractor, Subcontract
 
 try:
     from subcontract_management.models import InternalWorker
@@ -123,6 +123,10 @@ def project_list(request):
             'comments',
             queryset=Comment.objects.select_related('author').order_by('-created_at')[:1],
             to_attr='latest_comment_list'
+        ),
+        Prefetch(
+            'subcontract_set',
+            queryset=Subcontract.objects.select_related('contractor', 'internal_worker')
         )
     ).annotate(
         comment_count=Count('comments'),

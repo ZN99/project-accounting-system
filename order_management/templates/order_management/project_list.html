@@ -426,7 +426,7 @@
                         <th>現場名</th>
                         <th>現場住所</th>
                         <th>元請名</th>
-                        <th>支払いサイクル</th>
+                        <th>下請け名</th>
                         <th>案件担当</th>
                         <th>施工種別</th>
                         <th>案件進捗</th>
@@ -457,20 +457,27 @@
                                 {{ project.client_name|default:"-" }}
                             {% endif %}
                         </td>
-                        <td>
-                            {% if project.client_company %}
-                                <small>
-                                    {{ project.client_company.get_payment_cycle_display|default:"-" }}
-                                    {% if project.client_company.closing_day %}
-                                        <br>締: {{ project.client_company.closing_day }}日
+                        <td style="font-size: 0.85rem;">
+                            {% with subcontracts=project.subcontract_set.all %}
+                                {% if subcontracts %}
+                                    {% for subcontract in subcontracts|slice:":3" %}
+                                        <div class="text-truncate" style="max-width: 150px;">
+                                            {% if subcontract.contractor %}
+                                                {{ subcontract.contractor.name }}
+                                            {% elif subcontract.internal_worker %}
+                                                {{ subcontract.internal_worker.name }}
+                                            {% else %}
+                                                未設定
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                    {% if subcontracts.count > 3 %}
+                                        <small class="text-muted">他{{ subcontracts.count|add:"-3" }}件</small>
                                     {% endif %}
-                                    {% if project.client_company.payment_day %}
-                                        <br>払: {{ project.client_company.payment_day }}日
-                                    {% endif %}
-                                </small>
-                            {% else %}
-                                <small class="text-muted">-</small>
-                            {% endif %}
+                                {% else %}
+                                    <small class="text-muted">-</small>
+                                {% endif %}
+                            {% endwith %}
                         </td>
                         <td>{{ project.project_manager|default:"-" }}</td>
                         <td>{{ project.work_type|default:"-" }}</td>
