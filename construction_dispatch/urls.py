@@ -18,15 +18,14 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.generic import RedirectView
 from order_management.views_permission import permission_denied_handler
-
-from order_management import urls as order_urls
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("orders/", include("order_management.urls", namespace="order_management")),
+    path("", RedirectView.as_view(url="/orders/", permanent=False)),  # ルートURLをordersにリダイレクト
+    path("orders/", include("order_management.urls")),  # app_nameを使用（namespace指定不要）
     path("subcontracts/", include("subcontract_management.urls", namespace="subcontract_management")),
-    path("", include(order_urls)),  # ルートURLをorder_managementに割り当て（名前空間なし）
 ]
 
 # カスタムエラーハンドラー
