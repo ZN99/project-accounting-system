@@ -251,7 +251,7 @@ def calendar_events_api(request):
                 event = {
                     'id': f'{project.id}-{milestone_key}',
                     'project_id': project.id,
-                    'title': f"{milestone_info['icon']} {project.site_name}",
+                    'title': f"{milestone_info['icon']} {project.management_no} {project.site_name}",
                     'start': date_value.isoformat(),
                     'allDay': True,
                     'url': f'/orders/{project.id}/',
@@ -302,7 +302,7 @@ def calendar_events_api(request):
             event = {
                 'id': f'{project.id}-work_period',
                 'project_id': project.id,
-                'title': f"{work_period_icon} {project.site_name}",
+                'title': f"{work_period_icon} {project.management_no} {project.site_name}",
                 'start': project.work_start_date.isoformat(),
                 'end': (project.work_end_date + timedelta(days=1)).isoformat(),  # FullCalendarは終了日を含まないので+1
                 'allDay': True,
@@ -334,7 +334,7 @@ def calendar_events_api(request):
                     event = {
                         'id': f'{project.id}-{milestone_key}',
                         'project_id': project.id,
-                        'title': f"{milestone_info['icon']} {project.site_name}",
+                        'title': f"{milestone_info['icon']} {project.management_no} {project.site_name}",
                         'start': date_value.isoformat(),
                         'allDay': True,
                         'url': f'/orders/{project.id}/',
@@ -443,7 +443,7 @@ def calendar_events_api(request):
                 event = {
                     'id': f'{project.id}-{step_key}',
                     'project_id': project.id,
-                    'title': f"{step_icon} {project.site_name}",
+                    'title': f"{step_icon} {project.management_no} {project.site_name}",
                     'start': scheduled_date,
                     'allDay': True,
                     'url': f'/orders/{project.id}/',
@@ -550,7 +550,7 @@ def gantt_data_api(request):
 
         task = {
             'id': f'project-{project.id}',
-            'name': project.site_name,
+            'name': f'{project.management_no} {project.site_name}',
             'start': project.work_start_date.isoformat(),
             'end': project.work_end_date.isoformat(),
             'progress': progress_percentage,
@@ -568,6 +568,47 @@ def gantt_data_api(request):
         tasks.append(task)
 
     return JsonResponse({'tasks': tasks})
+
+
+@login_required
+def search_project_date_api(request):
+    """案件番号から最初のイベント日付を返す（軽量API）"""
+    management_no = request.GET.get('management_no', '').strip()
+
+    if not management_no:
+        return JsonResponse({'found': False})
+
+    # 案件番号で検索（部分一致、大文字小文字区別なし）
+    project = Project.objects.filter(
+        management_no__icontains=management_no
+    ).exclude(
+        project_status='NG'
+    ).first()
+
+    if not project:
+        return JsonResponse({'found': False})
+
+    # 最も早い日付を取得（パフォーマンスのため必要最小限のフィールドのみ）
+    dates = []
+    if project.work_start_date:
+        dates.append(project.work_start_date)
+    if project.work_end_date:
+        dates.append(project.work_end_date)
+    if project.estimate_issued_date:
+        dates.append(project.estimate_issued_date)
+    if project.contract_date:
+        dates.append(project.contract_date)
+
+    if dates:
+        earliest_date = min(dates)
+        return JsonResponse({
+            'found': True,
+            'date': earliest_date.isoformat(),
+            'management_no': project.management_no,
+            'site_name': project.site_name
+        })
+
+    return JsonResponse({'found': False})
 
 
 @login_required
@@ -620,7 +661,7 @@ def worker_resource_data_api(request):
 
             worker_schedules['internal'][worker_id]['projects'].append({
                 'project_id': sc.project.id,
-                'project_name': sc.project.site_name,
+                'project_name': f'{sc.project.management_no} {sc.project.site_name}',
                 'start_date': sc.project.work_start_date.isoformat() if sc.project.work_start_date else None,
                 'end_date': sc.project.work_end_date.isoformat() if sc.project.work_end_date else None,
                 'type': sc.project.contract_type or 'other'
@@ -647,7 +688,7 @@ def worker_resource_data_api(request):
 
                 worker_schedules[category][worker_id]['projects'].append({
                     'project_id': sc.project.id,
-                    'project_name': sc.project.site_name,
+                    'project_name': f'{sc.project.management_no} {sc.project.site_name}',
                     'start_date': sc.project.work_start_date.isoformat() if sc.project.work_start_date else None,
                     'end_date': sc.project.work_end_date.isoformat() if sc.project.work_end_date else None,
                     'type': sc.project.contract_type or 'other'

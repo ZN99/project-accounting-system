@@ -261,6 +261,19 @@
         color: #212529 !important;
         text-decoration: none !important;
     }
+
+    /* 検索結果ハイライト */
+    .highlighted-event {
+        box-shadow: 0 0 15px 4px rgba(255, 193, 7, 0.9) !important;
+        border: 3px solid #ffc107 !important;
+        z-index: 1000 !important;
+        animation: highlight-pulse 1.5s ease-in-out 2;
+    }
+
+    @keyframes highlight-pulse {
+        0%, 100% { box-shadow: 0 0 15px 4px rgba(255, 193, 7, 0.9); }
+        50% { box-shadow: 0 0 25px 6px rgba(255, 193, 7, 1); }
+    }
 </style>
 {% endblock %}
 
@@ -287,6 +300,29 @@
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- 案件番号検索バー -->
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="input-group">
+                    <span class="input-group-text bg-white">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text" id="projectSearch" class="form-control"
+                           placeholder="案件番号で検索（例: A-2024-001）"
+                           style="background: white;">
+                    <button class="btn btn-light" id="searchBtn">
+                        検索
+                    </button>
+                    <button class="btn btn-light" id="clearSearchBtn">
+                        <i class="fas fa-times"></i> クリア
+                    </button>
+                </div>
+                <small class="text-white-50 d-block mt-1">
+                    <i class="fas fa-info-circle me-1"></i>案件番号で検索すると、該当案件をハイライト表示して日付に移動します
+                </small>
             </div>
         </div>
     </div>
@@ -739,6 +775,124 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     calendar.render();
+
+    // グローバル変数にcalendarを格納（検索機能用）
+    window.globalCalendar = calendar;
+
+    // === 案件検索機能 ===
+
+    // 検索ボタンクリック
+    document.getElementById('searchBtn').addEventListener('click', function() {
+        searchProject();
+    });
+
+    // Enterキーでも検索
+    document.getElementById('projectSearch').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            searchProject();
+        }
+    });
+
+    // クリアボタン
+    document.getElementById('clearSearchBtn').addEventListener('click', function() {
+        document.getElementById('projectSearch').value = '';
+        clearHighlights();
+    });
+
+    // 検索実行関数
+    function searchProject() {
+        const searchTerm = document.getElementById('projectSearch').value.trim();
+
+        if (!searchTerm) {
+            showSearchNotification('案件番号を入力してください', 'warning');
+            return;
+        }
+
+        // まずハイライトをクリア
+        clearHighlights();
+
+        // フロントエンド検索（すでに読み込まれているイベントから検索）
+        const allEvents = window.globalCalendar.getEvents();
+        const matchedEvents = allEvents.filter(event => {
+            return event.title && event.title.includes(searchTerm);
+        });
+
+        if (matchedEvents.length > 0) {
+            // マッチしたイベントをハイライト
+            matchedEvents.forEach(event => {
+                const currentClasses = event.classNames || [];
+                event.setProp('classNames', [...currentClasses, 'highlighted-event']);
+            });
+
+            // 最初のイベントの日付に移動
+            const firstEvent = matchedEvents[0];
+            window.globalCalendar.gotoDate(firstEvent.start);
+
+            // 通知
+            showSearchNotification(`${matchedEvents.length}件の案件が見つかりました`, 'success');
+        } else {
+            // バックエンドで検索（フォールバック）
+            searchInBackend(searchTerm);
+        }
+    }
+
+    // ハイライトクリア関数
+    function clearHighlights() {
+        const allEvents = window.globalCalendar.getEvents();
+        allEvents.forEach(event => {
+            const classNames = (event.classNames || []).filter(c => c !== 'highlighted-event');
+            event.setProp('classNames', classNames);
+        });
+    }
+
+    // バックエンド検索（軽量API）
+    function searchInBackend(managementNo) {
+        showSearchNotification('検索中...', 'info');
+
+        fetch(`{% url "order_management:search_project_date_api" %}?management_no=${encodeURIComponent(managementNo)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.found) {
+                    // 該当日付に移動
+                    window.globalCalendar.gotoDate(data.date);
+                    // イベントを再読み込み（その期間のイベントがまだ読み込まれていない場合）
+                    window.globalCalendar.refetchEvents();
+
+                    showSearchNotification(
+                        `案件 "${data.management_no} ${data.site_name}" の日付に移動しました`,
+                        'success'
+                    );
+                } else {
+                    showSearchNotification('該当する案件が見つかりませんでした', 'warning');
+                }
+            })
+            .catch(error => {
+                console.error('Backend search error:', error);
+                showSearchNotification('検索エラーが発生しました', 'danger');
+            });
+    }
+
+    // 検索通知表示
+    function showSearchNotification(message, type) {
+        // 既存のアラートを削除
+        const existingAlerts = document.querySelectorAll('.search-notification');
+        existingAlerts.forEach(alert => alert.remove());
+
+        // 新しいアラートを表示
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed search-notification`;
+        alertDiv.style.cssText = 'top: 80px; right: 20px; z-index: 9999; min-width: 300px;';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alertDiv);
+
+        // 3秒後に自動削除
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 3000);
+    }
 
     // ガントチャート初期化関数
     function initGanttChart() {

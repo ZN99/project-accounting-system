@@ -1,5 +1,6 @@
 {% extends "order_management/base.html" %}
 {% load humanize %}
+{% load l10n %}
 {# CACHE_CLEAR_20251129_002531 #}
 {% block title %}{{ title }} - 建築派遣管理システム{% endblock %}
 
@@ -364,13 +365,22 @@
         <div class="card">
             <div class="card-header bg-gradient-primary text-white d-flex justify-content-between align-items-center">
                 <h3 class="mb-0"><i class="fas fa-edit me-2"></i>{{ title }}</h3>
-                <!-- 表示切り替えボタン -->
-                <div class="btn-group btn-group-sm" role="group">
-                    <button type="button" class="btn btn-light active" id="tabViewBtn" onclick="switchFormViewMode('tab')">
-                        <i class="fas fa-th-large me-1"></i>タブ表示
+                <!-- 表示切り替えボタン＋保存ボタン -->
+                <div class="d-flex align-items-center gap-2">
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-light active" id="tabViewBtn" onclick="switchFormViewMode('tab')">
+                            <i class="fas fa-th-large me-1"></i>タブ表示
+                        </button>
+                        <button type="button" class="btn btn-light" id="fullViewBtn" onclick="switchFormViewMode('full')">
+                            <i class="fas fa-list me-1"></i>全体表示
+                        </button>
+                    </div>
+                    <!-- 上部保存ボタン -->
+                    <button type="button" class="btn btn-success" onclick="$('#submitBtn').click()">
+                        <i class="fas fa-save me-1"></i>{% if project.is_draft %}案件を保存{% elif project %}更新{% else %}登録{% endif %}
                     </button>
-                    <button type="button" class="btn btn-light" id="fullViewBtn" onclick="switchFormViewMode('full')">
-                        <i class="fas fa-list me-1"></i>全体表示
+                    <button type="button" class="btn btn-outline-light" onclick="saveDraft()">
+                        <i class="fas fa-file-alt me-1"></i>下書き
                     </button>
                 </div>
             </div>
@@ -405,7 +415,7 @@
                     <!-- タブコンテンツ -->
                     <div class="tab-content p-4" id="projectFormTabsContent">
                         <!-- Hidden field for project ID (used by subcontract modal) -->
-                        <input type="hidden" name="project_id" value="{% if project %}{{ project.pk }}{% endif %}">
+                        <input type="hidden" name="project_id" value="{% if project %}{{ project.pk|unlocalize }}{% endif %}">
 
                         <!-- 基本情報タブ -->
                         <div class="tab-pane show active" id="basic" role="tabpanel" data-section-title="📋 基本情報">
@@ -993,44 +1003,29 @@
 
 <!-- 編集時の既存subcontractデータを初期化 -->
 <script>
-{% if subcontracts %}
 (function() {
-    // window.processWorkersが初期化されるまで待つ
-    function initializeSubcontracts() {
-        if (typeof window.processWorkers === 'undefined') {
-            console.log('⏳ window.processWorkersの初期化を待っています...');
-            setTimeout(initializeSubcontracts, 100);
-            return;
+    // window.processWorkers を初期化（必ず実行）
+    window.processWorkers = {};
+
+    {% if project and all_subcontracts_by_step_json %}
+    try {
+        // すべての工程の下請け情報を読み込む
+        const allSubcontractsByStep = {{ all_subcontracts_by_step_json|safe }};
+        console.log('📦 All subcontracts by step (edit mode):', allSubcontractsByStep);
+
+        // 工程ごとの作業者データを初期化
+        for (const stepKey in allSubcontractsByStep) {
+            if (stepKey) { // 空文字列キーをスキップ
+                window.processWorkers[stepKey] = allSubcontractsByStep[stepKey].map(sc => ({
+                    subcontractId: sc.id,
+                    contractorName: sc.contractor_name,
+                    contractAmount: sc.contract_amount || 0,
+                    paymentStatus: sc.payment_status
+                }));
+            }
         }
 
-        console.log('✅ 既存subcontractデータを読み込み中...');
-
-        // サーバーから取得したsubcontractsデータでwindow.processWorkersを初期化
-        {% for subcontract in subcontracts %}
-        {% if subcontract.contractor %}
-        (function() {
-            const stepKey = 'step_{{ subcontract.step }}';
-
-            if (!window.processWorkers[stepKey]) {
-                window.processWorkers[stepKey] = [];
-            }
-
-            window.processWorkers[stepKey].push({
-                subcontractId: {{ subcontract.id }},
-                contractorId: {{ subcontract.contractor.id }},
-                contractorName: '{{ subcontract.contractor.name|escapejs }}',
-                contractAmount: parseFloat('{{ subcontract.contract_amount }}') || 0,
-                billedAmount: parseFloat('{{ subcontract.billed_amount }}') || 0,
-                paymentDueDate: '{{ subcontract.payment_due_date|date:"Y-m-d"|default:"" }}',
-                paymentStatus: '{{ subcontract.payment_status }}',
-                workDescription: '{{ subcontract.work_description|escapejs }}',
-                step: '{{ subcontract.step }}'
-            });
-        })();
-        {% endif %}
-        {% endfor %}
-
-        console.log('✅ processWorkersデータ:', window.processWorkers);
+        console.log('✅ processWorkersデータ初期化完了 (edit):', window.processWorkers);
 
         // タイムラインを再生成
         setTimeout(function() {
@@ -1039,12 +1034,13 @@
                 generateImplementationTimeline();
             }
         }, 300);
+    } catch (e) {
+        console.error('❌ processWorkers初期化エラー:', e);
     }
-
-    // 初期化を開始
-    initializeSubcontracts();
+    {% else %}
+    console.log('✅ processWorkers初期化（新規作成モード）:', window.processWorkers);
+    {% endif %}
 })();
-{% endif %}
 </script>
 
 <!-- 下請け作成モーダル -->
@@ -1100,7 +1096,7 @@
                                         </label>
                                         <div class="input-group">
                                             <span class="input-group-text">¥</span>
-                                            <input type="number" class="form-control" id="subcontractContractAmount" name="contract_amount" min="0">
+                                            <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control" id="subcontractContractAmount" name="contract_amount">
                                         </div>
                                     </div>
                                 </div>
@@ -1111,7 +1107,7 @@
                                         </label>
                                         <div class="input-group">
                                             <span class="input-group-text">¥</span>
-                                            <input type="number" class="form-control" id="subcontractBilledAmount" name="billed_amount">
+                                            <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control" id="subcontractBilledAmount" name="billed_amount">
                                         </div>
                                         <small class="form-text text-muted">実際に請求された金額を入力してください（任意）</small>
                                     </div>
@@ -1276,7 +1272,7 @@
                                         <label for="subcontractMaterialCost1" class="form-label">部材費代①</label>
                                         <div class="input-group">
                                             <span class="input-group-text">¥</span>
-                                            <input type="number" class="form-control material-cost-input" id="subcontractMaterialCost1" name="material_cost_1">
+                                            <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control material-cost-input" id="subcontractMaterialCost1" name="material_cost_1">
                                         </div>
                                     </div>
                                 </div>
@@ -1289,7 +1285,7 @@
                                         <label for="subcontractMaterialCost2" class="form-label">部材費代②</label>
                                         <div class="input-group">
                                             <span class="input-group-text">¥</span>
-                                            <input type="number" class="form-control material-cost-input" id="subcontractMaterialCost2" name="material_cost_2">
+                                            <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control material-cost-input" id="subcontractMaterialCost2" name="material_cost_2">
                                         </div>
                                     </div>
                                 </div>
@@ -1302,7 +1298,7 @@
                                         <label for="subcontractMaterialCost3" class="form-label">部材費代③</label>
                                         <div class="input-group">
                                             <span class="input-group-text">¥</span>
-                                            <input type="number" class="form-control material-cost-input" id="subcontractMaterialCost3" name="material_cost_3">
+                                            <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control material-cost-input" id="subcontractMaterialCost3" name="material_cost_3">
                                         </div>
                                     </div>
                                 </div>
@@ -1497,7 +1493,7 @@
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label">数量</label>
-                                        <input type="number" name="quantity[]" class="form-control material-quantity" step="0.01" placeholder="0.00">
+                                        <input type="text" inputmode="decimal" name="quantity[]" class="form-control material-quantity" placeholder="0.00">
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label">単位</label>
@@ -1505,7 +1501,7 @@
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label">単価(円)</label>
-                                        <input type="number" name="unit_price[]" class="form-control material-unit-price" step="0.01" placeholder="0.00">
+                                        <input type="text" inputmode="decimal" name="unit_price[]" class="form-control material-unit-price" placeholder="0.00">
                                     </div>
                                 </div>
                                 <div class="row mt-2">
@@ -1823,7 +1819,7 @@
                         <label for="staffHourlyRate" class="form-label">時給</label>
                         <div class="input-group">
                             <span class="input-group-text">¥</span>
-                            <input type="number" class="form-control" id="staffHourlyRate" name="hourly_rate" placeholder="例: 3000">
+                            <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control" id="staffHourlyRate" name="hourly_rate" placeholder="例: 3000">
                             <span class="input-group-text">/時間</span>
                         </div>
                     </div>
@@ -2355,7 +2351,7 @@
 
                     <div class="mb-3" id="modalHourlyRateField" style="display: none;">
                         <label for="contractorHourlyRate" class="form-label">時給単価（円）</label>
-                        <input type="number" class="form-control" id="contractorHourlyRate" name="hourly_rate" min="0" step="100">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control" id="contractorHourlyRate" name="hourly_rate">
                         <small class="form-text text-muted">任意: コスト計算用（個人職人のみ）</small>
                     </div>
 
@@ -2395,7 +2391,7 @@
                         <div class="col-md-3">
                             <div class="mb-3">
                                 <label for="contractorClosingDay" class="form-label">締日</label>
-                                <input type="number" class="form-control" id="contractorClosingDay" name="closing_day" min="1" max="31">
+                                <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control" id="contractorClosingDay" name="closing_day" min="1" max="31">
                                 <small class="form-text text-muted">毎月の締日（1-31）</small>
                             </div>
                         </div>
@@ -2415,7 +2411,7 @@
                         <div class="col-md-3">
                             <div class="mb-3">
                                 <label for="contractorPaymentDay" class="form-label">支払日</label>
-                                <input type="number" class="form-control" id="contractorPaymentDay" name="payment_day" min="1" max="31">
+                                <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control" id="contractorPaymentDay" name="payment_day" min="1" max="31">
                                 <small class="form-text text-muted">支払月の何日に支払うか（1-31）</small>
                             </div>
                         </div>
@@ -2510,7 +2506,7 @@
                                             {{ field.definition.name }}
                                             {% if field.definition.is_required %}<span class="text-danger">*</span>{% endif %}
                                         </label>
-                                        <input type="number"
+                                        <input type="text" inputmode="numeric" pattern="[0-9]*"
                                                name="custom_{{ field.definition.slug }}"
                                                id="modal_custom_{{ field.definition.slug }}"
                                                class="form-control"
@@ -2735,12 +2731,19 @@ function updateButtonText() {
     const submitBtn = document.getElementById('submitBtn');
     const cancelBtn = document.getElementById('cancelBtn');
     const isEdit = {{ project|yesno:"true,false" }};
+    const isDraft = {{ project.is_draft|yesno:"true,false" }};
 
     if (!isEdit) return; // 新規作成の場合は変更しない
 
     const hasChanges = checkFormChanges();
 
-    if (hasChanges) {
+    // 下書きプロジェクトの場合は、変更がなくても保存ボタンを有効にする
+    if (isDraft) {
+        submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> 案件を保存';
+        submitBtn.className = 'btn btn-success btn-lg me-3';
+        submitBtn.disabled = false;
+        formChanged = true;
+    } else if (hasChanges) {
         submitBtn.innerHTML = '<i class="fas fa-save"></i> 案件を更新';
         submitBtn.className = 'btn btn-warning btn-lg me-3';
         submitBtn.disabled = false;
@@ -2811,7 +2814,7 @@ $(document).ready(function() {
 
     // 受注ヨミの変更を処理（NG時の進捗キャンセル処理のため）
     $('select[name="project_status"]').on('change', function(e) {
-        const projectId = {{ project.pk|default:"null" }};
+        const projectId = {% if project %}{{ project.pk|unlocalize }}{% else %}null{% endif %};
         const newValue = $(this).val();
 
         // 新規作成の場合は何もしない
@@ -3047,7 +3050,11 @@ window.openAddImplementationModal = function() {
     console.log('✅ openAddImplementationModal called');
 
     // project_idを確認
-    const projectId = $('input[name="project_id"]').val();
+    let projectId = $('input[name="project_id"]').val();
+    // カンマを除去（数値フォーマットされている場合の対策）
+    if (projectId) {
+        projectId = projectId.replace(/,/g, '');
+    }
 
     // project_idがない場合は、先に下書き保存を実行
     if (!projectId) {
@@ -4632,7 +4639,8 @@ window.toggleImplementationType = function() {
 // モーダルフォームクリア機能
 window.clearImplementationModalForms = function() {
     $('#addImplementationModal input[type="text"]').val('');
-    $('#addImplementationModal input[type="number"]').val('');
+    $('#addImplementationModal input[inputmode="numeric"]').val('');
+    $('#addImplementationModal input[inputmode="decimal"]').val('');
     $('#addImplementationModal textarea').val('');
     $('#addImplementationModal select').val('');
 
@@ -5338,12 +5346,11 @@ window.updateModalPerStepAmountFields = function() {
                 </label>
                 <div class="input-group">
                     <span class="input-group-text">¥</span>
-                    <input type="number"
+                    <input type="text" inputmode="numeric" pattern="[0-9]*"
                            name="modal_step_amount_${stepKey}"
                            class="form-control modal-step-amount"
                            data-step="${stepKey}"
-                           placeholder="0"
-                           min="0">
+                           placeholder="0">
                 </div>
             </div>
         `;
@@ -6093,7 +6100,7 @@ function escapeHtml(text) {
                             <label for="newInvoiceSubmissionDeadline" class="form-label" style="font-weight: 500;">
                                 請求書提出期限（日）
                             </label>
-                            <input type="number" class="form-control" id="newInvoiceSubmissionDeadline" name="invoice_submission_deadline" min="1" max="31">
+                            <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control" id="newInvoiceSubmissionDeadline" name="invoice_submission_deadline" min="1" max="31">
                             <small class="text-muted">毎月の請求書提出期限日（例：25日提出の場合は25）</small>
                         </div>
                         <div class="col-md-8 mb-3">
@@ -6133,7 +6140,7 @@ function escapeHtml(text) {
                             <label for="newClosingDay" class="form-label" style="font-weight: 500;">
                                 締め日
                             </label>
-                            <input type="number" class="form-control" id="newClosingDay" name="closing_day" min="1" max="31">
+                            <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control" id="newClosingDay" name="closing_day" min="1" max="31">
                             <small class="text-muted">月末締めの場合は31、20日締めの場合は20</small>
                         </div>
                         <div class="col-md-3 mb-3">
@@ -6153,7 +6160,7 @@ function escapeHtml(text) {
                             <label for="newPaymentDay" class="form-label" style="font-weight: 500;">
                                 支払日
                             </label>
-                            <input type="number" class="form-control" id="newPaymentDay" name="payment_day" min="1" max="31">
+                            <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control" id="newPaymentDay" name="payment_day" min="1" max="31">
                             <small class="text-muted">支払月の何日に支払うか（1-31）。例：25日払いの場合は25</small>
                         </div>
                     </div>
@@ -6947,9 +6954,9 @@ window.addExpenseItem = function() {
         <td>
             <div class="input-group input-group-sm">
                 <span class="input-group-text">¥</span>
-                <input type="number" class="form-control expense-amount-input"
+                <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control expense-amount-input"
                        name="expense_amount_${expenseItemCounter}"
-                       value="0" min="0" step="1000"
+                       value="0"
                        onchange="calculateExpenseTotal()">
             </div>
         </td>
@@ -7790,6 +7797,11 @@ function generateFormStepHTML(stepData) {
                     </div>
                 </div>
                 ` : ''}
+
+                <!-- 作業者表示セクション（全工程共通） -->
+                <div class="workers-section mt-2" style="border-top: 1px solid #dee2e6; padding-top: 10px;" id="workers-${stepData.key}">
+                    <!-- 作業者リストはJavaScriptで動的に追加 -->
+                </div>
             </div>
         </div>
     `;
@@ -8703,6 +8715,19 @@ function updatePerStepAmountsInputs() {
         checkedBoxesCount: checkedBoxes.length
     });
 
+    // 【修正】既存の入力値を保存（HTML再生成前に保存）
+    const savedValues = {};
+    $('.step-amount-input').each(function() {
+        const stepKey = $(this).data('step');
+        const value = $(this).val();
+        if (stepKey && value) {
+            savedValues[stepKey] = value;
+        }
+    });
+    if (Object.keys(savedValues).length > 0) {
+        console.log('💾 入力値を保存:', savedValues);
+    }
+
     // 現在の工程名を取得（プレフィックスなしとありの両方に対応）
     const stepNames = {
         'attendance': '立ち会い',
@@ -8727,8 +8752,8 @@ function updatePerStepAmountsInputs() {
                 <label class="form-label">
                     <i class="fas fa-calendar-check me-1"></i>${currentStepName}（メイン工程）
                 </label>
-                <input type="number" class="form-control bg-light step-amount-input-all" id="currentStepAmount"
-                       placeholder="上部の契約金額が自動反映されます" min="0" step="1000" readonly>
+                <input type="text" inputmode="numeric" class="form-control bg-light step-amount-input-all" id="currentStepAmount"
+                       placeholder="上部の契約金額が自動反映されます" readonly>
             </div>
         `;
     }
@@ -8756,15 +8781,24 @@ function updatePerStepAmountsInputs() {
                 <label class="form-label">
                     <i class="fas fa-calendar-check me-1"></i>${stepLabel}
                 </label>
-                <input type="number" class="form-control step-amount-input step-amount-input-all"
+                <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control step-amount-input step-amount-input-all"
                        name="step_amounts[${stepKey}]"
                        data-step="${stepKey}"
-                       placeholder="契約金額を入力" min="0" step="1000" required>
+                       placeholder="契約金額を入力" required>
             </div>
         `;
     });
 
     $('#perStepAmountsInputs').html(inputsHtml);
+
+    // 【修正】保存した入力値を復元（HTML再生成後に復元）
+    for (const stepKey in savedValues) {
+        const input = $(`.step-amount-input[data-step="${stepKey}"]`);
+        if (input.length) {
+            input.val(savedValues[stepKey]);
+            console.log(`✅ 値を復元: ${stepKey} = ${savedValues[stepKey]}`);
+        }
+    }
 
     // メイン工程の金額を契約金額と連動させる
     syncMainStepAmount();
@@ -8908,6 +8942,11 @@ window.saveSubcontract = function() {
     const form = $('#subcontractForm');
     const formData = new FormData(form[0]);
 
+    // デバッグ: step の値を確認
+    const stepValue = $('#subcontractStep').val();
+    console.log('🔍 DEBUG: step value from input:', stepValue);
+    console.log('🔍 DEBUG: FormData has step:', formData.get('step'));
+
     // 動的データをFormDataに追加
     formData.set('dynamic_materials_data', $('#modalDynamicMaterialsData').val() || '[]');
     formData.set('additional_costs_data', $('#modalAdditionalCostsData').val() || '[]');
@@ -8931,6 +8970,10 @@ window.saveSubcontract = function() {
     if (costMethod === 'per_step' && hasAdditionalSteps) {
         // 現在の工程の金額を取得（0円も許可するため、空かどうかのみチェック）
         const currentStepAmount = $('#currentStepAmount').val();
+        console.log('🔍 DEBUG: Main step amount (currentStepAmount):', currentStepAmount);
+        console.log('🔍 DEBUG: Main step key:', $('#subcontractStep').val());
+        console.log('🔍 DEBUG: Main contract_amount field value:', $('#subcontractContractAmount').val());
+
         if (currentStepAmount === '' || currentStepAmount === null || currentStepAmount === undefined) {
             showModalError('メイン工程の契約金額を入力してください');
             return;
@@ -8940,15 +8983,18 @@ window.saveSubcontract = function() {
         const stepAmounts = {};
         let hasError = false;
         let errorMessage = '';
+        console.log('🔍 DEBUG: Starting to collect additional step amounts...');
         $('.step-amount-input').each(function() {
             const stepKey = $(this).data('step');
             const amount = $(this).val();
+            console.log(`🔍 DEBUG: Additional step "${stepKey}" amount:`, amount);
             if (amount === '' || amount === null || amount === undefined) {
                 errorMessage = `${$(this).prev('label').text().replace(/（.*）/, '')}の契約金額を入力してください`;
                 hasError = true;
                 return false;
             }
             stepAmounts[stepKey] = amount;
+            console.log(`✅ Added to stepAmounts: ${stepKey} = ${amount}`);
         });
 
         if (hasError) {
@@ -8956,11 +9002,16 @@ window.saveSubcontract = function() {
             return;
         }
 
+        console.log('🔍 DEBUG: stepAmounts BEFORE adding main step:', JSON.parse(JSON.stringify(stepAmounts)));
+
         // メイン工程の金額も stepAmounts に追加
         stepAmounts[$('#subcontractStep').val()] = currentStepAmount;
 
+        console.log('🔍 DEBUG: stepAmounts AFTER adding main step:', JSON.parse(JSON.stringify(stepAmounts)));
+
         // JSON形式で送信
         formData.set('step_amounts', JSON.stringify(stepAmounts));
+        console.log('📤 DEBUG: step_amounts JSON being sent:', JSON.stringify(stepAmounts));
 
         // メイン工程の契約金額は上部の契約金額フィールドから取得
     }
@@ -9003,7 +9054,11 @@ window.saveSubcontract = function() {
     saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>保存中...';
 
     // プロジェクトIDを取得（新規作成の場合は一時的に保存してからsubcontractを作成する必要がある）
-    const projectId = $('input[name="project_id"]').val();
+    let projectId = $('input[name="project_id"]').val();
+    // カンマを除去（数値フォーマットされている場合の対策）
+    if (projectId) {
+        projectId = projectId.replace(/,/g, '');
+    }
 
     if (!projectId) {
         showModalError('プロジェクトを先に保存してから作業者を追加してください');
@@ -9011,6 +9066,15 @@ window.saveSubcontract = function() {
         saveBtn.innerHTML = originalText;
         return;
     }
+
+    // デバッグ: 送信前のFormDataの内容を確認
+    console.log('📤 DEBUG: FormData contents being sent:');
+    console.log('  - step:', formData.get('step'));
+    console.log('  - contract_amount:', formData.get('contract_amount'));
+    console.log('  - contractor:', formData.get('contractor'));
+    console.log('  - cost_allocation_method:', formData.get('cost_allocation_method'));
+    console.log('  - step_amounts:', formData.get('step_amounts'));
+    console.log('  - additional_steps[]:', formData.getAll('additional_steps[]'));
 
     // AJAX送信
     $.ajax({
@@ -9182,8 +9246,65 @@ $(document).ready(function() {
         $('#modalTotalCostAmount').text(totalCost.toLocaleString());
     };
 
-    // 金額フィールドの変更を監視
-    $('#subcontractMaterialCost1, #subcontractMaterialCost2, #subcontractMaterialCost3, #subcontractBilledAmount, #subcontractContractAmount').on('input', function() {
+    // Debounce utility function
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const context = this;
+            const later = () => {
+                clearTimeout(timeout);
+                func.apply(context, args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // 契約金額フィールドの値変更を監視（デバッグ用）
+    let lastContractAmount = '';
+    $('#subcontractContractAmount').on('input', function() {
+        const currentValue = $(this).val();
+        console.log(`🔍 契約金額変更: "${lastContractAmount}" → "${currentValue}"`);
+        lastContractAmount = currentValue;
+    });
+
+    // 金額フィールド（inputmode="numeric"）で数値のみを許可
+    $(document).on('input', 'input[inputmode="numeric"]', function(e) {
+        const input = $(this);
+        const value = input.val();
+
+        // 数値以外の文字を削除
+        const numericValue = value.replace(/[^0-9]/g, '');
+
+        if (value !== numericValue) {
+            input.val(numericValue);
+            console.log('🔢 非数値文字を削除しました:', value, '→', numericValue);
+        }
+    });
+
+    // number型フィールドのマウスホイールによる値変更を防止（レガシーフィールド用）
+    $(document).on('wheel mousewheel DOMMouseScroll', 'input[type="number"]', function(e) {
+        if ($(this).is(':focus')) {
+            e.preventDefault();
+            console.log('🚫 マウスホイールによる値変更を防止しました:', $(this).attr('name') || $(this).attr('id'));
+        }
+    });
+
+    // 金額フィールドの変更を監視（debounce適用）
+    const debouncedSync = debounce(function() {
+        const method = $('input[name="cost_allocation_method"]:checked').val();
+        if (method === 'per_step' && typeof syncMainStepAmount === 'function') {
+            syncMainStepAmount();
+        }
+    }, 300); // 300ms後に実行
+
+    $('#subcontractMaterialCost1, #subcontractMaterialCost2, #subcontractMaterialCost3, #subcontractBilledAmount').on('input', function() {
+        window.calculateModalTotalCost();
+        debouncedSync();
+    });
+
+    // 契約金額フィールドは即座に同期（debounceなし）
+    $('#subcontractContractAmount').on('input', function() {
         window.calculateModalTotalCost();
 
         // 工程ごとの金額設定の場合、メイン工程の金額を同期
@@ -9232,7 +9353,7 @@ $(document).ready(function() {
                 <div class="col-md-5">
                     <div class="input-group">
                         <span class="input-group-text">¥</span>
-                        <input type="number" class="form-control additional-cost-amount" placeholder="0" data-row="${rowId}">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control additional-cost-amount" placeholder="0" data-row="${rowId}">
                     </div>
                 </div>
                 <div class="col-md-2">
@@ -9299,7 +9420,7 @@ $(document).ready(function() {
                 <div class="col-md-5">
                     <div class="input-group">
                         <span class="input-group-text">¥</span>
-                        <input type="number" class="form-control dynamic-material-cost" placeholder="0" data-row="${rowId}">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control dynamic-material-cost" placeholder="0" data-row="${rowId}">
                     </div>
                 </div>
                 <div class="col-md-2">
@@ -10037,7 +10158,7 @@ window.saveDraft = function() {
     updateAutoSaveStatus('保存中...', 'saving');
 
     const formData = new FormData($('#projectForm')[0]);
-    const projectId = "{% if project %}{{ project.pk }}{% endif %}";
+    const projectId = "{% if project %}{{ project.pk|unlocalize }}{% endif %}";
     const saveUrl = projectId ?
         "{% url 'order_management:project_save_as_draft_edit' 0 %}".replace('0', projectId) :
         "{% url 'order_management:project_save_as_draft' %}";

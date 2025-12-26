@@ -303,40 +303,13 @@ function initializeModalScript() {
         return 'fa-circle';
     }
 
-    // 工程ごとの作業者データ（動的に初期化）
-    window.processWorkers = {};
-
-    // 既存のsubcontractsデータでprocessWorkersを初期化（編集モードの場合）
-    {% if subcontracts_json %}
-    try {
-        const existingSubcontracts = {{ subcontracts_json|safe }};
-        console.log('📦 既存のsubcontractsデータをロード:', existingSubcontracts);
-
-        existingSubcontracts.forEach(function(subcontract) {
-            const stepKey = subcontract.step;  // 既に step_ プレフィックス付き
-
-            if (!window.processWorkers[stepKey]) {
-                window.processWorkers[stepKey] = [];
-            }
-
-            window.processWorkers[stepKey].push({
-                subcontractId: subcontract.id,
-                contractorId: subcontract.contractor_id,
-                contractorName: subcontract.contractor_name,
-                contractAmount: subcontract.contract_amount || 0,
-                billedAmount: subcontract.billed_amount || 0,
-                paymentDueDate: subcontract.payment_due_date || '',
-                paymentStatus: subcontract.payment_status || 'pending',
-                workDescription: subcontract.work_description || '',
-                step: stepKey
-            });
-        });
-
-        console.log('✅ processWorkers initialized:', window.processWorkers);
-    } catch (e) {
-        console.error('❌ processWorkers初期化エラー:', e);
+    // 工程ごとの作業者データ（project_form.htmlで初期化される）
+    // window.processWorkers の初期化は project_form.html の
+    // all_subcontracts_by_step_json を使って行われるため、ここでは何もしない
+    if (typeof window.processWorkers === 'undefined') {
+        window.processWorkers = {};
+        console.log('⚠️ processWorkers が未定義のため、空オブジェクトで初期化しました');
     }
-    {% endif %}
 
     // 現在編集中の工程
     let currentEditingProcess = null;
@@ -395,6 +368,23 @@ function initializeModalScript() {
 
         // 工程が登録されていない場合のメッセージ
         if (allSteps.length === 0) {
+            // 工程がない場合でも、作業者データがあるかチェック
+            let hasWorkers = false;
+            for (const key in window.processWorkers) {
+                if (window.processWorkers[key] && window.processWorkers[key].length > 0) {
+                    hasWorkers = true;
+                    break;
+                }
+            }
+
+            if (hasWorkers) {
+                // 作業者データがある場合は、工程なしで表示
+                console.log('⚠️ 工程なしだが作業者データあり - 作業者のみ表示');
+                displayWorkersWithoutSteps();
+                return;
+            }
+
+            // 工程も作業者もない場合
             timeline.html(`
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle me-2"></i>
@@ -475,6 +465,175 @@ function initializeModalScript() {
         });
 
         console.log('✅ generateImplementationTimeline() completed');
+
+        // formActiveStepsの作業者も更新
+        updateFormActiveStepsWorkers();
+    }
+
+    // 工程なしで作業者のみ表示する関数
+    function displayWorkersWithoutSteps() {
+        const timeline = $('#implementationTimeline');
+        timeline.empty();
+
+        console.log('🔄 displayWorkersWithoutSteps() called');
+        console.log('👥 Current window.processWorkers:', window.processWorkers);
+
+        const stepNames = {
+            'step_attendance': '立ち会い',
+            'step_survey': '現地調査',
+            'step_construction_start': '着工',
+            'step_completion': '完工',
+            'step_material_order': '資材発注',
+            'step_estimate': '見積書発行',
+            'step_contract': '契約',
+            'step_invoice': '請求書発行',
+            'step_permit_application': '許可申請',
+            'step_inspection': '検査'
+        };
+
+        let workersDisplayed = false;
+
+        for (const stepKey in window.processWorkers) {
+            const workers = window.processWorkers[stepKey];
+            if (workers && workers.length > 0) {
+                workersDisplayed = true;
+                const stepName = stepNames[stepKey] || stepKey.replace('step_', '').replace(/_/g, ' ');
+
+                console.log(`👷 Displaying ${workers.length} workers for ${stepKey} (${stepName})`);
+
+                let workersHtml = '<div class="mt-2">';
+                workers.forEach((worker, index) => {
+                    workersHtml += `
+                        <div class="worker-card d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="worker-name">${worker.contractorName || '未設定'}</div>
+                                <div class="worker-cost text-muted">¥${(worker.contractAmount || 0).toLocaleString()}</div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeWorkerFromProcess('${stepKey}', ${index})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    `;
+                });
+                workersHtml += '</div>';
+
+                const stepHtml = `
+                    <div class="progress-step expanded" data-process="${stepKey}">
+                        <div class="progress-step-header">
+                            <i class="fas fa-users me-2"></i>
+                            <span class="progress-step-label">${stepName}</span>
+                            <span class="badge bg-warning ms-2" style="font-size: 0.7rem;">工程未登録</span>
+                        </div>
+                        <div class="progress-step-content">
+                            ${workersHtml}
+                        </div>
+                    </div>
+                `;
+
+                timeline.append(stepHtml);
+            }
+        }
+
+        if (workersDisplayed) {
+            // 工程が未登録であることを通知するメッセージを追加
+            timeline.prepend(`
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>注意:</strong> 作業者は登録されていますが、工程が登録されていません。
+                    「工程・スケジュール」タブで工程を登録すると、作業者が適切な工程に関連付けられます。
+                </div>
+            `);
+        }
+
+        console.log('✅ displayWorkersWithoutSteps() completed');
+    }
+
+    // formActiveStepsの各工程に作業者を表示する関数
+    function updateFormActiveStepsWorkers() {
+        console.log('🔄 Updating workers in formActiveSteps and activeSteps');
+
+        // formActiveStepsとactiveStepsの両方の各工程を取得（project_form.htmlとproject_detail.htmlの両方に対応）
+        $('#formActiveSteps .progress-step, #activeSteps .progress-step').each(function() {
+            const stepElement = $(this);
+            const stepKey = stepElement.data('step');
+
+            // このステップがどのコンテナにあるか判定
+            const isInFormActiveSteps = stepElement.closest('#formActiveSteps').length > 0;
+            const isInActiveSteps = stepElement.closest('#activeSteps').length > 0;
+
+            console.log(`📍 Step ${stepKey}: isInFormActiveSteps=${isInFormActiveSteps}, isInActiveSteps=${isInActiveSteps}`);
+
+            // update/create ページ（#formActiveSteps）では作業者セクションを表示しない
+            // 「業者・担当」タブで管理するため
+            if (isInFormActiveSteps) {
+                console.log(`⏭️ Skipping worker section for ${stepKey} in formActiveSteps (managed in 業者・担当 tab)`);
+                // 既存の作業者セクションがあれば削除
+                stepElement.find(`#workers-${stepKey}`).remove();
+                return; // 次のステップへ
+            }
+
+            // 以下は detail ページ（#activeSteps）のみ実行
+
+            // stepKeyのプレフィックスを統一
+            const stepKeyForWorkers = stepKey.startsWith('step_') ? stepKey : `step_${stepKey}`;
+            const workers = window.processWorkers[stepKeyForWorkers] || window.processWorkers[stepKey] || [];
+
+            console.log(`📌 Updating workers for ${stepKey} (${stepKeyForWorkers}):`, workers);
+
+            // 作業者セクションを取得または作成
+            let workersSection = stepElement.find(`#workers-${stepKey}`);
+            if (workersSection.length === 0) {
+                // セクションがない場合は作成
+                workersSection = $(`
+                    <div class="workers-section mt-2" style="border-top: 1px solid #dee2e6; padding-top: 10px;" id="workers-${stepKey}">
+                    </div>
+                `);
+                stepElement.find('.card-body').append(workersSection);
+            }
+
+            // 作業者HTMLを生成
+            let workersHtml = '';
+            if (workers.length > 0) {
+                workersHtml = '<div class="mb-2"><small class="text-muted fw-bold">作業者:</small></div>';
+                workers.forEach((worker, index) => {
+                    workersHtml += `
+                        <div class="card mb-2 border-start border-primary border-3">
+                            <div class="card-body p-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <div class="fw-bold" style="font-size: 0.9rem;">${worker.contractorName || '業者名未設定'}</div>
+                                        <div class="text-muted small">¥${(worker.contractAmount || 0).toLocaleString()}</div>
+                                    </div>
+                                    <span class="badge bg-${worker.paymentStatus === 'paid' ? 'success' : 'warning'}" style="font-size: 0.75rem;">
+                                        ${worker.paymentStatus === 'paid' ? '支払済み' : '未払い'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                // 作業者追加ボタン（detail pageのみ）
+                workersHtml += `
+                    <button type="button" class="btn btn-sm btn-outline-primary mt-1" onclick="event.stopPropagation(); openWorkerSubmodal('${stepKeyForWorkers}', '${stepElement.find('.progress-step-label').text()}')">
+                        <i class="fas fa-user-plus me-1"></i>作業者を追加
+                    </button>
+                `;
+            } else {
+                // 作業者がいない場合（detail pageのみ）
+                workersHtml = `
+                    <div class="text-muted small mb-2">作業者が登録されていません</div>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); openWorkerSubmodal('${stepKeyForWorkers}', '${stepElement.find('.progress-step-label').text()}')">
+                        <i class="fas fa-user-plus me-1"></i>作業者を追加
+                    </button>
+                `;
+            }
+
+            // HTMLを更新
+            workersSection.html(workersHtml);
+        });
+
+        console.log('✅ Workers updated in both formActiveSteps and activeSteps');
     }
 
     // 工程の展開/折りたたみ
@@ -490,6 +649,71 @@ function initializeModalScript() {
         currentEditingProcess = processKey;
 
         console.log('📝 作業者追加モーダルを開く:', { processKey, processName });
+
+        // project_idを確認
+        let projectId = $('input[name="project_id"]').val();
+        // カンマを除去（数値フォーマットされている場合の対策）
+        if (projectId) {
+            projectId = projectId.replace(/,/g, '');
+        }
+
+        // project_idがない場合は、先に下書き保存を実行
+        if (!projectId) {
+            console.log('⚠️ Project ID not found. Saving draft first...');
+
+            // 下書き保存を実行
+            if (typeof updateAutoSaveStatus === 'function') {
+                updateAutoSaveStatus('保存中...', 'saving');
+            }
+
+            const formData = new FormData($('#projectForm')[0]);
+            const saveUrl = '/orders/save-draft/';
+
+            fetch(saveUrl, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.project_id) {
+                    // project_idを設定
+                    $('input[name="project_id"]').val(data.project_id);
+
+                    // URLを更新
+                    const newUrl = `/orders/${data.project_id}/update/`;
+                    window.history.replaceState({}, '', newUrl);
+
+                    if (typeof updateAutoSaveStatus === 'function') {
+                        updateAutoSaveStatus('保存完了', 'success');
+                    }
+                    console.log('✅ Project saved. ID:', data.project_id);
+
+                    // モーダルを開く処理を再実行
+                    openWorkerSubmodal(processKey, processName);
+                } else {
+                    if (typeof updateAutoSaveStatus === 'function') {
+                        updateAutoSaveStatus('保存エラー', 'error');
+                    }
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error('プロジェクトの保存に失敗しました');
+                    }
+                }
+            })
+            .catch(error => {
+                if (typeof updateAutoSaveStatus === 'function') {
+                    updateAutoSaveStatus('保存エラー', 'error');
+                }
+                if (typeof toastr !== 'undefined') {
+                    toastr.error('プロジェクトの保存に失敗しました');
+                }
+                console.error('Save error:', error);
+            });
+
+            return; // 保存完了後に再度呼び出されるため、ここで終了
+        }
 
         // サブコントラクトモーダルを開く
         const subcontractModal = document.getElementById('subcontractModal');
@@ -723,17 +947,47 @@ function initializeModalScript() {
         const processKey = $('#workerProcessKeyToDelete').val();
         const workerIndex = parseInt($('#workerIndexToDelete').val());
 
+        // 作業者情報を取得
+        const worker = window.processWorkers[processKey][workerIndex];
+        if (!worker || !worker.subcontractId) {
+            console.error('❌ 削除対象の作業者が見つかりません');
+            toastr.error('削除対象の作業者が見つかりません');
+            return;
+        }
+
+        const subcontractId = worker.subcontractId;
+        console.log('🗑️ 作業者削除開始:', {processKey, workerIndex, subcontractId, worker});
+
         // モーダルを閉じる
         const modal = bootstrap.Modal.getInstance(document.getElementById('deleteWorkerModal'));
         if (modal) {
             modal.hide();
         }
 
-        // 作業者を削除
-        window.processWorkers[processKey].splice(workerIndex, 1);
-        generateImplementationTimeline();
+        // サーバーに削除リクエストを送信
+        $.ajax({
+            url: `/subcontracts/${subcontractId}/delete/`,
+            type: 'POST',
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                console.log('✅ 削除成功:', response);
 
-        toastr.success('作業者を削除しました');
+                // フロントエンドの配列からも削除
+                window.processWorkers[processKey].splice(workerIndex, 1);
+
+                // UIを更新
+                generateImplementationTimeline();
+
+                toastr.success('作業者を削除しました');
+            },
+            error: function(xhr, status, error) {
+                console.error('❌ 削除失敗:', {xhr, status, error});
+                toastr.error('削除に失敗しました: ' + (xhr.responseJSON?.error || error));
+            }
+        });
     };
 
     // ==========================================

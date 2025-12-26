@@ -1,5 +1,6 @@
 {% extends "order_management/base.html" %}
 {% load humanize %}
+{% load l10n %}
 {% load role_tags %}
 {% load custom_filters %}
 {# ✅ COMMENT_SYSTEM_V2.0_20251129_020500 #}
@@ -5813,8 +5814,10 @@ $(document).ready(function() {
         let additionalCardHtml = '';
         const stepKeyNormalized = stepKey.replace('step_', '');
 
-        // すべての工程に作業者追加機能を提供
-        const workers = window.processWorkers[stepKey] || [];
+        // 作業者が必要な工程のみに作業者追加機能を提供（立ち会い、現調、着工のみ）
+        // 🔧 FIX: Handle both 'survey' and 'step_survey' keys
+        const stepKeyForWorkers = stepKey.startsWith('step_') ? stepKey : `step_${stepKey}`;
+        const workers = window.processWorkers[stepKeyForWorkers] || window.processWorkers[stepKey] || [];
         let workersHtml = '';
         if (workers.length > 0) {
             workersHtml = '<div class="mt-2">';
@@ -5836,12 +5839,26 @@ $(document).ready(function() {
             workersHtml += '</div>';
         }
 
-        additionalCardHtml = `
-            ${workersHtml}
-            <button type="button" class="btn btn-sm btn-outline-primary add-worker-btn mt-2" onclick="event.stopPropagation(); openWorkerSubmodal('${stepKey}', '${stepName}')">
-                <i class="fas fa-user-plus me-1"></i>作業者を追加
-            </button>
-        `;
+        // 作業者追加ボタンは立ち会い、現調、着工のみに表示
+        const stepsWithWorkers = ['attendance', 'step_attendance', 'survey', 'step_survey',
+                                  'construction_start', 'step_construction_start'];
+        const shouldShowWorkerButton = stepsWithWorkers.includes(stepKeyNormalized) ||
+                                       stepsWithWorkers.includes(stepKey);
+
+        // stepKeyからstep_プレフィックスを削除してopenSubcontractModalに渡す
+        const stepKeyNormalizedForModal = stepKey.replace('step_', '');
+
+        if (shouldShowWorkerButton) {
+            additionalCardHtml = `
+                ${workersHtml}
+                <button type="button" class="btn btn-sm btn-outline-primary add-worker-btn mt-2" onclick="event.stopPropagation(); openSubcontractModal('${stepKeyNormalizedForModal}')">
+                    <i class="fas fa-user-plus me-1"></i>作業者を追加
+                </button>
+            `;
+        } else {
+            // 作業者リストのみ表示（追加ボタンなし）
+            additionalCardHtml = workersHtml;
+        }
 
         // material_orderの場合は資材発注カードも追加
         if (stepKeyNormalized === 'material_order') {
@@ -6063,8 +6080,13 @@ $(document).ready(function() {
                         </label>
                     </div>
 
-                    <!-- 現調担当者の表示 -->
-                    ${generateStepSubcontractCardHtml('survey')}
+                    <!-- 作業者セクション -->
+                    <div class="workers-section mt-2" style="border-top: 1px solid #dee2e6; padding-top: 10px;" id="workers-step_survey">
+                        <!-- JavaScriptで動的に更新されるが、初期表示として作業者追加ボタンを配置 -->
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-primary add-worker-btn mt-2" onclick="event.stopPropagation(); openSubcontractModal('survey')">
+                        <i class="fas fa-user-plus me-1"></i>作業者を追加
+                    </button>
                 </div>
             </div>
         `;
@@ -6908,10 +6930,12 @@ $(document).ready(function() {
     function generateAvailableStepHtml(stepData) {
         const fieldHtml = generateFieldHtml(stepData);
 
-        // すべての工程に作業者追加機能を提供
+        // 作業者が必要な工程のみに作業者追加機能を提供（立ち会い、現調、着工のみ）
         let additionalCardHtml = '';
         const stepKeyNormalized = stepData.key.replace('step_', '');
-        const workers = window.processWorkers[stepData.key] || [];
+        // 🔧 FIX: Handle both 'survey' and 'step_survey' keys
+        const stepKeyForWorkers = stepData.key.startsWith('step_') ? stepData.key : `step_${stepData.key}`;
+        const workers = window.processWorkers[stepKeyForWorkers] || window.processWorkers[stepData.key] || [];
         let workersHtml = '';
         if (workers.length > 0) {
             workersHtml = '<div class="mt-2">';
@@ -6933,12 +6957,26 @@ $(document).ready(function() {
             workersHtml += '</div>';
         }
 
-        additionalCardHtml = `
-            ${workersHtml}
-            <button type="button" class="btn btn-sm btn-outline-primary add-worker-btn mt-2" onclick="event.stopPropagation(); openWorkerSubmodal('${stepData.key}', '${stepData.name}')">
-                <i class="fas fa-user-plus me-1"></i>作業者を追加
-            </button>
-        `;
+        // 作業者追加ボタンは立ち会い、現調、着工のみに表示
+        const stepsWithWorkers = ['attendance', 'step_attendance', 'survey', 'step_survey',
+                                  'construction_start', 'step_construction_start'];
+        const shouldShowWorkerButton = stepsWithWorkers.includes(stepKeyNormalized) ||
+                                       stepsWithWorkers.includes(stepData.key);
+
+        // stepData.keyからstep_プレフィックスを削除してopenSubcontractModalに渡す
+        const stepKeyForModal = stepData.key.replace('step_', '');
+
+        if (shouldShowWorkerButton) {
+            additionalCardHtml = `
+                ${workersHtml}
+                <button type="button" class="btn btn-sm btn-outline-primary add-worker-btn mt-2" onclick="event.stopPropagation(); openSubcontractModal('${stepKeyForModal}')">
+                    <i class="fas fa-user-plus me-1"></i>作業者を追加
+                </button>
+            `;
+        } else {
+            // 作業者リストのみ表示（追加ボタンなし）
+            additionalCardHtml = workersHtml;
+        }
 
         // material_orderの場合は資材発注カードも追加
         if (stepKeyNormalized === 'material_order') {
@@ -9010,7 +9048,7 @@ function confirmFileDelete(fileId, fileName) {
 
 <script>
 // コメント機能のJavaScript - Production Version
-const projectId = {{ project.id|stringformat:'d' }};
+const projectId = {{ project.id|unlocalize }};
 
 // ページ読み込み時にコメントを取得
 document.addEventListener('DOMContentLoaded', function() {
