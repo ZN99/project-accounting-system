@@ -666,6 +666,7 @@ def project_create(request):
         'internal_workers_json': internal_workers_json,
         'contractor_custom_fields_by_category': contractor_custom_fields_by_category,  # 業者モーダル用カスタムフィールド
         'regions_mapping': regions_mapping,  # 都道府県マッピング
+        # project は新規作成時は None
     })
 
 
@@ -1088,6 +1089,11 @@ def project_detail(request, pk):
         # step_プレフィックスを統一
         if step_key and not step_key.startswith('step_'):
             step_key = f'step_{step_key}'
+
+        # step_keyが空の場合はスキップ（stepがNoneのSubcontractは除外）
+        if not step_key:
+            continue
+
         subcontracts_by_step[step_key].append({
             'id': sc.id,
             'contractor_name': sc.contractor.name if sc.contractor else '業者未設定',
@@ -1098,7 +1104,7 @@ def project_detail(request, pk):
             'payment_status_color': 'success' if sc.payment_status == 'paid' else ('info' if sc.payment_status == 'processing' else 'warning'),
         })
 
-    # 辞書全体をJSON化
+    # 辞書全体をJSON化（空キーは既に除外されている）
     all_subcontracts_by_step_json = json.dumps(dict(subcontracts_by_step))
 
     # 資材発注情報をJSON化（JavaScript用）
@@ -1860,6 +1866,11 @@ def project_update(request, pk):
                     # Write to ProjectProgressStep (SSOT)
                     set_step_assignees(project, 'construction_start', construction_assignees)
 
+                # 下書きフラグを解除（通常保存の場合）
+                # Note: 下書き保存ボタン（saveDraft()）は別のエンドポイント（project_save_as_draft_edit）を使用
+                if project.is_draft:
+                    project.is_draft = False
+
                 project.save()
 
                 # スケジュールステップデータの保存
@@ -1893,6 +1904,11 @@ def project_update(request, pk):
                     project.project_manager = sales_worker.name
                 except InternalWorker.DoesNotExist:
                     pass
+
+            # 下書きフラグを解除（通常保存の場合）
+            # Note: 下書き保存ボタン（saveDraft()）は別のエンドポイント（project_save_as_draft_edit）を使用
+            if project.is_draft:
+                project.is_draft = False
 
             # DEPRECATED: Detailed schedule management fields now handled by ProjectProgressStep (SSOT)
             # survey_status was removed in migration 0059, now computed via @property
@@ -1985,10 +2001,36 @@ def project_update(request, pk):
         'payment_cycle': c.payment_cycle or '',
     } for c in contractors])
 
-    # subcontractsをJSON形式でシリアライズ（processWorkers初期化用）
+    # すべての工程のSubcontractを工程ごとにグループ化（processWorkers初期化用）
+    from collections import defaultdict
+    subcontracts_by_step = defaultdict(list)
+    for sc in subcontracts:
+        step_key = sc.step or ''
+        # step_プレフィックスを統一
+        if step_key and not step_key.startswith('step_'):
+            step_key = f'step_{step_key}'
+
+        # step_keyが空の場合はスキップ（stepがNoneのSubcontractは除外）
+        if not step_key:
+            continue
+
+        subcontracts_by_step[step_key].append({
+            'id': sc.id,
+            'contractor_name': sc.contractor.name if sc.contractor else '業者未設定',
+            'contract_amount': float(sc.contract_amount or 0),
+            'billed_amount': float(sc.billed_amount) if sc.billed_amount else None,
+            'payment_status': sc.payment_status,
+            'payment_status_display': sc.get_payment_status_display(),
+            'payment_status_color': 'success' if sc.payment_status == 'paid' else ('info' if sc.payment_status == 'processing' else 'warning'),
+        })
+
+    # 辞書全体をJSON化（空キーは既に除外されている）
+    all_subcontracts_by_step_json = json.dumps(dict(subcontracts_by_step))
+
+    # 後方互換性のため、従来の subcontracts_json も保持
     subcontracts_json = json.dumps([{
         'id': s.id,
-        'step': s.step,
+        'step': s.step or '',
         'contractor_id': s.contractor.id if s.contractor else None,
         'contractor_name': s.contractor.name if s.contractor else '',
         'contract_amount': float(s.contract_amount) if s.contract_amount else 0,
@@ -2011,6 +2053,7 @@ def project_update(request, pk):
         'existing_schedule_steps': existing_schedule_steps,  # 既存のスケジュールステップデータ
         'subcontracts': subcontracts,  # 既存の実施体制・業者データ
         'subcontracts_json': subcontracts_json,  # subcontracts（JSON形式）
+        'all_subcontracts_by_step_json': all_subcontracts_by_step_json,  # すべての工程の作業者（工程ごとにグループ化）
     })
 
 

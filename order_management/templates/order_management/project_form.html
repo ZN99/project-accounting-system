@@ -5254,11 +5254,17 @@ window.autoCalculatePaymentDueDate = function() {
     console.log('📅 締日:', closingDate.toISOString().split('T')[0]);
 
     // 支払月を計算（締日 + オフセット月）
-    const paymentDate = new Date(
-        closingDate.getFullYear(),
-        closingDate.getMonth() + paymentOffsetMonths,
-        paymentDay
-    );
+    // 月末日の自動繰り越しを防ぐため、月の最大日数をチェック
+    const paymentYear = closingDate.getFullYear();
+    const paymentMonth = closingDate.getMonth() + paymentOffsetMonths;
+
+    // その月の最終日を取得（翌月の0日 = 当月の最終日）
+    const lastDayOfPaymentMonth = new Date(paymentYear, paymentMonth + 1, 0).getDate();
+
+    // 支払日が月の最終日を超える場合は、月末日を使う
+    const actualPaymentDay = Math.min(paymentDay, lastDayOfPaymentMonth);
+
+    const paymentDate = new Date(paymentYear, paymentMonth, actualPaymentDay);
 
     console.log('💰 出金予定日:', paymentDate.toISOString().split('T')[0]);
 
@@ -7486,8 +7492,17 @@ window.autoCalculatePaymentDueDateFromContract = function() {
     }
 
     // 支払月を計算（締め日からオフセット月後）
-    // 月と日を同時に設定することで、月末日の繰り越しを防ぐ
-    const paymentDate = new Date(closingDate.getFullYear(), closingDate.getMonth() + paymentOffsetMonths, paymentDay);
+    // 月末日の自動繰り越しを防ぐため、月の最大日数をチェック
+    const paymentYear = closingDate.getFullYear();
+    const paymentMonth = closingDate.getMonth() + paymentOffsetMonths;
+
+    // その月の最終日を取得（翌月の0日 = 当月の最終日）
+    const lastDayOfPaymentMonth = new Date(paymentYear, paymentMonth + 1, 0).getDate();
+
+    // 支払日が月の最終日を超える場合は、月末日を使う
+    const actualPaymentDay = Math.min(paymentDay, lastDayOfPaymentMonth);
+
+    const paymentDate = new Date(paymentYear, paymentMonth, actualPaymentDay);
 
     // 入金予定日フィールドに設定
     const paymentDueDateInput = document.getElementById('{{ form.payment_due_date.id_for_label }}');

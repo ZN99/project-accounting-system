@@ -1,5 +1,6 @@
 {% extends 'order_management/base.html' %}
 {% load static %}
+{% load l10n %}
 
 {% block title %}チェックリスト - {{ project.site_name }}{% endblock %}
 
@@ -215,8 +216,8 @@
 </div>
 
 <script>
-const projectPk = {{ project.pk }};
-const checklistPk = {{ checklist.pk }};
+const projectPk = {{ project.pk|unlocalize }};
+const checklistPk = {{ checklist.pk|unlocalize }};
 
 function updateItem(itemIndex, completed) {
     const notes = document.getElementById(`notes-${itemIndex}`).value;

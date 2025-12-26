@@ -299,19 +299,22 @@ class Project(models.Model):
             ('weekly', '週1回'),
             ('custom', 'その他'),
         ],
+        default='monthly',
         blank=True,
         verbose_name='支払サイクル',
-        help_text='元請会社選択時に自動入力されます。案件ごとに編集可能です。'
+        help_text='元請会社選択時に自動入力されます。案件ごとに編集可能です。デフォルト: 月1回'
     )
     closing_day = models.IntegerField(
         null=True,
         blank=True,
+        default=31,
         verbose_name='締め日',
-        help_text='月末締めの場合は31、20日締めの場合は20'
+        help_text='月末締めの場合は31、20日締めの場合は20。デフォルト: 31（月末）'
     )
     payment_offset_months = models.IntegerField(
         null=True,
         blank=True,
+        default=1,
         choices=[
             (0, '当月'),
             (1, '翌月'),
@@ -319,13 +322,14 @@ class Project(models.Model):
             (3, '3ヶ月後'),
         ],
         verbose_name='支払月',
-        help_text='締日から何ヶ月後に支払うか（0=当月、1=翌月、2=翌々月）'
+        help_text='締日から何ヶ月後に支払うか（0=当月、1=翌月、2=翌々月）。デフォルト: 1（翌月）'
     )
     payment_day = models.IntegerField(
         null=True,
         blank=True,
+        default=31,
         verbose_name='支払日',
-        help_text='支払月の何日に支払うか（1-31）。例：25日払いの場合は25'
+        help_text='支払月の何日に支払うか（1-31）。例：25日払いの場合は25。デフォルト: 31（月末）'
     )
 
     # 鍵受け渡し管理 - Phase 8 追加
@@ -435,38 +439,6 @@ class Project(models.Model):
     def __str__(self):
         return f"{self.management_no} - {self.site_name}"
 
-    def save(self, *args, **kwargs):
-        """
-        プロジェクト保存時に、レガシーフィールド（work_start_date/work_end_date）を
-        ProjectProgressStep（SSOT）に自動同期する。
-        """
-        # まず親のsave()を呼んでモデルを保存（pkが確定する）
-        super().save(*args, **kwargs)
-
-        # pkが確定した後、レガシーフィールドをSSOTに同期
-        if self.pk:
-            from order_management.services.progress_step_service import set_step_scheduled_date
-
-            try:
-                # work_start_date → construction_start ステップに同期
-                if self.work_start_date:
-                    set_step_scheduled_date(
-                        self,
-                        'construction_start',
-                        self.work_start_date.strftime('%Y-%m-%d')
-                    )
-
-                # work_end_date → completion ステップに同期
-                if self.work_end_date:
-                    set_step_scheduled_date(
-                        self,
-                        'completion',
-                        self.work_end_date.strftime('%Y-%m-%d')
-                    )
-            except Exception as e:
-                # 同期エラーが発生しても保存処理は継続
-                print(f"⚠ Warning: Failed to sync dates to ProjectProgressStep: {e}")
-
     def generate_management_no(self):
         """管理No自動採番（6桁）
 
@@ -569,6 +541,30 @@ class Project(models.Model):
         #     self.project_status = 'A'
 
         super().save(*args, **kwargs)
+
+        # Post-save operations: レガシーフィールドをProjectProgressStep（SSOT）に同期
+        if self.pk:
+            from order_management.services.progress_step_service import set_step_scheduled_date
+
+            try:
+                # work_start_date → construction_start ステップに同期
+                if self.work_start_date:
+                    set_step_scheduled_date(
+                        self,
+                        'construction_start',
+                        self.work_start_date.strftime('%Y-%m-%d')
+                    )
+
+                # work_end_date → completion ステップに同期
+                if self.work_end_date:
+                    set_step_scheduled_date(
+                        self,
+                        'completion',
+                        self.work_end_date.strftime('%Y-%m-%d')
+                    )
+            except Exception as e:
+                # 同期エラーが発生しても保存処理は継続
+                print(f"⚠ Warning: Failed to sync dates to ProjectProgressStep: {e}")
 
     def _update_profit_cache(self):
         """利益額と利益率をキャッシュフィールドに更新"""

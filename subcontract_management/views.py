@@ -107,10 +107,18 @@ def subcontract_create(request, project_id):
             # メインのステップに保存
             subcontract = form.save(commit=False)
             subcontract.project = project
+            subcontract.step = step  # ✅ stepを設定
 
             # 金額設定方法を取得
             cost_allocation_method = request.POST.get('cost_allocation_method', 'lump_sum')
             step_amounts_json = request.POST.get('step_amounts', '{}')
+
+            # デバッグログ: 受信データを確認
+            print('🔍 BACKEND DEBUG: Received POST data:')
+            print(f'  - step: {step}')
+            print(f'  - contract_amount (from form): {subcontract.contract_amount}')
+            print(f'  - cost_allocation_method: {cost_allocation_method}')
+            print(f'  - step_amounts_json: {step_amounts_json}')
 
             # 工程ごとの金額をパース
             try:
@@ -118,10 +126,14 @@ def subcontract_create(request, project_id):
             except:
                 step_amounts = {}
 
+            print(f'  - step_amounts (parsed): {step_amounts}')
+
             # 工程ごとの金額設定の場合、メイン工程の金額を個別金額に上書き
             if cost_allocation_method == 'per_step' and step in step_amounts:
                 from decimal import Decimal
+                original_amount = subcontract.contract_amount
                 subcontract.contract_amount = Decimal(str(step_amounts[step]))
+                print(f'  ⚠️ OVERRIDE: contract_amount changed from {original_amount} to {subcontract.contract_amount}')
 
             # 動的部材費データを保存
             dynamic_materials_data = request.POST.get('dynamic_materials_data', '[]')
