@@ -1242,6 +1242,46 @@ def update_progress(request, pk):
         # AJAXリクエストかどうかをチェック（編集完了ボタン用）
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.POST.get('ajax_save')
 
+        # 削除されたステップを処理
+        deleted_steps_json = request.POST.get('deleted_steps')
+        if deleted_steps_json:
+            try:
+                deleted_steps = json.loads(deleted_steps_json)
+                from order_management.models import ProjectProgressStep, ProgressStepTemplate
+
+                # キーからテンプレート名へのマッピング
+                key_to_template = {
+                    'attendance': '立ち会い日',
+                    'survey': '現調日',
+                    'estimate': '見積書発行日',
+                    'construction_start': '着工日',
+                    'completion': '完工日',
+                    'contract': '契約',
+                    'invoice': '請求書発行',
+                    'permit_application': '許可申請',
+                    'material_order': '資材発注',
+                    'inspection': '検査',
+                }
+
+                for step_key in deleted_steps:
+                    # step_プレフィックスを削除
+                    clean_key = step_key.replace('step_', '')
+                    template_name = key_to_template.get(clean_key)
+
+                    if template_name:
+                        try:
+                            template = ProgressStepTemplate.objects.get(name=template_name)
+                            # ProjectProgressStepを削除（is_active=Falseではなく完全削除）
+                            ProjectProgressStep.objects.filter(
+                                project=project,
+                                template=template
+                            ).delete()
+                            print(f"Deleted step: {step_key} (template: {template_name})")
+                        except ProgressStepTemplate.DoesNotExist:
+                            print(f"Template not found for step: {step_key}")
+            except json.JSONDecodeError:
+                print(f"Failed to parse deleted_steps JSON: {deleted_steps_json}")
+
         estimate_issued_date = request.POST.get('estimate_issued_date')
         estimate_notes = request.POST.get('estimate_notes')
         contractor_estimate_amount = request.POST.get('contractor_estimate_amount')

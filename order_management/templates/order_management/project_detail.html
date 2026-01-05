@@ -1982,6 +1982,7 @@
 var editMode = true; // 常に編集モードをON
 var sortable = null;
 var projectStatus = '{{ project.project_status }}'; // 案件ステータス
+var deletedSteps = []; // 削除されたステップを追跡
 
 // ステップ編集モードの切り替え（グローバル関数）
 function toggleEditMode() {
@@ -2055,6 +2056,7 @@ function toggleEditMode() {
         console.log('Saving dynamic fields:', dynamicFields);
         console.log('DEBUG: estimate_not_required in POST?', 'estimate_not_required' in dynamicFields);
         console.log('DEBUG: estimate_not_required value:', dynamicFields.estimate_not_required);
+        console.log('DEBUG: deleted_steps:', deletedSteps);
 
         // サーバーに保存（AJAX - 統一エンドポイント）
         $.ajax({
@@ -2063,7 +2065,8 @@ function toggleEditMode() {
             dataType: 'json',  // JSONレスポンスを期待
             data: $.extend({
                 csrfmiddlewaretoken: '{{ csrf_token }}',
-                ajax_save: 'true'  // AJAX保存フラグ
+                ajax_save: 'true',  // AJAX保存フラグ
+                deleted_steps: JSON.stringify(deletedSteps)  // 削除されたステップを送信
             }, dynamicFields),
             success: function(response) {
                 console.log('保存成功:', response);
@@ -2073,6 +2076,8 @@ function toggleEditMode() {
                     if (typeof toastr !== 'undefined') {
                         toastr.success(response.message || '変更を保存しました');
                     }
+                    // 削除配列をクリア
+                    deletedSteps = [];
                     // ページをリロードして最新の状態を表示
                     setTimeout(function() {
                         location.reload();
@@ -6752,6 +6757,12 @@ $(document).ready(function() {
         const stepName = pendingDeleteBtn.closest('.progress-step').find('.progress-step-header span').text().trim();
 
         console.log(`Removing step: ${stepKey}`);
+
+        // 削除されたステップを追跡配列に追加
+        if (!deletedSteps.includes(stepKey)) {
+            deletedSteps.push(stepKey);
+            console.log('Deleted steps:', deletedSteps);
+        }
 
         // ステップを削除
         pendingDeleteBtn.closest('.progress-step').remove();
