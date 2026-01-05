@@ -798,32 +798,32 @@ function initializePopovers() {
 
 // API fetch functions
 async function fetchOutgoingPaidByContractor() {
-    const response = await fetch(`/api/payment-management/outgoing/paid-by-contractor/?year=${currentYear}&month=${currentMonth}`);
+    const response = await fetch(`/orders/api/payment-management/outgoing/paid-by-contractor/?year=${currentYear}&month=${currentMonth}`);
     return await response.json();
 }
 
 async function fetchOutgoingScheduledByContractor() {
-    const response = await fetch(`/api/payment-management/outgoing/scheduled-by-contractor/?year=${currentYear}&month=${currentMonth}`);
+    const response = await fetch(`/orders/api/payment-management/outgoing/scheduled-by-contractor/?year=${currentYear}&month=${currentMonth}`);
     return await response.json();
 }
 
 async function fetchOutgoingUnfilled() {
-    const response = await fetch(`/api/payment-management/outgoing/unfilled/?year=${currentYear}&month=${currentMonth}`);
+    const response = await fetch(`/orders/api/payment-management/outgoing/unfilled/?year=${currentYear}&month=${currentMonth}`);
     return await response.json();
 }
 
 async function fetchIncomingReceived() {
-    const response = await fetch(`/api/payment-management/incoming/received/?year=${currentYear}&month=${currentMonth}`);
+    const response = await fetch(`/orders/api/payment-management/incoming/received/?year=${currentYear}&month=${currentMonth}`);
     return await response.json();
 }
 
 async function fetchIncomingReceivedByClient() {
-    const response = await fetch(`/api/payment-management/incoming/received-by-client/?year=${currentYear}&month=${currentMonth}`);
+    const response = await fetch(`/orders/api/payment-management/incoming/received-by-client/?year=${currentYear}&month=${currentMonth}`);
     return await response.json();
 }
 
 async function fetchIncomingScheduledByClient() {
-    const response = await fetch(`/api/payment-management/incoming/scheduled-by-client/?year=${currentYear}&month=${currentMonth}`);
+    const response = await fetch(`/orders/api/payment-management/incoming/scheduled-by-client/?year=${currentYear}&month=${currentMonth}`);
     return await response.json();
 }
 
@@ -1055,7 +1055,7 @@ function bulkUpdateStatus(accordionId) {
 
     showLoading();
 
-    fetch('/api/payment-management/bulk-update-status/', {
+    fetch('/orders/api/payment-management/bulk-update-status/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1657,7 +1657,7 @@ function saveAndDownloadPurchaseOrderPDF() {
     };
 
     // PDFを生成して保存
-    fetch('/api/payment-management/generate-and-save-purchase-order/', {
+    fetch('/orders/api/payment-management/generate-and-save-purchase-order/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1888,7 +1888,7 @@ function saveAndDownloadInvoicePDF() {
     };
 
     // PDFを生成して保存
-    fetch('/api/payment-management/generate-and-save-invoice/', {
+    fetch('/orders/api/payment-management/generate-and-save-invoice/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
