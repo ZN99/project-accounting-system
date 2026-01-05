@@ -15,7 +15,7 @@ def rating_criteria_view(request):
     レーダーチャートの評価基準を表示・編集する
     """
     # 権限チェック（管理部・役員のみ）
-    if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.COORDINATION_DEPT)):
+    if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.SALES)):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied("評価基準の設定権限がありません")
 
@@ -66,7 +66,7 @@ def rating_criteria_update_ajax(request):
     """
     try:
         # 権限チェック（管理部・役員のみ）
-        if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.COORDINATION_DEPT)):
+        if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.SALES)):
             return JsonResponse({
                 'success': False,
                 'error': '評価基準の設定権限がありません'

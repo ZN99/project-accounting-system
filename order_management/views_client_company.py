@@ -23,7 +23,7 @@ class ClientCompanyListView(LoginRequiredMixin, PerPageMixin, ListView):
 
     def dispatch(self, request, *args, **kwargs):
         # 管理部・役員のみアクセス可能
-        if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.COORDINATION_DEPT)):
+        if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.SALES)):
             raise PermissionDenied("元請会社情報へのアクセス権限がありません。")
         return super().dispatch(request, *args, **kwargs)
 
@@ -68,7 +68,7 @@ class ClientCompanyDetailView(LoginRequiredMixin, DetailView):
 
     def dispatch(self, request, *args, **kwargs):
         # 管理部・役員のみアクセス可能
-        if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.COORDINATION_DEPT)):
+        if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.SALES)):
             raise PermissionDenied("元請会社情報へのアクセス権限がありません。")
         return super().dispatch(request, *args, **kwargs)
 
@@ -172,7 +172,7 @@ class ClientCompanyCreateView(LoginRequiredMixin, CreateView):
 
     def dispatch(self, request, *args, **kwargs):
         # 管理部・役員のみアクセス可能
-        if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.COORDINATION_DEPT)):
+        if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.SALES)):
             raise PermissionDenied("元請会社情報へのアクセス権限がありません。")
         return super().dispatch(request, *args, **kwargs)
 
@@ -196,7 +196,7 @@ class ClientCompanyUpdateView(LoginRequiredMixin, UpdateView):
 
     def dispatch(self, request, *args, **kwargs):
         # 管理部・役員のみアクセス可能
-        if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.COORDINATION_DEPT)):
+        if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.SALES)):
             raise PermissionDenied("元請会社情報へのアクセス権限がありません。")
         return super().dispatch(request, *args, **kwargs)
 
@@ -332,7 +332,7 @@ def client_company_create_ajax(request):
         }, status=405)
 
     # 権限チェック
-    if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.COORDINATION_DEPT)):
+    if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.SALES)):
         return JsonResponse({
             'success': False,
             'error': '元請会社の作成権限がありません'
@@ -406,7 +406,7 @@ def contact_person_create_ajax(request):
         }, status=405)
 
     # 権限チェック
-    if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.COORDINATION_DEPT)):
+    if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.SALES)):
         return JsonResponse({
             'success': False,
             'error': '担当者の作成権限がありません'
@@ -493,7 +493,7 @@ def contact_person_update_ajax(request):
         }, status=405)
 
     # 権限チェック
-    if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.COORDINATION_DEPT)):
+    if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.SALES)):
         return JsonResponse({
             'success': False,
             'error': '担当者の更新権限がありません'
@@ -572,7 +572,7 @@ def contact_person_delete_ajax(request):
         }, status=405)
 
     # 権限チェック
-    if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.COORDINATION_DEPT)):
+    if not (has_role(request.user, UserRole.EXECUTIVE) or has_role(request.user, UserRole.SALES)):
         return JsonResponse({
             'success': False,
             'error': '担当者の削除権限がありません'
