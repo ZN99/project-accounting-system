@@ -440,30 +440,25 @@ class Project(models.Model):
         return f"{self.management_no} - {self.site_name}"
 
     def generate_management_no(self):
-        """管理No自動採番（6桁）
+        """管理No自動採番（25-形式固定）
 
-        フォーマット: {年の下2桁}{6桁連番}
-        例: 25000001, 25000002, ...
+        フォーマット: 25-{連番}
+        例: 25-001, 25-002, ...
 
-        Note: CSVインポート後も連番を継続するため、
-        旧形式のプレフィックス（P, Mなど）付きの番号からも最大値を取得
+        Note: 既存の25年案件との連番を継続するため固定
         """
-        current_year = timezone.now().year
-        year_suffix = str(current_year)[-2:]  # 下2桁
+        import re
 
-        # 今年の全案件から最新番号を取得（旧形式・新形式両対応）
-        # 旧形式: P2500299, M250298
-        # 新形式: 25000299
+        # 25-形式の案件から最新番号を取得
+        # マッチパターン: 25-001, 25-002 など
         projects = Project.objects.filter(
-            management_no__regex=r'^[A-Z]*' + year_suffix + r'\d+'
+            management_no__regex=r'^25-\d+'
         ).values_list('management_no', flat=True)
 
-        import re
-        # 旧形式（プレフィックス有）と新形式（プレフィックス無）両対応
-        pattern = r'^[A-Z]*' + year_suffix + r'(\d+)$'
+        pattern = r'^25-(\d+)$'
         max_num = 0
 
-        # 全プロジェクトから最大の連番を取得（文字列ソートではなく数値比較）
+        # 全プロジェクトから最大の連番を取得
         for mgmt_no in projects:
             match = re.search(pattern, mgmt_no)
             if match:
@@ -472,7 +467,7 @@ class Project(models.Model):
 
         new_num = max_num + 1 if max_num > 0 else 1
 
-        return f'{year_suffix}{new_num:06d}'
+        return f'25-{new_num:03d}'
 
     def save(self, *args, **kwargs):
         # 管理No自動採番
