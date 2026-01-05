@@ -177,16 +177,22 @@ def project_list(request):
     if management_no_query in ['None', '', None]:
         management_no_query = None
     if management_no_query:
+        print(f"🔍 DEBUG: Searching management_no with query: {management_no_query}")
         projects = projects.filter(management_no__icontains=management_no_query)
+        print(f"🔍 DEBUG: Found {projects.count()} projects with management_no")
 
     site_name_query = request.GET.get('site_name')
     if site_name_query in ['None', '', None]:
         site_name_query = None
     if site_name_query:
+        print(f"🔍 DEBUG: Searching site_name/client_name with query: {site_name_query}")
+        before_count = projects.count()
         projects = projects.filter(
             Q(site_name__icontains=site_name_query) |
             Q(client_name__icontains=site_name_query)
         )
+        after_count = projects.count()
+        print(f"🔍 DEBUG: Projects before: {before_count}, after: {after_count}")
 
     # 工期フィルタ (work_start_date と work_end_date)
     # NOTE: work_start_date と work_end_date は @property のため、QuerySetフィルタでは使用できない
