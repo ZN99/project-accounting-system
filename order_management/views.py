@@ -1201,6 +1201,7 @@ def project_detail(request, pk):
         'project': project,
         'subcontracts': subcontracts,
         'contractors': contractors,
+        'all_contractors': contractors,  # 業者スケジュール用
         'contractors_json': contractors_json,
         'client_companies': client_companies,
         'client_companies_json': client_companies_json,

@@ -1491,6 +1491,30 @@
             </div>
         </div>
 
+        <!-- 業者スケジュール -->
+        <div class="card border-info shadow-sm mb-2">
+            <div class="card-header bg-info text-white py-1">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0" style="font-size: 1.1rem; line-height: 1.4;">
+                        <i class="fas fa-calendar-alt"></i> 業者スケジュール
+                        <span class="badge bg-light text-dark ms-2" id="contractorScheduleCount">0件</span>
+                    </h6>
+                    <button type="button" class="btn btn-sm btn-light" style="font-size: 0.65rem; padding: 0.2rem 0.4rem;" onclick="openContractorScheduleModal()">
+                        <i class="fas fa-plus"></i> 追加
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-2">
+                <div id="contractorScheduleList">
+                    <!-- 業者スケジュール一覧がここに表示されます -->
+                    <div class="text-center py-2">
+                        <i class="fas fa-calendar-alt fa-2x text-muted mb-2"></i>
+                        <p style="font-size: 0.7rem; color: #6c757d;" class="mb-0">スケジュール未登録</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 資材発注状況 -->
         <div class="card border-warning shadow-sm">
             <div class="card-header bg-warning text-white py-1">
@@ -11417,6 +11441,77 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<!-- 業者スケジュールモーダル -->
+<div class="modal fade" id="contractorScheduleModal" tabindex="-1" aria-labelledby="contractorScheduleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="contractorScheduleModalLabel">
+                    <i class="fas fa-calendar-alt me-2"></i>業者スケジュール追加
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="contractorScheduleForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="scheduleId" name="schedule_id">
+
+                    <div class="mb-3">
+                        <label for="scheduleContractor" class="form-label">
+                            業者 <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" id="scheduleContractor" name="contractor_id" required>
+                            <option value="">業者を選択してください</option>
+                            {% for contractor in all_contractors %}
+                            <option value="{{ contractor.id }}">{{ contractor.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="scheduleStartDate" class="form-label">
+                                    作業開始日 <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" class="form-control" id="scheduleStartDate" name="work_start_date" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="scheduleEndDate" class="form-label">
+                                    作業終了日 <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" class="form-control" id="scheduleEndDate" name="work_end_date" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="scheduleWorkDescription" class="form-label">
+                            作業内容
+                        </label>
+                        <input type="text" class="form-control" id="scheduleWorkDescription" name="work_description" placeholder="例：基礎工事、配管作業">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="scheduleNotes" class="form-label">
+                            備考
+                        </label>
+                        <textarea class="form-control" id="scheduleNotes" name="notes" rows="3" placeholder="特記事項があればご記入ください"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-info" onclick="saveContractorSchedule()">
+                    <i class="fas fa-save me-1"></i>保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- 下請け管理パネルモーダル -->
 <div class="modal fade" id="contractorManagementModal" tabindex="-1" aria-labelledby="contractorManagementModalLabel" aria-hidden="true" style="z-index: 9999 !important;">
     <div class="modal-dialog modal-xl">
@@ -11566,6 +11661,211 @@ document.addEventListener('DOMContentLoaded', function() {
     if (calendarTabPane && calendarTabPane.classList.contains('active')) {
         initCalendar();
     }
+});
+
+// 業者スケジュール管理機能
+let contractorSchedules = [];
+
+// ページ読み込み時に業者スケジュールを取得
+function loadContractorSchedules() {
+    const projectId = {{ project.pk }};
+    fetch(`/orders/${projectId}/contractor-schedules/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                contractorSchedules = data.schedules;
+                renderContractorSchedules();
+            } else {
+                console.error('業者スケジュールの取得に失敗しました:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('エラーが発生しました:', error);
+        });
+}
+
+// 業者スケジュール一覧を描画
+function renderContractorSchedules() {
+    const listContainer = document.getElementById('contractorScheduleList');
+    const countBadge = document.getElementById('contractorScheduleCount');
+
+    if (!listContainer) return;
+
+    countBadge.textContent = `${contractorSchedules.length}件`;
+
+    if (contractorSchedules.length === 0) {
+        listContainer.innerHTML = `
+            <div class="text-center py-2">
+                <i class="fas fa-calendar-alt fa-2x text-muted mb-2"></i>
+                <p style="font-size: 0.7rem; color: #6c757d;" class="mb-0">スケジュール未登録</p>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    contractorSchedules.forEach(schedule => {
+        const duration = schedule.duration_days;
+        html += `
+            <div class="mb-2 p-2 border-bottom">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div style="flex: 1;">
+                        <div style="font-size: 0.75rem; font-weight: bold;">
+                            ${schedule.contractor_name}
+                            ${schedule.work_description ? `<span class="badge bg-light text-dark border ms-1" style="font-size: 0.6rem;">${schedule.work_description}</span>` : ''}
+                        </div>
+                        <div style="font-size: 0.65rem; color: #6c757d; margin-top: 0.25rem;">
+                            <i class="fas fa-calendar me-1"></i>${schedule.work_start_date} 〜 ${schedule.work_end_date}
+                            <span class="badge bg-info ms-1" style="font-size: 0.6rem;">${duration}日間</span>
+                        </div>
+                        ${schedule.notes ? `<div style="font-size: 0.65rem; color: #6c757d; margin-top: 0.25rem;"><i class="fas fa-sticky-note me-1"></i>${schedule.notes}</div>` : ''}
+                    </div>
+                    <div class="btn-group" style="font-size: 0.6rem;">
+                        <button type="button" class="btn btn-sm btn-outline-primary" style="font-size: 0.6rem; padding: 0.1rem 0.3rem;" onclick="editContractorSchedule(${schedule.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" style="font-size: 0.6rem; padding: 0.1rem 0.3rem;" onclick="deleteContractorSchedule(${schedule.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    listContainer.innerHTML = html;
+}
+
+// 業者スケジュールモーダルを開く
+function openContractorScheduleModal(scheduleId = null) {
+    const modal = new bootstrap.Modal(document.getElementById('contractorScheduleModal'));
+    const modalTitle = document.getElementById('contractorScheduleModalLabel');
+    const form = document.getElementById('contractorScheduleForm');
+
+    // フォームをリセット
+    form.reset();
+    document.getElementById('scheduleId').value = '';
+
+    if (scheduleId) {
+        // 編集モード
+        const schedule = contractorSchedules.find(s => s.id === scheduleId);
+        if (schedule) {
+            modalTitle.innerHTML = '<i class="fas fa-calendar-alt me-2"></i>業者スケジュール編集';
+            document.getElementById('scheduleId').value = schedule.id;
+            document.getElementById('scheduleContractor').value = schedule.contractor_id;
+            document.getElementById('scheduleStartDate').value = schedule.work_start_date;
+            document.getElementById('scheduleEndDate').value = schedule.work_end_date;
+            document.getElementById('scheduleWorkDescription').value = schedule.work_description;
+            document.getElementById('scheduleNotes').value = schedule.notes;
+        }
+    } else {
+        // 新規作成モード
+        modalTitle.innerHTML = '<i class="fas fa-calendar-alt me-2"></i>業者スケジュール追加';
+    }
+
+    modal.show();
+}
+
+// 業者スケジュールを編集
+function editContractorSchedule(scheduleId) {
+    openContractorScheduleModal(scheduleId);
+}
+
+// 業者スケジュールを保存
+function saveContractorSchedule() {
+    const form = document.getElementById('contractorScheduleForm');
+    const scheduleId = document.getElementById('scheduleId').value;
+    const projectId = {{ project.pk }};
+
+    // バリデーション
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    const formData = {
+        contractor_id: document.getElementById('scheduleContractor').value,
+        work_start_date: document.getElementById('scheduleStartDate').value,
+        work_end_date: document.getElementById('scheduleEndDate').value,
+        work_description: document.getElementById('scheduleWorkDescription').value,
+        notes: document.getElementById('scheduleNotes').value
+    };
+
+    let url, method;
+    if (scheduleId) {
+        // 更新
+        url = `/orders/contractor-schedules/${scheduleId}/update/`;
+        method = 'POST';
+    } else {
+        // 新規作成
+        url = `/orders/${projectId}/contractor-schedules/create/`;
+        method = 'POST';
+    }
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // モーダルを閉じる
+            const modal = bootstrap.Modal.getInstance(document.getElementById('contractorScheduleModal'));
+            modal.hide();
+
+            // 一覧を再読み込み
+            loadContractorSchedules();
+
+            // 成功メッセージを表示（コンソールで簡易表示）
+            console.log('✅', data.message);
+        } else {
+            console.error('❌ エラー:', data.error);
+            alert(data.error);
+        }
+    })
+    .catch(error => {
+        console.error('エラーが発生しました:', error);
+        alert('エラーが発生しました: ' + error.message);
+    });
+}
+
+// 業者スケジュールを削除
+function deleteContractorSchedule(scheduleId) {
+    if (!confirm('このスケジュールを削除してもよろしいですか？')) {
+        return;
+    }
+
+    fetch(`/orders/contractor-schedules/${scheduleId}/delete/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 一覧を再読み込み
+            loadContractorSchedules();
+            console.log('✅', data.message);
+        } else {
+            console.error('❌ エラー:', data.error);
+            alert(data.error);
+        }
+    })
+    .catch(error => {
+        console.error('エラーが発生しました:', error);
+        alert('エラーが発生しました: ' + error.message);
+    });
+}
+
+// ページ読み込み時に業者スケジュールを取得
+document.addEventListener('DOMContentLoaded', function() {
+    loadContractorSchedules();
 });
 </script>
 

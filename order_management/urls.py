@@ -159,6 +159,13 @@ from .views_backup import (
     delete_all_data_view,
     selective_restore_view
 )
+from .views_contractor_schedule import (
+    contractor_schedule_list_api,
+    contractor_schedule_create_api,
+    contractor_schedule_update_api,
+    contractor_schedule_delete_api,
+    contractor_schedule_reorder_api
+)
 
 app_name = 'order_management'
 
@@ -229,6 +236,13 @@ urlpatterns = [
     path('api/staff/<int:staff_id>/', views.staff_api, name='staff_api_detail'),
     path('api/contractor/', views.contractor_api, name='contractor_api'),
     path('api/contractor/<int:contractor_id>/', views.contractor_api, name='contractor_api_detail'),
+
+    # 業者スケジュールAPI
+    path('<int:project_pk>/contractor-schedules/', contractor_schedule_list_api, name='contractor_schedule_list_api'),
+    path('<int:project_pk>/contractor-schedules/create/', contractor_schedule_create_api, name='contractor_schedule_create_api'),
+    path('<int:project_pk>/contractor-schedules/reorder/', contractor_schedule_reorder_api, name='contractor_schedule_reorder_api'),
+    path('contractor-schedules/<int:pk>/update/', contractor_schedule_update_api, name='contractor_schedule_update_api'),
+    path('contractor-schedules/<int:pk>/delete/', contractor_schedule_delete_api, name='contractor_schedule_delete_api'),
 
     # 請求書API
     path('api/invoice/generate/', views.generate_client_invoice_api, name='generate_client_invoice_api'),
