@@ -6,7 +6,8 @@ from .models import (
     Project, ForecastScenario,  # ARCHIVED: CashFlowTransaction removed
     ProjectProgress, Report, SeasonalityIndex, UserProfile,
     Comment, Notification, CommentAttachment, CommentReadStatus, ClientCompany, ContractorReview,
-    ApprovalLog, ChecklistTemplate, ProjectChecklist, ProjectFile, WorkType, ContactPerson
+    ApprovalLog, ChecklistTemplate, ProjectChecklist, ProjectFile, WorkType, ContactPerson,
+    ContractorSchedule
 )
 from .user_roles import UserRole
 
@@ -956,3 +957,26 @@ class CustomUserAdmin(BaseUserAdmin):
 # Django標準のUser管理を上書き
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
+
+
+# 業者スケジュール管理
+@admin.register(ContractorSchedule)
+class ContractorScheduleAdmin(admin.ModelAdmin):
+    list_display = ('project', 'contractor', 'work_start_date', 'work_end_date', 'work_description', 'order')
+    list_filter = ('work_start_date', 'work_end_date')
+    search_fields = ('project__management_no', 'project__site_name', 'contractor__name', 'work_description')
+    ordering = ('project', 'order', 'work_start_date')
+    date_hierarchy = 'work_start_date'
+
+    fieldsets = (
+        ('基本情報', {
+            'fields': ('project', 'contractor', 'work_description')
+        }),
+        ('作業期間', {
+            'fields': ('work_start_date', 'work_end_date', 'order')
+        }),
+        ('備考', {
+            'fields': ('notes',),
+            'classes': ('collapse',)
+        }),
+    )

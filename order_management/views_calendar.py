@@ -15,6 +15,16 @@ class ConstructionCalendarView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+
+        # 営業担当者一覧を取得（重複を除く）
+        sales_reps = Project.objects.exclude(
+            project_manager__isnull=True
+        ).exclude(
+            project_manager=''
+        ).values_list('project_manager', flat=True).distinct().order_by('project_manager')
+
+        context['sales_reps'] = list(sales_reps)
+
         return context
 
 
@@ -172,6 +182,9 @@ def calendar_events_api(request):
     start = request.GET.get('start')
     end = request.GET.get('end')
 
+    # 営業担当者フィルタを取得
+    sales_rep_filter = request.GET.get('sales_rep')
+
     # 日付範囲でフィルタリング（パフォーマンス最適化）
     if start and end:
         try:
@@ -203,6 +216,10 @@ def calendar_events_api(request):
             'subcontract_set__internal_worker',
             'progress_steps__template'
         ).exclude(project_status='NG')
+
+    # 営業担当者でフィルタリング
+    if sales_rep_filter:
+        projects = projects.filter(project_manager__icontains=sales_rep_filter)
 
     # イベントデータを生成
     events = []

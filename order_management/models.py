@@ -3955,3 +3955,68 @@ class CompanySettings(models.Model):
         """PKを1に固定してシングルトンを保証"""
         self.pk = 1
         super().save(*args, **kwargs)
+
+
+class ContractorSchedule(models.Model):
+    """業者ごとの工事スケジュール管理
+
+    複数の業者が入る案件において、各業者の作業期間を詳細に管理するためのモデル
+    """
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='contractor_schedules',
+        verbose_name='案件'
+    )
+    contractor = models.ForeignKey(
+        'subcontract_management.Contractor',
+        on_delete=models.CASCADE,
+        verbose_name='業者',
+        help_text='作業を行う業者'
+    )
+    work_start_date = models.DateField(
+        verbose_name='作業開始日',
+        help_text='この業者の作業開始日'
+    )
+    work_end_date = models.DateField(
+        verbose_name='作業終了日',
+        help_text='この業者の作業終了日'
+    )
+    work_description = models.CharField(
+        max_length=200,
+        verbose_name='作業内容',
+        blank=True,
+        help_text='例: 電気工事、配管工事、内装工事など'
+    )
+    order = models.IntegerField(
+        default=0,
+        verbose_name='表示順序',
+        help_text='作業の順序（数字が小さいほど先に表示）'
+    )
+    notes = models.TextField(
+        blank=True,
+        verbose_name='備考',
+        help_text='その他のメモや注意事項'
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='作成日時'
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='更新日時'
+    )
+
+    class Meta:
+        verbose_name = '業者スケジュール'
+        verbose_name_plural = '業者スケジュール'
+        ordering = ['project', 'order', 'work_start_date']
+
+    def __str__(self):
+        return f'{self.project.management_no} - {self.contractor.name} ({self.work_start_date} 〜 {self.work_end_date})'
+
+    def get_duration_days(self):
+        """作業期間（日数）を計算"""
+        if self.work_start_date and self.work_end_date:
+            return (self.work_end_date - self.work_start_date).days + 1
+        return 0

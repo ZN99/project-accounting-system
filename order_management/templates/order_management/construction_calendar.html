@@ -303,9 +303,9 @@
             </div>
         </div>
 
-        <!-- 案件番号検索バー -->
+        <!-- 検索・フィルタバー -->
         <div class="row mt-3">
-            <div class="col-12">
+            <div class="col-md-6">
                 <div class="input-group">
                     <span class="input-group-text bg-white">
                         <i class="fas fa-search"></i>
@@ -322,6 +322,22 @@
                 </div>
                 <small class="text-white-50 d-block mt-1">
                     <i class="fas fa-info-circle me-1"></i>案件番号で検索すると、該当案件をハイライト表示して日付に移動します
+                </small>
+            </div>
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text bg-white">
+                        <i class="fas fa-user-tie"></i>
+                    </span>
+                    <select id="salesRepFilter" class="form-select" style="background: white;">
+                        <option value="">全営業担当者</option>
+                        {% for rep in sales_reps %}
+                        <option value="{{ rep }}">{{ rep }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <small class="text-white-50 d-block mt-1">
+                    <i class="fas fa-info-circle me-1"></i>担当者で絞り込んで表示
                 </small>
             </div>
         </div>
@@ -481,8 +497,16 @@ document.addEventListener('DOMContentLoaded', function() {
         },
 
         events: function(info, successCallback, failureCallback) {
+            // 営業担当者フィルタの値を取得
+            const salesRepFilter = document.getElementById('salesRepFilter').value;
+
             // APIからイベントデータを取得
-            fetch('{% url "order_management:calendar_events_api" %}')
+            let url = '{% url "order_management:calendar_events_api" %}';
+            if (salesRepFilter) {
+                url += `?sales_rep=${encodeURIComponent(salesRepFilter)}`;
+            }
+
+            fetch(url)
                 .then(response => response.json())
                 .then(data => {
                     successCallback(data);
@@ -778,6 +802,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // グローバル変数にcalendarを格納（検索機能用）
     window.globalCalendar = calendar;
+
+    // === 営業担当者フィルタ機能 ===
+    document.getElementById('salesRepFilter').addEventListener('change', function() {
+        // カレンダーを再読み込み
+        calendar.refetchEvents();
+    });
 
     // === 案件検索機能 ===
 
