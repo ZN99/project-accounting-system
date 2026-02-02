@@ -16,14 +16,14 @@ STEP_TEMPLATES = {
         'name': '立ち会い日',
         'icon': 'fas fa-user-check',
         'order': 1,
-        'is_default': True,
+        'is_default': False,
         'field_type': 'date'
     },
     'survey': {
         'name': '現調日',
         'icon': 'fas fa-clipboard-list',
         'order': 2,
-        'is_default': True,
+        'is_default': False,
         'field_type': 'date'
     },
     'estimate': {
