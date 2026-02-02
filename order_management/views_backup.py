@@ -236,6 +236,7 @@ def import_data_view(request):
         try:
             # アップロードされたファイルを取得
             uploaded_file = request.FILES.get('backup_file')
+            clear_database = request.POST.get('clear_database') == 'true'
 
             if not uploaded_file:
                 return JsonResponse({
@@ -267,11 +268,11 @@ def import_data_view(request):
             try:
                 # ZIP形式の場合
                 if uploaded_file.name.endswith('.zip'):
-                    return _restore_from_zip(temp_file_path)
+                    return _restore_from_zip(temp_file_path, clear_database=clear_database)
 
                 # JSON形式の場合（後方互換性）
                 else:
-                    return _restore_from_json(temp_file_path)
+                    return _restore_from_json(temp_file_path, clear_database=clear_database)
 
             finally:
                 # 一時ファイルを削除
@@ -289,12 +290,26 @@ def import_data_view(request):
             }, status=500)
 
 
-def _restore_from_zip(zip_file_path: str) -> JsonResponse:
+def _restore_from_zip(zip_file_path: str, clear_database: bool = False) -> JsonResponse:
     """ZIPファイルからのリストア処理"""
     logger.info(f'ZIPファイルからのリストア開始: {zip_file_path}')
 
+    # 0. データベースのクリア（clear_database=True の場合）
+    if clear_database:
+        logger.info('ステップ 0/5: データベースのクリア')
+        try:
+            from django.core.management import call_command
+            call_command('flush', '--no-input', verbosity=0)
+            logger.info('データベースをクリアしました')
+        except Exception as e:
+            logger.error(f'データベースクリアエラー: {str(e)}')
+            return JsonResponse({
+                'status': 'error',
+                'message': f'データベースのクリアに失敗しました: {str(e)}'
+            }, status=500)
+
     # 1. バックアップファイルの検証
-    logger.info('ステップ 1/4: バックアップファイルの検証')
+    logger.info('ステップ 1/5: バックアップファイルの検証')
     validation_result = validate_restore(zip_file_path)
 
     if not validation_result['success']:
@@ -307,7 +322,7 @@ def _restore_from_zip(zip_file_path: str) -> JsonResponse:
         }, status=400)
 
     # 2. ZIPファイルの展開
-    logger.info('ステップ 2/4: ZIPファイルの展開')
+    logger.info('ステップ 2/5: ZIPファイルの展開')
     with tempfile.TemporaryDirectory() as temp_dir:
         with zipfile.ZipFile(zip_file_path, 'r') as zip_file:
             zip_file.extractall(temp_dir)
@@ -321,7 +336,7 @@ def _restore_from_zip(zip_file_path: str) -> JsonResponse:
             metadata = json.load(meta_file)
 
         # 3. データベースのインポート
-        logger.info('ステップ 3/4: データベースのインポート')
+        logger.info('ステップ 3/5: データベースのインポート')
         output = io.StringIO()
         error_output = io.StringIO()
 
@@ -376,9 +391,23 @@ def _restore_from_zip(zip_file_path: str) -> JsonResponse:
         })
 
 
-def _restore_from_json(json_file_path: str) -> JsonResponse:
+def _restore_from_json(json_file_path: str, clear_database: bool = False) -> JsonResponse:
     """JSONファイルからのリストア処理（後方互換性）"""
     logger.info(f'JSONファイルからのリストア開始: {json_file_path}')
+
+    # 0. データベースのクリア（clear_database=True の場合）
+    if clear_database:
+        logger.info('データベースのクリア')
+        try:
+            from django.core.management import call_command
+            call_command('flush', '--no-input', verbosity=0)
+            logger.info('データベースをクリアしました')
+        except Exception as e:
+            logger.error(f'データベースクリアエラー: {str(e)}')
+            return JsonResponse({
+                'status': 'error',
+                'message': f'データベースのクリアに失敗しました: {str(e)}'
+            }, status=500)
 
     # JSONデータの読み込みと検証
     with open(json_file_path, 'r', encoding='utf-8') as json_file:
