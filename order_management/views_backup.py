@@ -302,6 +302,14 @@ def _restore_from_zip(zip_file_path: str, clear_database: bool = False) -> JsonR
         logger.info('ステップ 0/5: データベースのクリア')
         try:
             call_command('flush', '--no-input', verbosity=0)
+
+            # ContentTypeテーブルを明示的にクリア（flush だけでは不十分）
+            from django.contrib.contenttypes.models import ContentType
+            from django.db import connection
+            ContentType.objects.all().delete()
+            with connection.cursor() as cursor:
+                cursor.execute("DELETE FROM sqlite_sequence WHERE name='django_content_type';")
+
             logger.info('データベースをクリアしました')
         except Exception as e:
             logger.error(f'データベースクリアエラー: {str(e)}')
@@ -402,6 +410,14 @@ def _restore_from_json(json_file_path: str, clear_database: bool = False) -> Jso
         logger.info('データベースのクリア')
         try:
             call_command('flush', '--no-input', verbosity=0)
+
+            # ContentTypeテーブルを明示的にクリア（flush だけでは不十分）
+            from django.contrib.contenttypes.models import ContentType
+            from django.db import connection
+            ContentType.objects.all().delete()
+            with connection.cursor() as cursor:
+                cursor.execute("DELETE FROM sqlite_sequence WHERE name='django_content_type';")
+
             logger.info('データベースをクリアしました')
         except Exception as e:
             logger.error(f'データベースクリアエラー: {str(e)}')
