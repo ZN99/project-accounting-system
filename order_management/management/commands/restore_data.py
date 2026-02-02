@@ -106,11 +106,18 @@ class Command(BaseCommand):
             help='警告を無視して強制的にリストア'
         )
 
+        parser.add_argument(
+            '--clear',
+            action='store_true',
+            help='リストア前にデータベースをクリア（既存データを削除）'
+        )
+
     def handle(self, *args, **options):
         verbosity = options['verbosity']
         backup_file_path = options['backup_file']
         dry_run = options['dry_run']
         force = options['force']
+        clear_db = options['clear']
 
         # ファイルの存在確認
         if not os.path.exists(backup_file_path):
@@ -121,6 +128,29 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING('完全リストアを開始します...'))
                 if dry_run:
                     self.stdout.write(self.style.WARNING('（DRY-RUNモード: 実際にはインポートされません）'))
+                if clear_db:
+                    self.stdout.write(self.style.WARNING('（データベースクリアモード: 既存データを削除します）'))
+
+            # 0. データベースのクリア（--clear オプション指定時）
+            if clear_db and not dry_run:
+                if verbosity >= 1:
+                    self.stdout.write('\nステップ 0/4: データベースのクリア')
+
+                # 確認プロンプト（--force がない場合）
+                if not force:
+                    response = input('\n⚠️  警告: すべての既存データが削除されます。続行しますか？ [y/N]: ')
+                    if response.lower() != 'y':
+                        self.stdout.write(self.style.ERROR('リストアを中止しました'))
+                        return
+
+                # flush_databaseコマンドを実行（ContentTypeも含めてクリア）
+                if verbosity >= 1:
+                    self.stdout.write('  データベースをクリアしています...')
+
+                call_command('flush', '--no-input', verbosity=0)
+
+                if verbosity >= 1:
+                    self.stdout.write(self.style.SUCCESS('  ✓ データベースをクリアしました'))
 
             # 1. バックアップファイルの検証
             if verbosity >= 1:
