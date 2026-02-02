@@ -238,6 +238,9 @@ def import_data_view(request):
             uploaded_file = request.FILES.get('backup_file')
             clear_database = request.POST.get('clear_database') == 'true'
 
+            # デバッグログ
+            logger.info(f'インポートリクエスト受信: clear_database={clear_database} (POST値: {request.POST.get("clear_database")})')
+
             if not uploaded_file:
                 return JsonResponse({
                     'status': 'error',
