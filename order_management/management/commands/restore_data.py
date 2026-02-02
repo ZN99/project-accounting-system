@@ -31,9 +31,9 @@ class Command(BaseCommand):
 
         変換ルール:
         - M25XXXX, P25XXXX → 作成日順に 000001 から連番
-        - 25XXXXXX (8桁) → 作成日順に 000001 から連番
-        - 25-XXXXXX → 000001 から連番（年プレフィックス削除）
-        - XXXXXX → 変換不要
+        - 25XXXXXX, 26XXXXXX (8桁) → 作成日順に 000001 から連番
+        - 25-XXXXXX, 26-XXXXXX → 000001 から連番（年プレフィックス削除）
+        - XXXXXX (6桁) → 変換不要
 
         Returns:
             int: 変換した件数
@@ -45,11 +45,24 @@ class Command(BaseCommand):
 
                 # 新形式以外の案件を検出
                 new_format_pattern = r'^\d{6}$'
+                old_format_patterns = [
+                    r'^M25\d{4}$',      # M250001
+                    r'^P25\d{4}$',      # P250001
+                    r'^\d{8}$',         # 25000001, 26000001 など (8桁)
+                    r'^\d{2}-\d{6}$',   # 25-000001, 26-000001
+                ]
                 needs_conversion = []
 
                 for proj in projects:
-                    if proj.management_no and not re.match(new_format_pattern, proj.management_no):
-                        needs_conversion.append(proj)
+                    if not proj.management_no:
+                        continue
+                    # 新形式でない場合は変換対象
+                    if not re.match(new_format_pattern, proj.management_no):
+                        # 旧形式のいずれかにマッチするか確認
+                        for pattern in old_format_patterns:
+                            if re.match(pattern, proj.management_no):
+                                needs_conversion.append(proj)
+                                break
 
                 if not needs_conversion:
                     return 0  # 変換不要
