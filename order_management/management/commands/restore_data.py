@@ -10,18 +10,68 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.core.management import call_command
 from django.conf import settings
+from django.db import transaction
 import json
 import zipfile
 import tempfile
 import os
 import shutil
+import re
 from pathlib import Path
 
 from order_management.services.restore_validator import validate_restore
+from order_management.models import Project
 
 
 class Command(BaseCommand):
     help = 'バックアップファイル（ZIP）から完全リストアを実行します'
+
+    def _convert_management_numbers(self, verbosity):
+        """旧形式の管理番号を新形式に変換
+
+        変換ルール:
+        - M25XXXX, P25XXXX → 作成日順に 25-000001 から連番
+        - 25XXXXXX (8桁) → 作成日順に 25-000001 から連番
+        - 25-XXXXXX → 変換不要
+
+        Returns:
+            int: 変換した件数
+        """
+        try:
+            with transaction.atomic():
+                # 全案件を作成日時順に取得
+                projects = Project.objects.all().order_by('created_at', 'id')
+
+                # 新形式以外の案件を検出
+                old_format_pattern = r'^(M25\d{4}|P25\d{4}|25\d{6})$'
+                needs_conversion = []
+
+                for proj in projects:
+                    if proj.management_no and re.match(old_format_pattern, proj.management_no):
+                        needs_conversion.append(proj)
+
+                if not needs_conversion:
+                    return 0  # 変換不要
+
+                # 作成日時順に連番を割り当て
+                converted_count = 0
+                for idx, proj in enumerate(projects, start=1):
+                    new_no = f'25-{idx:06d}'
+
+                    if proj.management_no != new_no:
+                        proj.management_no = new_no
+                        proj.save(update_fields=['management_no'])
+                        converted_count += 1
+
+                        # 進捗表示
+                        if verbosity >= 2 and converted_count % 50 == 0:
+                            self.stdout.write(f'    変換中: {converted_count}件')
+
+                return converted_count
+
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'    管理番号変換エラー: {str(e)}'))
+            return 0
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -127,6 +177,18 @@ class Command(BaseCommand):
 
                 if verbosity >= 1:
                     self.stdout.write(self.style.SUCCESS('  ✓ データベースのインポートが完了しました'))
+
+                # 3.5. 管理番号の自動変換
+                if verbosity >= 1:
+                    self.stdout.write('\nステップ 3.5/4: 管理番号形式の変換')
+
+                converted_count = self._convert_management_numbers(verbosity)
+
+                if verbosity >= 1:
+                    if converted_count > 0:
+                        self.stdout.write(self.style.SUCCESS(f'  ✓ {converted_count}件の管理番号を新形式に変換しました'))
+                    else:
+                        self.stdout.write(self.style.SUCCESS('  ✓ 管理番号はすでに新形式です'))
 
                 # 4. メディアファイルの復元
                 if verbosity >= 1:
