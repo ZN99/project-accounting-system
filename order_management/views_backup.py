@@ -19,8 +19,69 @@ import logging
 
 from order_management.services.backup_validator import validate_backup
 from order_management.services.restore_validator import validate_restore
+from order_management.models import Project
+from django.db import transaction
+import re as regex_module
 
 logger = logging.getLogger(__name__)
+
+
+def _convert_management_numbers() -> int:
+    """旧形式の管理番号を新形式 (XXXXXX) に変換
+
+    変換ルール:
+    - M25XXXX, P25XXXX → 作成日順に 000001 から連番
+    - 25XXXXXX, 26XXXXXX (8桁) → 作成日順に 000001 から連番
+    - 25-XXXXXX, 26-XXXXXX → 000001 から連番
+    - XXXXXX (6桁) → 変換不要
+
+    Returns:
+        int: 変換した件数
+    """
+    try:
+        with transaction.atomic():
+            # 全案件を作成日時順に取得
+            projects = Project.objects.all().order_by('created_at', 'id')
+
+            # 新形式以外の案件を検出
+            new_format_pattern = r'^\d{6}$'
+            old_format_patterns = [
+                r'^M25\d{4}$',      # M250001
+                r'^P25\d{4}$',      # P250001
+                r'^\d{8}$',         # 25000001, 26000001 など (8桁)
+                r'^\d{2}-\d{6}$',   # 25-000001, 26-000001
+            ]
+            needs_conversion = []
+
+            for proj in projects:
+                if not proj.management_no:
+                    continue
+                # 新形式でない場合は変換対象
+                if not regex_module.match(new_format_pattern, proj.management_no):
+                    # 旧形式のいずれかにマッチするか確認
+                    for pattern in old_format_patterns:
+                        if regex_module.match(pattern, proj.management_no):
+                            needs_conversion.append(proj)
+                            break
+
+            if not needs_conversion:
+                return 0  # 変換不要
+
+            # 作成日時順に連番を割り当て
+            converted_count = 0
+            for idx, proj in enumerate(projects, start=1):
+                new_no = f'{idx:06d}'
+
+                if proj.management_no != new_no:
+                    proj.management_no = new_no
+                    proj.save(update_fields=['management_no'])
+                    converted_count += 1
+
+            return converted_count
+
+    except Exception as e:
+        logger.error(f'管理番号変換エラー: {str(e)}')
+        return 0
 
 
 @login_required
@@ -280,8 +341,13 @@ def _restore_from_zip(zip_file_path: str) -> JsonResponse:
         installed_match = re.search(r'Installed (\d+) object', output_text)
         installed_count = installed_match.group(1) if installed_match else metadata.get('total_records', 0)
 
+        # 3.5. 管理番号の自動変換
+        logger.info('ステップ 3.5/5: 管理番号形式の変換')
+        converted_count = _convert_management_numbers()
+        logger.info(f'管理番号変換完了: {converted_count}件')
+
         # 4. メディアファイルの復元
-        logger.info('ステップ 4/4: メディアファイルの復元')
+        logger.info('ステップ 4/5: メディアファイルの復元')
         media_restored_count = 0
 
         if os.path.exists(media_dir_path):
@@ -298,11 +364,14 @@ def _restore_from_zip(zip_file_path: str) -> JsonResponse:
 
         logger.info(f'リストア完了: {installed_count}個のオブジェクト, メディアファイル{media_restored_count}個')
 
+        conversion_message = f'、{converted_count}件の管理番号を新形式に変換' if converted_count > 0 else ''
+
         return JsonResponse({
             'status': 'success',
             'message': 'データのインポートが完了しました',
-            'details': f'{installed_count}個のオブジェクトがインポートされました',
+            'details': f'{installed_count}個のオブジェクトがインポートされました{conversion_message}',
             'media_files': media_restored_count,
+            'converted_management_numbers': converted_count,
             'warnings': error_text if error_text else None
         })
 
