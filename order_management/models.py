@@ -440,39 +440,34 @@ class Project(models.Model):
         return f"{self.management_no} - {self.site_name}"
 
     def generate_management_no(self):
-        """管理No自動採番（年-XXXXXX形式）
+        """管理No自動採番（連番形式）
 
-        フォーマット: {年}-{連番6桁}
-        例: 25-000001, 25-000002, 26-000001
+        フォーマット: {連番6桁}
+        例: 000001, 000002, 000003, ...
 
-        Note: 年度ごとに連番をリセット
+        Note: 全案件で通しの連番（年度リセットなし）
         """
         import re
-        from datetime import datetime
 
-        # 現在の年度の下2桁を取得
-        current_year = datetime.now().year % 100  # 2025 → 25, 2026 → 26
-
-        # 現在の年度の案件から最新番号を取得
-        # マッチパターン: 25-000001, 25-000002 など
-        year_prefix = f'{current_year}-'
+        # 全案件から最新番号を取得
+        # マッチパターン: 000001, 000002 など（6桁の数字）
         projects = Project.objects.filter(
-            management_no__startswith=year_prefix
+            management_no__regex=r'^\d{6}$'
         ).values_list('management_no', flat=True)
 
-        pattern = rf'^{current_year}-(\d{{6}})$'
         max_num = 0
 
         # 全プロジェクトから最大の連番を取得
         for mgmt_no in projects:
-            match = re.search(pattern, mgmt_no)
-            if match:
-                seq_num = int(match.group(1))
+            try:
+                seq_num = int(mgmt_no)
                 max_num = max(max_num, seq_num)
+            except ValueError:
+                continue
 
-        new_num = max_num + 1 if max_num > 0 else 1
+        new_num = max_num + 1
 
-        return f'{current_year}-{new_num:06d}'
+        return f'{new_num:06d}'
 
     def save(self, *args, **kwargs):
         # 管理No自動採番

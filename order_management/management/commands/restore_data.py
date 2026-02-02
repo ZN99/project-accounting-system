@@ -30,9 +30,10 @@ class Command(BaseCommand):
         """旧形式の管理番号を新形式に変換
 
         変換ルール:
-        - M25XXXX, P25XXXX → 作成日順に 25-000001 から連番
-        - 25XXXXXX (8桁) → 作成日順に 25-000001 から連番
-        - 25-XXXXXX → 変換不要
+        - M25XXXX, P25XXXX → 作成日順に 000001 から連番
+        - 25XXXXXX (8桁) → 作成日順に 000001 から連番
+        - 25-XXXXXX → 000001 から連番（年プレフィックス削除）
+        - XXXXXX → 変換不要
 
         Returns:
             int: 変換した件数
@@ -43,11 +44,11 @@ class Command(BaseCommand):
                 projects = Project.objects.all().order_by('created_at', 'id')
 
                 # 新形式以外の案件を検出
-                old_format_pattern = r'^(M25\d{4}|P25\d{4}|25\d{6})$'
+                new_format_pattern = r'^\d{6}$'
                 needs_conversion = []
 
                 for proj in projects:
-                    if proj.management_no and re.match(old_format_pattern, proj.management_no):
+                    if proj.management_no and not re.match(new_format_pattern, proj.management_no):
                         needs_conversion.append(proj)
 
                 if not needs_conversion:
@@ -56,7 +57,7 @@ class Command(BaseCommand):
                 # 作成日時順に連番を割り当て
                 converted_count = 0
                 for idx, proj in enumerate(projects, start=1):
-                    new_no = f'25-{idx:06d}'
+                    new_no = f'{idx:06d}'
 
                     if proj.management_no != new_no:
                         proj.management_no = new_no
