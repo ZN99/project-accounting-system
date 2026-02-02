@@ -298,7 +298,6 @@ def _restore_from_zip(zip_file_path: str, clear_database: bool = False) -> JsonR
     if clear_database:
         logger.info('ステップ 0/5: データベースのクリア')
         try:
-            from django.core.management import call_command
             call_command('flush', '--no-input', verbosity=0)
             logger.info('データベースをクリアしました')
         except Exception as e:
@@ -399,7 +398,6 @@ def _restore_from_json(json_file_path: str, clear_database: bool = False) -> Jso
     if clear_database:
         logger.info('データベースのクリア')
         try:
-            from django.core.management import call_command
             call_command('flush', '--no-input', verbosity=0)
             logger.info('データベースをクリアしました')
         except Exception as e:
