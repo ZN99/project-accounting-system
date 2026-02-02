@@ -440,22 +440,27 @@ class Project(models.Model):
         return f"{self.management_no} - {self.site_name}"
 
     def generate_management_no(self):
-        """管理No自動採番（25-形式固定）
+        """管理No自動採番（年-XXXXXX形式）
 
-        フォーマット: 25-{連番}
-        例: 25-001, 25-002, ...
+        フォーマット: {年}-{連番6桁}
+        例: 25-000001, 25-000002, 26-000001
 
-        Note: 既存の25年案件との連番を継続するため固定
+        Note: 年度ごとに連番をリセット
         """
         import re
+        from datetime import datetime
 
-        # 25-形式の案件から最新番号を取得
-        # マッチパターン: 25-001, 25-002 など
+        # 現在の年度の下2桁を取得
+        current_year = datetime.now().year % 100  # 2025 → 25, 2026 → 26
+
+        # 現在の年度の案件から最新番号を取得
+        # マッチパターン: 25-000001, 25-000002 など
+        year_prefix = f'{current_year}-'
         projects = Project.objects.filter(
-            management_no__regex=r'^25-\d+'
+            management_no__startswith=year_prefix
         ).values_list('management_no', flat=True)
 
-        pattern = r'^25-(\d+)$'
+        pattern = rf'^{current_year}-(\d{{6}})$'
         max_num = 0
 
         # 全プロジェクトから最大の連番を取得
@@ -467,7 +472,7 @@ class Project(models.Model):
 
         new_num = max_num + 1 if max_num > 0 else 1
 
-        return f'25-{new_num:03d}'
+        return f'{current_year}-{new_num:06d}'
 
     def save(self, *args, **kwargs):
         # 管理No自動採番
