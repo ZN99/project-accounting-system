@@ -745,9 +745,15 @@
                                                                 <small class="text-muted">({{ file.get_file_size_display }})</small>
                                                             </span>
                                                             <div>
-                                                                <a href="{{ file.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary me-1">
-                                                                    <i class="fas fa-download"></i>
-                                                                </a>
+                                                                {% if file.is_linked_file %}
+                                                                    <a href="/media/{{ file.linked_source_file }}" target="_blank" class="btn btn-sm btn-outline-primary me-1" title="PDFを開く">
+                                                                        <i class="fas fa-external-link-alt"></i>
+                                                                    </a>
+                                                                {% else %}
+                                                                    <a href="{% url 'order_management:project_file_download' project.pk file.pk %}" class="btn btn-sm btn-outline-primary me-1" title="ダウンロード">
+                                                                        <i class="fas fa-download"></i>
+                                                                    </a>
+                                                                {% endif %}
                                                                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteProjectFile({{ file.id }})">
                                                                     <i class="fas fa-trash"></i>
                                                                 </button>
