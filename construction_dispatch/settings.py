@@ -138,7 +138,14 @@ STATICFILES_DIRS = [
 
 # Media files (user uploaded content)
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+
+# Render Disk対応: 本番環境では永続ディスクを使用
+if os.environ.get('RENDER'):
+    # Renderの永続ディスク（後でRenderダッシュボードで設定）
+    MEDIA_ROOT = os.environ.get('MEDIA_ROOT', '/opt/render/project/media')
+else:
+    # ローカル開発環境
+    MEDIA_ROOT = BASE_DIR / 'media'
 
 # Login URLs
 LOGIN_URL = '/orders/login/'

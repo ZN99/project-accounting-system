@@ -31,6 +31,8 @@ urlpatterns = [
 # カスタムエラーハンドラー
 handler403 = permission_denied_handler
 
-# Media files (user uploaded content) - development only
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Media files (user uploaded content)
+# 本番環境（Render）でも配信する必要がある
+# Note: 大規模システムではNginx等のWebサーバーで配信すべきだが、
+# Renderの場合はWhiteNoiseまたはDjangoで直接配信する
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
