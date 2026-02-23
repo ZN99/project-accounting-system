@@ -50,6 +50,22 @@ def project_file_download(request, project_pk, file_pk):
     )
 
     try:
+        # Handle linked files (PDFs from purchase orders/invoices)
+        if project_file.is_linked_file and project_file.linked_source_file:
+            from django.conf import settings
+            linked_file_path = os.path.join(settings.MEDIA_ROOT, project_file.linked_source_file)
+            if not os.path.isfile(linked_file_path):
+                raise Http404("リンク先のファイルが見つかりません")
+            return FileResponse(
+                open(linked_file_path, 'rb'),
+                as_attachment=True,
+                filename=os.path.basename(linked_file_path)
+            )
+
+        # Handle regular uploaded files
+        if not project_file.file:
+            raise Http404("ファイルが見つかりません")
+
         return FileResponse(
             project_file.file.open('rb'),
             as_attachment=True,
@@ -71,8 +87,8 @@ def project_file_delete(request, project_pk, file_pk):
 
     file_name = project_file.file_name
 
-    # ファイルを物理削除
-    if project_file.file:
+    # ファイルを物理削除（リンクファイルの場合はスキップ）
+    if not project_file.is_linked_file and project_file.file:
         if os.path.isfile(project_file.file.path):
             os.remove(project_file.file.path)
 
@@ -165,8 +181,8 @@ def step_file_delete_ajax(request, project_pk, file_pk):
 
         file_name = project_file.file_name
 
-        # ファイルを物理削除
-        if project_file.file and os.path.isfile(project_file.file.path):
+        # ファイルを物理削除（リンクファイルの場合はスキップ）
+        if not project_file.is_linked_file and project_file.file and os.path.isfile(project_file.file.path):
             os.remove(project_file.file.path)
 
         # データベースから削除
