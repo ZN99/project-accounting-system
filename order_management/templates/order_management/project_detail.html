@@ -3869,7 +3869,7 @@ $(document).ready(function() {
                         </div>
                     </div>
                     <div class="btn-group btn-group-sm">
-                        <a href="{% url 'order_management:project_file_download' project.pk 0 %}".replace('/0/', '/${file.id}/')
+                        <a href="/orders/projects/{{ project.pk }}/files/${file.id}/download/"
                            class="btn btn-outline-primary btn-sm" title="ダウンロード">
                             <i class="fas fa-download"></i>
                         </a>
