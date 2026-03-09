@@ -45,6 +45,23 @@
         border-color: #4e73df;
         box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
     }
+    /* 管理番号フィールドのスタイル */
+    #id_management_no.is-valid {
+        border-color: #28a745;
+        padding-right: calc(1.5em + 0.75rem);
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2328a745' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right calc(0.375em + 0.1875rem) center;
+        background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+    }
+    #id_management_no.is-invalid {
+        border-color: #dc3545;
+        padding-right: calc(1.5em + 0.75rem);
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23dc3545' viewBox='0 0 12 12'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right calc(0.375em + 0.1875rem) center;
+        background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+    }
     .btn-primary {
         background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
         border: none;
@@ -477,6 +494,21 @@
                                                     <i class="fas fa-chart-line"></i> 営業管理
                                                 </button>
                                             </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 管理番号 -->
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="{{ form.management_no.id_for_label }}" class="form-label">
+                                                管理番号 <span class="text-danger">*</span>
+                                                <i class="fas fa-info-circle text-muted ms-1"
+                                                   data-bs-toggle="tooltip"
+                                                   data-bs-placement="top"
+                                                   title="案件管理番号（6桁）。空欄の場合は自動採番されます。"></i>
+                                            </label>
+                                            {{ form.management_no }}
+                                            <div id="management-no-feedback" class="mt-1"></div>
                                         </div>
                                     </div>
 
@@ -10219,6 +10251,91 @@ window.saveDraft = function() {
         isAutoSaving = false;
     });
 };
+
+// ========================================
+// 管理番号リアルタイム検証
+// ========================================
+(function() {
+    const managementNoInput = document.getElementById('id_management_no');
+    const feedbackDiv = document.getElementById('management-no-feedback');
+    let checkTimeout = null;
+    let lastCheckedValue = '';
+
+    if (!managementNoInput) return;
+
+    // プロジェクトIDを取得（編集時）
+    const projectIdInput = document.querySelector('input[name="project_id"]');
+    const projectId = projectIdInput ? projectIdInput.value : '';
+
+    // デバウンス付き検証
+    function checkManagementNo(value) {
+        // 空欄の場合はフィードバックをクリア
+        if (!value.trim()) {
+            feedbackDiv.innerHTML = '<small class="text-muted"><i class="fas fa-info-circle"></i> 自動採番されます</small>';
+            return;
+        }
+
+        // 前回と同じ値ならスキップ
+        if (value === lastCheckedValue) return;
+        lastCheckedValue = value;
+
+        // チェック中表示
+        feedbackDiv.innerHTML = '<small class="text-muted"><i class="fas fa-spinner fa-spin"></i> チェック中...</small>';
+
+        // APIリクエスト
+        const url = new URL('{% url "order_management:check_management_no_availability" %}', window.location.origin);
+        url.searchParams.append('management_no', value);
+        if (projectId) {
+            url.searchParams.append('project_id', projectId);
+        }
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.available) {
+                    feedbackDiv.innerHTML = '<small class="text-success"><i class="fas fa-check-circle"></i> ' + data.message + '</small>';
+                    managementNoInput.classList.remove('is-invalid');
+                    managementNoInput.classList.add('is-valid');
+                } else {
+                    feedbackDiv.innerHTML = '<small class="text-danger"><i class="fas fa-exclamation-circle"></i> ' + data.message + '</small>';
+                    managementNoInput.classList.remove('is-valid');
+                    managementNoInput.classList.add('is-invalid');
+                }
+            })
+            .catch(error => {
+                console.error('Management No check error:', error);
+                feedbackDiv.innerHTML = '<small class="text-danger"><i class="fas fa-exclamation-triangle"></i> チェックエラー</small>';
+            });
+    }
+
+    // 入力イベント（300msデバウンス）
+    managementNoInput.addEventListener('input', function(e) {
+        const value = e.target.value;
+
+        // タイムアウトをクリア
+        if (checkTimeout) {
+            clearTimeout(checkTimeout);
+        }
+
+        // 300ms後にチェック実行
+        checkTimeout = setTimeout(() => {
+            checkManagementNo(value);
+        }, 300);
+    });
+
+    // フォーカスアウト時にも即座にチェック
+    managementNoInput.addEventListener('blur', function(e) {
+        if (checkTimeout) {
+            clearTimeout(checkTimeout);
+        }
+        checkManagementNo(e.target.value);
+    });
+
+    // 初期値がある場合はチェック
+    if (managementNoInput.value) {
+        checkManagementNo(managementNoInput.value);
+    }
+})();
 
 </script>
 

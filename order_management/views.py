@@ -3006,3 +3006,72 @@ def mark_comments_read(request, project_id):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@login_required
+def get_next_management_no(request):
+    """次の案件管理番号を取得するAPI
+
+    Returns:
+        JSON: {management_no: "000042"}
+    """
+    try:
+        # Project.generate_management_no()の実装を使用
+        temp_project = Project()
+        next_no = temp_project.generate_management_no()
+
+        return JsonResponse({
+            'success': True,
+            'management_no': next_no
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+def check_management_no_availability(request):
+    """管理番号の使用可能性をチェックするAPI
+
+    Query params:
+        management_no: チェックする管理番号
+        project_id: 編集時の現在のプロジェクトID（任意）
+
+    Returns:
+        JSON: {available: true/false, message: "..."}
+    """
+    try:
+        management_no = request.GET.get('management_no', '').strip()
+        project_id = request.GET.get('project_id', '').strip()
+
+        if not management_no:
+            return JsonResponse({
+                'available': False,
+                'message': '管理番号を入力してください'
+            })
+
+        # 既存のプロジェクトをチェック
+        query = Project.objects.filter(management_no=management_no)
+
+        # 編集時は自分自身を除外
+        if project_id:
+            query = query.exclude(pk=project_id)
+
+        if query.exists():
+            return JsonResponse({
+                'available': False,
+                'message': 'この管理番号は既に使用されています'
+            })
+
+        return JsonResponse({
+            'available': True,
+            'message': 'この管理番号は使用可能です'
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'available': False,
+            'message': f'エラーが発生しました: {str(e)}'
+        }, status=500)

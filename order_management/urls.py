@@ -247,6 +247,10 @@ urlpatterns = [
     # 請求書API
     path('api/invoice/generate/', views.generate_client_invoice_api, name='generate_client_invoice_api'),
     path('api/invoice/preview/<int:project_id>/', views.get_invoice_preview_api, name='get_invoice_preview_api'),
+
+    # 管理番号API
+    path('api/get-next-management-no/', views.get_next_management_no, name='get_next_management_no'),
+    path('api/check-management-no/', views.check_management_no_availability, name='check_management_no_availability'),
     path('api/invoice/preview/client/', views.get_client_invoice_preview_api, name='client_invoice_preview_api'),
     path('api/generate-invoices-by-client/', views.generate_invoices_by_client_api, name='generate_invoices_by_client_api'),
 

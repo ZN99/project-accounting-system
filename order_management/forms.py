@@ -26,7 +26,7 @@ class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
         exclude = [
-            'management_no', 'billing_amount', 'amount_difference',
+            'billing_amount', 'amount_difference',
             'created_at', 'updated_at', 'invoice_status', 'parking_fee',
             # Phase 8: 自動計算・システム管理フィールド
             'priority_score', 'requires_approval', 'approval_status',
@@ -42,6 +42,11 @@ class ProjectForm(forms.ModelForm):
             'incoming_payment_status',
         ]
         widgets = {
+            'management_no': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '000001',
+                'id': 'id_management_no'
+            }),
             'site_address': forms.Textarea(attrs={'rows': 2}),
             'client_address': forms.Textarea(attrs={'rows': 2}),  # 旧: contractor_address
             'notes': forms.Textarea(attrs={'rows': 4}),
@@ -116,6 +121,36 @@ class ProjectForm(forms.ModelForm):
             self.fields['expense_amount_1'].required = False
         if 'expense_amount_2' in self.fields:
             self.fields['expense_amount_2'].required = False
+
+        # 管理番号: 新規作成時のみプレースホルダーに次の番号を設定
+        if 'management_no' in self.fields:
+            if not self.instance.pk:
+                # 新規作成時: 次の管理番号を取得
+                temp_project = Project()
+                next_no = temp_project.generate_management_no()
+                self.fields['management_no'].widget.attrs['placeholder'] = next_no
+                self.fields['management_no'].initial = next_no
+            else:
+                # 編集時: 現在の管理番号を表示
+                self.fields['management_no'].widget.attrs['placeholder'] = self.instance.management_no
+            self.fields['management_no'].required = True
+
+    def clean_management_no(self):
+        """管理番号の重複チェック"""
+        management_no = self.cleaned_data.get('management_no', '').strip()
+
+        if not management_no:
+            raise forms.ValidationError('管理番号は必須です。')
+
+        # 重複チェック（編集時は自分自身を除外）
+        query = Project.objects.filter(management_no=management_no)
+        if self.instance.pk:
+            query = query.exclude(pk=self.instance.pk)
+
+        if query.exists():
+            raise forms.ValidationError('この管理番号は既に使用されています。')
+
+        return management_no
 
 
 class FixedCostForm(forms.ModelForm):
